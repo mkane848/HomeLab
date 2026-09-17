@@ -26,7 +26,7 @@ On the Ubuntu server (currently down — see
 [docs/server-recovery-cpu-led.md](docs/server-recovery-cpu-led.md)):
 
 ```bash
-source profiles/dev-workflow-server.sh
+source profiles/dev-workflow-quality.sh
 ./server/scripts/install-model.sh --profile
 ./server/scripts/startup.sh
 ```
@@ -53,7 +53,7 @@ source profiles/dev-workflow-server.sh
 ┌─────────────────────────────────────────────────────────────┐
 │              Fleet: local LLM nodes + cloud                 │
 │                                                             │
-│  Desktop: Qwen3 8B  <- DRIVES (only tool-capable model)     │
+│  Desktop: Qwen3 8B  <- DRIVES (tool-capable, 32k ctx)       │
 │           Qwen Coder 3B (small) · 7B/14B, DeepSeek-R1 14B   │
 │           as no-tools models     (RX 6800 XT, Vulkan)       │
 │  Server:  Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3,        │
@@ -63,9 +63,9 @@ source profiles/dev-workflow-server.sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Only `qwen3:8b` emits a parseable tool call — everything else is a chat box
-that will describe edits it never made. Probe any model with
-`.\tests\test-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
+Only `qwen3` models emit parseable tool calls (3 of 10 installed pass the
+probe). Everything else is a chat box that will describe edits it never made.
+Probe any model with `.	ests	est-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
 
 See [docs/model-architecture.md](docs/model-architecture.md) and
 [docs/hardware.md](docs/hardware.md) for details.
@@ -78,7 +78,7 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 - **Install scripts** — `server/scripts/install-model.sh` (Docker) and `desktop/scripts/models.ps1` (native), both accept tags/groups/profiles
 - **Profiles** — `profiles/dev-*.sh` auto-source `.env`, pick tiers + install intent + OpenCode defaults; pick via `profiles/select-model.sh`
 - **Startup** — `server/scripts/startup.sh` + `server/scripts/stop.sh` and `desktop/scripts/startup.ps1`; status via `server/scripts/status.sh`
-- **Tests** — `tests/test-profiles.ps1` runs all twelve profiles against intent manifests (tier flags, main-model role, Go-default probes), OpenCode registration, host liveness; `-RoundTrip` adds capability probes + latency benchmarks, `-Bench` FAILs over-budget models (see [docs/troubleshooting.md](docs/troubleshooting.md))
+- **Tests** — `tests/test-profiles.ps1` runs every live profile against intent manifests (tier flags, tool-capable main seat, Go-default probes), OpenCode registration, host liveness; `-RoundTrip` adds capability probes + latency benchmarks, `-Bench` FAILs over-budget models (see [docs/troubleshooting.md](docs/troubleshooting.md))
 - **[OpenCode template]** `opencode/global/opencode.jsonc` — providers split one-per-host: `ollama-server`, `ollama-desktop`, `ollama-node3`, `opencode-go`; redeploy with `.\desktop\scripts\sync-opencode.ps1`. Model entries must use `limit:{context,output}` — OpenCode silently drops unknown keys, and a model with no limit sends an untrimmed prompt that Ollama truncates (see [docs/troubleshooting.md](docs/troubleshooting.md)). Ships **no MCP servers**: those go in each project's own `opencode.jsonc` (`opencode/project-override/opencode.jsonc` is the template)
 - **[WezTerm sync]** `.\desktop\scripts\sync-wezterm.ps1` — deploys `wezterm/wezterm.lua` to `C:\Users\<you>\.wezterm.lua`
 - **Imports**: `import-claude-skills.ps1` (vendors from Claude) and `sync-skills.ps1` (deploys skills/commands/agents to Windows + server) — see [opencode/README.md](opencode/README.md)
@@ -101,5 +101,5 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 
 ## Fresh-Install Convenience
 
-- `dev-node3` only activates when `NODE3_IP` is set — see [docs/profiles.md](docs/profiles.md)
+- Nine profiles are parked in `profiles/parked/` (they need the server or the third node) — see [profiles/parked/README.md](profiles/parked/README.md). Three desktop profiles are live.
 - The [roadmap](docs/roadmap.md) tracks the node3 onboarding, image pinning, and post-upgrade validation.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-desktop-only.sh - Everything local on the personal PC (ROCm).
+# dev-desktop-only.sh - Everything local on this PC (Vulkan). Use when the server is down.
 # Use when the dev server is out of commission - no server, no cloud.
 # Qwen 7b autocomplete + DeepSeek 14b reasoner (baked 16k) + Qwen3 8b general.
 

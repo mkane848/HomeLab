@@ -16,9 +16,9 @@ Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker), `desktop` (this 
 
 The `/plan` → execute flow is the reason the workflow agents/commands exist and it pins models via OpenCode, not vram juggling:
 
-**Every seat that touches tools runs `qwen3:8b`** — it is the only installed model that emits parseable tool calls (1 of 8; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
+**Every seat that touches tools runs `qwen3:8b`** — it passes the tool-call probe (3 of 10 installed models do; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
 
-- `/plan <scope>` (`opencode/commands/plan.md` → `agents/planner.md`) runs **qwen3:8b**: reads the repo, writes/updates `docs/implementation-tasks.md` (risks/gaps cited by `file:line`, ordered file-scoped tasks with definitions of done). It was pinned to DeepSeek-R1, which cannot call the write tool and hallucinated success instead ("The task tool has written…").
+- `/plan <scope>` (`opencode/commands/plan.md`, runs on the main agent) uses **qwen3:8b**: reads the repo, writes/updates `docs/implementation-tasks.md` (risks/gaps cited by `file:line`, ordered file-scoped tasks with definitions of done). It was pinned to DeepSeek-R1, which cannot call the write tool and hallucinated success instead ("The task tool has written…").
 - Then tell the main session model — also **qwen3:8b** — to "execute task #N from docs/implementation-tasks.md". Coding never goes through delegation.
 - **There is no coder subagent and no `/implement`.** Both were removed 2026-09-17: the subagent was pinned to `qwen2.5-coder-16k` (the 7B), which cannot call tools, so `/implement` silently did nothing. A command that looks like it works and doesn't is worse than no command. AGENTS.md already said coding belongs in-thread — now the config agrees.
 - `qwen2.5-coder:14b` stays registered as a **no-tools** model: fine to switch to deliberately for code text, explanation or review, useless as an agent.
@@ -26,13 +26,13 @@ The `/plan` → execute flow is the reason the workflow agents/commands exist an
 **The Plan/Build toggle is not `/plan`.** The bottom-left toggle only gates tool
 permissions for the *current* session model; it does not switch model and it
 does not write the task doc (Plan mode has no write/edit tools). `/plan <scope>`
-is the only way to invoke the planner subagent. The main session model must be
+is the only way to get the task doc written. The main session model must be
 `qwen3:8b` — anything else cannot call tools. Launch OpenCode via
 `desktop\scripts\opencode.ps1` (sources the active workflow profile + sets
 process env) or from a shell that has sourced the profile; a bare launch falls
 back to User-level defaults.
 
-Profiles `dev-workflow-quality.sh` (default), `dev-workflow-resident.sh`, `dev-workflow-server.sh` set `OPENCODE_MODEL`/`OPENCODE_SMALL_MODEL`/`DEV_*_MODELS` for this. "Combo A/B/C" in `docs/profiles.md` = which host drives the main agent.
+Live profiles are `dev-workflow-quality.sh` (default), `dev-workflow-resident.sh` and `dev-desktop-only.sh`; they set `OPENCODE_MODEL`/`OPENCODE_SMALL_MODEL`/`DEV_*_MODELS`. Nine server/node3 profiles are parked in `profiles/parked/` — see its README.
 
 ## Model catalog (single source of truth)
 
@@ -59,7 +59,7 @@ Each profile is sourced bash that (1) loads `.env` from repo root via `set -a &&
 - `OPENCODE_MODEL` / `OPENCODE_SMALL_MODEL` — consumed by OpenCode config via `{env:...}`.
 - `OLLAMA_DESKTOP_URL`/`OLLAMA_DESKTOP_BASE_URL`, `OLLAMA_SERVER_BASE_URL`, `OLLAMA_NODE3_BASE_URL` — one host per OpenCode provider.
 
-On Windows, load the profile into the current process: PowerShell `. \profiles\dev-desktop-only.ps1` (dot-source; sets process-scope env), or Git bash `source profiles/dev-desktop-only.sh`. There is no `lib/load-env.ps1` — `dev-desktop-only.ps1` is the only PowerShell wrapper. `select-model.sh` is an interactive fzf picker over the nine fallback profiles (`dev-quick`, `dev-coder`, `dev-server-all`, `dev-desktop-only`, `dev-local-only`, `dev-embeddings`, `dev-go-only`, `dev-node3`, `dev-full` — all on disk); it does not list the `dev-workflow-*` trio, so source those directly.
+On Windows, load the profile into the current process: PowerShell `. \profiles\dev-desktop-only.ps1` (dot-source; sets process-scope env), or Git bash `source profiles/dev-desktop-only.sh`. There is no `lib/load-env.ps1` — `dev-desktop-only.ps1` is the only PowerShell wrapper. `select-model.sh` is an interactive fzf picker that discovers `profiles/*.sh` dynamically, so it always lists exactly the live profiles (currently three) and nothing parked.
 
 ## OpenCode config
 
@@ -107,7 +107,7 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
 
 ## Verification
 
-- **`.\tests\test-profiles.ps1`** is the primary harness. Runs **all 12 profiles by default** (everything in `profiles/` except `select-model.sh`; `-Profile <name>` runs one). Each profile is checked against an **intent manifest**: purpose string, expected `DEV_TIERS_*` flags, expected `OPENCODE_MODEL`/`OPENCODE_SMALL_MODEL` (GoDefault profiles must leave them unset), and the main seat's model **role** (coder/reasoner/general — a workflow profile pinning a reasoner as main is a FAIL). Then the existing contract checks: referenced models registered in the live config, host liveness, derived-model presence. `-RoundTrip` additionally makes every referenced model answer a prompt AND runs a **capability probe** (coder → python function, reasoner → arithmetic w/ reasoning, general → Q&A; embed models → `/api/embeddings`) plus a **latency benchmark** against per-model ms budgets. `-Bench` implies `-RoundTrip` and turns over-budget into FAIL (instead of WARN) and prints a summary table. Applies intent + benchmarks per-profile, and gates the `localhost` server-baseURL WARN to `dev-workflow-server` only. Emits PASS/FAIL/WARN/SKIP; WARN = state to fix (e.g. blank `OLLAMA_SERVER_BASE_URL`, unprovisioned host, missing installs), FAIL = broken; exit 1 on any FAIL. A `-RoundTrip` model returning `EMPTY content` is the reasoning-model max_tokens trap — see Gotchas.
+- **`.\tests\test-profiles.ps1`** is the primary harness. Runs **every live profile by default** (`profiles/*.sh` except `select-model.sh` — currently 3; parked ones in `profiles/parked/` are excluded automatically. `-Profile <name>` runs one). Each profile is checked against an **intent manifest**: purpose string, expected `DEV_TIERS_*` flags, expected `OPENCODE_MODEL`/`OPENCODE_SMALL_MODEL` (GoDefault profiles must leave them unset), and whether the main seat is **tool-capable** (`tool_call` in the resolved config — a profile seating a model that cannot call tools is a FAIL; the old role-based check was removed 2026-09-17 as both obsolete and wrong). Then the existing contract checks: referenced models registered in the live config, host liveness, derived-model presence. `-RoundTrip` additionally makes every referenced model answer a prompt AND runs a **capability probe** (coder → python function, reasoner → arithmetic w/ reasoning, general → Q&A; embed models → `/api/embeddings`) plus a **latency benchmark** against per-model ms budgets. `-Bench` implies `-RoundTrip` and turns over-budget into FAIL (instead of WARN) and prints a summary table. Applies intent + benchmarks per-profile, and gates the `localhost` server-baseURL WARN to `dev-workflow-server` only. Emits PASS/FAIL/WARN/SKIP; WARN = state to fix (e.g. blank `OLLAMA_SERVER_BASE_URL`, unprovisioned host, missing installs), FAIL = broken; exit 1 on any FAIL. A `-RoundTrip` model returning `EMPTY content` is the reasoning-model max_tokens trap — see Gotchas.
 - Bash syntax: `"C:\Program Files\Git\bin\bash.exe" -n <script>`; behavior: `bash -c 'source models/catalog.sh && catalog_list'`.
 - PowerShell: `.\desktop\scripts\models.ps1 -List`.
 - Server runtime checks: `./server/scripts/status.sh` (also runs `nvidia-smi`), `curl :11434/api/ps`.

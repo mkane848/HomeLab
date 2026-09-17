@@ -237,12 +237,22 @@ For anything bigger than a single edit:
 /plan add a --DryRun switch to desktop/scripts/sync-skills.ps1
 ```
 
-This hands the job to a **subagent** — a separate model invocation with its own
-prompt and its own contract, defined in
-[`opencode/agents/planner.md`](../opencode/agents/planner.md). The planner reads
-the repo and writes `docs/implementation-tasks.md` with two sections: risks and
-gaps cited by `file:line`, then a numbered task list where every task names the
-files it changes and the command that proves it worked.
+It runs on the main agent, defined in
+[`opencode/commands/plan.md`](../opencode/commands/plan.md). It reads the
+relevant files and writes `docs/implementation-tasks.md` with two sections:
+risks and gaps cited by `file:line`, then a numbered task list where each task
+names the files it changes and how to check it worked.
+
+> This used to dispatch a `planner` subagent. That agent was deleted on
+> 2026-09-17 — it never called the write tool, and the parent then reported a
+> file that did not exist. The fix that made `/plan` work was **shortening the
+> prompt**: on an 8B, a long careful contract produces worse compliance than a
+> short blunt one.
+
+**Read the plan before acting on it.** In a verified run its line numbers were
+accurate and two of its three interpretations were inverted — it saw
+`if ($DryRun) { log } else { act }` and reported the guard as missing. Open each
+cited line before believing the claim about it.
 
 Then, in the same session:
 
@@ -365,15 +375,15 @@ trivial request and read `task.n_tokens` from the Ollama log.
 
 ## When something looks wrong
 
-Run this first — it checks all 12 profiles against what's actually configured
-and serving:
+Run this first — it checks every live profile against what is actually configured
+and serving (expect 81 PASS, 0 FAIL, 0 WARN):
 
 ```powershell
 .\tests\test-profiles.ps1
 ```
 
-Expect `0 FAIL`. WARNs about `ollama-server` are normal while the server is
-down. Then, by symptom:
+Expect `0 FAIL` and `0 WARN`. Server-related WARNs disappeared when those
+profiles were parked. Then, by symptom:
 
 | Symptom | Likely cause | Where |
 |---|---|---|

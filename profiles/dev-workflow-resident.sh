@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-workflow-resident.sh - "Orchestrator + code subagent" (desktop)
+# dev-workflow-resident.sh - qwen3 drives; 7b coder kept resident as a no-tools model
 #
 # Fits the whole trio's day-to-day work in VRAM with no swaps.
 #

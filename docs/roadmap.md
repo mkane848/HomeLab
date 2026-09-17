@@ -72,7 +72,17 @@ Decide its fate:
 
 ## Hardening / experiments
 
-- [ ] **Pin the Ollama image**: `ollama/ollama` is currently `:latest`, which is non-reproducible. When a version is known-good, pin it in `docker-compose.yml` and re-pull on upgrade.
+- [x] **Pin the Ollama image** (2026-09-17): `server/docker/docker-compose.yml`
+      now pins `ollama/ollama:0.34.0`, the version every tool-calling and VRAM
+      measurement in these docs was taken against. `:latest` was a live risk,
+      not just a reproducibility nicety — which models emit parseable tool calls
+      depends on the Ollama version and its templates, so an unattended pull
+      could silently turn a working agent into one that reports edits it never
+      made. **On any version bump, re-run `tests/test-toolcalls.ps1` against the
+      host before trusting a seat.**
+      - [ ] The desktop is a native install, not a container, so it is *not*
+            pinned by this. It auto-updates. Consider disabling Ollama's
+            auto-update on the desktop, or at minimum re-probe after it moves.
 - [ ] Try CUDA-only tooling on the server that the Vulkan desktop cannot run: vLLM, TensorRT-LLM, CUDA llama.cpp — good candidates for serving a 14B at higher throughput.
 - [ ] Bake a higher-context derived model if the 16 384 default is too small for one specific job (`install-model.sh --ctx N` creates `<tag>-Nk`).
 - [ ] Add `qwen3-coder` to `models/catalog.tsv` + OpenCode config when it stabilizes in the Ollama library.

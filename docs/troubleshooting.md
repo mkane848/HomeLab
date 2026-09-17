@@ -615,10 +615,10 @@ default budget is plenty; this bites direct API calls and custom tools.
 
 ### Validating a profile end-to-end
 
-`tests/test-profiles.ps1` runs all twelve profiles by default (`-Profile <name>`
+`tests/test-profiles.ps1` runs every live profile by default (`-Profile <name>`
 runs one), each checked against its intent manifest (purpose, tier flags, main
-model vars, main-seat role), OpenCode registration, host liveness, and (with
-`-RoundTrip`) a capability probe plus latency benchmark per referenced model.
+model vars, and whether the main seat can call tools), OpenCode registration,
+host liveness, and (with `-RoundTrip`) a capability probe plus latency benchmark.
 With `-Bench` over-budget becomes FAIL and a summary table prints.
 
 ```powershell

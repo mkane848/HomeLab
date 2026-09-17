@@ -1,6 +1,18 @@
 services:
   ollama-server:
-    image: ollama/ollama:latest
+    # PINNED, deliberately. Do not move this back to :latest.
+    #
+    # Whether a model emits a parseable tool call is a property of the Ollama
+    # version and its bundled templates, not just the weights - and this whole
+    # setup depends on it. An unattended :latest pull can silently change which
+    # models can edit files, and the failure mode is an agent that reports work
+    # it never did (docs/troubleshooting.md -> "Agent 'says' it edited a file").
+    #
+    # 0.34.0 is the version every tool-calling result in the docs was measured
+    # against. On a bump, re-run tests/test-toolcalls.ps1 against this host
+    # BEFORE trusting any seat:
+    #   .\tests\test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434
+    image: ollama/ollama:0.34.0
     container_name: ollama-server
     restart: unless-stopped
     ports:
