@@ -162,6 +162,48 @@ cannot call a tool at all. `tests/test-profiles.ps1` used to assert the main
 seat's *role* — that check was removed on 2026-09-17 because it was both
 obsolete and wrong. It now asserts `tool_call` instead.
 
+### `/plan` works now — but verify every claim before acting on it
+
+Fixed 2026-09-17 by **shortening the prompt**, after four tests isolated the
+cause. It was never permissions, never a missing tool, never the `--command`
+path. Instruction-following on `qwen3:8b` degrades as the prompt gets more
+complex, and it degrades in stages:
+
+| Prompt | Length | Read? | Wrote file? | Output |
+|---|---|---|---|---|
+| `planner.md` subagent | ~40 lines | no | no | prose, asked a question |
+| `plan.md` v1 (numbered steps + rules) | ~25 lines | yes | no | stopped mid-task |
+| one-sentence message | 1 line | yes | **yes** | 4 bullets, no sections |
+| `plan.md` v2 (current) | ~12 lines | yes | **yes** | correct structure + real citations |
+
+The lesson generalises: **on a local 8B, a long careful contract produces worse
+compliance than a short blunt one.** If a command stops working, try cutting the
+prompt in half before adding more rules to it.
+
+`opencode/agents/planner.md` was deleted — `plan.md` no longer routes to a
+subagent, and a dead agent file is how confusion accumulates.
+
+#### The dangerous part
+
+The current output *looks* excellent and is **partly wrong**. From a real run:
+
+> "**Prune logic bypasses DryRun**: Line 145-159 has pruning code that doesn't
+> respect the DryRun flag, risking accidental deletions."
+
+`sync-skills.ps1:151` is `if ($DryRun) {` — the prune block **does** respect it.
+The model found the right code, cited the right lines, and inverted what it
+does. Two of its three claims were wrong in exactly this way: it saw
+`if ($DryRun) { log } else { act }` and concluded the guard was missing.
+
+Line numbers were accurate in all three cases. That is what makes it dangerous —
+a plan with real citations and confident wording passes a glance, and the
+failure mode from earlier that day was an agent executing a task list and
+corrupting a file.
+
+**Treat `/plan` output as a draft to check, never a task list to execute.** Open
+each cited line before believing the claim about it. Do not chain
+`/plan` → "execute task #1" without reading the plan yourself.
+
 ### Passing the probe is necessary, not sufficient — watch for repeated calls
 
 `test-toolcalls.ps1` answers "can this model emit one tool call?" It does not

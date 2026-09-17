@@ -1,11 +1,17 @@
 ---
-description: Have the planner subagent write/update the task list for $ARGUMENTS
-agent: planner
+description: Write docs/implementation-tasks.md for $ARGUMENTS
 ---
 
-Write or update docs/implementation-tasks.md for the scope or plan in
-$ARGUMENTS. Follow your contract exactly: read the relevant files first, then
-write the two-section document - "Risks & gaps" cited by file:line, and an
-ordered task list of file-scoped tasks with definitions of done. No
-boilerplate phases, no clarifying questions. Note assumptions at the top.
-Reply with only a 2-line confirmation and the task count.
+Read the files involved in this scope, then use the write tool to create
+docs/implementation-tasks.md. The file is the deliverable — do not put the plan
+in your reply.
+
+Scope: $ARGUMENTS
+
+The file must have two sections:
+
+## Risks & gaps
+What could go wrong, each pointing at a real file and line you read.
+
+## Task list
+Numbered steps. Each says which file it changes and how to check it worked.
