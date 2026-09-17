@@ -1,6 +1,14 @@
 # AGENTS.md
 
-Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama + OpenCode). Not an app codebase — most changes are bash/PowerShell scripts, JSONC config templates, and docs. **This repo is not a git repo** — changes are the source of truth in place.
+Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama + OpenCode). Not an app codebase — most changes are bash/PowerShell scripts, JSONC config templates, and docs.
+
+**This repo is under git as of 2026-09-17.** It was not before, and that cost real work: an agent asked to edit `desktop/scripts/sync-skills.ps1` left three duplicated blocks and three unbalanced braces in it, and the only recovery was reading the damage by hand. There was no `git diff` and no `git checkout --`.
+
+- **Commit before letting an agent edit anything.** `git status` should be clean when you start.
+- After an agent edits a script, `git diff` it and syntax-check before running it:
+  `[System.Management.Automation.Language.Parser]::ParseFile(<path>,[ref]$null,[ref]$errs)` for PowerShell, `bash -n` for shell.
+- `.env`, `desktop/docker/.env` and anything `*.env` are git-ignored; only `.env.example` templates are tracked. Secrets live in `~/.config/opencode/.secrets/`, outside the repo entirely.
+- No remote is configured. Local history is what protects you here.
 
 Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker), `desktop` (this PC, RX 6800 XT 16GB Vulkan, native), `node3` (future, 3080 FE). Hosts often down — all sync scripts must degrade gracefully (see Gotchas).
 
