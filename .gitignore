@@ -1,0 +1,22 @@
+# Secrets & API keys
+*.env
+.env.local
+.env.production
+ioskey*
+ioskey.pub
+
+# Real config files (use .example templates instead)
+opencode/global/opencode.json
+opencode/project-override/opencode.json
+desktop/ollama/config.json
+
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

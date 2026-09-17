@@ -1,0 +1,61 @@
+# desktop/docker/docker-compose.yml - Local dev services on the desktop.
+#
+# CPU-only by design: .wslconfig has gpuSupport=false (the WSL ConfigureGpu
+# workaround), so NO GPU passthrough into containers. Ollama stays native via
+# ROCm on the host - these are lightweight CPU services for app development
+# (local Postgres for apps like asohav that speak `pg`, Redis for queues/cache).
+#
+# Security: every port binds to 127.0.0.1 ONLY - nothing is exposed on the LAN.
+# Credentials live in desktop/docker/.env (copy from .env.example). `up` fails
+# fast if POSTGRES_PASSWORD is missing rather than shipping a default password.
+#
+# Manage with desktop\scripts\docker-stack.ps1  (up|down|ps|logs|status|restart)
+# or `docker compose -f desktop/docker/docker-compose.yml ...`.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dev-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?desktop/docker/.env is missing POSTGRES_PASSWORD - copy .env.example first}
+      POSTGRES_DB: ${POSTGRES_DB:-dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dev} -d ${POSTGRES_DB:-dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  redis:
+    image: redis:7-alpine
+    container_name: dev-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+volumes:
+  postgres_data:
+  redis_data:

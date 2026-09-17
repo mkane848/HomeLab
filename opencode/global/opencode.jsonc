@@ -1,0 +1,336 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model (change per profile or override in project config)
+  "model": "{env:OPENCODE_MODEL}",
+  "small_model": "{env:OPENCODE_SMALL_MODEL}",
+
+  "autoupdate": true,
+
+  "shell": "pwsh",
+
+  // ---------------------------------------------------------------------
+  // MODEL ENTRY SCHEMA - read this before adding a model.
+  //
+  // opencode validates model entries against its published schema and
+  // SILENTLY DROPS keys it does not know. This config used to declare
+  // "context_window": N and "input": ["text"]; neither is a real key, so
+  // every model resolved with NO limits at all. opencode then never trimmed
+  // the prompt and reserved its ~8192-token default for output, and Ollama
+  // answered with:
+  //     truncating input prompt limit=8194 prompt=46505 keep=4
+  // i.e. the entire system prompt was thrown away and the request 500'd.
+  //
+  // The real keys are:
+  //     "limit":      { "context": N, "output": N }
+  //     "modalities": { "input": ["text"], "output": ["text"] }
+  //     "tool_call":  true
+  //
+  // RULES:
+  //  1. limit.context must be <= what the host actually SERVES for that tag
+  //     (server: OLLAMA_CONTEXT_LENGTH; desktop: the num_ctx baked by
+  //     startup.ps1). Over-promising brings the truncation back.
+  //  2. limit.output is subtracted from limit.context to get the usable
+  //     prompt window. Keep it generous for reasoning models (they burn
+  //     budget on the reasoning block - see AGENTS.md Gotchas) but never so
+  //     large that it eats the window: 4096-8192 for reasoners, 2048 for
+  //     plain coders.
+  //  3. After editing, ALWAYS confirm with `opencode debug config` that the
+  //     resolved entry still shows `limit`. If it is missing, the key was
+  //     rejected and you are back to the truncation bug.
+  // ---------------------------------------------------------------------
+
+  "provider": {
+
+    "opencode-go": {
+      "options": {
+        "apiKey": "{file:.secrets/opencode-go-api-key}"
+      }
+    },
+
+    // One ollama provider PER HOST: a single ollama provider with one baseURL
+    // cannot reach two machines. Each profile sets the *_BASE_URL env vars.
+    // Model IDs look like: ollama-server/qwen2.5-coder:7b
+
+    // Server serves every tag at OLLAMA_CONTEXT_LENGTH (server/docker/.env,
+    // 16384 by default), so every entry here is capped at 16384.
+    // tool_call here reflects the DESKTOP probe of the same weights
+    // (tests/test-toolcalls.ps1). gemma3, glm4, codestral, gpt-oss and qwq are
+    // NOT installed anywhere yet and are therefore UNPROBED - their
+    // "tool_call": true is an assumption. Probe before seating any of them.
+    "ollama-server": {
+      "models": {
+        "qwen2.5-coder:7b": {
+          "name": "Qwen 2.5 Coder 7B (Server)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "qwen2.5-coder:14b": {
+          "name": "Qwen 2.5 Coder 14B (Server)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "deepseek-r1:14b": {
+          "name": "DeepSeek-R1 14B (Server)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Server)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "qwen3:14b": {
+          "name": "Qwen3 14B (Server)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "gemma3:12b": {
+          "name": "Gemma3 12B (Server)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "glm4:9b": {
+          "name": "GLM4 9B (Server)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "codestral": {
+          "name": "Codestral 22B (Server, edge)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "gpt-oss:20b": {
+          "name": "GPT-OSS 20B (Server, edge)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        "qwq:32b": {
+          "name": "QwQ 32B (Server, CPU offload)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:OLLAMA_SERVER_BASE_URL}"
+      }
+    },
+
+    // Desktop context comes from the num_ctx baked into each tag by
+    // startup.ps1 ($contextModels). Keep this table and $contextModels in sync
+    // - they are the two halves of one contract, and a mismatch brings back the
+    // truncation bug described at the top of this file.
+    //
+    // 32768: qwen3:14b, qwen3:8b, qwen2.5-coder:14b, deepseek-r1-32k
+    // 16384: everything else
+    //
+    // Why the agent seats need 32k: the system prompt plus tool schemas measure
+    // 11,441 tokens. At 16k that leaves ~850 tokens of real working room once
+    // output is reserved; at 32k it is ~17,200.
+    "ollama-desktop": {
+      "models": {
+        // No-tools model. Good code TEXT, cannot edit a file - it prints the
+        // tool call as chat instead (tests/test-toolcalls.ps1). Switch to it
+        // deliberately for explanation or review, never to drive a session.
+        "qwen2.5-coder:14b": {
+          "name": "Qwen 2.5 Coder 14B 32k ctx (Desktop, NO TOOLS)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        // Planner subagent target (/plan). Baked at 32768 - a planner has to
+        // read a lot of repo before it writes the task doc.
+        "deepseek-r1-32k": {
+          "name": "DeepSeek-R1 14B 32k ctx (Desktop)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 8192 }
+        },
+        // Kept at 16384 for anything still referencing the older alias.
+        "deepseek-r1-16k": {
+          "name": "DeepSeek-R1 14B 16k ctx (Desktop)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "deepseek-r1:14b": {
+          "name": "DeepSeek-R1 14B (Desktop)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "qwen2.5-coder:7b": {
+          "name": "Qwen 2.5 Coder 7B (Desktop)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        // Derived 7b alias baked by startup.ps1; the coder subagent uses it.
+        "qwen2.5-coder-16k": {
+          "name": "Qwen 2.5 Coder 7B 16k ctx (Desktop)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        // Small/companion model. The 3b stays resident next to the 14b; the
+        // 7b does not (see profiles/dev-workflow-quality.sh for the measured
+        // VRAM budget).
+        "qwen2.5-coder:3b": {
+          "name": "Qwen 2.5 Coder 3B (Desktop, small)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
+        // Lighter agent seat (dev-workflow-resident). Measured at 32k: 7.16 GB,
+        // 100% on GPU, 79.8 tok/s. With the 3b that is 9.42 GB, which still
+        // fits alongside a running game (~12.5 GB available).
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Desktop) - tool-capable",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        // MAIN SEAT of dev-workflow-quality. Probed 2026-09-17: PASS in 11.9s.
+        // Measured at 32k: 11.03 GB, 100% on GPU, 48.9 tok/s. Pairs with the
+        // 3b small model at 13.29 GB of ~14.8 GB usable.
+        "qwen3:14b": {
+          "name": "Qwen3 14B 32k ctx (Desktop) - main seat",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        // Agentic coding specialist (Mistral). 14 GB of weights on a ~14.8 GB
+        // usable card, so it WILL partially offload to system RAM and run
+        // slow. Registered for evaluation, not as a default seat.
+        "devstral:24b": {
+          "name": "Devstral 24B (Desktop, offloads)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:OLLAMA_DESKTOP_BASE_URL}"
+      }
+    },
+
+    // Third node's RTX 3080 FE node - only meaningful when dev-node3.sh sets
+    // OLLAMA_NODE3_BASE_URL to its IP. 10 GB card, so 16384 only.
+    "ollama-node3": {
+      "models": {
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Node3)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 4096 }
+        },
+        "glm4:9b": {
+          "name": "GLM4 9B (Node3)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:OLLAMA_NODE3_BASE_URL}"
+      }
+    }
+  },
+
+  "permission": {
+    "edit": "ask",
+    "bash": "ask"
+  },
+
+  // ---------------------------------------------------------------------
+  // MCP servers live in PROJECT configs, not here.
+  //
+  // Every MCP server injects its full tool schema into the system prompt of
+  // EVERY request, on every project. The five servers that used to live here
+  // (vercel, render, docker, browser, postgres - ~105 tools between them)
+  // were the bulk of a 46,505-token preamble that no 16k-32k local model can
+  // hold.
+  //
+  // opencode deep-merges project config over global, so each project turns on
+  // exactly what it needs in its own opencode.jsonc - and can switch off an
+  // inherited server with { "enabled": false }. See
+  // opencode/project-override/opencode.jsonc for the template.
+  // ---------------------------------------------------------------------
+  "mcp": {}
+}

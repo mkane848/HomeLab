@@ -1,0 +1,10 @@
+{
+  "_comment": "Ollama config for desktop (AMD-ROCm). Copy to config.json and adjust.",
+  "_doc": "See https://github.com/ollama/ollama/blob/main/docs/faq.md",
+
+  "host": "0.0.0.0:11434",
+
+  "_firewall_note": "Ensure Windows inbound firewall rule allows TCP 11434 for LAN access from server.",
+  "_env_note": "Also set OLLAMA_HOST=0.0.0.0 as environment variable for reliability.",
+  "_context_note": "Windows app overrides OLLAMA_CONTEXT_LENGTH with its VRAM-based default (env shows :0). Use the derived model: run desktop/scripts/startup.ps1 to create deepseek-r1-16k (Modelfile num_ctx 16384) and point OpenCode at that name. On Linux/Docker, OLLAMA_CONTEXT_LENGTH is honored."
+}

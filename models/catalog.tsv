@@ -1,0 +1,14 @@
+tag	size_gb	class	ctx	groups	hosts	desc
+qwen2.5-coder:7b	4.7	fit	16384	autocomplete,coder	all	Fast server autocomplete
+qwen2.5-coder:14b	9.0	fit	16384	coder	all	Primary coding model
+qwen3:8b	5.2	fit	16384	general	all	General purpose
+qwen3:14b	9.0	fit	16384	reasoner,general	all	Reasoning + general
+deepseek-r1:14b	9.5	fit	16384	reasoner	all	Deep chain-of-thought
+codestral:22b	14.0	edge	16384	coder	server,desktop	Coding model 22B (edge fit)
+gemma3:12b	8.1	fit	16384	creative	server,desktop	Creative/worldbuilding, 128k native
+glm4:9b	5.5	fit	16384	general	all	General purpose
+gpt-oss:20b	13.3	edge	16384	general	server,desktop	MoE general (edge fit)
+qwq:32b	19.9	offload	16384	reasoner	server,desktop	32B reasoner - CPU offload via RAM
+nomic-embed-text	0.27	fit	8192	embed	all	Embeddings (semantic / MTG card search)
+mxbai-embed-large	0.67	fit	512	embed	all	High quality embeddings
+devstral:24b	14.0	edge	16384	coder	server,desktop	Agentic coding, native tool use - WILL partially offload on 16GB

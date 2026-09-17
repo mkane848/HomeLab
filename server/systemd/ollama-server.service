@@ -1,0 +1,26 @@
+[Unit]
+Description=Ollama Server (Docker)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=YOUR_USER
+Group=YOUR_GROUP
+WorkingDirectory=/home/YOUR_USER
+
+# Pull and start the container
+ExecStartPre=/usr/bin/docker compose -f /path/to/docker-compose.yml pull
+ExecStart=/usr/bin/docker compose -f /path/to/docker-compose.yml up
+
+# Clean stop
+ExecStop=/usr/bin/docker compose -f /path/to/docker-compose.yml down
+
+Restart=on-failure
+RestartSec=10
+
+# Environment
+EnvironmentFile=/path/to/server/docker/.env
+
+[Install]
+WantedBy=multi-user.target

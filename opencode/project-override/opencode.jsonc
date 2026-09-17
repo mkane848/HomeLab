@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // =====================================================================
+  // PER-PROJECT opencode config. Copy this to a project's root as
+  // opencode.jsonc (or .opencode/opencode.json) and uncomment what that
+  // project needs.
+  //
+  // WHY THIS FILE EXISTS
+  // opencode deep-merges config: project overrides global. The global config
+  // (opencode/global/opencode.jsonc) deliberately ships with NO mcp servers
+  // and only a couple of always-useful skills, because every MCP tool schema
+  // and every skill description is injected into the system prompt of EVERY
+  // request. With all of them on, the preamble measured 46,505 tokens - about
+  // 2.5x what a 16k local model can even hold, so Ollama truncated it and the
+  // request died. Global-minimal + project-opt-in is what keeps local models
+  // usable, and it means you configure a project ONCE instead of toggling
+  // servers per session.
+  //
+  // Restart opencode after editing - config is read at session start.
+  // =====================================================================
+
+  // --- Model override ---------------------------------------------------
+  // Only if this project wants something other than the profile's default.
+  // "model": "opencode-go/kimi-k2.7-code",
+  // "small_model": "opencode-go/mimo-v2.5",
+
+  // --- Skills this project needs ---------------------------------------
+  // Points at the dev-docs repo directly - nothing is copied, opencode scans
+  // for **/SKILL.md, so the project always sees current repo content.
+  // Available sources: skills/vercel (44), skills/render (21),
+  // skills/ui-ux-pro-max (7), skills/frontend-design (1).
+  // frontend-design and ui-ux-pro-max are already global; list only extras.
+  //
+  // "skills": {
+  //   "paths": ["M:/Projects/dev-docs/skills/vercel"]
+  // },
+
+  // --- MCP servers this project needs ----------------------------------
+  // Each one costs its full tool schema on every request, so add only what
+  // the project actually uses. Set { "enabled": false } to switch off a
+  // server inherited from a parent config.
+  //
+  // "mcp": {
+  //   // Deployment targets - large tool surface, add only where used.
+  //   "vercel": { "type": "remote", "url": "https://mcp.vercel.com" },
+  //   "render": { "type": "remote", "url": "https://mcp.render.com/mcp" },
+  //
+  //   // Read-only Postgres against the desktop dev stack
+  //   // (desktop/docker/docker-compose.yml). DSN in .secrets/postgres-dsn.
+  //   "postgres": {
+  //     "type": "local",
+  //     "command": ["npx", "-y", "pg-ro-mcp", "--database-url", "{file:.secrets/postgres-dsn}"]
+  //   },
+  //
+  //   // Docker engine. Overlaps docker-stack.ps1 / docker-sandbox.ps1 - add
+  //   // it only when the agent itself has to drive containers.
+  //   "docker": { "type": "local", "command": ["npx", "-y", "@alisaitteke/docker-mcp"] },
+  //
+  //   // Browser automation (agent-browser). Worth it for projects with a
+  //   // Playwright/browser story, dead weight otherwise.
+  //   "browser": { "type": "local", "command": ["agent-browser", "mcp"] }
+  // },
+
+  "instructions": ["CONTRIBUTING.md", ".opencode/rules/*.md"]
+}
