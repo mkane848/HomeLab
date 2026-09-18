@@ -73,7 +73,7 @@ if ($Remove) {
 }
 
 if ($null -ne $existing) {
-    Write-Host "[pin-ollama] rule already present â€” nothing to do" -ForegroundColor Green
+    Write-Host "[pin-ollama] rule already present - nothing to do" -ForegroundColor Green
     return
 }
 

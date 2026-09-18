@@ -6,11 +6,18 @@
 #   .\tests\test-profiles.ps1 -Profile dev-desktop-only    # one profile (or comma-separated names)
 #   .\tests\test-profiles.ps1 -RoundTrip                   # prompt every referenced model (slow, loads VRAM)
 #   .\tests\test-profiles.ps1 -Bench                       # -RoundTrip + enforce per-model latency budgets + report table
+#   .\tests\test-profiles.ps1 -Reliability                 # single-write canary on every tool-capable MAIN seat
 #
 # Options:
 #   -Profile <name[,name]>  profile names (without .sh). Default: every profiles/*.sh except select-model.sh.
 #   -RoundTrip              run PONG, a capability probe, and a latency benchmark for each referenced model.
 #   -Bench                  implies -RoundTrip; a model over its latency budget FAILs; summary table printed.
+#   -Reliability            run the "create docs/_scratch.md" canary through `opencode run --format json` on
+#                           each profile's MAIN seat and FAIL if it issues more than one write/edit tool call
+#                           for the single prompt - the repeated-call regression that once unseated qwen3:14b.
+#                           A seat that makes NO write call (describes the edit instead) also FAILs. Tool-less
+#                           seats and unreachable hosts SKIP. Slow - loads the seat and runs a real task.
+#   -ReliabilityTimeout     seconds per canary run (default 360; `opencode run` is killed if it exceeds this).
 #   -ConfigPath             live opencode config to validate registration against.
 #   -BashPath               Git Bash executable (auto-detected if omitted).
 #   -RequestTimeout         seconds for Ollama API liveness/presence calls (default 15).
@@ -22,6 +29,8 @@ param(
     [string[]]$Profile = @(),
     [switch]$RoundTrip,
     [switch]$Bench,
+    [switch]$Reliability,
+    [int]$ReliabilityTimeout = 360,
     [string]$ConfigPath = (Join-Path $env:USERPROFILE ".config\opencode\opencode.jsonc"),
     [string]$BashPath = "",
     [int]$RequestTimeout = 15,
@@ -266,6 +275,84 @@ function Test-ChatRoundTrip {
     return [pscustomobject]@{ Ok = $false; Detail = "empty response, no reasoning, finish=$finish" }
 }
 
+# The write-discipline canary (-Reliability). Runs a real task through the
+# actual OpenCode tool layer (`opencode run --format json`) and counts the
+# write/edit tool calls the model emitted. `tool_call` in the config proves a
+# model CAN call tools; this proves it calls them ONCE per request and stops.
+#   - 0 calls    -> the model described the edit instead of making it
+#                   (the old qwen2.5/deepseek failure mode - report edits it
+#                   never made).
+#   - 1 call     -> correct discipline: one prompt, one write, then stop.
+#   - >1 calls   -> the repeated-call regression that once unseated qwen3:14b
+#                   (6 writes for one request). FAIL - that seat must not drive
+#                   an append/commit/migration until it stops repeating.
+# The canary file (docs/_scratch.md) is deleted afterwards so the tree stays
+# clean no matter how many seats are exercised.
+function Test-ReliableWrite {
+    param([string]$ModelId, [int]$TimeoutSec)
+
+    $scratchPath = Join-Path $repoRoot "docs\_scratch.md"
+    Remove-Item -LiteralPath $scratchPath -Force -ErrorAction SilentlyContinue
+
+    $msg = "Create a file at docs/_scratch.md containing the single line: it works"
+    $tmp = Join-Path $env:TEMP ("reliability-{0}.jsonl" -f ([guid]::NewGuid().ToString("N")))
+
+    # Run in a job so a wedged `opencode run` can be killed on timeout instead
+    # of hanging the whole harness. The child inherits this process's env, which
+    # is exactly what -RoundTrip relies on for resolved BASE_URL vars.
+    $job = Start-Job -ScriptBlock {
+        param($RepoRoot, $ModelId, $Msg, $Out)
+        & opencode run --dir $RepoRoot --model $ModelId --format json --auto $Msg 2>$null |
+            Out-File -LiteralPath $Out -Encoding utf8
+        return $LASTEXITCODE
+    } -ArgumentList $repoRoot, $ModelId, $msg, $tmp
+
+    if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
+        Stop-Job $job -ErrorAction SilentlyContinue
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        return [pscustomobject]@{ Ok = $false; Detail = "opencode run timed out after $TimeoutSec s"; Writes = -1 }
+    }
+    $code = @(Receive-Job $job)[0]
+    Remove-Job $job -Force -ErrorAction SilentlyContinue
+
+    $writes = 0
+    $bad = 0
+    if (Test-Path -LiteralPath $tmp) {
+        foreach ($line in [System.IO.File]::ReadLines($tmp)) {
+            if (-not $line.Trim()) { continue }
+            try { $e = $line | ConvertFrom-Json } catch { continue }
+            if ($e.type -ne "tool_use") { continue }
+            if ($e.part.tool -in @("write", "edit", "Patch", "NotebookEdit")) {
+                $writes++
+            } elseif ($e.part.state.status -and $e.part.state.status -ne "completed") {
+                $bad++
+            }
+        }
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+    }
+
+    $exists = Test-Path -LiteralPath $scratchPath
+    $contentOk = $false
+    if ($exists) {
+        $contentOk = ((Get-Content -LiteralPath $scratchPath -Raw -ErrorAction SilentlyContinue).Trim() -eq "it works")
+    }
+    Remove-Item -LiteralPath $scratchPath -Force -ErrorAction SilentlyContinue
+
+    if ($code -ne 0) {
+        return [pscustomobject]@{ Ok = $false; Detail = "opencode run exited $code - canary did not complete"; Writes = $writes }
+    }
+    if ($writes -eq 1 -and $exists -and $contentOk) {
+        return [pscustomobject]@{ Ok = $true; Detail = "exactly 1 write tool call; file correct"; Writes = 1 }
+    }
+    if ($writes -gt 1) {
+        return [pscustomobject]@{ Ok = $false; Detail = "$writes write/edit tool calls for ONE prompt - repeated-call regression; that seat must not append/commit/migrate until it stops (drop to qwen3:8b, see docs/troubleshooting.md)"; Writes = $writes }
+    }
+    if ($writes -eq 0) {
+        return [pscustomobject]@{ Ok = $false; Detail = "no write tool call made - the model described the edit instead of making it"; Writes = 0 }
+    }
+    return [pscustomobject]@{ Ok = $false; Detail = "wrote the file but content mismatch (exists=$exists contentOk=$contentOk)"; Writes = $writes }
+}
+
 $script:catalogRows = Import-Csv -LiteralPath $catalogPath -Delimiter "`t"
 
 function Get-ModelRole {
@@ -380,6 +467,7 @@ $profileIntents = @{
 }
 
 $capCache    = @{}
+$script:relCache = @{}
 $benchRows   = [System.Collections.Generic.List[object]]::new()
 
 if (-not (Test-Path -LiteralPath $profilesDir)) {
@@ -732,6 +820,31 @@ foreach ($profileName in $profileNames) {
             continue
         }
         Write-Result $profileName "host '$($ref.Id)'" "PASS" "served by $baseUrl"
+
+        if ($Reliability -and $ref.Id -eq $mainId) {
+            $relSplit = Split-ModelId $ref.Id
+            $toolCapable = $false
+            if ($providers -and $relSplit) {
+                $relProv = $providers.PSObject.Properties[$relSplit.Provider]
+                if ($relProv) {
+                    $relDef = $relProv.Value.models.PSObject.Properties[$relSplit.Model]
+                    if ($relDef -and $relDef.Value.tool_call -eq $true) { $toolCapable = $true }
+                }
+            }
+            if (-not $toolCapable) {
+                Write-Result $profileName "reliability '$($ref.Id)'" "SKIP" "seat tool_call=false - write-discipline gate N/A"
+            } else {
+                if (-not $script:relCache.ContainsKey($ref.Id)) {
+                    $script:relCache[$ref.Id] = Test-ReliableWrite -ModelId $ref.Id -TimeoutSec $ReliabilityTimeout
+                }
+                $rel = $script:relCache[$ref.Id]
+                if ($rel.Ok) {
+                    Write-Result $profileName "reliability '$($ref.Id)'" "PASS" $rel.Detail
+                } else {
+                    Write-Result $profileName "reliability '$($ref.Id)'" "FAIL" $rel.Detail
+                }
+            }
+        }
 
         if ($RoundTrip) {
             $isReasoning = $split.Model -match 'deepseek|qwq|qwen3'
