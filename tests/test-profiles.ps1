@@ -361,9 +361,11 @@ function New-Intent {
 $profileIntents = @{
     # Main seat must be a model that can actually CALL TOOLS. qwen2.5-coder and
     # deepseek-r1 cannot (tests/test-toolcalls.ps1) - they print the call as
-    # chat text and report edits they never made. qwen3:8b is the only one that
-    # passes, so it holds the main seat here regardless of code-quality ranking.
-    "dev-workflow-quality"  = New-Intent -Purpose "qwen3:8b drives in-thread at 32k, /plan on demand" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:3b" -Desktop $true
+    # chat text and report edits they never made. Only the qwen3 family (8b/14b)
+    # and devstral:24b pass, so a qwen3 holds the main seat here regardless of
+    # code-quality ranking. 14b was re-seated 2026-09-17 for loose-prompt intent
+    # handling; watch for repeated tool calls (see docs/troubleshooting.md).
+    "dev-workflow-quality"  = New-Intent -Purpose "qwen3:14b drives in-thread at 32k, /plan on demand" -Main "ollama-desktop/qwen3:14b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:3b" -Desktop $true
     "dev-workflow-resident" = New-Intent -Purpose "qwen3:8b drives, 7b coder resident as a no-tools code/review model (no coder subagent since 2026-09-17)" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
     "dev-workflow-server"   = New-Intent -Purpose "qwen3:8b drives from the server, desktop planner" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Desktop $true
     "dev-desktop-only"      = New-Intent -Purpose "standalone desktop console, no LAN deps" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
@@ -528,12 +530,13 @@ foreach ($profileName in $profileNames) {
         $refModels += [pscustomobject]@{ Id = $id; Source = "default" }
     }
     # Models the desktop must be able to serve beyond the main/small pair.
-    # qwen3:8b backs the planner subagent (opencode/agents/planner.md). The
-    # -16k aliases are derived tags startup.ps1 bakes; they are kept as
-    # deliberate no-tools models (code text, review) and profiles may seat them
-    # as small_model, so their presence is still part of the contract.
+    # qwen3:8b is the lighter main seat in dev-workflow-resident and
+    # dev-desktop-only, so it must stay registered. The -16k aliases are
+    # derived tags startup.ps1 bakes; they are kept as deliberate no-tools
+    # models (code text, review) and profiles may seat them as small_model, so
+    # their presence is still part of the contract.
     if ($tiers.desktop) {
-        $refModels += [pscustomobject]@{ Id = "ollama-desktop/qwen3:8b"; Source = "subagent (planner)" }
+        $refModels += [pscustomobject]@{ Id = "ollama-desktop/qwen3:8b"; Source = "lighter seat (resident/desktop-only)" }
         foreach ($agentId in @("deepseek-r1-16k", "qwen2.5-coder-16k")) {
             $refModels += [pscustomobject]@{ Id = "ollama-desktop/$agentId"; Source = "derived alias (no-tools)" }
         }

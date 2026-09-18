@@ -150,8 +150,8 @@ $body = @{
 
 | Model | `tool_calls` | Probe time | Notes |
 |---|---|---|---|
-| `qwen3:8b` | ✅ populated | 11 s | **the main seat** |
-| `qwen3:14b` | ✅ populated | 11.9 s | but repeats calls — see next section |
+| `qwen3:14b` | ✅ populated | 11.9 s | **the main seat** (dev-workflow-quality) |
+| `qwen3:8b` | ✅ populated | 11 s | lighter main seat (resident/desktop-only) |
 | `devstral:24b` | ✅ populated | 41.9 s | works, but 8.1 tok/s — see below |
 | `qwen2.5-coder` 3b/7b/14b/-16k | ❌ empty | — | prints the JSON as chat text |
 | `deepseek-r1` 14b/-16k/-32k | ❌ empty | — | answers in prose, suggests `echo hello > a.txt` |
@@ -161,6 +161,31 @@ $body = @{
 cannot call a tool at all. `tests/test-profiles.ps1` used to assert the main
 seat's *role* — that check was removed on 2026-09-17 because it was both
 obsolete and wrong. It now asserts `tool_call` instead.
+
+Iteration | `qwen3:8b` | `qwen3:14b` |
+| Probe 1 (dead-end) | truncates message to first word | — |
+| Probe 2 (dead-end) | truncates to first word | — |
+| Probe 3 (dead-end) | truncates to first word | — |
+| `/plan` + manual fix | ✅ single `← Write` | ✅ single `← Write` |
+
+**Quoting gotcha (avoid this dead end):** those first three probes failed
+because the *message* was truncated to its first word before it ever reached
+the model — a PowerShell→bash inline quoting artifact, not a tool-calling
+regression. PowerShell passes `"Create a file at docs/_scratch.md …"` through
+`bash -c '… "Create a file …" …'` and bash sees only `Create`. The model
+correctly replied "what?" — it was never a permissions problem and never a
+model without tools.
+
+Run tool probes as a **script** (`.sh` file), never as an inline `bash -c`
+string, and you get the full message. That is what the times above used.
+The tray's auto-title-generator receives the same truncated string, so both
+captures agree and the mistake is easy to trust — it is the quoting, not the
+model. Noted in `docs/roadmap.md` line 101 as well.
+
+`qwen3:14b` end-to-end probe (2026-09-17, re-seat verification):
+exactly **one** `← Write` `docs/_scratch.md` (`it works`), 2.9 min. The
+repeated-call regression documented below no longer fires on the 14b — the
+docs' "Single-Write discipline" check is what passes now.
 
 ### `/plan` works now — but verify every claim before acting on it
 
@@ -200,6 +225,14 @@ a plan with real citations and confident wording passes a glance, and the
 failure mode from earlier that day was an agent executing a task list and
 corrupting a file.
 
+**Reproduced verbatim under qwen3:14b the same day** (a fresh `/plan` on the
+same script after re-seating `dev-workflow-quality`): same script, same three
+inverted claims ("prune has no DryRun guard", "legacy cleanup skips DryRun"),
+accurate line numbers. The 14B seat fixed tool-calling discipline, **not**
+plan-verification reliability — re-seating changes the model, not the need to
+check every cited line. See `docs/implementation-tasks.md` for the corrected
+audit.
+
 **Treat `/plan` output as a draft to check, never a task list to execute.** Open
 each cited line before believing the claim about it. Do not chain
 `/plan` → "execute task #1" without reading the plan yourself.
@@ -220,9 +253,12 @@ for an idempotent write and **is not harmless** for an append, a `git commit`, a
 migration or an `rm`. It is also why it took 2.3x longer — six round trips, not
 a slower model.
 
-This is why `dev-workflow-quality` seats the **8B**, not the 14B, despite the
-14B being the larger model that fits comfortably (11.03 GB, 100% on GPU,
-48.9 tok/s). Bigger lost on behaviour, not on capacity.
+This is why `dev-workflow-quality` seats the **14B** by default (re-seated
+2026-09-17 for its loose-prompt intent handling): it is the largest fully
+on-GPU model that can call tools (11.03 GB, 100% on GPU, 48.9 tok/s). But the
+repeated-call behaviour above is exactly why the **8B** remains the safe fallback
+in the resident/desktop-only profiles — and why you watch a real task before
+letting the 14B run. Bigger won on intent; it lost on discipline.
 
 `qwen3:14b` stays registered and is fine for a bounded single-shot job. Before
 seating any model, run a real task through it and count the tool calls:
@@ -248,7 +284,8 @@ bake** — a freshly pulled, unbaked `qwen2.5-coder:3b` behaves identically.
 not that the *weights* reliably use them.
 
 **Consequence:** a `qwen2.5-coder` or `deepseek-r1` model in a seat that has to
-read, edit, or run anything is a chat box, not an agent. Only `qwen3:8b` can
+read, edit, or run anything is a chat box, not an agent. Only the qwen3 family
+(`qwen3:8b`, `qwen3:14b` — `devstral:24b` too, but it partially offloads) can
 hold the main seat or a tool-driving subagent. `profiles/dev-workflow-resident.sh`
 already said so from experience — this is the measurement behind it.
 
@@ -373,10 +410,10 @@ curl.exe -s http://localhost:11434/api/ps
 Select-String -Path "$env:LOCALAPPDATA\Ollama\server.log" -Pattern 'gpu memory' | Select-Object -Last 1
 ```
 
-Practical rule: the `dev-workflow-quality` pair (qwen3:8b + qwen2.5-coder:3b =
-8.19 GB) coexists with a game comfortably. Anything that wants the 14B or larger
-needs the game closed. This is a genuine reason to keep the main seat small
-beyond the eviction argument.
+Practical rule: the `dev-workflow-quality` pair (qwen3:14b + qwen2.5-coder:3b =
+13.29 GB) does **not** coexist with a game — switch to `dev-workflow-resident`
+(11.97 GB) when the GPU is shared. Anything that wants a second 14B or larger
+needs the game closed.
 
 ### Desktop is slow / the main model keeps reloading
 
@@ -392,6 +429,7 @@ fit, loading the small model evicts the main one and the next turn pays a
 |---|---|---|
 | `qwen2.5-coder:14b` + `:3b` | 11.27 + 2.26 = **13.54 GB** | ✅ |
 | `qwen2.5-coder:14b` + `:7b` | 11.27 + 5.22 = 16.49 GB | ❌ evicts |
+| `qwen3:14b` + `qwen2.5-coder:3b` | 11.03 + 2.26 = **13.29 GB** | ✅ |
 | `qwen3:8b` + `qwen2.5-coder-16k` | 5.93 + 4.81 = **10.74 GB** | ✅ |
 
 ```bash

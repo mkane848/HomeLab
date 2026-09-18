@@ -181,8 +181,8 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 4096 }
         },
-        // Planner subagent target (/plan). Baked at 32768 - a planner has to
-        // read a lot of repo before it writes the task doc.
+        // No-tools deep reasoner (code text, review). Baked at 32768. /plan
+        // runs on the main agent - there is no planner subagent any more.
         "deepseek-r1-32k": {
           "name": "DeepSeek-R1 14B 32k ctx (Desktop)",
           "attachment": true,

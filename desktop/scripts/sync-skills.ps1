@@ -165,10 +165,10 @@ if ($Local) {
         New-Item -ItemType Directory -Path $dst -Force | Out-Null
         Get-ChildItem -LiteralPath $src -Force | ForEach-Object {
             if ($DryRun) {
-                Write-Host "  + $pair[1]/$($_.Name)" -ForegroundColor Cyan
+                Write-Host "  + $($pair[1])/$($_.Name)" -ForegroundColor Cyan
             } else {
                 Copy-Item -LiteralPath $_.FullName -Destination $dst -Recurse -Force
-                Write-Host "  + $pair[1]/$($_.Name)"
+                Write-Host "  + $($pair[1])/$($_.Name)"
             }
         }
         Write-Host "  synced -> $dst ($( (Get-ChildItem -LiteralPath $dst -Force | Measure-Object).Count ) items)"
@@ -201,9 +201,13 @@ if ($Server) {
     }
     $remote = "${user}@${host_}"
 
-    Write-Host "  creating remote dirs..."
-    ssh $remote "mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/agents"
-    if ($LASTEXITCODE -ne 0) { Write-Host "ssh failed - server sync aborted" -ForegroundColor Red; return }
+    if ($DryRun) {
+        Write-Host "  (dry run) would create remote dirs" -ForegroundColor Cyan
+    } else {
+        Write-Host "  creating remote dirs..."
+        ssh $remote "mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/agents"
+        if ($LASTEXITCODE -ne 0) { Write-Host "ssh failed - server sync aborted" -ForegroundColor Red; return }
+    }
 
     foreach ($pair in @(@("skills", "skills"), @("commands", "commands"), @("agents", "agents"))) {
         $src = Join-Path $STAGE $pair[0]

@@ -2,6 +2,32 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
+## End goal (north star)
+
+Turn every machine in the house into interchangeable compute for **one Claude
+Code / ChatGPT Codex-like development experience**: prompt in plain human
+language, and the fleet flexibly supplies the models behind that experience.
+The profile selects which models run where, OpenCode pins the main seat, and
+`tests/test-profiles.ps1` enforces it — you never think about which GPU answers.
+
+Progress gates by hardware, not by preference:
+
+1. **Personal PC (this desktop, RX 6800 XT)** — doing this *today*.
+   `dev-workflow-quality` seats `qwen3:14b` (2026-09-17) as the tool-capable
+   main seat, the first seat that is both a real conversational agent and a
+   coder. Nothing below needs the server.
+2. **Ubuntu server (RTX 4070 Ti Super)** — unblocked once it POSTs; the
+   profile stream (`profiles/parked/`) is already in place. Server becomes the
+   heavyweight node (server-side `qwen3`, reasoners, embeddings) so the desktop
+   can stay a conversational seat.
+3. **Third node (RTX 3080 FE)** — last; the `ollama-node3` provider, `dev-node3.sh`
+   stub and `DEV_TIERS_NODE3` toggle exist and activate the moment `NODE3_IP` is
+   set.
+
+Each node joins by taking a profile, not by re-learning the workflow. The end
+state is a pool: a loose prompt, and whichever hardware is up and fastest
+answers it.
+
 ## Onboarding the third node (RTX 3080 FE, 10 GB / 5950X)
 
 The catalog, OpenCode provider (`ollama-node3`), and `dev-node3.sh` profile are already in place — the node just needs to exist.
@@ -42,31 +68,47 @@ Decide its fate:
       so the 14B (11.27 GB) is no longer evicted on every title/summary call.
 - [x] **Backend settled: Vulkan, permanently.** gfx1030 is unsupported by the
       Windows HIP SDK; `OLLAMA_VULKAN=0` gives CPU-only. Docs corrected.
-- [x] **Root-caused why agents never actually edit anything: only `qwen3:8b`
-      can call tools.** Measured against `/api/chat` with a tool schema on
-      Ollama 0.34.0 — `qwen3:8b` returns populated `tool_calls`;
-      `qwen2.5-coder:14b`, `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all
-      return empty `tool_calls` and print the call as chat text. Not the bake
+- [x] **Root-caused why agents never actually edit anything: only the qwen3
+      family (`qwen3:8b`/`qwen3:14b`) + `devstral:24b` can call tools.**
+      Measured against `/api/chat` with a tool schema on Ollama 0.34.0 —
+      `qwen3:8b` and `qwen3:14b` return populated `tool_calls` (devstral:24b
+      passes but partially offloads); `qwen2.5-coder:14b`,
+      `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all return empty
+      `tool_calls` and print the call as chat text. Not the bake
       (pristine re-pull behaves the same). See `docs/troubleshooting.md`.
-- [x] **Seat assignments corrected.** Every seat that reads/edits/runs is now
-      `qwen3:8b`: `dev-workflow-quality` main seat repointed from
-      `qwen2.5-coder:14b`; `opencode/agents/planner.md` repointed from
-      `deepseek-r1-32k`; `opencode/agents/coder.md` and
-      `opencode/commands/implement.md` **deleted** (the subagent was pinned to a
-      model that could not call tools, so `/implement` silently did nothing).
-      `qwen2.5-coder:14b` is retained as a deliberate no-tools model for code
-      text, explanation and review.
+- [x] **Seat assignments corrected (2026-09-17, final).** Every seat that
+      reads/edits/runs is a qwen3: `dev-workflow-quality` main seat re-seated
+      from `qwen3:8b` to `qwen3:14b` for loose-prompt intent handling (the
+      14b was briefly seated then reverted over a 6-write slip — re-probed
+      and re-seated same day; watch `← Write` lines for repeated calls);
+      `opencode/agents/coder.md` and `opencode/commands/implement.md`
+      **deleted** (the subagent was pinned to a model that could not call
+      tools, so `/implement` silently did nothing). `qwen2.5-coder:14b` is
+      retained as a deliberate no-tools model for code text, explanation and
+      review. `devstral:24b` passes the probe but is a solo-seat edge fit —
+      registered for evaluation, not seated.
 - [x] **End-to-end verified**: `opencode run` → qwen3:8b → `← Write
       docs/_write-test.md` → `Wrote file successfully.` The first attempt was
       blocked by `permission.edit: "ask"`, which is correct interactive
       behaviour — non-interactive `opencode run` cannot prompt, so it denies.
-- [ ] **Older `dev-*` profiles still seat a non-tool-capable model.** Audited
-      2026-09-17: `dev-quick`, `dev-coder`, `dev-server-all`, `dev-embeddings`,
-      `dev-local-only`, `dev-desktop-only` (both `.sh` and `.ps1`), `dev-node3`
-      (fallback branch) and `dev-workflow-server` all point `OPENCODE_MODEL` at
-      a `qwen2.5-coder` or `deepseek-r1` tag. They are chat-only as written.
-      `ollama-server/qwen3:8b` is already registered, so the server-side ones
-      can be repointed without new downloads.
+- [x] **qwen3:14b re-seat verified end-to-end (2026-09-17).** `opencode run
+      --model ollama-desktop/qwen3:14b --auto "Create a file at …"` made
+      **exactly one tool call** (`--format json`: `1 tool`, `1 tool_use`, then
+      `step_finish`) and wrote the file correctly. The "6-write slip" that
+      unseated it on 2026-09-17 did not reappear. Single-Write discipline
+      confirmed, matching the `← Write` watch-rule in `docs/troubleshooting.md`.
+      Gotcha while probing: an `opencode run … "full sentence"` message passed
+      in through PowerShell→bash inline quoting (`& "…\bash.exe" -c '…'`)
+      arrived at the model **truncated to its first word** ("Create"), which
+      looked exactly like a tool-calling regression. It was quote-mangling, not
+      the model — rerun probes via a bash *script file*, as here.
+- [x] **Older `dev-*` profiles still seat a non-tool-capable model.** Audited
+      2026-09-17 (pre-park `c3bf530^` and HEAD): **already fixed** — every parked
+      main seat is `qwen3:8b` (`dev-node3` on both its branches), `dev-local-only`
+      is `ollama-desktop/qwen3:8b`, and `dev-full`/`dev-go-only` leave
+      `OPENCODE_MODEL` unset by design (GoDefault). The only `qwen2.5-coder`
+      reference anywhere is `OPENCODE_SMALL_MODEL` — the title generator, which
+      must not have tools. Nothing to repoint.
 - [ ] Prefill on Vulkan is the remaining bottleneck (103 tok/s at `FA=1
       KV=q8_0`). Worth revisiting if AMD adds gfx1030 to the Windows HIP table.
 

@@ -29,7 +29,7 @@ source profiles/dev-server-all.sh
 | `dev-go-only.sh` | Qwen + OpenCode Go (test cloud models) | Server + Go | Go default (cloud) |
 | `dev-node3.sh` | Node3's 3080 FE node (stub until `NODE3_IP` set) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
 | `dev-full.sh` | Everything online (server + desktop + Go) | Server + Desktop + Go | Go default (cloud) |
-| `dev-workflow-quality.sh` | Coder 14B drives in-thread, DeepSeek `/plan` (desktop) | Desktop | Qwen 2.5 Coder 14B (desktop) |
+| `dev-workflow-quality.sh` | qwen3:14b drives in-thread, `/plan` on the main agent (desktop) | Desktop | Qwen3 14B (desktop) |
 | `dev-workflow-resident.sh` | Qwen3 8B orchestrator + coder/deepseek subagents (desktop) | Desktop | Qwen3 8B (desktop) |
 | `dev-workflow-server.sh` | Server 14B coder + autocomplete, desktop R1 planner | Server + Desktop | Qwen 2.5 Coder 14B (server) |
 

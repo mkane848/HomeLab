@@ -6,7 +6,7 @@ this desktop and the output is what you should actually see.
 **Right now:** the server (`SERVER_IP`) will not POST — hardware recovery is
 in progress ([`server-recovery-cpu-led.md`](server-recovery-cpu-led.md)). So
 everything runs on the Windows desktop, and the profile you want is
-`dev-workflow-quality` (qwen3:8b at 32k). Nothing below needs the server.
+`dev-workflow-quality` (qwen3:14b at 32k). Nothing below needs the server.
 
 ---
 
@@ -99,7 +99,7 @@ model. If either hangs or refuses, Ollama isn't up — check `Get-Process ollama
 You should see this line before the UI appears:
 
 ```
-[opencode] profile=dev-workflow-quality OPENCODE_MODEL=ollama-desktop/qwen3:8b
+[opencode] profile=dev-workflow-quality OPENCODE_MODEL=ollama-desktop/qwen3:14b
 ```
 
 **What a profile is.** A profile is a shell script that exports environment
@@ -107,7 +107,7 @@ variables — nothing more. It doesn't install anything or start anything. It
 just answers "which models, on which machines, for this shell":
 
 ```bash
-export OPENCODE_MODEL="ollama-desktop/qwen3:8b"        # the agent you talk to
+export OPENCODE_MODEL="ollama-desktop/qwen3:14b"        # the agent you talk to
 export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:3b"  # titles, summaries
 export OLLAMA_DESKTOP_BASE_URL="http://localhost:11434/v1"
 export DEV_TIERS_DESKTOP=true                          # startup.ps1 reads this
@@ -139,7 +139,7 @@ is the only thing that counts:
 opencode debug config
 ```
 
-Look for `"model": "ollama-desktop/qwen3:8b"` and, under
+Look for `"model": "ollama-desktop/qwen3:14b"` and, under
 `provider.ollama-desktop.models`, a `limit` block on every model. If `limit` is
 missing, see [`troubleshooting.md`](troubleshooting.md) — that exact bug made
 every request fail for weeks.
@@ -178,8 +178,8 @@ Measured on this desktop, 2026-09-17 — **3 of 10 installed models pass**:
 
 | Model | Can call tools? |
 |---|---|
-| `qwen3:8b` | **yes** — the main seat |
-| `qwen3:14b` | yes, but calls tools *repeatedly* — see below |
+| `qwen3:14b` | **yes** — the main seat (re-seated today; watch for repeated calls below) |
+| `qwen3:8b` | **yes** — the lighter main seat in `dev-workflow-resident`/`dev-desktop-only` |
 | `devstral:24b` | yes, but 8.1 tok/s — it spills out of VRAM |
 | `qwen2.5-coder` (3b / 7b / 14b / -16k) | no — prints the call as chat text |
 | `deepseek-r1` (14b / -16k / -32k) | no — ignores the tool, answers in prose |
@@ -192,13 +192,17 @@ call one at all.
 
 | Model | Wall | `write` calls |
 |---|---|---|
-| `qwen3:8b` | **96 s** | **1** |
-| `qwen3:14b` | 217 s | **6** |
+| `qwen3:8b` | **96.1 s** | **1** |
+| `qwen3:14b` | 217.2 s | **6** |
 
-The 14B wrote the same file six times for one request. Fine for a write, not
-fine for an append or a `git commit`. That's why the smaller model holds the
-seat — it won on behaviour, not on size. When you evaluate a model, run a real
-task and count the `← Write` lines.
+The 14B wrote the same file six times for one request. It won the seat anyway
+on 2026-09-17 for its loose-prompt intent handling — that is the north-star
+trade (see [`roadmap.md`](roadmap.md) → "End goal"). Both costs stand: it is
+~2.3× slower and it repeats tool calls. **If the `← Write` lines repeat for a
+single request, it does not recognise completion — for an append, a `git
+commit`, a migration or an `rm`, drop back to `qwen3:8b` before letting it
+continue.** Count the `← Write` lines on any real task and treat repeats as the
+safe-stop signal.
 
 Check any model yourself:
 
@@ -215,9 +219,9 @@ it returned a real `tool_calls` entry.
 
 **Why this matters more than model size.** `qwen2.5-coder:14b` writes better
 code than either qwen3 — and is still the wrong choice to drive a session,
-because it cannot touch a file. That's why the main seat is qwen3 everywhere,
-and why `/implement` and its coder subagent were deleted rather than left in
-place looking functional.
+because it cannot touch a file. That's why every main seat is a qwen3, and why
+`/implement` and its coder subagent were deleted rather than left in place
+looking functional.
 
 The config enforces it: every model that fails the probe carries
 `"tool_call": false`, so OpenCode doesn't offer it tools at all. And
@@ -268,15 +272,15 @@ agent then executes with a concrete list instead of a vague goal.
 > which tools the current model may use. `/plan` is a command that dispatches a
 > different agent. In Plan mode nothing is ever written to disk.
 
-**Status:** the planner was repointed from `deepseek-r1-32k` to `qwen3:8b` on
-2026-09-17 and a full `/plan` run has **not yet been verified end to end**.
-Under DeepSeek it reliably failed — it answered at length and claimed "The task
-tool has written `docs/implementation-tasks.md`" without writing anything. The
-write path itself is proven (qwen3:8b writes files correctly), so this should
-work; the thing to check the first time you run it is simply whether
-`docs/implementation-tasks.md` actually appears on disk. If it does not, the
-model described the call instead of making it — same failure, and worth
-reporting.
+**Status:** `/plan` runs on the main agent — the planner subagent
+(`opencode/agents/planner.md`) was deleted on 2026-09-17. It had been pinned to
+`deepseek-r1-32k`, which cannot call the write tool: it answered at length and
+claimed "The task tool has written `docs/implementation-tasks.md`" without
+writing anything. The write path itself is proven (qwen3:14b writes files
+correctly), so this should work; the thing to check the first time you run it
+is simply whether `docs/implementation-tasks.md` actually appears on disk. If
+it does not, the model described the call instead of making it — same failure,
+and worth reporting.
 
 ---
 
@@ -298,7 +302,7 @@ usable. If a second model doesn't fit alongside the first, Ollama **evicts** the
 first. That costs ~14 seconds to reload *and* throws away the cached prompt
 prefix, so the next turn re-processes everything from scratch.
 
-This is why the small model is a 3B. The pair above is **8.47 GB** and both
+This is why the small model is a 3B. The pair above is **13.29 GB** and both
 stay put. The old setup paired a 14B (11.27 GB) with a 7B (5.22 GB) = 16.5 GB,
 which does not fit — so every title generation silently evicted the main agent.
 
@@ -319,16 +323,19 @@ or evicting anything large:
 msg="llama-server model predicted to exceed available memory, evicting"
 ```
 
-Both default pairs survive that, which is partly why they're the defaults:
+Only `dev-workflow-resident` survives gaming (its pair is 11.97 GB), so that is
+the profile to switch to when the GPU is shared. The `dev-workflow-quality`
+pair does *not*:
 
 | Profile | Pair | VRAM | While gaming (~12.5 GB) |
 |---|---|---|---|
-| `dev-workflow-quality` | `qwen3:8b` @32k + 3b | 8.47 GB | fine |
+| `dev-workflow-quality` | `qwen3:14b` @32k + 3b | 13.29 GB | **no — evicts** |
 | `dev-workflow-resident` | `qwen3:8b` @32k + coder-16k | 11.97 GB | fine |
 
-What will *not* survive it: anything you deliberately switch to that's over
-~12 GB — `qwen3:14b` (11.03 GB) is borderline, `qwen2.5-coder:14b` (11.27 GB)
-likewise, `devstral:24b` (13.89 GB) has no chance. Close the game first.
+What will *not* survive it at all: anything you deliberately switch to that's
+over ~12 GB — `qwen3:14b` (11.03 GB) is borderline, `qwen2.5-coder:14b`
+(11.27 GB) likewise, `devstral:24b` (13.89 GB) has no chance. Close the game
+first (or use `dev-workflow-resident`).
 
 Benchmarks taken while gaming are meaningless — but `test-toolcalls.ps1`
 verdicts are still valid, because whether a model emits a tool call has nothing

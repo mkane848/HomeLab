@@ -2,6 +2,8 @@
 
 Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama + OpenCode). Not an app codebase — most changes are bash/PowerShell scripts, JSONC config templates, and docs.
 
+**End goal (north star): turn every machine in the house into interchangeable compute for one Claude Code / ChatGPT Codex-like development experience** — prompt in plain human language, and the fleet (personal PC today, the Ubuntu server when it's fixed, then node3's 3080 FE) flexibly supplies the models behind that experience. The mechanics documented in this repo exist so you don't have to think about which model runs where: the profile selects it, OpenCode pins it, tests enforce it. See `docs/roadmap.md`. Progress gates by hardware, not by preference.
+
 **This repo is under git as of 2026-09-17.** It was not before, and that cost real work: an agent asked to edit `desktop/scripts/sync-skills.ps1` left three duplicated blocks and three unbalanced braces in it, and the only recovery was reading the damage by hand. There was no `git diff` and no `git checkout --`.
 
 - **Commit before letting an agent edit anything.** `git status` should be clean when you start.
@@ -16,10 +18,10 @@ Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker), `desktop` (this 
 
 The `/plan` → execute flow is the reason the workflow agents/commands exist and it pins models via OpenCode, not vram juggling:
 
-**Every seat that touches tools runs `qwen3:8b`** — it passes the tool-call probe (3 of 10 installed models do; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
+**The main seat runs `qwen3:14b`** — it passes the tool-call probe along with `qwen3:8b` and `devstral:24b` (the only 3 of 10 installed models that do; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
 
-- `/plan <scope>` (`opencode/commands/plan.md`, runs on the main agent) uses **qwen3:8b**: reads the repo, writes/updates `docs/implementation-tasks.md` (risks/gaps cited by `file:line`, ordered file-scoped tasks with definitions of done). It was pinned to DeepSeek-R1, which cannot call the write tool and hallucinated success instead ("The task tool has written…").
-- Then tell the main session model — also **qwen3:8b** — to "execute task #N from docs/implementation-tasks.md". Coding never goes through delegation.
+- `/plan <scope>` (`opencode/commands/plan.md`, runs on the main agent) uses **the main session model**: reads the repo, writes/updates `docs/implementation-tasks.md` (risks/gaps cited by `file:line`, ordered file-scoped tasks with definitions of done). It was pinned to DeepSeek-R1, which cannot call the write tool and hallucinated success instead ("The task tool has written…").
+- Then tell the main session model — **`qwen3:14b`** — to "execute task #N from docs/implementation-tasks.md". Coding never goes through delegation.
 - **There is no coder subagent and no `/implement`.** Both were removed 2026-09-17: the subagent was pinned to `qwen2.5-coder-16k` (the 7B), which cannot call tools, so `/implement` silently did nothing. A command that looks like it works and doesn't is worse than no command. AGENTS.md already said coding belongs in-thread — now the config agrees.
 - `qwen2.5-coder:14b` stays registered as a **no-tools** model: fine to switch to deliberately for code text, explanation or review, useless as an agent.
 
@@ -27,7 +29,8 @@ The `/plan` → execute flow is the reason the workflow agents/commands exist an
 permissions for the *current* session model; it does not switch model and it
 does not write the task doc (Plan mode has no write/edit tools). `/plan <scope>`
 is the only way to get the task doc written. The main session model must be
-`qwen3:8b` — anything else cannot call tools. Launch OpenCode via
+`qwen3:14b` (or `qwen3:8b` when you need the lighter/latency-tuned seat) —
+anything else cannot call tools. Launch OpenCode via
 `desktop\scripts\opencode.ps1` (sources the active workflow profile + sets
 process env) or from a shell that has sourced the profile; a bare launch falls
 back to User-level defaults.
@@ -48,7 +51,7 @@ Live profiles are `dev-workflow-quality.sh` (default), `dev-workflow-resident.sh
 ## Installing models
 
 - Server (Docker): `./server/scripts/install-model.sh <tag|group|all|--profile>`. `--profile` reads `DEV_SERVER_MODELS`. `--ctx N` creates a derived `<tag>-Nk` model with baked `num_ctx`. Runs `docker exec ollama-server ollama ...`.
-- Desktop (native, Vulkan): `.\desktop\scripts\models.ps1 -Pull <tags> | -Group <g> | -All | -Profile` (`-Profile` reads `DEV_DESKTOP_MODELS`), `-Context N` bakes a derived model, `-List` lists installed. `startup.ps1` auto-pulls missing bake targets and bakes a per-model `num_ctx` (32768 for `qwen2.5-coder:14b` and `deepseek-r1-32k`, 16384 for the rest).
+- Desktop (native, Vulkan): `.\desktop\scripts\models.ps1 -Pull <tags> | -Group <g> | -All | -Profile` (`-Profile` reads `DEV_DESKTOP_MODELS`), `-Context N` bakes a derived model, `-List` lists installed. `startup.ps1` auto-pulls missing bake targets and bakes a per-model `num_ctx` (32768 for `qwen3:14b`, `qwen3:8b`, `qwen2.5-coder:14b` and `deepseek-r1-32k`, 16384 for the rest).
 
 ## Profiles (`profiles/dev-*.sh`)
 
@@ -116,7 +119,7 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
 ## Gotchas
 
 - **Files copied from Windows to the server lose the exec bit** — run `./make-executable.sh` after scp. (Syntax-check local .sh files from Windows first with Git bash.)
-- **Only `qwen3:8b` can actually call tools.** Measured on Ollama 0.34.0 against `/api/chat` with a tool schema: `qwen3:8b` returns populated `tool_calls`; `qwen2.5-coder:14b`, `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all return **empty** `tool_calls` and print the call as chat text (or, for R1, ignore it and answer in prose). The Qwen2.5 template needs `<tool_call></tool_call>` tags the coder weights never emit; not caused by the `num_ctx` bake (a pristine re-pull behaves the same). `ollama show` listing a `tools` capability only means the *template* supports tools. **Any seat that must read/edit/run belongs to qwen3** — a coder or reasoner there is a chat box that will claim it edited files it never touched. See `docs/troubleshooting.md` → "Agent 'says' it edited a file".
+- **Only the qwen3 family (`qwen3:8b`, `qwen3:14b`) can reliably call tools; `devstral:24b` passes too but is a solo-seat edge fit.** Measured on Ollama 0.34.0 against `/api/chat` with a tool schema: `qwen3:8b` and `qwen3:14b` return populated `tool_calls` (devstral:24b as well, though it partially offloads); `qwen2.5-coder:14b`, `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all return **empty** `tool_calls` and print the call as chat text (or, for R1, ignore it and answer in prose). The Qwen2.5 template needs `<tool_call></tool_call>` tags the coder weights never emit; not caused by the `num_ctx` bake (a pristine re-pull behaves the same). `ollama show` listing a `tools` capability only means the *template* supports tools. **Any seat that must read/edit/run belongs to the qwen3 family** — a coder or reasoner there is a chat box that will claim it edited files it never touched. `qwen3:14b` is the default main seat (dev-workflow-quality); it was previously unseated when it once issued 6 write calls for a single request — if you see repeated `← Write` lines in a session, drop back to `qwen3:8b`. See `docs/troubleshooting.md` → "Agent 'says' it edited a file" and "Passing the probe is necessary, not sufficient — watch for repeated calls".
 - **OpenCode silently drops unknown model keys.** `context_window` and a bare `input` are not in the schema; they vanish without an error and the model resolves with **no limits**, so OpenCode never trims the prompt and reserves ~8192 for output. Result: a 46,505-token prompt at a 16k model, `truncating input prompt limit=8194 prompt=46505 keep=4`, system prompt destroyed, 5-minute 500. Correct keys: `limit: { context, output }`, `modalities: { input, output }`, `tool_call`. **Always confirm with `opencode debug config` that the resolved entry still has `limit`** — the template proves nothing.
 - **Preamble budget.** Every MCP server's tool schema and every installed skill's description ride in *every* request. That is why global config ships zero MCP servers and 8 skills (was 5 servers + 64 skills = 46.5k tokens; now 11.4k). Projects opt in via their own `opencode.jsonc` — see `opencode/project-override/opencode.jsonc`. Measure with `opencode run ... "Reply with exactly: OK"` and read `task.n_tokens` from the Ollama log.
 - **Context length**: baked per model by `startup.ps1` (`$contextModels`) — 32768 for `qwen2.5-coder:14b` and `deepseek-r1-32k`, 16384 for the rest. `$contextModels` and `limit.context` in `opencode.jsonc` are two halves of one contract; changing one without the other brings the truncation back. `OLLAMA_CONTEXT_LENGTH` *is* honoured on Windows as of Ollama 0.34.0 (the old "the app zeroes it" note was a v0.32 bug, now fixed) — we bake anyway because the env var is a single global default and we need per-model control.
