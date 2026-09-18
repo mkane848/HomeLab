@@ -129,6 +129,7 @@ Decide its fate:
 - [ ] Bake a higher-context derived model if the 16 384 default is too small for one specific job (`install-model.sh --ctx N` creates `<tag>-Nk`).
 - [ ] Add `qwen3-coder` to `models/catalog.tsv` + OpenCode config when it stabilizes in the Ollama library.
 - [ ] Re-check `deepseek-r1-16k` on the desktop: with the server now hosting reasoners, the desktop bake may be optional.
+- [x] **LM Studio + VS Code review-gate experiment (2026-09-18).** Native VS Code BYOK (`chatLanguageModels.json`) registers LM Studio + desktop Ollama as peer endpoints; the review-gate split (tool-capable auditor → different-family no-tools reviewer → arbiter) caught a destructive remediation step a single qwen3-coder-30b run shipped. Method + measured gotchas recorded in [docs/lmstudio-vscode.md](lmstudio-vscode.md). Open follow-up: extend to the server seat (`http://SERVER_IP:11434/v1`) when the host is up.
 
 ## Desktop dev environments (landed)
 

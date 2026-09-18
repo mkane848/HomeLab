@@ -411,4 +411,5 @@ profiles were parked. Then, by symptom:
 | check VRAM and GPU facts | [hardware.md](hardware.md) |
 | add or change a model | [AGENTS.md](../AGENTS.md) → "Model catalog" |
 | fix the server | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) |
+| run models in VS Code / review-gate a plan | [lmstudio-vscode.md](lmstudio-vscode.md) |
 | see what's still open | [roadmap.md](roadmap.md) |

@@ -44,7 +44,7 @@ source profiles/dev-workflow-quality.sh
 | `skills/` | Vendored AI skills (imported from Claude, OpenCode-compatible) |
 | `claude/` | Claude import provenance + raw reference material |
 | `wezterm/` | WezTerm terminal config |
-| `docs/` | **[start-here](docs/start-here.md)** (read this first), plus network topology, model architecture, hardware, profiles, roadmap, troubleshooting |
+| `docs/` | **[start-here](docs/start-here.md)** (read this first), plus network topology, model architecture, hardware, profiles, roadmap, troubleshooting, [lmstudio-vscode](docs/lmstudio-vscode.md) (VS Code BYOK reference + review-gate methodology) |
 | `tests/` | `test-profiles.ps1` — all-profile intent/liveness/registration/schema checks, `-Bench` latency budgets. `test-toolcalls.ps1` — **does this model actually emit a tool call?** Run it before trusting any model in an agent seat |
 
 ## Architecture
