@@ -529,7 +529,10 @@ its keep. Canonical worked example + merge DoD in
    **test-veracity** — does the plan's test cover the branch it names), and
    `maxTokens` ≥8192. The metric: de novo seams caught (1/4 → ?). That number
    decides whether R1 is salvageable or needs a different reviewer
-   family/generation.
+   family/generation. **Staged, fixed inputs (same material as run 2, improved
+   prompt):** `docs/review-gate/r2-remeasure-input.md` (paste into the
+   reviewer) + `docs/review-gate/r2-remeasure-key.md` (grader's answer sheet —
+   never pasted to the reviewer).
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
 4. **Routinize grading** — record a per-run score sheet on the four axes so
