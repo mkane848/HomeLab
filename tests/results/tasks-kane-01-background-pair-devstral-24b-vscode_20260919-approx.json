@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-09-19T19:00:00",
+  "timestampNote": "approximate - manual check, not logged by test-tasks.ps1",
+  "taskId": "kane-01-background-pair",
+  "taskTitle": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
+  "model": "vscode-agent/ollama-desktop/devstral:24b",
+  "modelLabel": "devstral-24b-vscode-agent",
+  "interface": "vscode-copilot-agent-mode",
+  "backend": "ollama-desktop (http://127.0.0.1:11434/v1, BYOK)",
+  "runMethod": "manual - identical verbatim prompt pasted into VS Code Agent mode; not scripted through test-tasks.ps1",
+  "baseCommit": "92a8ed0df10262cc878d4d214d0a312d542375ec",
+  "promptSha256": "EFEF5E6EF63E",
+  "opencodeExit": "n/a",
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "NOT_RUN",
+    "failsOnOld": "NOT_RUN"
+  },
+  "typecheck": "NOT_RUN",
+  "elapsedSec": "n/a",
+  "note": "Manual replication of the OpenCode devstral:24b zero-write result via VS Code Agent mode, same base commit and identical prompt (see promptSha256, matches all four OpenCode kane-01 runs). git status --porcelain and git diff on deckValidation.ts both returned empty - 0 files changed. The response also invented a card_type field where the real flag is the boolean is_background (docs/implementation-tasks.md task 1), and proposed npm test where the repo's real command is pnpm exec vitest (tests/tasks/manifest.json testCmd). suite/failsOnOld/typecheck recorded NOT_RUN rather than inferred PASS, since no source change exists to test and this repo's rule is never grade a run on its own account."
+}

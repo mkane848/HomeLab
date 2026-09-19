@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the task-veracity benchmark harness (`tests/test-tasks.ps1`) and task
   manifest, seeded with the background-pairing task and its first graded runs
   (qwen3:14b, qwen3:8b x2, devstral:24b — all FAIL on the six mechanical gates).
+- Cross-check the `devstral:24b` zero-write result from the task-veracity
+  benchmark (`kane-01-background-pair`) through VS Code Agent mode, same base
+  commit and identical prompt: reproduced - 0 files changed. Confirms the
+  failure isn't an OpenCode/raw-Ollama-template artifact.
+  (`tests/results/tasks-kane-01-background-pair-devstral-24b-vscode_*.json`)
 - Add `CONTRIBUTING.md` and a GitHub pull-request template codifying the repo's
   review-gate verification standard and changelog convention.
 - Plan the fleet decision on the review-gate results: third 16 GB node vs.
