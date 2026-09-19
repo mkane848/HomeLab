@@ -75,6 +75,9 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 if (-not (Test-Path -LiteralPath $resultsDir)) {
     New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 }
+if (-not (Test-Path -LiteralPath $wtRoot)) {
+    New-Item -ItemType Directory -Path $wtRoot -Force | Out-Null
+}
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $allTasks = @($manifest.tasks)
@@ -165,6 +168,10 @@ function Ensure-Worktree {
 
     $repo = $Task.repo
     $branch = $Task.branch
+    # Install state lives OUTSIDE the worktree: an in-tree marker file shows up
+    # in `git status --porcelain`, gets deleted by `git clean -fd` (forcing a
+    # reinstall every other run), and is visible to the model while it works.
+    $marker = Join-Path $wtRoot ("." + $Task.id + ".installed")
     $head = Get-HeadCommit $repo $branch
     if (-not $head) {
         Write-Result $Task.id "worktree" "FAIL" "cannot resolve refs/heads/$branch in $repo"
@@ -191,8 +198,8 @@ function Ensure-Worktree {
         }
         $installed = ""
     } else {
-        $installed = if (Test-Path -LiteralPath (Join-Path $WtPath ".bench-installed")) {
-            (Get-Content -LiteralPath (Join-Path $WtPath ".bench-installed") -Raw).Trim()
+        $installed = if (Test-Path -LiteralPath $marker) {
+            (Get-Content -LiteralPath $marker -Raw).Trim()
         } else { "" }
     }
 
@@ -235,7 +242,7 @@ function Ensure-Worktree {
                 }
             }
         }
-        Set-Content -LiteralPath (Join-Path $WtPath ".bench-installed") -Value $head -Encoding ascii
+        Set-Content -LiteralPath $marker -Value $head -Encoding ascii
     }
     return [pscustomobject]@{ Wt = $WtPath; Head = $head }
 }

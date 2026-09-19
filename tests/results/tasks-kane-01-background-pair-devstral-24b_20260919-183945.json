@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-09-19T18:39:45",
+  "taskId": "kane-01-background-pair",
+  "taskTitle": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
+  "model": "ollama-desktop/devstral:24b",
+  "modelLabel": "devstral-24b",
+  "baseCommit": "92a8ed0df10262cc878d4d214d0a312d542375ec",
+  "promptSha256": "EFEF5E6EF63E",
+  "opencodeExit": 0,
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "PASS",
+  "elapsedSec": 119.5
+}
