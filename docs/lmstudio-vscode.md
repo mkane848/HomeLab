@@ -306,6 +306,14 @@ on, hand both sides to `qwen3:14b` (Agent mode) as a final, tool-capable seat.
 Same family as the auditor — a weaker cross-check than R1 — so it is an
 arbiter/executor, not the primary reviewer.
 
+**Step 4 — Fix-and-reverify pass (implementation runs only).** When the
+implementation claims to be done: re-run the gates on the actual checkout,
+**audit every new test against the branch it claims to cover** (a green test
+that never enters its named branch is a false positive — add the
+missing-branch case and confirm it fails on the old code), and run the
+integration suite on a seeded DB before merge. Recorded in
+[docs/review-gate/testing.md](review-gate/testing.md).
+
 **Nothing executes until a human approves every command.** The auditor is
 instructed not to mutate anything; the corrected plan still requires explicit
 approval. This mirrors the repo's `/plan` discipline (plan doc written, then
@@ -313,7 +321,7 @@ explicit execution instruction).
 
 ### Grading rubric (for the review-gate as a method)
 
-A run is graded on three independent axes:
+A run is graded on four independent axes:
 
 1. **Evidence discipline** — did the auditor only assert versions it observed?
    Did it refuse to invent (e.g. CVEs it could not verify)? Bonus for
@@ -322,6 +330,12 @@ A run is graded on three independent axes:
    corruption? A `FAIL` here is the bug that motivated this whole method.
 3. **Review quality** — did the reviewer independently re-derive section-2
    verdicts, or rubber-stamp? Did its FAILs match ground truth?
+4. **Test veracity** (implementation runs only) — do the tests the plan adds
+   actually exercise the branch they claim? A passing test that never enters its
+   named branch is a FAIL (run 2's "Background companion needs the legal
+   Background to pair" test passed the solo chooser, never the pair — it would
+   have been green on the broken code). See
+   [docs/review-gate/testing.md](review-gate/testing.md).
 
 ---
 
@@ -379,7 +393,7 @@ The case-study grading table (single-model vs review-gate):
 2. Re-verify seat ids against the registry.
 3. Run the auditor prompt (Agent mode, LM Studio seat) on any task repo.
 4. Paste sections 1+2 to the reviewer (Ask mode, R1 seat).
-5. Grade on the three axes above; expect the reviewer to catch artifact-touching
+5. Grade on the four axes above; expect the reviewer to catch artifact-touching
    steps the auditor ships unprompted.
 
 ---
@@ -416,13 +430,14 @@ pasted decklist.
   **[KaneEnabler PR #82](https://github.com/mkane848/KaneEnabler/pull/82)**
   (`review-gate/deck-validity` @ `92a8ed0`).
 
-### Grade (three axes)
+### Grade (four axes)
 
 | Axis | Result |
 |---|---|
 | 1. Evidence discipline | **A** — self-derived `file:line` citations checked out against the real repo |
 | 2. Plan safety | **PASS** — no destructive step (unlike run 1's lockfile deletion) |
 | 3. Review quality | **FAIL this run** — the reviewer rubber-stamped a 4-seam-deep plan. The reviewer seat is now the known weak link, and the lever is its prompt/context, not a different model |
+| 4. Test veracity | **FAIL (found post-merge)** — the shipped Background test passed green while never entering the pairing branch it names; a silent bug shipped with it. See [docs/review-gate/testing.md](review-gate/testing.md) |
 
 ### Post-merge arbiter verification (what holds, what doesn't)
 
@@ -435,12 +450,44 @@ pasted decklist.
   the primitives; whole-pasted-deck size including banned/notFound; commander
   eligibility + pairing via `is_commander_eligible` + `buildCommanderUnits`;
   strict typing.
-- **Still open in the shipped validator, for a follow-up PR:** (1) the singleton
-  paper-rule isn't checked; (2) a *banned commander not present in the pasted
-  list* slips through `isValid` (only body cards are legality-checked); (3) the
-  integration suite only runs in CI's weekly `scryfall-fetch-check` — the
-  100-card-valid assertion is unproven on a seeded DB locally; (4) `banned` /
-  `notFound` are per-line name lists, not deduped.
+- **Still open in the shipped validator, for a follow-up PR:** (0) the
+  Background-pairing eligibility bug below is in the merged code — a legal
+  Background pair is rejected; (1) named `commanders` are never checked directly
+  against `legality_commander` — ban enforcement is incidental, only firing when
+  the pasted `list` duplicates the commander line; (2) the singleton paper-rule
+  isn't checked; (3) the integration suite only runs in CI's weekly
+  `scryfall-fetch-check` — the 100-card-valid assertion is unproven on a seeded
+  DB locally; (4) `banned` / `notFound` are per-line name lists, not deduped.
+
+### The merge review that caught the silent bug (2026-09-19)
+
+A human merge review of the shipped PR found a **correctness bug the green
+suite could not see**. `deckValidation.ts` computed
+`eligible = commanders.every(c => c.is_commander_eligible === 1)`, but a
+Background card is definitionally `is_commander_eligible = 0` (schema comment in
+`types.ts`), so a fully legal pair such as *Tevesh Szat, Doom of Fools* +
+*Boarding Party* resolved `pairingLegal = false` and the validator rejected a
+legal 100-card deck. `buildCommanderUnits` finds the right pair; the blanket
+`every()` is what kills it. Fix:
+
+```ts
+const usableAsCommander = (c: CardRow) =>
+  c.is_commander_eligible === 1 || c.is_background === 1;
+const eligible = commanders.every(usableAsCommander);
+```
+
+with `legalUnits.some(...)` keeping the real pairing-legality check. The PR's
+own "Background companion needs the legal Background to pair" test never caught
+it: it passes only `[chooser]`, so it walks the harmless solo-unit branch while
+claiming to test the pairing branch. The information that would have caught it
+(the `is_commander_eligible` comment directly above `is_background` in the same
+file) was in the code the model was editing.
+
+**Reading:** lint, `tsc`, and 404 unit tests all green — and the feature still
+silently wrong for its headline use case. The automated suite is necessary, not
+sufficient; the human merge review is where the gate earns its keep. Canonical
+worked example + merge DoD in
+[docs/review-gate/testing.md](review-gate/testing.md).
 
 ### What this run changes about the method
 
@@ -455,22 +502,35 @@ pasted decklist.
 - **A human arbiter is still doing the actual catching.** Until the reviewer
   reliably re-derives verdicts, the gate is "auditor crafts, human arbitrates" —
   which is better than no gate, but not yet automation.
+- **A green suite is not a working feature.** The post-merge verification below
+  reported every gate green; the merge review still found a silent Background
+  eligibility bug. Model-written tests can pass without entering the branch they
+  name — implementation runs end with the fix-and-reverify pass of
+  [docs/review-gate/testing.md](review-gate/testing.md), and test veracity is
+  now a fourth grading axis (see the run's grade table).
 
 ---
 
 ## Next steps for the review-gate (2026-09-18, priority order)
 
 1. **Fix the validator's rule holes** (KaneEnabler follow-up, model-independent):
-   singleton copy rule, banned-commander-not-pasted case, then run the seeded
-   integration suite once so "Tenth Doctor + Rose Tyler is valid" is verified,
-   not CI-asserted.
+   the Background-pairing eligibility bug (legal pairs currently rejected —
+   `usableAsCommander` fix in the merge-review section above), the direct
+   `legality_commander` ban-list check on named commanders, singleton copy rule,
+   `banned`/`notFound` dedupe; then run the seeded integration suite once so
+   "Background pair valid" and "Tenth Doctor + Rose Tyler is valid" are
+   verified, not CI-asserted. Each fix must ship a test that **fails on the old
+   code** — run 2 proved "green" is not enough.
 2. **Repair the reviewer seat and re-measure**: reviewer gets the auditor's
-   actual evidence + file citations, an explicit seam checklist, and `maxTokens`
-   ≥8192. The metric: de novo seams caught (1/4 → ?). That number decides
-   whether R1 is salvageable or needs a different reviewer family/generation.
+   actual evidence + file citations, an explicit seam checklist (identity
+   decode, slot counting, eligibility/pairing semantics, typing, and
+   **test-veracity** — does the plan's test cover the branch it names), and
+   `maxTokens` ≥8192. The metric: de novo seams caught (1/4 → ?). That number
+   decides whether R1 is salvageable or needs a different reviewer
+   family/generation.
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
-4. **Routinize grading** — record a per-run score sheet on the three axes so
+4. **Routinize grading** — record a per-run score sheet on the four axes so
    successive runs become a benchmark, not anecdotes.
 5. **Fleet changes, only after the gate holds**: server up → auditor 30B moves
    there (CUDA + 32 GB RAM, room over the desktop's spill); and settle the

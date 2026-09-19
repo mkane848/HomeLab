@@ -115,6 +115,10 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
 - PowerShell: `.\desktop\scripts\models.ps1 -List`.
 - Server runtime checks: `./server/scripts/status.sh` (also runs `nvidia-smi`), `curl :11434/api/ps`.
 - OpenCode: `opencode debug config` (does it load + resolve `{env:}`), `opencode debug providers` (provider status).
+- Model-written PRs: a **green suite is necessary, not sufficient**. Audit every
+  new test against the branch it claims to cover (a passing test can be green on
+  broken code) and run integration on a seeded DB before merge. Method + the
+  PR #82 Background-bug worked example in `docs/review-gate/testing.md`.
 
 ## Gotchas
 

@@ -111,3 +111,49 @@ auditor -> reviewer -> human approval -> implementer.
 - Add the three imported desktop seats (`qwen3-coder:30b-a3b`, `qwen3.5:9b`,
   `deepseek-r1-0528:8b` - registered in opencode/global/opencode.jsonc but not
   yet rows in `models/catalog.tsv`) so install/test/profiles know them.
+
+---
+
+# KaneEnabler deck-validity follow-up — PR #82 fix-and-reverify (task list)
+
+Scope: the follow-up PR to KaneEnabler PR #82 (`review-gate/deck-validity`),
+driven by the 2026-09-19 merge review. Verdict on the merged validator: **good
+scaffolding, needs a fix-and-reverify pass before merge** — the merge review
+found a silent Background-pairing bug despite a green suite (lint, `tsc`, 404
+passed / 14 skipped / 0 failed). Full context:
+`docs/lmstudio-vscode.md` → "The merge review that caught the silent bug" and
+`docs/review-gate/testing.md`.
+
+Tasks are ordered; **each fix must ship a test that fails on the old code**.
+
+1. **Fix the Background-pairing eligibility bug** (`server/src/services/deckValidation.ts`).
+   `eligible` is `commanders.every(c => c.is_commander_eligible === 1)`, but a
+   Background card is definitionally `is_commander_eligible = 0`, so a legal
+   pair (e.g. *Tevesh Szat, Doom of Fools* + *Boarding Party*) is rejected.
+   Replace with
+   `const usableAsCommander = (c) => c.is_commander_eligible === 1 || c.is_background === 1;`
+   and let `legalUnits.some(...)` (via `buildCommanderUnits`) keep doing the
+   pairing-legality check.
+   Definition of done: a Background pair returns `isValid true`; Sol Ring as
+   commander and two unrelated legendaries are still rejected.
+2. **Make the Background unit test exercise the pairing branch.** The shipped
+   "a Background companion needs the legal Background to pair" test passes only
+   `[chooser]` — it never enters the pairing branch it claims to test. Pass the
+   pair (chooser + Background) so the branching path `legalUnits.some(...)` is
+   actually walked.
+   Definition of done: the new test **fails on the old code** and passes on the
+   fixed code.
+3. **Check named `commanders` rows directly against `legality_commander`**
+   (`server/src/routes/deckValidity.ts`). Today ban enforcement is incidental —
+   it only fires when the pasted `list` happens to duplicate the commander line.
+   Add an explicit check on the resolved `commanders` rows.
+   Definition of done: a banned commander omitted from `list` is reported in the
+   verdict; the deck-size total stays correct; the existing suite stays green.
+4. **Run the integration suite on a seeded DB** — prove the 100-card-valid
+   assertion AND a real Background pair live, not CI-only.
+   Definition of done: the deck-validity integration tests run with 0 skips
+   locally and both assertions hold.
+5. **Re-run lint + tsc + full suite on the checkout** — the fix-and-reverify
+   pass is complete (see `docs/review-gate/testing.md`).
+6. (Pre-existing, still open): singleton paper-rule; `banned`/`notFound`
+   dedupe.
