@@ -1,0 +1,43 @@
+{
+  "tasks": [
+    {
+      "id": "kane-01-background-pair",
+      "title": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
+      "source": "docs/implementation-tasks.md tasks 1-2 (KaneEnabler PR #82 fix-and-reverify)",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "review-gate/deck-validity",
+      "baselineExpect": {
+        "testsTotal": 10,
+        "testsPass": 10
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/services/deckValidation.ts",
+        "apps/commander-recommender/server/src/services/deckValidation.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/services/deckValidation.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/deckValidation.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "setup": [
+        {
+          "note": "build @mtg/rules so the server's (scoped) typecheck can resolve it; cp is a bash-ism so replicate the cp step with Copy-Item",
+          "cwd": "packages/rules",
+          "cmd": ["pnpm", "exec", "tsc", "-p", "tsconfig.build.json"],
+          "copy": ["cjs-dist-package.json", "dist/package.json"]
+        }
+      ],
+      "typecheck": {
+        "note": "scope typecheck to the touched module graph only - the full server tsconfig includes scripts/* that need 2 more workspace packages built",
+        "baseConfig": "tsconfig.json",
+        "include": [
+          "src/services/deckValidation.ts",
+          "src/services/deckValidation.test.ts"
+        ],
+        "compilerOptions": { "types": ["node"] }
+      },
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender. The deck-validity endpoint calls validateDeck in apps/commander-recommender/server/src/services/deckValidation.ts. There is a bug in commander-unit eligibility: it uses commanders.every((c) => c.is_commander_eligible === 1), but a Background card (the choose-a-background mechanic, CR 702.124) is definitionally is_commander_eligible = 0, so a fully legal commander pair of a chooser plus its Background is rejected with isValid false. Implement the fix and update the matching unit test in deckValidation.test.ts. Requirements: (1) A Background card must be usable as part of a legal commander unit, so a legal chooser+Background pair now validates with commander.pairingLegal true and isValid true. (2) Keep rejecting: Sol Ring named as commander, and two unrelated legends without a pairing ability. (3) The existing unit test \"a Background companion needs the legal Background to pair\" currently passes only the chooser and never walks the pairing branch. Change it so the Background is actually passed (in the submitted deck AND in the commanders argument) and the assertions cover the pairing branch. (4) The modified test must FAIL if only your eligibility change is reverted while the test stays - it must genuinely depend on the eligibility fix. Change ONLY these two files: apps/commander-recommender/server/src/services/deckValidation.ts and apps/commander-recommender/server/src/services/deckValidation.test.ts. Do not commit. Do not touch any other file. When done, run the server package's deck-validation unit tests and make sure they pass."
+    }
+  ]
+}
