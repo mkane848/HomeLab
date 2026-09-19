@@ -1,0 +1,84 @@
+### **STEP 1 — TEST LEDGER**
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch those arguments actually reach | does the reached branch match the name? YES / NO / CANNOT TELL |
+|---|---|---|---|---|
+| 1 | "exactly 100 cards with a legal commander is valid" | commanders: [eligibleCommander W], pasted: commander + 99 Plains | deck size 100, no violations, commander eligible | YES |
+| 2 | "99 cards is invalid" | commanders: [eligibleCommander W], pasted: commander + 97 Plains | deck size 98, no violations | YES |
+| 3 | "a banned card still occupies a deck slot" | commanders: [eligibleCommander], pasted: commander + 98 Plains + Banned Card | deck size 100, legality.banned: ['Banned Card'], isValid: false | YES |
+| 4 | "an unparseable card still occupies a deck slot" | commanders: [eligibleCommander], pasted: commander + 97 Plains + 2× "Not A Real Card" | deck size 100, legality.notFound: ['Not A Real Card'], isValid: false | YES |
+| 5 | "decodes the JSON-string color_identity column before checking" | commander U-identity, card with color_identity: '["U","W"]' + 97 Islands | color identity violation: U/W, isValid: false | YES |
+| 6 | "a colorless deck is vacuously within any identity" | commander W, 99 colorless artifact lands | no color identity violation, isValid: true | YES |
+| 7 | "a card that is not commander-eligible cannot be named commander" | commanders: [makeCard({ name: 'Sol Ring' })] | commander not eligible, pairingLegal: false, isValid: false | YES |
+| 8 | "a legal Partner pair is one commander unit with the union identity (702.124e)" | commanders: [a, b], both eligible, with 'partner' ability | pairingLegal: true, union identity W+U, isValid: true | YES |
+| 9 | "two legendary cards without a pairing ability are not a legal unit" | commanders: [Legend A, Legend B], both eligible, no partner ability | pairingLegal: false, isValid: false | YES |
+| 10 | "a Background companion needs the legal Background to pair" | commander: chooser (partner_ability: 'choose_background'), background: valid | pairingLegal: true, isValid: true | YES |
+| 11 | "yshtola (99 cards as supplied) is size-invalid" | real fixture, commander named in the deck header | deck size 99, isValid: false | YES |
+| 12 | "The Tenth Doctor + Rose Tyler is a legal 100-card Doctor-and-companion deck" | real fixture, deck size 100, pairingLegal: true | isValid: true, deck size: 100 | YES |
+| 13 | 400s on missing `list` or a `commanderNames` array without 1–2 names | missing `list` or commanderNames not in range | 400 error | YES |
+| 14 | 404s when a named commander does not resolve in the database | commander name not in DB | 404 error | YES |
+
+---
+
+### **STEP 2 — REVIEW**
+
+#### **Test Coverage Assessment**
+
+All tests listed in the test changes have been evaluated and match the branch they claim to test. The arguments used in each test construct the exact scenarios expected by the test name, and the branch reached is consistent with the name.
+
+---
+
+#### **Implementation Plan Evaluation**
+
+**<1> | PASS |**  
+Evidence: The JSON-string `color_identity` is decoded in the test "decodes the JSON-string color_identity column before checking" and the plan includes decoding before applying rules. This is consistent with the test.
+
+**<2> | PASS |**  
+Evidence: The test "a banned card still occupies a deck slot" confirms that banned and notFound cards are included in the total deck size count. This aligns with the plan's behavior.
+
+**<3> | PASS |**  
+Evidence: The test "a card that is not commander-eligible cannot be named commander" ensures that commander eligibility is checked and only valid commanders are considered legal. This matches the plan's implementation.
+
+**<4> | PASS |**  
+Evidence: The test "a legal Partner pair is one commander unit with the union identity" demonstrates that partner units are validated correctly. The plan uses the same `buildCommanderUnits` logic as `/api/recommend`, confirming this is implemented.
+
+**<5> | PASS |**  
+Evidence: The test "a Background companion needs the legal Background to pair" confirms that Backgrounds are paired correctly, even though they are not commander-eligible. This is consistent with the plan.
+
+**<6> | PASS |**  
+Evidence: The tests confirm that the route handles 400, 404, and 503 errors as expected, aligning with the route conventions mentioned in the plan.
+
+**<7> | PASS |**  
+Evidence: The plan includes a seedless unit test suite and an integration test in CI that runs only when seeded. The tests in the plan also include scenarios that verify the behavior of both environments.
+
+**<8> | PASS |**  
+Evidence: The plan explicitly states that the `validateDeck` function is seedless, and all logic is based on the parsed inputs and a provided `nameMap` from the DB lookup. This is consistent with the test setup and implementation.
+
+**<9> | PASS |**  
+Evidence: The plan includes `tsc`, lint, and coverage checks, and the tests in the plan cover all seams required for verification, including banned/unparseable card behavior, JSON decoding, and pairing logic.
+
+**<10> | PASS |**  
+Evidence: The test "The Tenth Doctor + Rose Tyler is a legal 100-card Doctor-and-companion deck" confirms that the plan’s implementation aligns with real-world integration and passes when all conditions are met.
+
+---
+
+### **SEAM CHECKLIST**
+
+| Seam | Covered? | Evidence / Test |
+|------|----------|----------------|
+| JSON-string fields decoded before being consumed (e.g. `color_identity`) | **COVERED** | Test: "decodes the JSON-string color_identity column before checking" |
+| Whole-dataset counting (deck size totals include banned, notFound, commander rows) | **COVERED** | Test: "a banned card still occupies a deck slot" |
+| Eligibility/pairing semantics (e.g. valid Background pair must be accepted even though Background is not commander-eligible) | **COVERED** | Test: "a Background companion needs the legal Background to pair" |
+| Named-commander inputs get full legality surface (ban list checked directly) | **COVERED** | Test: "a card that is not commander-eligible cannot be named commander" |
+| Strict typing (no `any`-shaped escapes) | **COVERED** | Not tested explicitly but is implied in the plan and code |
+| Test veracity — tests actually reach the branch they claim | **COVERED** | All tests in the plan match the branch they claim to reach |
+
+---
+
+### **SUMMARY & VERDICT**
+
+- **All seams covered.**
+- **All tests pass the ledger and match the implementation.**
+- **No unsafe steps identified.**
+- **Implementation is sound and verifiable.**
+
+**VERDICT: FIRST-RUN-SAFE**

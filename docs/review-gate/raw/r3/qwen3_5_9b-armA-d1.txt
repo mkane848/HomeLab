@@ -1,0 +1,374 @@
+The user wants a second-opinion review of a specific implementation plan for a new endpoint `POST /api/deck-validity` in a Magic: The Gathering Commander app.
+I must act as a strict reviewer who cannot see files outside the provided text.
+I need to evaluate every command in the "Plan's Test Changes" and the "Implementation Contract" against the "Auditor's Section 1" facts.
+I need to flag FAILs where the plan claims a test or behavior that contradicts the facts or lacks the necessary evidence to exist.
+I need to check for uncovered seams (JSON decoding, whole-dataset counting, eligibility/pairing semantics, etc.).
+Finally, provide a summary verdict.
+
+**Step 1: Analyze the Plan's Test Changes vs. Facts.**
+
+*   **Claim:** `validateDeck` unit tests exist in `server/src/services/deckValidation.test.ts` (seedless).
+    *   **Fact Check:** `services/*.test.ts` exist and use vitest. The plan proposes adding this file. This is a new file, so it doesn't contradict existing facts, but I must verify if the *logic* described matches the *primitives* available.
+    *   **Primitives Available:** `packages/rules/src/deckLegality.ts` has `isValidDeckSize`, `combinedColorIdentity`, `findColorIdentityViolations`. `packages/rules/src/partners.ts` has `buildCommanderUnits`.
+    *   **Issue:** The plan describes `validateDeck` returning a specific shape `{ isValid, commander: {...}, deckSize: {...}, colorIdentity: {...}, legality: {...} }`. The facts say primitives exist but are "unwired". The plan proposes wiring them. This is consistent with the goal.
+    *   **Issue:** The plan claims `validateDeck` is "Pure, seedless kernel". This matches the requirement to resolve names in the route.
+
+*   **Claim:** Integration tests in `server/src/routes/deckValidity.integration.test.ts`.
+    *   **Fact Check:** Facts state `isSeeded` exists in `db.ts`. Integration tests should skip if `!isSeeded`. Plan matches this (`describe.skipIf(!isSeeded)`).
+
+*   **Claim 1 (Deck Size):** "exactly 100 cards with a legal commander is valid" -> "99 cards is invalid" -> "banned card still occupies a deck slot" -> "unparseable card still occupies a deck slot".
+    *   **Fact Check:**
+        *   Facts: `COMMANDER_DECK_SIZE` (100) exists. `isValidDeckSize` exists.
+        *   Facts: `services/legality.ts` has `partitionSubmittedCards` which splits into `{ submitted, notFound, banned }`.
+        *   **Crucial Detail:** The plan says "counted over the **whole pasted deck** including banned and unparseable cards".
+        *   **Gap Analysis:** Does `isValidDeckSize` (from `deckLegality.ts`) know about `banned` or `notFound` cards *passed to it*?
+        *   The facts say `services/legality.ts` splits cards into `submitted`, `notFound`, `banned`.
+        *   The plan's `validateDeck` signature: `validateDeck(parsed, nameMap, commanders, backgrounds)`.
+        *   If `parsed` is the result of `parseCardList`, does it contain banned/notFound info?
+        *   Fact: `partitionSubmittedCards` takes `parsed` and `nameMap` and *returns* the split.
+        *   The plan's `validateDeck` receives `parsed` (likely the raw parsed list) and `nameMap`. It must call `partitionSubmittedCards` internally to get the counts.
+        *   **Potential FAIL Risk:** If `isValidDeckSize` is a simple length check on `parsed.length`, and `parsed` includes banned/notFound cards, then the count is correct. If `parsed` excludes them, the count is wrong.
+        *   Fact: `parseCardList` -> `ParsedListEntry`. It doesn't mention filtering.
+        *   Fact: `partitionSubmittedCards` explicitly separates `banned` and `notFound`.
+        *   **Logic Check:** To get the "whole pasted deck" count (100), the validator must sum `submitted.length + banned.length + notFound.length`.
+        *   **Plan Evidence:** The plan *claims* this behavior ("counted over the whole pasted deck"). Does the plan's code (not provided, but described) do this? The description says "Behavior the plan promises... counted over the whole pasted deck".
+        *   **Wait, is this a FAIL?** The prompt says: "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL". I cannot see the code of `deckValidation.ts`. I can only judge based on the *plan description*.
+        *   The plan description *explicitly states* the behavior: "counted over the whole pasted deck including banned and unparseable cards". This is a promise of behavior, not a claim of a specific file's current content. As a reviewer of the *plan*, if the plan describes this logic, it is a design requirement.
+        *   However, I need to check if the *primitives* support this. `partitionSubmittedCards` provides the buckets. `isValidDeckSize` takes what? The facts don't say `isValidDeckSize` takes a list of all cards; it usually takes a list to check length.
+        *   **Critical Flaw in Plan Logic (Uncovered Seam?):** The plan relies on `deckLegality.ts` primitives. If `isValidDeckSize` expects a list of *only* submitted cards (common pattern), then the plan's claim "counted over whole pasted deck" requires the *new* `validateDeck` function to manually sum the buckets from `partitionSubmittedCards` before calling `isValidDeckSize`.
+        *   Does the plan description say it does this? It says `validateDeck` returns `deckSize: { total, expected, isValid }`. It implies the logic is inside `validateDeck`.
+        *   **Verdict on this point:** The plan *describes* the correct behavior. Whether the implementation achieves it depends on the code, which I can't see. But the plan *claims* it. Is the claim supported by evidence? The evidence is "Behavior the plan promises".
+        *   **Wait, look closer at the prompt:** "Treat every stated fact as ground truth; treat every command in the plan as guilty until it matches evidence."
+        *   **Evidence for "banned card counts":** `partitionSubmittedCards` exists and separates banned cards. `isValidDeckSize` exists. There is no evidence in the facts that `isValidDeckSize` *natively* handles the sum of `submitted + banned + notFound`.
+        *   **Conclusion:** The plan's claim that "banned cards count towards size" is a *behavioral promise*. Without evidence in the facts that the *existing primitives* (`isValidDeckSize`) or the *proposed flow* (which I can't see) handles this, is it a FAIL?
+        *   Actually, the prompt asks to flag steps that are "guilty until it matches evidence". The evidence for the *behavior* is the requirement "Behavior the plan promises". The evidence for the *feasibility* is the existence of `partitionSubmittedCards`.
+        *   If `isValidDeckSize` is a black box from `deckLegality.ts`, and I don't know its signature, I can't verify if it sums everything.
+        *   **However**, the prompt says: "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL". The plan is *my* input? No, the plan is the "Plan's Test Changes" provided in the text. The *Auditor* (me) is reviewing the *Plan*.
+        *   Okay, re-read: "You are a second-opinion reviewer... For EACH numbered command... <n> | PASS | evidence supporting it".
+        *   The "commands" are the test cases described in the plan.
+        *   Test Case: "a banned card still occupies a deck slot".
+        *   Supporting Evidence: `services/legality.ts` has `partitionSubmittedCards` which identifies `banned` cards. `deckLegality.ts` has `isValidDeckSize`.
+        *   **Missing Link:** Is there evidence that `isValidDeckSize` counts banned cards? The facts say `COMMANDER_DECK_SIZE` is 100. It doesn't say `isValidDeckSize` ignores banned cards.
+        *   **Crucial Context:** In MTG Commander rules, a banned card *in the deck* (not in the commander zone, but in the 99 slot) makes the deck invalid for format reasons, but does it count towards the 100 card limit? Yes, "whole pasted deck".
+        *   **The Risk:** If `isValidDeckSize` simply does `list.length === 100`, and `list` is the `submitted` list (from `parseCardList`), and `banned` cards were *not* in `submitted` (because `partitionSubmittedCards` moves them out), then `submitted.length` would be 98 (if 2 banned).
+        *   **Evidence Gap:** The facts do *not* state that `partitionSubmittedCards` returns the banned cards in a way that is automatically aggregated into the size count. It just splits them.
+        *   **Is the plan's claim "banned card counts" supported?** The plan *asserts* it in the test case description. The *facts* do not explicitly state that the *existing code* does this. They only state the *splits* exist.
+        *   **Decision:** This is a **FAIL** on the *implementation feasibility* evidence. The plan claims a specific aggregation logic ("counted over the whole pasted deck") but provides no evidence in the facts that the underlying `isValidDeckSize` primitive or the proposed `validateDeck` function performs this aggregation. The `partitionSubmittedCards` function isolates banned cards, which suggests they are *separate* from the main list. If `validateDeck` doesn't explicitly sum them, the claim fails. The plan *promises* it, but the *evidence* (facts) does not show the mechanism to achieve it (unless `isValidDeckSize` is magic, which it isn't stated to be).
+        *   **Wait, re-evaluating:** The prompt says "Treat every command in the plan as guilty until it matches evidence." The "commands" are the test cases. The evidence must come from "facts".
+        *   Test: "banned card still occupies a deck slot".
+        *   Evidence needed: Something proving that banned cards are counted in the size.
+        *   Facts available: `partitionSubmittedCards` splits banned cards. `isValidDeckSize` checks size.
+        *   **Gap:** Nothing says `isValidDeckSize` sums `submitted + banned + notFound`.
+        *   **Result:** **FAIL**. The plan claims this behavior, but the facts do not support the mechanism (aggregation of split buckets) being present or intended in the existing primitives. The plan must *describe* the aggregation in the code, but I cannot see the code. I can only judge the plan text. The plan text *says* it counts them. Is that enough?
+        *   **Prompt Constraint:** "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL". The plan is the "command". The claim is "banned card counts". The evidence is the plan's own text? No, evidence must be "facts".
+        *   **Strict Interpretation:** The facts do not mention "counting banned cards". The facts mention "partitioning". Partitioning implies separation. If the validator uses the partition, it *might* count them. If it uses the original list, it might not.
+        *   **Better Angle:** Look at the `yshtola` fixture fact. "yshtola = 99 as supplied". "tenth-doctor-rose-tyler = 100".
+        *   The plan's integration test: "yshtola (99 cards as supplied) is size-invalid". This matches the fact.
+        *   The plan's integration test: "The Tenth Doctor... passes 100-card valid". Matches fact.
+        *   The unit test "banned card still occupies a deck slot": This is a *unit* test. It relies on mocking.
+        *   **Is there a contradiction?** The facts say `parseCardList` -> `ParsedListEntry`. It doesn't say it filters banned cards.
+        *   The facts say `partitionSubmittedCards` *does* filter.
+        *   If `validateDeck` takes `parsed` (from `parseCardList`), does `parsed` contain banned cards?
+        *   If `parsed` contains banned cards, then `parsed.length` includes them. Then `isValidDeckSize(parsed)` works.
+        *   If `parsed` does *not* contain banned cards (because `partitionSubmittedCards` removes them), then `isValidDeckSize` needs a different input.
+        *   **Evidence Missing:** The facts do not clarify if `parseCardList` includes banned cards or if `parsed` is pre-filtered.
+        *   **Conclusion:** The plan's claim "banned card still occupies a deck slot" relies on an implementation detail (how `parsed` is formed or how `validateDeck` aggregates) that is **not in the facts**.
+        *   **Verdict:** **FAIL** (Evidence Gap). The plan promises aggregation, but the facts only show separation. Without evidence that the aggregation happens, the claim is unsupported.
+
+*   **Claim 2 (Colour Identity):** "decodes the JSON-string color_identity column before checking".
+    *   **Fact Check:** `CardRow` has `color_identity` as "JSON string". Primitives in `deckLegality.ts` expect `string[]`.
+    *   **Evidence:** `services/parseList.ts` exists. `services/legality.ts` exists.
+    *   **Gap:** The facts do *not* show that `validateDeck` (or any helper) performs the `JSON.parse` step. The facts say "Schema comment of note... must be decoded before any array-consuming rule". This is a *requirement*, not an *evidence of implementation*.
+    *   **Plan Claim:** "decodes the JSON-string...".
+    *   **Evidence:** None in the facts that the decoding logic exists or is planned in `validateDeck`. The plan *says* it will do it.
+    *   **Prompt Constraint:** "Treat every command in the plan as guilty until it matches evidence."
+    *   **Is the plan text evidence?** No, the plan is the thing being reviewed. The *facts* are the ground truth.
+    *   **Does the fact "must be decoded" prove the plan does it?** No, it proves the rule. It doesn't prove the code.
+    *   **However**, the plan *describes* the implementation: "It never touches the DB; the route resolves names...". It describes the *intent*.
+    *   **Is this a FAIL?** If the plan says "It decodes", and I don't see the code, is it a fail?
+    *   **Prompt:** "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL". The *plan* is the claim? No, the *plan* is the input. I am reviewing the plan.
+    *   **Wait, the prompt says:** "For EACH numbered command... <n> | PASS | evidence supporting it". The "commands" are the *test cases* in the plan.
+    *   The test case is: "decodes the JSON-string...".
+    *   Evidence needed: Proof that the code decodes it.
+    *   Facts available: "color_identity stored as a JSON string". "must be decoded".
+    *   **Missing:** Evidence that the *plan's code* does this.
+    *   **But wait**, the plan is a *text description* of the code. "Pure, seedless kernel... returns DeckValidationResult...".
+    *   If the plan text says "It decodes", does that count as evidence?
+    *   **Re-reading the prompt carefully:** "Treat every stated fact as ground truth; treat every command in the plan as guilty until it matches evidence."
+    *   "Command in the plan" = The test cases or implementation steps described in the [PLAN'S TEST CHANGES] and [PLAN/IMPLEMENTATION CONTRACT].
+    *   "Evidence" = The [AUDITOR'S SECTION 1] facts.
+    *   So, if the plan says "We will decode JSON", and the facts say "JSON is stored as string, must be decoded", does that match?
+    *   **No.** The fact says "must be decoded" (a rule). The plan says "We will decode" (an action).
+    *   Does the fact say "The code in `deckValidation.ts` decodes it"? No.
+    *   **Therefore:** The claim "decodes the JSON-string" is **UNPROVEN** by the facts. The facts only state the *data type* and the *rule*. They do not state the *implementation strategy* (that `validateDeck` will parse it).
+    *   **However**, usually in these prompts, the "Plan" is the *proposed solution*. If the plan says "I will do X", and X is required by the facts, is it a fail?
+    *   **Prompt Rule:** "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL".
+    *   The plan *claims* the code does X. I cannot see the code. Therefore, I cannot verify the claim.
+    *   **Result:** **FAIL** for "decodes JSON" and "banned card counts" because the specific *implementation logic* (parsing, summing buckets) is not in the facts, only the *requirements* are.
+    *   **Wait, let's look at the "Seam Checklist" instruction:** "Flag each seam as COVERED (evidence + a test the plan adds) or UNCOVERED".
+    *   Seam: "JSON-string fields decoded *before* they are consumed".
+    *   Evidence: "must be decoded" (Fact).
+    *   Test: "decodes the JSON-string... asserts one violation".
+    *   Is it COVERED? The test *claims* it covers it. The *evidence* (fact) says it *must* be done.
+    *   **But the prompt says:** "a claim of yours that needs a file you cannot see is an unsupported-claim FAIL".
+    *   This applies to *my* claims. The "Plan" is the input. The "Plan" is making the claim.
+    *   **Strict interpretation:** The Plan says "I will decode". I cannot see the file. So I cannot verify. Thus, the claim is **UNCOVERED** or **FAIL**?
+    *   The prompt asks to flag steps as "PASS" or "FAIL".
+    *   If the evidence (facts) doesn't show the mechanism, it's a **FAIL**.
+    *   **Wait, one more check:** Is there any fact that implies the mechanism?
+    *   Fact: `server/src/services/legality.ts`: `partitionSubmittedCards`.
+    *   Fact: `server/src/types.ts`: "must be decoded before any array-consuming rule".
+    *   There is no fact saying "The code decodes it".
+    *   **Decision:** The specific implementation details (parsing JSON, summing banned/notFound) are **UNCOVERED** by the facts. The plan *asserts* them, but the facts do not support them.
+    *   **Wait, is the "Plan" considered "Evidence"?** No, the prompt says "Treat every stated fact as ground truth". The Plan is the thing being reviewed.
+    *   **So, any claim in the Plan that is not a Fact is a Fail?**
+    *   That seems too harsh. The Plan is the *proposal*. The Fact is the *context*.
+    *   **Re-reading:** "Treat every command in the plan as guilty until it matches evidence."
+    *   Command: "Decodes JSON". Evidence: "JSON is a string".
+    *   Does "JSON is a string" prove "Decodes JSON"? No.
+    *   Command: "Counts banned cards". Evidence: "Banned cards exist in DB".
+    *   Does "Banned cards exist" prove "Counts them"? No.
+    *   **Conclusion:** These are **FAILs**. The plan makes claims about *implementation behavior* that are not proven by the *data facts*. The facts only define the *state*, not the *behavior*.
+    *   **Exception:** If the Plan says "Use `partitionSubmittedCards`", and the Fact says "`partitionSubmittedCards` splits banned cards", then "Counts banned cards" might be inferred if the Plan says "Sum the buckets". But the Plan just says "counted over the whole pasted deck".
+    *   **Verdict:** The plan is **over-promising** on behavior not evidenced in the facts.
+    *   **Wait, let's look at the "Seam Checklist" again.**
+    *   "JSON-string fields decoded *before* they are consumed" -> **UNCOVERED**. (Fact says "must be", Plan says "will be", but no proof).
+    *   "whole-dataset counting... includes banned" -> **UNCOVERED**.
+    *   "eligibility/pairing semantics" -> **COVERED**?
+        *   Fact: `buildCommanderUnits` exists.
+        *   Fact: `is_commander_eligible` exists.
+        *   Fact: `is_background` exists.
+        *   Plan: Uses `buildCommanderUnits`.
+        *   This seems **COVERED** because the primitive exists and the plan uses it.
+    *   "named-commander inputs get the full legality surface" -> **UNCOVERED**.
+        *   Plan says: "named commander... must be checked against the ban list directly".
+        *   Fact: `partitionSubmittedCards` splits banned cards.
+        *   Does `validateDeck` check the *commander* against the ban list? The plan says it does. The fact doesn't show the logic.
+        *   **Verdict:** **UNCOVERED**.
+
+**Step 2: Redundancy Check.**
+*   Plan adds `deckValidation.test.ts`.
+*   Plan adds `deckValidity.integration.test.ts`.
+*   Existing tests: `deckLegality.test.ts`, `partners.test.ts`.
+*   Is there redundancy?
+    *   `deckLegality.test.ts` tests `isValidDeckSize` (seedless).
+    *   Plan's `deckValidation.test.ts` tests `validateDeck` (which uses `isValidDeckSize`).
+    *   This is **not redundancy**. `deckLegality` tests the primitive. `deckValidation` tests the orchestration.
+*   Is there a step that deletes/regenerates artifacts?
+    *   Plan does not mention deleting `lockfile`, `source`, `config`.
+    *   Plan mentions "New endpoint", "New files".
+    *   **Verdict:** No dangerous deletions.
+
+**Step 3: Finalizing the Review.**
+
+*   **Failures:**
+    *   Test Case "banned card still occupies a deck slot": **FAIL**. Evidence (facts) shows `partitionSubmittedCards` splits banned cards, but does not show that `validateDeck` sums them. The plan claims this behavior, but the evidence is missing.
+    *   Test Case "decodes the JSON-string color_identity": **FAIL**. Evidence (facts) states the field is a string and "must be decoded", but does not show that `validateDeck` performs the decoding.
+    *   Seam "JSON-string fields decoded": **UNCOVERED**.
+    *   Seam "whole-dataset counting": **UNCOVERED**.
+    *   Seam "named-commander inputs get the full legality surface": **UNCOVERED**.
+
+*   **Passes:**
+    *   Test Case "exactly 100 cards with a legal commander": **PASS**. `COMMANDER_DECK_SIZE` fact supports 100. `isValidDeckSize` supports checking. (Assuming basic length check works for valid cards).
+    *   Test Case "99 cards is invalid": **PASS**.
+    *   Test Case "99-card valid with pairingLegal": **PASS**. `buildCommanderUnits` exists.
+    *   Test Case "yshtola (99) is size-invalid": **PASS**. Fact: "yshtola = 99 as supplied".
+    *   Test Case "Tenth Doctor... 100-card valid": **PASS**. Fact: "tenth-doctor-rose-tyler = 100".
+    *   Test Case "400s on missing list...": **PASS**. Route conventions match.
+    *   Test Case "404s when named commander does not resolve": **PASS**. Route conventions match.
+
+*   **Summary:**
+    *   The plan relies heavily on specific *aggregation logic* (summing banned/notFound) and *parsing logic* (JSON decode) which are **not evidenced** in the facts. The facts only define the *data* and *existing primitives*. The plan claims the *new code* will do these things, but I cannot verify this.
+    *   Therefore, the seams are **UNCOVERED**.
+    *   The verdict should be **RED-MARK** because the plan makes claims about implementation details (decoding, counting) that are not supported by the provided facts, making them "unsupported-claim FAILs" per the prompt's strict rules.
+
+**Wait, one nuance:** "Treat every stated fact as ground truth; treat every command in the plan as guilty until it matches evidence."
+*   Does the plan *command* "Decodes JSON"? Yes.
+*   Does the evidence (facts) *match* it? No. The facts say "Must be decoded". They don't say "Is decoded".
+*   So it is **FAIL**.
+
+**Wait, another nuance:** "Flag any step that deletes or regenerates an original artifact... and whether the cited evidence justifies touching it."
+*   Plan doesn't delete anything.
+
+**Final Verdict Formulation:**
+*   **FAILs:** Banned card counting, JSON decoding.
+*   **UNCOVERED Seams:** JSON decoding, whole-dataset counting, named-commander legality surface.
+*   **Verdict:** RED-MARK.
+
+**Wait, is "99 cards is invalid" a FAIL?**
+*   Plan: "99 cards is invalid".
+*   Fact: `COMMANDER_DECK_SIZE` = 100. `isValidDeckSize` exists.
+*   Evidence: "99 cards" != 100.
+*   This seems **PASS**. The primitive exists to check size.
+
+**Is "yshtola" a FAIL?**
+*   Plan: "yshtola (99) is size-invalid".
+*   Fact: "yshtola = 99 as supplied".
+*   Evidence: 99 != 100.
+*   This seems **PASS**.
+
+**Is "Tenth Doctor" a FAIL?**
+*   Plan: "Tenth Doctor... 100-card valid".
+*   Fact: "tenth-doctor-rose-tyler = 100".
+*   Evidence: 100 == 100.
+*   This seems **PASS**.
+
+**The main issue is the *mechanism* of how the count is derived when banned cards are present.**
+*   Fact: `partitionSubmittedCards` splits banned cards.
+*   If `validateDeck` calls `partitionSubmittedCards`, it gets `submitted`, `banned`, `notFound`.
+*   If `isValidDeckSize` is called on `submitted`, it will fail for the banned case (98 != 100).
+*   If `isValidDeckSize` is called on `submitted + banned + notFound`, it works.
+*   Does the plan say it does this? "counted over the whole pasted deck".
+*   Does the evidence (facts) say `isValidDeckSize` accepts a combined list? No.
+*   Does the evidence say `validateDeck` combines them? No.
+*   **Therefore:** The claim is **UNPROVEN**. **FAIL**.
+
+**Structure of Response:**
+1.  List numbered commands (test cases) as PASS/FAIL.
+2.  Flag deletions (none).
+3.  Flag redundancy (none).
+4.  Seam checklist (COVERED/UNCOVERED).
+5.  Summary/Verdict.
+
+**Numbered Commands in Plan:**
+The plan lists test cases under "validateDeck unit tests" and "deckValidity integration tests". I should treat each bullet point as a command/test case.
+
+*   1. "exactly 100 cards with a legal commander is valid" -> PASS.
+*   2. "99 cards is invalid" -> PASS.
+*   3. "a banned card still occupies a deck slot" -> FAIL (Evidence gap on aggregation).
+*   4. "an unparseable card still occupies a deck slot" -> FAIL (Evidence gap on aggregation).
+*   5. "decodes the JSON-string color_identity column before checking" -> FAIL (Evidence gap on decoding logic).
+*   6. "a colorless deck is vacuously within any identity" -> PASS (Logic holds).
+*   7. "a card that is not commander-eligible cannot be named commander" -> PASS.
+*   8. "a legal Partner pair is one commander unit..." -> PASS.
+*   9. "two legendary cards without a pairing ability are not a legal unit" -> PASS.
+*   10. "a Background companion needs the legal Background to pair" -> PASS.
+*   11. "yshtola (99 cards as supplied) is size-invalid" -> PASS.
+*   12. "The Tenth Doctor + Rose Tyler is a legal 100-card... deck" -> PASS.
+*   13. "400s on missing list..." -> PASS.
+*   14. "404s when a named commander does not resolve" -> PASS.
+
+**Wait, "unparseable card"**: Same logic as banned. FAIL.
+
+**Seams:**
+*   JSON-string fields decoded: **UNCOVERED**.
+*   Whole-dataset counting: **UNCOVERED**.
+*   Eligibility/pairing semantics: **COVERED** (Primitives exist).
+*   Named-commander inputs get full legality surface: **UNCOVERED** (Plan claims check against ban list, facts don't show logic).
+*   Strict typing: **COVERED** (Facts show strong typing in `types.ts`, plan mentions `DeckValidationResult` shape).
+*   TEST VERACITY: The plan claims tests reach branches. Since the logic (aggregation/decoding) is unproven, the *reach* of the branch is **UNCOVERED**.
+
+**Verdict:** RED-MARK.
+
+**Summary:**
+The plan is sound in intent but relies on specific implementation details (JSON parsing, aggregating split buckets for deck size) that are not evidenced in the facts. The facts only define the data shapes and existing primitives, not the orchestration logic required to make the plan's tests pass. The "banned card" and "JSON decode" claims are unsupported-claim FAILs.
+
+**One final check:** "Treat every command in the plan as guilty until it matches evidence."
+The plan *is* the command. The evidence is the facts.
+The plan *says* "We will decode". The facts *say* "Must be decoded".
+Does "Must be decoded" match "We will decode"?
+Strictly: No. "Must" is a rule. "Will" is an action.
+If the facts don't say "The code decodes", then the claim "The code decodes" is not matched by evidence.
+So it is a FAIL.
+
+Okay, ready to write.
+
+**Wait, one more thing:** "Flag any step that duplicates the outcome another step already achieves".
+*   Plan adds `deckValidation.test.ts`.
+*   Existing `deckLegality.test.ts`.
+*   Are they duplicates? No. One tests primitives, one tests orchestration.
+*   So no redundancy flag.
+
+**Wait, "lockfile, source, config"**:
+*   Plan doesn't touch them.
+
+**Final check on "Named-commander inputs get the full legality surface"**:
+*   Plan: "named commander... must be checked against the ban list directly".
+*   Fact: `partitionSubmittedCards` splits banned cards.
+*   If the plan passes `commanderNames` to `validateDeck`, does `validateDeck` check them against the `banned` list from `partitionSubmittedCards`?
+*   The plan says "named commander... resolves in the DB must be checked against the ban list directly, not only via cards that happen to re-appear in the pasted bulk list".
+*   This implies a specific check: `if (commander in banned_list)`.
+*   Does the fact support this? The fact says `partitionSubmittedCards` creates a `banned` list.
+*   Does the fact say `validateDeck` uses this `banned` list to check the `commanderNames`?
+*   No. The fact says `partitionSubmittedCards` *takes* `parsed` and `nameMap` and returns `{ submitted, notFound, banned }`.
+*   If `commanderNames` are not in `parsed` (because they are just names), `partitionSubmittedCards` might not see them as "banned" if they aren't in the `parsed` list.
+*   Wait, `partitionSubmittedCards` takes `parsed` (the pasted list).
+*   The plan says `validateDeck` receives `parsed` and `commanders` (names).
+*   If `commanders` are not in `parsed`, `partitionSubmittedCards` won't flag them as banned (unless `parsed` includes them).
+*   But the plan says "checked against the ban list directly". This implies a separate lookup.
+*   Does the fact support a separate lookup? No.
+*   **So this is also UNCOVERED/FAIL.** The plan claims a specific logic ("check against ban list directly") that isn't evidenced by the facts (which only show `partitionSubmittedCards` working on the pasted list).
+
+Okay, I have enough to be strict.
+
+**Final Plan:**
+1.  Iterate through test cases.
+2.  Mark "banned", "unparseable", "JSON decode", "direct ban list check" as FAIL/UNCOVERED.
+3.  Mark others as PASS.
+4.  Seams: Mark specific ones as UNCOVERED.
+5.  Verdict: RED-MARK.
+
+**Wait, one nuance on "Strict typing"**:
+*   Plan: "no `any`-shaped escapes".
+*   Fact: `types.ts` has strong types.
+*   Plan describes `DeckValidationResult` with specific fields.
+*   This seems **COVERED** by the fact that `types.ts` is strong and the plan defines a shape.
+*   So "Strict typing" seam is **COVERED**.
+
+**Wait, "TEST VERACITY"**:
+*   "A test that passes a solo chooser while claiming to cover a pairing branch is a FAIL".
+*   Plan: "a Background companion needs the legal Background to pair" -> "commanders `[chooser]`... backgrounds `[background]`".
+*   This test passes a chooser and a background.
+*   Does it cover the "pairing branch"? Yes, it provides the background.
+*   So this specific test is **VERACITY PASS**.
+*   But the underlying logic (does `validateDeck` actually pair them?) is **UNCOVERED**.
+*   So the test *case* might pass, but the *seam* is uncovered.
+*   I will mark the test case as PASS (if the logic exists) but the seam as UNCOVERED.
+*   Actually, if the seam is UNCOVERED, the test might pass on broken code.
+*   Prompt: "A test that passes a solo chooser while claiming to cover a pairing branch is a FAIL".
+*   The plan *does* pass a background. So it's not a "solo chooser".
+*   So the test case is **PASS** in terms of setup.
+*   But the *implementation* is unproven.
+
+Okay, proceeding with the review.
+</think>
+
+- **1** | PASS | Evidence: `COMMANDER_DECK_SIZE` (100) exists in `deckLegality.ts`; `isValidDeckSize` primitive exists.
+- **2** | PASS | Evidence: `COMMANDER_DECK_SIZE` is 100; `isValidDeckSize` primitive exists.
+- **3** | FAIL | Evidence: Facts show `partitionSubmittedCards` *splits* banned cards, but provide no evidence that `validateDeck` or `isValidDeckSize` *sums* the split buckets to count towards the total size. The plan claims this aggregation, but the evidence (facts) only shows separation.
+- **4** | FAIL | Evidence: Same as #3. Facts show `notFound` cards are split by `partitionSubmittedCards`, but no evidence exists that they are aggregated into the deck size count by the validator.
+- **5** | FAIL | Evidence: Facts state `color_identity` is a JSON string and "must be decoded". The plan claims `validateDeck` performs this decoding, but the facts provide no evidence that the decoding logic exists in the proposed kernel or route.
+- **6** | PASS | Evidence: Logic follows from `combinedColorIdentity` primitive existence (facts) and rule semantics (colorless intersection).
+- **7** | PASS | Evidence: `is_commander_eligible` field exists in `CardRow` (`types.ts`); `buildCommanderUnits` exists in `partners.ts`.
+- **8** | PASS | Evidence: `buildCommanderUnits` primitive exists in `partners.ts` for `partner` abilities; `combinedColorIdentity` exists.
+- **9** | PASS | Evidence: `buildCommanderUnits` logic implies pairing checks; absence of `partner_ability` implies no unit formation.
+- **10** | PASS | Evidence: `choose_background` ability exists; `is_background` field exists; plan provides background pool.
+- **11** | PASS | Evidence: Fact states "yshtola = 99 as supplied"; plan asserts size-invalid for 99.
+- **12** | PASS | Evidence: Fact states "tenth-doctor-rose-tyler = 100"; plan asserts size-valid for 100.
+- **13** | PASS | Evidence: Route conventions (`routes/recommend.ts`) specify 400 on malformed body.
+- **14** | PASS | Evidence: Route conventions specify 404 on unresolvable commander name.
+
+**Artifact Modification Check:**
+- The plan introduces new files (`deckValidation.ts`, `deckValidity.ts`, `*.test.ts`). It does not delete or regenerate any original artifacts (lockfile, source, config). No evidence justifies touching original artifacts, and no such action is planned.
+- **Result:** No unsafe deletions/regenerations flagged.
+
+**Redundancy Check:**
+- The plan adds `deckValidation.test.ts` (seedless unit) and `deckValidity.integration.test.ts`.
+- Existing tests (`deckLegality.test.ts`, `partners.test.ts`) cover the primitives.
+- The new tests cover the *orchestration* (wiring primitives), which is distinct from primitive unit tests.
+- **Result:** No redundancy detected. The fewest commands covering the intent are the new unit and integration suites as described.
+
+**Seam Checklist:**
+- **JSON-string fields decoded *before* they are consumed:** **UNCOVERED**. Facts state the data is a string and "must be decoded", but provide no evidence that the plan's code performs the decoding.
+- **Whole-dataset counting (deck/repo size totals include banned, notFound, and commander rows):** **UNCOVERED**. Facts show `partitionSubmittedCards` splits these categories, but provide no evidence that the validator sums them to get the "whole pasted deck" count.
+- **Eligibility/pairing semantics (e.g., Background pair accepted even if Background is not commander-eligible):** **COVERED**. Facts confirm `is_background`, `is_commander_eligible`, and `buildCommanderUnits` exist to support this logic.
+- **Named-commander inputs get the full legality surface (checked against ban list directly):** **UNCOVERED**. Plan claims a direct ban list check for named commanders, but facts only show `partitionSubmittedCards` processing the *pasted* list, not a separate commander-name-to-ban-list lookup logic.
+- **Strict typing (no `any`-shaped escapes):** **COVERED**. Facts show `types.ts` uses strong typing; plan defines a specific `DeckValidationResult` shape.
+- **TEST VERACITY:** The test claiming to cover pairing ("Background companion needs the legal Background to pair") passes a background, so it is **VERACITY PASS**. However, the underlying logic (aggregation/decoding) remains **UNCOVERED**, meaning the test could pass on broken code.
+
+**Summary:**
+The plan's test cases for "banned card counting" and "JSON decoding" are **FAILs** because the facts only define data shapes and rules, not the specific aggregation/parsing logic required to achieve those behaviors. The seams for **JSON decoding** and **whole-dataset counting** are **UNCOVERED** by the evidence. While the primitive existence supports the *goal*, the plan's claims about *how* the data is processed are unsupported by the provided facts.
+
+**Verdict:** RED-MARK
+**Unsafe Steps:** 3, 4, 5
+**Uncovered Seams:** JSON-string decoding, Whole-dataset counting, Named-commander legality surface.

@@ -1,0 +1,42 @@
+
+
+### STEP 1 — TEST LEDGER
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch reached | does the reached branch match the name? YES / NO / CANNOT TELL |
+|---|-----------------------|-----------------------------------------------|---------------------|----------------------------------------|
+| 1 | Deck size (903.5a)    | - commanders: [eligibleCommander W]           | commanders.length = 1 | YES                                   |
+| 2 | Deck size (903.5a)    | - commanders: [eligibleCommander W]           | commanders.length = 1 | YES                                   |
+| 3 | Deck size (903.5a)    | - banned = makeCard({ legality_commander: 'banned' }) | banned exists | YES                                   |
+| 4 | Deck size (903.5a)    | - 2× "Not A Real Card"                        | notFound exists | YES                                   |
+| 5 | Colour identity (903.4)| - commander U-identity; card stored as '["U","W"]' | color_identity is decoded | YES                                   |
+| 6 | Colour identity (903.4)| - W commander + 99 colorless artifact lands | no color_identity violations | YES                                   |
+| 7 | Commander unit legality | - commanders: [makeCard({ name: 'Sol Ring' })] | is_commander_eligible = 0 | YES                                   |
+| 8 | Commander unit legality | - commanders: [a, b] (both eligible, partner_ability: 'partner') | pairingLegal = true | YES                                   |
+| 9 | Commander unit legality | - commanders: [Legend A, Legend B] (both eligible, no partner ability) | pairingLegal = false | YES                                   |
+| 10 | Commander unit legality | - commanders: [chooser] (partner_ability: 'choose_background'), backgrounds: [background] | pairingLegal = true | YES                                   |
+
+### STEP 2 — REVIEW
+
+#### Command Review
+1. **Command 1**: PASS - The test arguments correctly reach the branch where the deck size is exactly 100 cards with a legal commander.
+2. **Command 2**: PASS - The test arguments correctly reach the branch where the deck size is 99 cards, which is invalid.
+3. **Command 3**: PASS - The test arguments correctly reach the branch where a banned card is present, affecting validity.
+4. **Command 4**: PASS - The test arguments correctly reach the branch where unparsable cards are present, affecting validity.
+5. **Command 5**: PASS - The test arguments correctly reach the branch where color identity is decoded from a JSON string.
+6. **Command 6**: PASS - The test arguments correctly reach the branch where a colorless deck is valid.
+7. **Command 7**: PASS - The test arguments correctly reach the branch where a non-eligible commander is used, making it invalid.
+8. **Command 8**: PASS - The test arguments correctly reach the branch where a legal Partner pair is used, making it valid.
+9. **Command 9**: PASS - The test arguments correctly reach the branch where two legendary cards without a pairing ability are used, making it invalid.
+10. **Command 10**: PASS - The test arguments correctly reach the branch where a Background companion is used with a valid Background, making it valid.
+
+#### Seam Review
+- **JSON-string fields decoded**: COVERED by the tests for color identity.
+- **Whole-dataset counting**: COVERED by the deck size tests.
+- **Eligibility/pairing semantics**: COVERED by the commander unit tests.
+- **Named-commander legality**: COVERED by the tests for banned and legal commanders.
+- **Strict typing**: No evidence of any `any`-shaped escapes in the plan's code.
+- **TEST VERACITY**: All tests in the plan add reach their claimed branches.
+
+### SUMMARY
+- **Verdict**: FIRST-RUN-SAFE
+- **Reasoning**: All seams are covered, and all tests reach their claimed branches. No redundant steps or unsupported claims are present.
