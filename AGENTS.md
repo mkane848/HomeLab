@@ -18,7 +18,7 @@ Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker), `desktop` (this 
 
 The `/plan` → execute flow is the reason the workflow agents/commands exist and it pins models via OpenCode, not vram juggling:
 
-**The main seat runs `qwen3:14b`** — it passes the tool-call probe along with `qwen3:8b` and `devstral:24b` (the only 3 of 10 installed models that do; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
+**The main seat runs `qwen3:14b`** — it passes the tool-call probe along with `qwen3:8b`, `qwen3.5:9b`, `qwen3-coder:30b-a3b` and `devstral:24b` (5 of 13 installed models, measured on Ollama 0.34.1; see Gotchas and `tests/test-toolcalls.ps1`). A coder or reasoner in an agent seat will *claim* it edited files it never touched.
 
 - `/plan <scope>` (`opencode/commands/plan.md`, runs on the main agent) uses **the main session model**: reads the repo, writes/updates `docs/implementation-tasks.md` (risks/gaps cited by `file:line`, ordered file-scoped tasks with definitions of done). It was pinned to DeepSeek-R1, which cannot call the write tool and hallucinated success instead ("The task tool has written…").
 - Then tell the main session model — **`qwen3:14b`** — to "execute task #N from docs/implementation-tasks.md". Coding never goes through delegation.
