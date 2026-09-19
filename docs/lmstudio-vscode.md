@@ -384,6 +384,101 @@ The case-study grading table (single-model vs review-gate):
 
 ---
 
+## Case study: KaneEnabler deck-validity PR (run 2, 2026-09-18)
+
+The second full run of the method, on a different repo
+(`C:\Projects\KaneEnabler`, a Commander-deck recommender server) and under the
+harder condition: the auditor was **self-prompting** (given a scope, not a
+hand-primed fact list — the condition the go/no-go decision hinged on).
+
+### Ground truth
+
+`@mtg/rules`' `deckLegality.ts` (deck size CR 903.5a, whole-deck color identity
+CR 903.4) was tested and CR-cited but **not wired into either app** — the
+repo's own handoff doc listed it as an open item. The correct fix: a validators
+endpoint (`POST /api/deck-validity`) that runs those primitives against a
+pasted decklist.
+
+### What happened
+
+- **Auditor (qwen3-coder-30b, LM Studio, agent mode, read-only loop clamped to
+  the repo):** discovered ~90% of ground truth *itself* over 26 turns — handoff
+  doc → the unwired `deckLegality`/`colorIdentity` primitives → test conventions
+  → the `(req.body ?? {})` Express-5 guard → fixture corpus — and produced an
+  AUDIT + IMPLEMENTATION PLAN.
+- **Reviewer (R1:14b, no tools, plan pasted as text):** FIRST-RUN-SAFE with a
+  single vague "commander pair validation" note. It missed **3 of 4 real
+  seams** (JSON-identity decode, deck-size counting, `any` typing) that the
+  hand-primed run (LFCbot) had caught. Verdict length ~2035 chars / 59.8 s — a
+  thin pass (likely also the R1 output-budget trap).
+- **Arbiter (human, the tool-capable implementer seat = qwen3:14b):** folded
+  the 4 corrections into the implementation contract, which then shipped as
+  **[KaneEnabler PR #82](https://github.com/mkane848/KaneEnabler/pull/82)**
+  (`review-gate/deck-validity` @ `92a8ed0`).
+
+### Grade (three axes)
+
+| Axis | Result |
+|---|---|
+| 1. Evidence discipline | **A** — self-derived `file:line` citations checked out against the real repo |
+| 2. Plan safety | **PASS** — no destructive step (unlike run 1's lockfile deletion) |
+| 3. Review quality | **FAIL this run** — the reviewer rubber-stamped a 4-seam-deep plan. The reviewer seat is now the known weak link, and the lever is its prompt/context, not a different model |
+
+### Post-merge arbiter verification (what holds, what doesn't)
+
+- Re-ran the gates on the actual PR checkout: lint clean, `tsc` clean, **404
+  passed / 14 skipped / 0 failed**, coverage 79.61/73.23/79.8/80.5 (above the
+  70/60/65/70 floors). Re-derived fixture totals with the real parser
+  (yshtola=99, Tenth Doctor + Rose Tyler=100, brigid=100) so the integration
+  assertions are internally coherent.
+- The four plan corrections all landed correctly: `parseJsonArray` decode before
+  the primitives; whole-pasted-deck size including banned/notFound; commander
+  eligibility + pairing via `is_commander_eligible` + `buildCommanderUnits`;
+  strict typing.
+- **Still open in the shipped validator, for a follow-up PR:** (1) the singleton
+  paper-rule isn't checked; (2) a *banned commander not present in the pasted
+  list* slips through `isValid` (only body cards are legality-checked); (3) the
+  integration suite only runs in CI's weekly `scryfall-fetch-check` — the
+  100-card-valid assertion is unproven on a seeded DB locally; (4) `banned` /
+  `notFound` are per-line name lists, not deduped.
+
+### What this run changes about the method
+
+- **Self-prompting works** once the auditor has read-tools and a scoped repo —
+  the "auditor discovers ground truth" pathway is confirmed, not hand-waved.
+- **The reviewer is the proving ground for the whole gate.** A no-tools
+  different-family reviewer is only useful if it flags plans without being told
+  where to look. Next iteration: feed it the audit's evidence + citations + an
+  explicit seam checklist ("check for identity decode, slot counting,
+  eligibility, typing") and a generous output budget, then measure seams caught
+  (target: ≥3/4 vs the 1/4 this run).
+- **A human arbiter is still doing the actual catching.** Until the reviewer
+  reliably re-derives verdicts, the gate is "auditor crafts, human arbitrates" —
+  which is better than no gate, but not yet automation.
+
+---
+
+## Next steps for the review-gate (2026-09-18, priority order)
+
+1. **Fix the validator's rule holes** (KaneEnabler follow-up, model-independent):
+   singleton copy rule, banned-commander-not-pasted case, then run the seeded
+   integration suite once so "Tenth Doctor + Rose Tyler is valid" is verified,
+   not CI-asserted.
+2. **Repair the reviewer seat and re-measure**: reviewer gets the auditor's
+   actual evidence + file citations, an explicit seam checklist, and `maxTokens`
+   ≥8192. The metric: de novo seams caught (1/4 → ?). That number decides
+   whether R1 is salvageable or needs a different reviewer family/generation.
+3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
+   the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
+4. **Routinize grading** — record a per-run score sheet on the three axes so
+   successive runs become a benchmark, not anecdotes.
+5. **Fleet changes, only after the gate holds**: server up → auditor 30B moves
+   there (CUDA + 32 GB RAM, room over the desktop's spill); and settle the
+   reviewer-node gap — a 7–9B different-family reviewer (`glm4:9b`) that fits
+   node3's 10 GB is a legitimate trade against a desktop load-dance.
+
+---
+
 ## Where this connects to the fleet
 
 - Same north star as [roadmap.md](roadmap.md): loose prompt → whichever seat
