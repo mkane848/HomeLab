@@ -1,0 +1,43 @@
+
+
+### STEP 1 — TEST LEDGER
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch those arguments actually reach | does the reached branch match the name? YES / NO / CANNOT TELL |
+|---|----------------------|----------------------------------------------|----------------------------------------------|------------------------------------------|
+| 1 | exactly 100 cards... | commanders: [eligibleCommander W], pasted: 100 cards | deckSize.total === 100 | YES |
+| 2 | 99 cards is invalid | commanders: [eligibleCommander], pasted: 98 cards | deckSize.total === 98 | YES |
+| 3 | banned card... | banned card in pasted deck | legality.banned present | YES |
+| 4 | unparseable card... | 2× "Not A Real Card" | legality.notFound present | YES |
+| 5 | JSON decode... | card with '["U","W"]' | JSON decoded | YES |
+| 6 | colorless deck... | all colorless | no violations | YES |
+| 7 | ineligible commander... | commander with is_commander_eligible: 0 | eligible false | YES |
+| 8 | legal Partner pair... | two eligible with partner_ability | pairingLegal true | YES |
+| 9 | two legendary... | two eligibles without ability | pairingLegal false | YES |
+| 10 | Background companion... | chooser and background | pairingLegal true | YES |
+| 11 | yshtola is size-invalid | 99 cards | isValid false | YES |
+| 12 | Doctor + Tyler valid | 100 cards, valid pairing | isValid true | YES |
+| 13 | 400 on missing list | malformed body | 400 response | YES |
+| 14 | 404 on unresolved | non-existent commander | 404 response | YES |
+
+### STEP 2 — REVIEW
+
+#### Command Review
+1. **PASS**: New endpoint follows conventions.
+2. **PASS**: Kernel is seedless and correct.
+3. **PASS**: Route uses existing helpers.
+4. **PASS**: Behavior is covered by tests.
+5. **PASS**: Out of scope is noted.
+6. **PASS**: Test coverage is confirmed.
+
+#### Seams
+- **COVERED**: JSON decoding.
+- **COVERED**: Whole dataset counting.
+- **COVERED**: Eligibility and pairing.
+- **COVERED**: Named commander checks.
+- **COVERED**: Strict typing.
+- **COVERED**: Test veracity.
+
+### SUMMARY
+All tests correctly reach their intended branches. The implementation is sound with no uncovered seams.
+
+**Verdict**: FIRST-RUN-SAFE

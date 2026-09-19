@@ -76,6 +76,11 @@ Decide its fate:
       `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all return empty
       `tool_calls` and print the call as chat text. Not the bake
       (pristine re-pull behaves the same). See `docs/troubleshooting.md`.
+      **Re-measured on 0.34.1 (2026-09-19): every result reproduced, each
+      failure in the same mode.** Now 5/13 — `qwen3.5:9b` and
+      `qwen3-coder:30b-a3b` were first measured then and both pass;
+      `deepseek-r1-0528:8b` fails with the rest of its family. Raw output:
+      `tests/results/toolcalls-0.34.1.txt`.
 - [x] **Seat assignments corrected (2026-09-17, final).** Every seat that
       reads/edits/runs is a qwen3: `dev-workflow-quality` main seat re-seated
       from `qwen3:8b` to `qwen3:14b` for loose-prompt intent handling (the
@@ -114,25 +119,38 @@ Decide its fate:
 
 ## Hardening / experiments
 
-- [x] **Pin the Ollama image** (2026-09-17): `server/docker/docker-compose.yml`
-      now pins `ollama/ollama:0.34.0`, the version every tool-calling and VRAM
-      measurement in these docs was taken against. `:latest` was a live risk,
+- [x] **Pin the Ollama image** (2026-09-17; pin bumped to `0.34.1` on
+      2026-09-19 to match the desktop): `server/docker/docker-compose.yml`
+      pins `ollama/ollama:0.34.1`, the version every tool-calling measurement
+      in these docs is now taken against. (VRAM figures still date from 0.34.0
+      and have not been re-measured — they are not expected to move, but they
+      are not re-verified either.) `:latest` was a live risk,
       not just a reproducibility nicety — which models emit parseable tool calls
       depends on the Ollama version and its templates, so an unattended pull
       could silently turn a working agent into one that reports edits it never
       made. **On any version bump, re-run `tests/test-toolcalls.ps1` against the
       host before trusting a seat.**
-      - [ ] The desktop is a native install, not a container, so it is *not*
-            pinned by this. It auto-updates. Consider disabling Ollama's
-            auto-update on the desktop, or at minimum re-probe after it moves.
+      - [ ] **The desktop is a native install, not a container, so it is *not*
+            pinned by this — and on 2026-09-19 it auto-updated 0.34.0 → 0.34.1,
+            exactly as predicted.** `desktop/scripts/pin-ollama-desktop.ps1`
+            exists to prevent this (a Windows Firewall outbound block on the
+            tray updater, written 2026-09-17 naming v0.34.1 as the bundle
+            already staged), but the update happened anyway — so either the
+            guard was never applied or it did not hold. **Unresolved: find out
+            which.** No markdown file references that script, which points at
+            "never applied". The re-probe half of this item *was* done and the
+            news was good (every result reproduced on 0.34.1; docs re-baselined,
+            server pin bumped to match), so nothing is broken — but the fleet
+            is one silent update away from the same question, and next time the
+            answer may not be benign.
 - [ ] Try CUDA-only tooling on the server that the Vulkan desktop cannot run: vLLM, TensorRT-LLM, CUDA llama.cpp — good candidates for serving a 14B at higher throughput.
 - [ ] Bake a higher-context derived model if the 16 384 default is too small for one specific job (`install-model.sh --ctx N` creates `<tag>-Nk`).
 - [ ] Add `qwen3-coder` to `models/catalog.tsv` + OpenCode config when it stabilizes in the Ollama library.
 - [ ] Re-check `deepseek-r1-16k` on the desktop: with the server now hosting reasoners, the desktop bake may be optional.
 - [x] **LM Studio + VS Code review-gate experiment (2026-09-18).** Native VS Code BYOK (`chatLanguageModels.json`) registers LM Studio + desktop Ollama as peer endpoints; the review-gate split (tool-capable auditor → different-family no-tools reviewer → arbiter) caught a destructive remediation step a single qwen3-coder-30b run shipped. Method + measured gotchas recorded in [docs/lmstudio-vscode.md](lmstudio-vscode.md). Open follow-up: extend to the server seat (`http://SERVER_IP:11434/v1`) when the host is up.
 - [x] **Review-gate run 2 — KaneEnabler deck-validity PR (2026-09-18).** The auditor was given a prompt (not hand-primed facts) and a read-only tool loop clamped to the task repo; it self-discovered ~90% of ground truth over 26 turns (unwired `deckLegality`/`colorIdentity` primitives → test conventions → the `(req.body ?? {})` Express-5 guard → fixture corpus) and produced the plan later opened as KaneEnabler PR #82. Findings that changed the method: **(a) reviewer gradient** — R1 de novo (no seam coaching) graded the self-prompted plan FIRST-RUN-SAFE while missing 3 of the 4 seams the hand-primed review passed on, so the tuning lever is the reviewer prompt/seat, not the auditor tool loop; **(b) arbiter corrections** must be folded into the implementation contract (JSON-string `color_identity` decode, deck size counting banned/notFound slots, commander eligibility via `is_commander_eligible` + `buildCommanderUnits`); **(c) the reviewer seat has no clean third node** — see [docs/lmstudio-vscode.md](lmstudio-vscode.md) → "Fleet seat assignment".
-- [ ] **Fleet decision: reviewer node gap.** R1:14b (~10.5 GB) doesn't fit node3's 10 GB card cleanly and can't co-reside with the implementer on the desktop. Options: third 16 GB node, accepted partial-offload R1 on node3, or a different-family 7–9B reviewer (`glm4:9b`) that fits node3 at the cost of reviewer strength. Nothing in the gate method requires sister size — only different family.
-- [ ] **Review-gate run 2 follow-ups** (see [docs/lmstudio-vscode.md](lmstudio-vscode.md) → "Next steps"): (1) close KaneEnabler validator holes — **Background-pairing eligibility bug** (a legal Background pair is rejected: `eligible` demands `is_commander_eligible === 1` on every named commander, but a Background is definitionally 0; fix `usableAsCommander = c => c.is_commander_eligible === 1 || c.is_background === 1`), **direct `legality_commander` ban-list check on named commanders** (today enforced only incidentally when the pasted `list` duplicates the commander line), singleton paper-rule, `banned`/`notFound` dedupe, and prove the 100-card-valid assertion on a seeded DB — **merge gate: fix-and-reverify pass** (audit every new test against its claimed branch; run 2's Background test passed green while never passing the pair). See [docs/review-gate/testing.md](review-gate/testing.md); (2) re-measure the reviewer seat with audit evidence + seam checklist (incl. test-veracity) + generous output budget (de novo seams caught: 1/4 → ?) to decide R1 vs a different reviewer; (3) run the auditor harness on a second non-hand-picked repo; (4) routinize per-run grading on the **four** axes (evidence discipline, plan safety, review quality, test veracity) so runs become a benchmark. Gate is currently "auditor crafts, human arbitrates" — reviewer must earn its seat before this scales past the human arbiter.
+- [ ] **Fleet decision: reviewer node gap — reframed 2026-09-19, no longer a VRAM question.** The original framing (third 16 GB node vs. partial-offload R1 on node3 vs. `glm4:9b`) assumed the blocker was fitting a reviewer on a card. Round 3 (18 runs, three models, control vs. forced per-test ledger) shows the seat fails on verification *reasoning*: models transcribe the deciding argument correctly and still pass the plan. A bigger card does not buy that, and `glm4:9b` is weaker than three models that have already failed — its "~6 GB" was catalog disk size, never a measured runtime figure, and it has never been run as a reviewer. **Do not buy or reassign hardware for a local reviewer seat until one exists.** See `docs/review-gate/raw/r3-results.md`. The live options are a hosted gate seat, or the deterministic checker as a regression gate with the human arbiter retained. Note the reviewer VRAM figure itself is inconsistent in the docs (~9 GB at `docs/lmstudio-vscode.md` §4 vs ~10.5 GB in the seat table) — resolve before any sizing decision is revived.
+- [ ] **Review-gate run 2 follow-ups** (see [docs/lmstudio-vscode.md](lmstudio-vscode.md) → "Next steps"): (1) close KaneEnabler validator holes — **Background-pairing eligibility bug** (a legal Background pair is rejected: `eligible` demands `is_commander_eligible === 1` on every named commander, but a Background is definitionally 0; fix `usableAsCommander = c => c.is_commander_eligible === 1 || c.is_background === 1`), **direct `legality_commander` ban-list check on named commanders** (today enforced only incidentally when the pasted `list` duplicates the commander line), singleton paper-rule, `banned`/`notFound` dedupe, and prove the 100-card-valid assertion on a seeded DB — **merge gate: fix-and-reverify pass** (audit every new test against its claimed branch; run 2's Background test passed green while never passing the pair). See [docs/review-gate/testing.md](review-gate/testing.md); (2) ~~re-measure the reviewer seat~~ **— done, closed 2026-09-19.** Run to exhaustion in r2 (three candidates, two never drawn) and then settled by round 3: 18 runs, control vs. forced per-test ledger, prompt hash constant within arm, all parameters recorded. No local model holds the seat, and the failure is verification reasoning rather than prompt shape or output budget. `qwen3.5:9b` produced the corpus's only fully correct review at ~1-in-3 — drafting aid, never the verdict. The "1/4 → ?" metric is retired: it compared an unchecklisted baseline against checklisted runs and measured three changes at once. See `docs/review-gate/raw/r3-results.md`; (3) run the auditor harness on a second non-hand-picked repo; (4) routinize per-run grading on the **four** axes (evidence discipline, plan safety, review quality, test veracity) so runs become a benchmark. Gate is currently "auditor crafts, human arbitrates" — reviewer must earn its seat before this scales past the human arbiter.
 
 ## Desktop dev environments (landed)
 

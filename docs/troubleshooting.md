@@ -146,7 +146,9 @@ $body = @{
 ```
 
 `tool_calls` must be **non-empty**. Measured on Ollama 0.34.0 (identical on
-`/api/chat` and `/v1/chat/completions`):
+`/api/chat` and `/v1/chat/completions`), and re-measured on **0.34.1**
+(2026-09-19) with every result reproduced, each failure in the same mode —
+`tests/results/toolcalls-0.34.1.txt`:
 
 | Model | `tool_calls` | Probe time | Notes |
 |---|---|---|---|

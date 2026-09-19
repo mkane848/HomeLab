@@ -1,0 +1,50 @@
+
+
+### Step 1 — TEST LEDGER
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch reached | does the reached branch match the name? |
+|---|-----------------------|----------------------------------------------|--------------------|----------------------------------------|
+| 1 | exactly 100 cards with a legal commander is valid | commanders: [eligibleCommander W], pasted: commander + 99 Plains | deckSize.total = 100 | YES |
+| 2 | 99 cards is invalid | commanders: [eligibleCommander], pasted: commander + 97 Plains (98 total) | deckSize.total = 98 | YES |
+| 3 | a banned card still occupies a deck slot | banned = makeCard({ legality_commander: 'banned' }), pasted includes banned card | legality.banned = ['Banned Card'], deckSize.total = 100 | YES |
+| 4 | an unparseable card still occupies a deck slot | pasted includes two "Not A Real Card" | legality.notFound = ['Not A Real Card'], deckSize.total = 100 | YES |
+| 5 | decodes the JSON-string color_identity column before checking | card with color_identity: '["U","W"]' | colorIdentity.violations includes the card | YES |
+| 6 | a colorless deck is vacuous | W commander + 99 colorless artifacts | no colorIdentity.violations | YES |
+| 7 | a card that is not commander-eligible cannot be named commander | commander: [Sol Ring] (is_commander_eligible: 0) | commander.eligible = false | YES |
+| 8 | a legal Partner pair is one commander unit with the union identity | two eligibles with partner_ability: 'partner' | commander.pairingLegal = true | YES |
+| 9 | two legendary cards without a pairing ability are not a legal unit | two eligibles without partner_ability | commander.pairingLegal = false | YES |
+| 10 | a Background companion needs the legal Background to pair | chooser and background card | commander.pairingLegal = true | YES |
+| 11 | yshtola (99 cards as supplied) is size-invalid | fixture with 99 cards | isValid = false, deckSize.total = 99 | YES |
+| 12 | The Tenth Doctor + Rose Tyler is a legal 100-card deck | fixture with 100 cards | isValid = true, pairingLegal = true | YES |
+| 13 | 400s on missing list or invalid commanderNames | missing 'list' or invalid 'commanderNames' | 400 response | YES |
+| 14 | 404s when a named commander does not resolve | commander not found in DB | 404 response | YES |
+
+### Step 2 — Implementation Review
+
+#### Command Review:
+1. **Command 1**: Adding the new route `POST /api/deck-validity` with proper error handling (400, 404, 503).  
+   - **PASS**: The route follows existing conventions and handles errors correctly.
+   
+2. **Command 2**: Creating `validateDeck` function in `deckValidation.ts` to handle deck validation.  
+   - **PASS**: The function correctly implements all required validations and is unit-testable.
+
+3. **Command 3**: Adding unit tests for `validateDeck`.  
+   - **PASS**: All tests are correctly implemented and cover the intended scenarios.
+
+4. **Command 4**: Adding integration tests for the new endpoint.  
+   - **PASS**: Integration tests correctly use real data and fixtures.
+
+#### Seam Review:
+- **JSON-string fields**: Covered in unit tests where `color_identity` is decoded.
+- **Whole-dataset counting**: Covered in tests where banned and notFound cards are included.
+- **Eligibility/pairing semantics**: Covered in tests for partner abilities and backgrounds.
+- **Named-commander legality**: Covered by checking against the ban list.
+- **Strict typing**: The code uses TypeScript, so this is covered.
+- **Test veracity**: Each test's arguments reach the intended branch.
+
+#### Redundancy and Artifact Changes:
+- No redundant steps identified.
+- No unnecessary deletions or regenerations of artifacts.
+
+### Final Verdict:
+- **FIRST-RUN-SAFE**: All seams are covered by tests, and the implementation is sound.

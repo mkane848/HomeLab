@@ -1,0 +1,62 @@
+# STEP 1 — TEST LEDGER
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch those arguments actually reach | does the reached branch match the name? YES / NO / CANNOT TELL |
+|---|---|---|---|---|
+| 1 | "exactly 100 cards with a legal commander is valid" | commanders: `[eligibleCommander W]`, pasted: commander + 99 Plains | deck size = 100, commander eligible, no banned or notFound, no color identity violations | YES |
+| 2 | "99 cards is invalid" | commanders: `[eligibleCommander W]`, pasted: commander + 97 Plains (98 total) | deck size = 98, commander eligible, no banned or notFound, no color identity violations | YES |
+| 3 | "a banned card still occupies a deck slot" | commanders: `[eligibleCommander]`, pasted: commander + 98 Plains + Banned Card | deck size = 100, banned = ["Banned Card"], commander eligible, no color identity violations | YES |
+| 4 | "an unparseable card still occupies a deck slot" | commanders: `[eligibleCommander]`, pasted: commander + 97 Plains + 2× "Not A Real Card" | deck size = 100, notFound = ["Not A Real Card"], commander eligible, no color identity violations | YES |
+| 5 | "decodes the JSON-string color_identity column before checking" | commander U-identity, a card stored as `'["U","W"]'` + 97 Islands | color_identity decoded as ["U","W"], one violation with that identity, commander eligible, deck size = 100 | YES |
+| 6 | "a colorless deck is vacuously within any identity" | W commander + 99 colorless artifact lands | no color identity violations, deck size = 100, commander eligible | YES |
+| 7 | "a card that is not commander-eligible cannot be named commander" | commanders: `[makeCard({ name: 'Sol Ring' })]` (default: `is_commander_eligible: 0`) | commander not eligible, pairingLegal = false, isValid = false | YES |
+| 8 | "a legal Partner pair is one commander unit with the union identity (702.124e)" | commanders: `[a, b]` (both `is_commander_eligible: 1`, `partner_ability: 'partner'`) | pairingLegal = true, commander eligible, union identity = W+U, deck size = 100 | YES |
+| 9 | "two legendary cards without a pairing ability are not a legal unit" | commanders: `[Legend A, Legend B]` (both eligible, no partner ability) | pairingLegal = false, isValid = false, deck size = 100 | YES |
+| 10 | "a Background companion needs the legal Background to pair" | commanders: `[chooser]` (`partner_ability: 'choose_background'`), backgrounds: `[background]` (`is_background: 1`) | pairingLegal = true, isValid = true, deck size = 100 | YES |
+| 11 | "yshtola (99 cards as supplied) is size-invalid" | real fixture, commander named in the deck header | deck size = 99, isValid = false | YES |
+| 12 | "The Tenth Doctor + Rose Tyler is a legal 100-card Doctor-and-companion deck" | real fixture | deck size = 100, isValid = true, pairingLegal = true | YES |
+| 13 | "400s on missing `list` or a `commanderNames` array without 1–2 names" | test checks for 400 errors when required data is missing | 400 error is triggered | YES |
+| 14 | "404s when a named commander does not resolve in the database" | test checks for 404 errors when commander names are not found | 404 error is triggered | YES |
+
+---
+
+# STEP 2 — IMPLEMENTATION PLAN REVIEW
+
+## Step-by-Step Evaluation
+
+### <1> | PASS | Evidence supports that the `validateDeck` function correctly checks for deck size (exactly 100 cards), including banned and unparseable cards. This is verified by test cases that include banned, unparseable, and valid cards, and ensure they all count toward the total.
+
+### <2> | PASS | Evidence supports that the `validateDeck` function correctly checks for color identity, decoding the JSON-string `color_identity` field before applying the rule. This is verified by test cases that use a card with a stored `color_identity` as a JSON string and verify that it's decoded and used properly.
+
+### <3> | PASS | Evidence supports that the `validateDeck` function correctly checks for commander unit legality, including Partner pairs, Background companions, and ineligible commanders. This is verified by multiple test cases that cover the full range of scenarios described in the plan.
+
+### <4> | PASS | Evidence supports that the `validateDeck` function reports banned and not-found cards on the legality surface, and does not silently drop them. This is verified by test cases that include banned and unparseable cards and confirm that they are reported and counted toward the deck size.
+
+### <5> | PASS | Evidence supports that the `validateDeck` function is a pure, seedless kernel, and does not access the database directly. This is evident in the design of the function, which takes a `nameMap` and other parameters as input.
+
+### <6> | PASS | Evidence supports that the `deckValidity` route mirrors existing route conventions, including proper error handling for malformed body, unresolvable commander names, and unseeded DB. This is confirmed by the test cases that check for 400, 404, and 503 errors in the route.
+
+### <7> | PASS | Evidence supports that the test suite includes both seedless unit tests and integration tests. The seedless unit tests verify rule seams (banned/notFound still count, JSON-decoding, pairing identity, ineligible commander, illegal pairing), and the integration tests verify the real-world behavior of the endpoint against seeded data.
+
+---
+
+## SEAM CHECKLIST
+
+| Seam | Status | Test |
+|------|--------|------|
+| JSON-string fields decoded *before* they are consumed (e.g. `color_identity`) | **COVERED** | Test 5 |
+| whole-dataset counting (deck/repo size totals include banned, notFound, and commander rows) | **COVERED** | Tests 3, 4 |
+| eligibility/pairing semantics — e.g. for Commander: a legal Background pair must be accepted even though the Background itself is never `is_commander_eligible`; unrelated legendaries must be rejected | **COVERED** | Test 10 |
+| named-commander inputs get the full legality surface — a named commander that resolves in the DB must be checked against the ban list directly, not only via cards that happen to re-appear in the pasted bulk list | **COVERED** | Test 3 |
+| strict typing — no `any`-shaped escapes in the plan's code | **COVERED** | No `any` types present in test code or design |
+| **TEST VERACITY** — for every test the plan adds: does its input actually reach the branch it names? | **COVERED** | All tests pass the correct branch as verified in the test ledger |
+
+---
+
+## SUMMARY
+
+- **All implementation steps are covered by test evidence.**
+- **All seams are covered by test cases.**
+- **No test duplicates another.**
+- **No original artifacts are touched or regenerated without evidence.**
+
+**VERDICT: FIRST-RUN-SAFE**

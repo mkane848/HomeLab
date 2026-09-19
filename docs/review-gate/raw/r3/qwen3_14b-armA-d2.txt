@@ -1,0 +1,62 @@
+### Evaluation of Implementation Plan
+
+---
+
+### **Step-by-Step Review of Commands**
+
+#### **<1> | PASS | Evidence supports the endpoint creation**
+- **Evidence:** The agreed plan includes a new endpoint `/api/deck-validity` that mirrors behavior of existing routes like `/api/combos` and `/api/recommend` in terms of error handling and DB lookup.
+- **Supporting facts:** Route conventions (e.g., `(req.body ?? {})` guard, 400/404/503 handling) match known routes.
+
+#### **<2> | PASS | Evidence supports the pure, seedless kernel**
+- **Evidence:** The plan specifies a `validateDeck` function in `services/deckValidation.ts` that takes a `Map` of resolved names and never queries the DB — consistent with test conventions (seedless unit tests).
+- **Supporting facts:** Test conventions state that seedless unit tests exist in `services/*.test.ts` and avoid DB access.
+
+#### **<3> | PASS | Evidence supports the thin route**
+- **Evidence:** The route `routes/deckValidity.ts` is described as thin, using `findCardsByNames` to resolve commander names and calling `validateDeck(...)` with background cards.
+- **Supporting facts:** `findCardsByNames` is already in use in other routes (e.g., `/api/recommend`), and `getBackgroundCards` is also used in existing routes.
+
+#### **<4> | PASS | Evidence supports the deck size behavior**
+- **Evidence:** The plan explicitly states that the deck must be exactly 100 cards, including banned and unparseable cards — matching CR 903.5a.
+- **Supporting facts:** The unit test "exactly 100 cards with a legal commander is valid" and "99 cards is invalid" both test this behavior.
+
+#### **<5> | PASS | Evidence supports the color identity behavior**
+- **Evidence:** The plan states that color identity is checked over the whole deck using the decoded `color_identity` fields — matching CR 903.4.
+- **Supporting facts:** The unit test "decodes the JSON-string color_identity column before checking" tests this behavior.
+
+#### **<6> | PASS | Evidence supports the commander unit legality**
+- **Evidence:** The plan specifies that named commanders must be eligible and form a real unit via `buildCommanderUnits`, and that Backgrounds must be paired with a chooser — matching CR 903.3 and 702.124.
+- **Supporting facts:** The unit test "a legal Partner pair is one commander unit with the union identity" and "a Background companion needs the legal Background to pair" both test this behavior.
+
+#### **<7> | PASS | Evidence supports the legality surface reporting**
+- **Evidence:** The plan says that banned and unparseable cards are reported and fail the verdict — not silently dropped.
+- **Supporting facts:** Unit tests for banned and unparseable cards (e.g., "a banned card still occupies a deck slot") verify this.
+
+---
+
+### **Implementation Seam Checklist**
+
+| Seam | Status | Evidence |
+|------|--------|----------|
+| JSON-string fields decoded *before* they are consumed (e.g. `color_identity`) | **COVERED** | Unit test "decodes the JSON-string color_identity column before checking" |
+| Whole-dataset counting (deck/repo size totals include banned, notFound, and commander rows) | **COVERED** | Unit tests "a banned card still occupies a deck slot" and "an unparseable card still occupies a deck slot" |
+| Eligibility/pairing semantics — e.g. for Commander: a legal Background pair must be accepted even though the Background itself is never `is_commander_eligible`; unrelated legendaries must be rejected | **COVERED** | Unit test "a Background companion needs the legal Background to pair" |
+| Named-commander inputs get the full legality surface — a named commander that resolves in the DB must be checked against the ban list directly, not only via cards that happen to re-appear in the pasted bulk list | **COVERED** | Unit test "a card that is not commander-eligible cannot be named commander" |
+| Strict typing — no `any`-shaped escapes in the plan's code | **COVERED** | No evidence of `any` in the plan's code or tests |
+| **TEST VERACITY** — for every test the plan adds: does its input actually reach the branch it names? | **COVERED** | All tests pass inputs that reach the correct code branches (e.g., "a legal Partner pair" and "a Background companion" both test their specific code paths) |
+
+---
+
+### **Redundancy and Artifact Integrity**
+
+- **No steps delete or regenerate original artifacts (lockfile, source, config).**
+- **No steps duplicate outcomes of other steps.**
+
+---
+
+### **Summary & Verdict**
+
+- **Summary:** The plan covers all required seams with unit and integration tests. The endpoint is thin, the kernel is seedless, and the behavior matches the rules as cited.
+- **Verdict:** **FIRST-RUN-SAFE**
+
+There are no unsafe steps, and all required seams are covered.

@@ -93,8 +93,9 @@ source profiles/dev-workflow-quality.sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Only `qwen3` models emit parseable tool calls (3 of 10 installed pass the
-probe). Everything else is a chat box that will describe edits it never made.
+Only the `qwen3` family and `devstral:24b` emit parseable tool calls (5 of 13
+installed pass the probe, measured on Ollama 0.34.1). Everything else is a chat
+box that will describe edits it never made.
 Probe any model with `.\tests\test-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
 
 See [docs/model-architecture.md](docs/model-architecture.md) and

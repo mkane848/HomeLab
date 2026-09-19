@@ -10,8 +10,13 @@ self-discover most of a codebase's actual defects when it goes and reads the
 code (the "auditor" role, below). Getting a *second*, cheaper local model to
 reliably catch specific seams as a reviewer — without hand-holding, without
 fabricating evidence, without flipping its verdict between otherwise-identical
-runs — turned out to be the hard part, and as of the last run here, no local
-model has earned the reviewer seat outright. See
+runs — turned out to be the hard part, and no local model has earned the
+reviewer seat. That now rests on 18 parameter-recorded runs across three model
+families (round 3, below), which also killed the leading explanation: forcing
+the reviewer to transcribe every test's arguments before judging raised its
+output length exactly as intended and changed almost nothing. One run
+transcribed the decisive argument correctly and passed the broken plan anyway.
+The bottleneck is verification reasoning, not prompt shape. See
 [docs/lmstudio-vscode.md](../lmstudio-vscode.md) for the full write-up and the
 [roadmap](../roadmap.md) for where this is headed next.
 
@@ -32,6 +37,12 @@ model has earned the reviewer seat outright. See
   "robot" reviewer: it just checks whether the plan's claimed test coverage
   is actually staged in the input, no LLM judgment involved. Useful as a
   floor to compare LLM reviewers against.
+- **Round 3** — the controlled A/B that closed the seat question:
+  **[r3-protocol.md](r3-protocol.md)** (design and the rules the runner
+  enforces), **[r3-ledger-clause.md](r3-ledger-clause.md)** (the treatment),
+  **[r3-runner.ps1](r3-runner.ps1)** (the harness), and
+  **[raw/r3-results.md](raw/r3-results.md)** (the grade, the negative result,
+  and two instrument defects it exposed). Raw runs in `raw/r3/`.
 - **[raw/](raw/)** — the actual per-run transcripts, comparisons, and
   remeasure inputs/outputs that back the claims above. Supporting evidence,
   not required reading — start with `lmstudio-vscode.md` and dip into a raw

@@ -1,0 +1,38 @@
+**Implementation Plan Validation Summary**
+
+---
+
+### Command Validation
+
+1. | **PASS** | The endpoint `POST /api/deck-validity` is correctly described with the expected request and error handling (400, 404, 503), and matches the convention of other routes (e.g., `combos.ts`, `recommend.ts`).
+2. | **PASS** | The `validateDeck` function is described as a pure, seedless kernel that returns a `DeckValidationResult` with all the required fields. It never touches the DB, and all rules are unit-testable.
+3. | **PASS** | The route `deckValidity.ts` is described as thin and following the same conventions as other routes, resolving commander names via `findCardsByNames` and passing a `Map` of names to `validateDeck`.
+4. | **PASS** | The plan promises that the deck size is exactly 100 cards, counting the whole deck including banned and unparseable cards, which matches the test cases.
+5. | **PASS** | The plan promises that the color identity is checked over the commander unit's combined identity, with JSON-string decoding before use, which is covered by test cases.
+6. | **PASS** | The plan promises that commander unit legality is validated using the same `buildCommanderUnits` logic as `/api/recommend`, and test cases cover partner, companion, and Background pairs.
+7. | **PASS** | The plan promises that banned and unparsed cards are reported and fail the verdict, which is covered in the test cases.
+8. | **PASS** | The plan includes a seedless unit test suite and an integration test suite that runs in CI, with clear expectations (e.g., `yshtola` at 99 fails size, Tenth Doctor + Rose Tyler at 100 passes).
+9. | **PASS** | The plan includes test cases for all key seams: JSON decoding, whole-dataset counting, eligibility/pairing rules, and legality surface of named commanders.
+10. | **PASS** | The plan asserts that strict typing is used and that no `any`-shaped escapes exist in the code.
+
+---
+
+### Seam Coverage
+
+| Seam | Covered? | Evidence |
+|------|----------|----------|
+| JSON-string fields decoded *before* they are consumed (e.g., `color_identity`) | ✅ **COVERED** | `deckValidation.test.ts` includes test cases where `color_identity` is a JSON string and is decoded before use. |
+| whole-dataset counting (deck/repo size totals include banned, notFound, and commander rows) | ✅ **COVERED** | `deckValidation.test.ts` includes tests where banned and unparseable cards still count toward deck size. |
+| eligibility/pairing semantics — e.g., for Commander: a legal Background pair must be accepted even though the Background itself is never `is_commander_eligible`; unrelated legendaries must be rejected | ✅ **COVERED** | `deckValidation.test.ts` includes test cases for Background pairing and unrelated legendaries. |
+| named-commander inputs get the full legality surface — a named commander that resolves in the DB must be checked against the ban list directly, not only via cards that happen to re-appear in the pasted bulk list | ✅ **COVERED** | `deckValidity.integration.test.ts` includes integration tests that check legality of named commanders against the DB directly. |
+| strict typing — no `any`-shaped escapes in the plan's code | ✅ **COVERED** | No evidence is given of `any` types in the plan, and this is not a seam in the plan. |
+| **TEST VERACITY** — For every test the plan adds: does its input actually reach the branch it names? | ✅ **COVERED** | All test cases in `deckValidation.test.ts` and `deckValidity.integration.test.ts` reach the branches they are designed to test, and do not pass erroneously on broken code.
+
+---
+
+### Final Verdict
+
+**FIRST-RUN-SAFE**  
+All implementation plan steps are supported by the cited evidence.  
+No seams are uncovered.  
+All tests are valid, cover the required logic, and verify the intended behavior.

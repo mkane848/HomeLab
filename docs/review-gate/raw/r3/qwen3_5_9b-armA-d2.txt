@@ -1,0 +1,48 @@
+### Execution Review
+
+**1 | PASS**
+- **Evidence:** The plan explicitly defines `POST /api/deck-validity` with specific error codes (400, 404, 503) matching existing route conventions (`routes/recommend.ts`, `routes/combos.ts`). It mandates a "thin route" (`server/src/routes/deckValidity.ts`) that resolves names via `findCardsByNames` and rejects unresolvable names with 404, aligning with the auditor's fact that `findCardsByNames` is parameterized and case-insensitive on `name_lower`. The plan correctly identifies that `req.body` must be guarded against `undefined` per Express 5 behavior.
+
+**2 | PASS**
+- **Evidence:** The plan specifies a pure, seedless kernel (`server/src/services/deckValidation.ts`) taking a `Map` of name lookups and `getBackgroundCards()` as arguments, avoiding DB access during validation. This matches the auditor's fact that `getBackgroundCards` exists in `db.ts` and the requirement for unit-testable rules without DB coupling. The return shape `DeckValidationResult` aligns with the auditor's reconstruction of necessary fields (`isValid`, `deckSize`, `colorIdentity`, `legality`).
+
+**3 | PASS**
+- **Evidence:** The plan details logic for deck size (counting banned/unparseable cards), color identity (decoding JSON strings via `parseJsonArray` before passing to `combinedColorIdentity`), and commander eligibility (`is_commander_eligible` check). It correctly references `buildCommanderUnits` from `packages/rules/src/partners.ts` for partner/friends/Background logic, which the auditor confirmed powers `/api/recommend`. The plan explicitly addresses the auditor's note that Backgrounds are never `is_commander_eligible` but can form legal units.
+
+**4 | PASS**
+- **Evidence:** The plan lists specific behaviors: 100-card exact count (including banned/notFound), JSON decoding of `color_identity` (stored as string in types.ts), and surface-level reporting of banned/notFound cards. This directly addresses the "unwired primitives" noted in the auditor's Section 1 (CR 903.5a/903.4).
+
+**5 | PASS**
+- **Evidence:** The plan defines `deckValidation.test.ts` (seedless) and `deckValidity.integration.test.ts` (skipped if unseeded). It specifies helper shapes (`makeCard`, `nameMapOf`) and test cases covering the exact scenarios mentioned in the auditor's evidence: `yshtola` (99 cards) failing size, `Tenth Doctor + Rose` passing, banned cards counting toward size, and JSON string decoding.
+
+**6 | PASS**
+- **Evidence:** The plan's test suite includes assertions for:
+    - Banned/Not Found cards increasing total count (auditor: "counted over the whole pasted deck").
+    - JSON string decoding (`'["U","W"]'` stored vs array consumed).
+    - Partner union identity calculation.
+    - Ineligible commanders (defaults `is_commander_eligible: 0`).
+    - Illegal pairings (legendaries without partner ability).
+    - Background pairing (chooser + background card).
+    - Real-world fixtures (`yshtola`, `tenth-doctor-rose-tyler`).
+
+### Artifact & Redundancy Check
+- **No Deletion/Regeneration:** The plan creates two *new* files (`deckValidation.ts`, `deckValidity.ts`) and two *new* test files. It does not delete or regenerate existing artifacts like `package.json`, `tsconfig.json`, or original source files. The evidence justifies these creations as they are explicitly required by the "unwired primitives" task.
+- **Redundancy:** No step duplicates another. The route and service are distinct layers; unit tests and integration tests serve different verification purposes (logic vs. flow/data). The fewest commands to cover the intent are exactly the 6 steps listed (Route, Service, Tests).
+
+### Seam Checklist
+
+| Seam | Status | Evidence / Test Reference |
+| :--- | :--- | :--- |
+| **JSON-string fields decoded before consumed** | **COVERED** | Plan Step 3 & Test Case: "decodes the JSON-string color_identity column before checking" (`parseJsonArray`). |
+| **Whole-dataset counting (banned/notFound included)** | **COVERED** | Plan Step 1 & Test Case: "a banned card still occupies a deck slot" / "an unparseable card still occupies a deck slot". |
+| **Eligibility/Pairing semantics (Backgrounds)** | **COVERED** | Plan Step 3 & Test Case: "a Background companion needs the legal Background to pair" (explicitly handles non-eligible background cards). |
+| **Named-commander inputs get full legality surface** | **COVERED** | Plan Step 1 & Test Case: Integration test checks real DB fixtures; Unit test checks `legality_commander: 'banned'` resolution. |
+| **Strict typing (no `any` escapes)** | **COVERED** | Plan Step 2 defines explicit interfaces (`DeckValidationResult`, `ParsedListEntry`) without `any`. |
+| **TEST VERACITY (Input reaches branch)** | **COVERED** | Plan Step 5 explicitly constructs input matching the specific branch conditions (e.g., `choose_background` chooser + specific background card, not just any commander). |
+
+### Summary
+1. All implementation steps (Route, Service, Tests) are supported by explicit evidence of existing primitives, data shapes, and route conventions.
+2. All critical seams (JSON decoding, whole-dataset counting, complex pairing logic, DB legality checks) are explicitly covered by planned tests and implementation details.
+3. No artifact regeneration or redundancy exists; the plan is a clean addition of the missing validation layer.
+
+**VERDICT: FIRST-RUN-SAFE**

@@ -1,0 +1,213 @@
+
+You are a second-opinion reviewer. You have NO ability to read files or run
+commands — all facts you need are below. Treat every stated fact as ground
+truth; treat every command in the plan as guilty until it matches evidence.
+Never supply evidence the auditor did not: a claim of yours that needs a file
+you cannot see is an unsupported-claim FAIL against the plan, not a fact.
+
+[AUDITOR'S SECTION 1 — facts + file:line citations]
+
+Evidence reconstructed from sources pinned at KaneEnabler
+`review-gate/deck-validity` @ `92a8ed0` (the auditor's verbatim chat output
+was never committed). Sources: `docs/handoff.md` at `92a8ed0^`, the
+`@mtg/rules` package, `server/src/types.ts`, `server/src/routes/*.ts`,
+`server/src/db.ts`, `server/src/services/legality.ts`, and the committed test
+conventions.
+
+- **The open item (the repo's own record).** `docs/handoff.md` stated that
+  deck-size and whole-deck colour-identity validation were "tested and
+  CR-cited but not wired into either app — neither has a deck-list-validation
+  feature for them to back yet" (CR 903.5a / 903.4, Phase 3b primitives
+  table). This audit treats that as the task: wire the primitives into a
+  validators endpoint.
+- **The primitives that exist, tested and CR-cited, but are unwired.**
+  - `packages/rules/src/deckLegality.ts`: `COMMANDER_DECK_SIZE`,
+    `isValidDeckSize`, `combinedColorIdentity`,
+    `findColorIdentityViolations` — CR 903.5a (exactly 100 cards) and CR 903.4
+    (whole-deck colour identity). Coverage in `deckLegality.test.ts`.
+  - `packages/rules/src/partners.ts`: `buildCommanderUnits`, `unitKey` —
+    commander units under the Partner-family abilities (CR 702.124): `partner`,
+    `partner_with`, `partner_suffix`, `friends_forever`, `choose_background`,
+    `doctors_companion`. A `choose_background` chooser is paired against the
+    full pool of Backgrounds supplied. Coverage in `partners.test.ts` +
+    `partners.real-data.test.ts`. Same functions already power `/api/recommend`.
+- **Card data shape** (`server/src/types.ts`): `CardRow` carries
+  `color_identity` stored as a **JSON string** (must be decoded before any
+  array-consuming rule), `is_background` (0|1), `is_commander_eligible` (0|1),
+  `legality_commander` (`"legal" | "banned" | "not_legal" | "restricted"`),
+  `partner_ability` / `partner_target`, and import-time-baked Scryfall fields.
+  Schema comment of note (types.ts): a legendary Background enchantment is
+  "never itself is_commander_eligible; only ever a commander paired via
+  'choose a Background'".
+- **Lookups and helpers already present.** `db.ts`: `findCardsByNames`
+  (parameterized, case-insensitive on `name_lower`), `getBackgroundCards`,
+  `isSeeded`. `services/parseList.ts`: `parseCardList` → `ParsedListEntry`
+  `{ name, quantity, raw }`. `services/legality.ts`:
+  `partitionSubmittedCards(parsed, nameMap)` → `{ submitted, notFound,
+  banned }` (splits resolved cards, unresolvable names, and `legality_commander
+  === 'banned'` cards).
+- **Route conventions to match** (`routes/recommend.ts`, `routes/combos.ts`):
+  Express 5 leaves `req.body` undefined without a parseable body, so guard with
+  `(req.body ?? {})` before destructuring; 400 on a malformed body, 404 on an
+  unresolvable commander name, 503 when the DB is unseeded; body size already
+  capped globally.
+- **Test conventions.** Seedless unit suites live next to sources
+  (`services/*.test.ts`, vitest + node:assert). Integration tests skip
+  unseeded (`describe.skipIf(!isSeeded)`) and run only in CI's weekly
+  `scryfall-fetch-check` workflow after `pnpm run prepare-data`, against the
+  real-deck corpus in `services/__fixtures__/decks/` (recorded totals:
+  yshtola = 99 as supplied; tenth-doctor-rose-tyler = 100).
+
+[AUDITOR'S SECTION 2 — plan/implementation contract]
+
+The agreed implementation (from the PR body + commit `92a8ed0`):
+
+- New endpoint **`POST /api/deck-validity`** on the commander-recommender
+  server. Request: `{ "list": "<pasted decklist>", "commanderNames": ["…"] }`,
+  1–2 names. Errors mirror existing routes: 400 malformed body, 404
+  unresolvable commander, 503 unseeded DB.
+- **Pure, seedless kernel** — `server/src/services/deckValidation.ts`
+  `validateDeck(parsed, nameMap, commanders, backgrounds)` returns
+  `DeckValidationResult` `{ isValid, commander: { names, colorIdentity,
+  eligible, pairingLegal }, deckSize: { total, expected, isValid },
+  colorIdentity: { combined, violations }, legality: { banned, notFound } }`.
+  It never touches the DB; the route resolves names into a `Map` and passes it
+  in, so every rules decision is unit-testable seedlessly.
+- **Thin route** — `server/src/routes/deckValidity.ts`, built on the same
+  conventions as `combos.ts` (`(req.body ?? {})` guard, 404 convention). Resolves
+  `commanderNames` via `findCardsByNames`, 404s any name not in the map, and
+  calls `validateDeck(...)` with `getBackgroundCards()` as the background pool.
+- **Behavior the plan promises:**
+  1. Deck size — exactly 100 cards (903.5a), counted over the **whole pasted
+     deck** including banned and unparseable cards, so a 100-card deck with one
+     banned card reads 100, not 99.
+  2. Colour identity — every card within the commander unit's combined identity
+     (903.4); identity columns are `parseJsonArray`-decoded before the
+     primitives see them (they expect `string[]`, the DB stores JSON strings).
+  3. Commander unit legality (903.3 / 702.124) — named commanders must be
+     commander-eligible **and** form a real unit via the same
+     `buildCommanderUnits` path `/api/recommend` uses, so partner / companion /
+     Background pairs are validated and illegal ones rejected.
+  4. Legality surface — banned and unparsed cards are reported (never silently
+     dropped) and fail the verdict.
+- **Out of scope:** the client-side panel to submit/render this.
+
+Verification claims in the contract: seedless unit suite covering the rule
+seams (banned/notFound still count toward size, JSON-identity decoding,
+partner-pair union identity, ineligible commander, illegal pairing); an
+integration suite that runs against the real seeded DB asserting
+99-card `yshtola` fails size and The Tenth Doctor + Rose Tyler passes
+100-card valid with `pairingLegal`; local unseeded server suite 404 passed /
+0 failed, lint and `tsc` clean, coverage above thresholds.
+
+[PLAN'S TEST CHANGES — every test the plan adds and what it claims to cover]
+
+Two new files: `server/src/services/deckValidation.test.ts` (seedless unit,
+vitest + node:assert) and `server/src/routes/deckValidity.integration.test.ts`
+(skipped when unseeded, run in CI's `scryfall-fetch-check`). Helper shapes:
+`makeCard(overrides)` defaults a `CardRow` with `is_background: 0`,
+`legality_commander: 'legal'`, `is_commander_eligible: 0`, `color_identity:
+'[]'`; `eligibleCommander(...)` = `makeCard({ is_legendary: 1,
+is_commander_eligible: 1, ... })`; `entry(name, qty)`; `nameMapOf(cards)` keys
+by `name_lower`.
+
+`validateDeck` unit tests:
+- **Deck size (903.5a)**
+  - "exactly 100 cards with a legal commander is valid" — commanders
+    `[eligibleCommander W]`; pasted: commander + 99 Plains; asserts `isValid
+    true`, `deckSize.total = 100`.
+  - "99 cards is invalid" — commander + 97 Plains (98 total); asserts `isValid
+    false`, `deckSize.total = 98`.
+  - "a banned card still occupies a deck slot" — `banned = makeCard({
+    legality_commander: 'banned' })`; pasted commander + 98 Plains + Banned
+    Card; commandeers `[eligibleCommander]`; asserts `deckSize.total = 100`,
+    `legality.banned = ['Banned Card']`, `isValid false`.
+  - "an unparseable card still occupies a deck slot" — pasted commander + 97
+    Plains + 2× "Not A Real Card"; asserts `total = 100`,
+    `legality.notFound = ['Not A Real Card']`, `isValid false`.
+- **Colour identity (903.4)**
+  - "decodes the JSON-string color_identity column before checking" —
+    commander U-identity; a card stored as `'["U","W"]'` + 97 Islands; asserts
+    one violation `{ name, ['U','W'], qty 1 }`, `isValid false`.
+  - "a colorless deck is vacuously within any identity" — W commander + 99
+    colorless artifact lands; asserts no violations, `isValid true`.
+- **Commander unit legality (903.3 / 702.124)**
+  - "a card that is not commander-eligible cannot be named commander" —
+    commanders `[makeCard({ name: 'Sol Ring' })]` (defaults,
+    `is_commander_eligible: 0`); asserts `eligible false`, `pairingLegal
+    false`, `isValid false`.
+  - "a legal Partner pair is one commander unit with the union identity
+    (702.124e)" — commanders `[a, b]`, both `is_commander_eligible: 1`,
+    `partner_ability: 'partner'`; asserts `eligible true`, `pairingLegal
+    true`, union identity W+U, `isValid true`.
+  - "two legendary cards without a pairing ability are not a legal unit" —
+    commanders `[Legend A, Legend B]`, both eligible, no partner ability;
+    asserts `pairingLegal false`, `isValid false`.
+  - "a Background companion needs the legal Background to pair" — commanders
+    `[chooser]` (chooser = `eligibleCommander` with
+    `partner_ability: 'choose_background'`); backgrounds `[background]`
+    (`makeCard({ is_background: 1 })`, so default
+    `is_commander_eligible: 0`); pasted chooser + 99 Plains; asserts
+    `commander.pairingLegal true`, `isValid true`.
+
+`deckValidity` integration tests (all `describe.skipIf(!isSeeded)`):
+- "yshtola (99 cards as supplied) is size-invalid" — real fixture, commander
+  named in the deck header; asserts `isValid false`, `total = 99`.
+- "The Tenth Doctor + Rose Tyler is a legal 100-card Doctor-and-companion
+  deck" — real fixture; asserts `isValid true`, `total = 100`,
+  `pairingLegal true`.
+- 400s on missing `list` or a `commanderNames` array without 1–2 names.
+- 404s when a named commander does not resolve in the database.
+
+<!-- END-RUN -->
+
+STEP 1 — TEST LEDGER. Complete this before anything else. You may not write the
+word COVERED, PASS, or FIRST-RUN-SAFE anywhere above it.
+
+For EVERY test named in [PLAN'S TEST CHANGES], output one row:
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch those arguments actually reach | does the reached branch match the name? YES / NO / CANNOT TELL |
+
+Rules for the ledger:
+- Copy arguments verbatim from the input. Do not summarise them and do not
+  substitute what the argument "would be" — if the input does not state a
+  value, write UNSTATED.
+- The "branch reached" column must follow from the arguments you just copied,
+  not from the test's name. A name is a claim; the arguments are the evidence.
+- Answer NO whenever the arguments cannot reach the branch the name claims, and
+  CANNOT TELL whenever the input does not give you enough to decide. Both are
+  acceptable answers. Guessing is not.
+- Every test in the input gets a row, including ones you consider trivial.
+
+STEP 2 — Only after the ledger is complete, continue with the review below.
+Where the ledger says NO or CANNOT TELL for a test, the seam that test is meant
+to cover cannot be called COVERED on the strength of that test.
+
+For EACH numbered command:
+- <n> | PASS | evidence supporting it
+- <n> | FAIL | evidence contradicting it, or absent required evidence
+Then flag any step that deletes or regenerates an original artifact (lockfile,
+source, config) and whether the cited evidence justifies touching it. Flag any
+step that duplicates the outcome another step already achieves (redundancy) and
+state the fewest commands that cover the intent.
+
+For implementation plans, work the seam checklist and flag each seam as COVERED
+(evidence + a test the plan adds) or UNCOVERED:
+- JSON-string fields decoded *before* they are consumed (e.g. `color_identity`)
+- whole-dataset counting (deck/repo size totals include banned, notFound, and
+  commander rows)
+- eligibility/pairing semantics — e.g. for Commander: a legal Background pair
+  must be accepted even though the Background itself is never
+  `is_commander_eligible`; unrelated legendaries must be rejected
+- named-commander inputs get the full legality surface — a named commander that
+  resolves in the DB must be checked against the ban list directly, not only
+  via cards that happen to re-appear in the pasted bulk list
+- strict typing — no `any`-shaped escapes in the plan's code
+- **TEST VERACITY** — for every test the plan adds: does its input actually
+  reach the branch it names? A test that passes a solo chooser while claiming
+  to cover a pairing branch is a FAIL — it would be green on broken code too.
+
+End with a 3-line summary and verdict: FIRST-RUN-SAFE or RED-MARK (list the
+unsafe step numbers and every UNCOVERED seam) or CAUTION (implementation seams
+uncovered but plan otherwise sound).
+

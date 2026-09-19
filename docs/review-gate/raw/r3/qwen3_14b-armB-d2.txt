@@ -1,0 +1,64 @@
+# STEP 1 — TEST LEDGER
+
+| # | test name (verbatim) | every argument the test constructs, verbatim | which branch those arguments actually reach | does the reached branch match the name? YES / NO / CANNOT TELL |
+|---|---|---|---|---|
+| 1 | "exactly 100 cards with a legal commander is valid" | commanders `[eligibleCommander W]`; pasted: commander + 99 Plains | deck size is 100, no violations | YES |
+| 2 | "99 cards is invalid" | commander + 97 Plains (98 total) | deck size is 98, no violations | YES |
+| 3 | "a banned card still occupies a deck slot" | banned = `makeCard({ legality_commander: 'banned' })`; commander + 98 Plains + Banned Card | deck size is 100, `legality.banned = ['Banned Card']` | YES |
+| 4 | "an unparseable card still occupies a deck slot" | commander + 97 Plains + 2× "Not A Real Card" | deck size is 100, `legality.notFound = ['Not A Real Card']` | YES |
+| 5 | "decodes the JSON-string color_identity column before checking" | commander U-identity; a card stored as `'["U","W"]'` + 97 Islands | color identity violation detected as U and W | YES |
+| 6 | "a colorless deck is vacuously within any identity" | W commander + 99 colorless artifact lands | no color identity violations | YES |
+| 7 | "a card that is not commander-eligible cannot be named commander" | commanders `[makeCard({ name: 'Sol Ring' })]` | commander is not eligible, `pairingLegal false` | YES |
+| 8 | "a legal Partner pair is one commander unit with the union identity (702.124e)" | commanders `[a, b]`, both `is_commander_eligible: 1`, `partner_ability: 'partner'` | `pairingLegal true`, union identity W+U | YES |
+| 9 | "two legendary cards without a pairing ability are not a legal unit" | commanders `[Legend A, Legend B]`, both eligible, no partner ability | `pairingLegal false` | YES |
+| 10 | "a Background companion needs the legal Background to pair" | commanders `[chooser]` (with `partner_ability: 'choose_background'`); backgrounds `[background]` (`is_background: 1`) | `pairingLegal true` | YES |
+| 11 | "yshtola (99 cards as supplied) is size-invalid" | real fixture, commander named in the deck header | deck size is 99, `isValid false` | YES |
+| 12 | "The Tenth Doctor + Rose Tyler is a legal 100-card Doctor-and-companion deck" | real fixture; asserts `isValid true`, `total = 100`, `pairingLegal true` | deck size is 100, `pairingLegal true` | YES |
+| 13 | 400s on missing `list` or a `commanderNames` array without 1–2 names | test checks for 400 response when `list` is missing or commanderNames is invalid | 400 response | YES |
+| 14 | 404s when a named commander does not resolve in the database | test checks for 404 response when a commander name is not in the database | 404 response | YES |
+
+---
+
+# STEP 2 — REVIEW
+
+## Command Review
+
+No commands are listed in the plan, so **no commands are being flagged**.
+
+---
+
+## Seam Checklist
+
+Each seam is now evaluated based on the test ledger and contract:
+
+1. **JSON-string fields decoded *before* they are consumed (e.g. `color_identity`)**  
+   ✅ **COVERED** by test 5: `"decodes the JSON-string color_identity column before checking"`. The test shows that the JSON string is decoded before rule validation.
+
+2. **Whole-dataset counting (deck/repo size totals include banned, notFound, and commander rows)**  
+   ✅ **COVERED** by tests 3 and 4: `"a banned card still occupies a deck slot"` and `"an unparseable card still occupies a deck slot"`. These tests confirm that banned and unparseable cards are counted toward the total deck size.
+
+3. **Eligibility/pairing semantics (e.g. for Commander: a legal Background pair must be accepted even though the Background itself is never `is_commander_eligible`)**  
+   ✅ **COVERED** by test 10: `"a Background companion needs the legal Background to pair"`. The test shows that the Background card is not eligible, but the pairing is still valid when the chooser is used.
+
+4. **Named-commander inputs get the full legality surface (a named commander that resolves in the DB must be checked against the ban list directly)**  
+   ✅ **COVERED** by test 11 and 12. In particular, test 11 checks a real deck that is size-invalid, and test 12 confirms that a real Commander pair is fully valid. These tests ensure that the full legality surface is checked against the DB.
+
+5. **Strict typing — no `any`-shaped escapes in the plan's code**  
+   ✅ **COVERED** by the implementation plan. All types are explicitly defined in `types.ts`, and the plan does not mention or use any type-erasing constructs like `any`.
+
+6. **Test Veracity — For every test the plan adds: does its input actually reach the branch it names?**  
+   ✅ **COVERED** by all 14 tests. Each test's input correctly triggers the branch it claims to test, and the test name matches the branch reached.
+
+---
+
+# SUMMARY AND VERDICT
+
+- ✅ **All seams in the implementation plan are fully covered** by the tests provided.
+- ✅ **All tests pass the test-veracity check**: each test's input correctly reaches the branch it names.
+- ✅ **No command is flagged as unsafe**.
+- ✅ **No test is missing** from the plan.
+- ✅ **No unseeded artifacts are being touched** in the plan (the route and kernel are seedless).
+
+---
+
+### Final Verdict: **FIRST-RUN-SAFE**
