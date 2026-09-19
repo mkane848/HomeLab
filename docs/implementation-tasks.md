@@ -63,3 +63,51 @@ never a task list.
    `"$pair[1]"` in a string; it prints the whole array + literal `[1]`
    ("commands commands[1]/bootstrap.md"). Use `"$($pair[1])/..."` (lines 168,
    171). No behaviour change.
+---
+
+# Review-gate on LFCbot - approved and executed (2026-09-18)
+
+Scope: dependency hygiene of `M:\Projects\LFCbot` (v1.6.0), running the
+review-gate methodology documented in `docs/lmstudio-vscode.md` end to end:
+auditor -> reviewer -> human approval -> implementer.
+
+## What happened
+
+- **Auditor** `qwen/qwen3-coder-30b` (LM Studio, port 1234, tested native
+  Ollama import `qwen3-coder:30b-a3b` exists) - facts capture graded A: all 14
+  invalid installs, the one `UNMET DEPENDENCY` (typescript-eslint) and the
+  extraneous `@types/node-cron` each identified from the ground-truth evidence;
+  semver-fine upgrades (discord.js 14.27.0, typescript 5.9.3, prettier 3.9.6)
+  correctly *not* flagged. Section 2 shipped a 3-step `npm install` plan -
+  concise, no lockfile deletion.
+- **Reviewer** `deepseek-r1:14b` (Ollama, Ask mode, no tools) - graded 3/3
+  PASS, flagged no destructive/redundant steps. Verdict: FIRST-RUN-SAFE.
+- **Human gate**: held and then released - the user approved the plan, and the
+  **implementer** (`qwen3:14b` seat, tool-capable) ran the approved steps
+  verbatim: `npm install` (added 38, removed 88, changed 48), re-checked
+  `typescript-eslint` present, verified `npm ls --depth=0` exit 0 (all 20 deps
+  at locked versions, no invalid/extraneous).
+- **Verification after execution**: `npm run type-check` exit 0, `npm run lint`
+  exit 0, `npm test` 335/335 passed (better-sqlite3 native binding works - the
+  blocking failure that stopped the toolchain before the gate is resolved).
+
+## Lessons
+
+- The auditor-produced plan no longer deletes the lockfile, but it still does
+  not converge on `npm ci` - the reviewer catches it, which is the point of the
+  gate. The right handoff is: approved plan verbatim to a **tool-capable**
+  implementer (e.g. `qwen3:14b`), not the auditor seat. On the executed run the
+  implementer produced a clean tree and a green toolchain, confirming the model
+  choice and handoff shape.
+- The workflow lives in **VS Code + LM Studio** (BYOK), not OpenCode. Prompt
+  templates for both seats live at `docs/review-gate/auditor.md` and
+  `docs/review-gate/reviewer.md`; the flow is: Auditor (Agent mode,
+  `qwen/qwen3-coder-30b`) -> Reviewer (Ask mode, `deepseek-r1:14b`) -> human
+  approves -> tool-capable implementer (`qwen3:14b`) runs the approved steps.
+  Full protocol in `docs/lmstudio-vscode.md`.
+
+## Open follow-up
+
+- Add the three imported desktop seats (`qwen3-coder:30b-a3b`, `qwen3.5:9b`,
+  `deepseek-r1-0528:8b` - registered in opencode/global/opencode.jsonc but not
+  yet rows in `models/catalog.tsv`) so install/test/profiles know them.
