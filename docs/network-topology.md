@@ -2,6 +2,12 @@
 
 LAN connection map for the dev environment.
 
+> **Note:** the per-machine *model* lists below predate the 2026-09-17
+> tool-calling finding and the current desktop seats — the desktop row omits
+> `qwen3:14b`/`qwen3:8b` entirely. The **network** facts (hosts, ports,
+> firewall rules, bind addresses) are current and are what this page is for.
+> For models, see [start-here.md](start-here.md) and [profiles.md](profiles.md).
+
 ## Machines
 
 | Machine | Role | IP | OS | Notes |
