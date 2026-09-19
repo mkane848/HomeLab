@@ -399,3 +399,50 @@ The case-study grading table (single-model vs review-gate):
   different Ollama version or a different LM Studio version. Re-probe before
   trusting a seat (see AGENTS.md → "Passing the probe is necessary, not
   sufficient").
+
+## Fleet seat assignment (the three machines)
+
+Each gate seat wants something and there are exactly two usable VRAM pools today
+(the two 16 GB cards: server = 4070 Ti Super CUDA, desktop = 6800 XT Vulkan).
+The third node — node3's RTX 3080 FE, **10 GB usable ~9 GB**, per [hardware.md](hardware.md)
+— cannot hold any current gate seat cleanly:
+
+| Seat | Requirement | Model & resident VRAM | Fits where |
+|---|---|---|---|
+| Auditor | tool-capable, heavyweight | `qwen3-coder-30b-A3B` — ~14 GB spilled past the desktop's ~14.8 usable (measured, §Performance baseline) | **Server 16 GB alone** (CUDA + 32 GB RAM, room to breathe). On the desktop it runs only partially offloaded and pays a degrading prefill |
+| Reviewer | **different family**, no tools | `deepseek-r1:14b` — ~10.5 GB @16k | Desktop or server (not node3: borderline offload). **Never co-resident with the implementer** on the desktop at these footprints |
+| Implementer | tool-capable, mid-weight | `qwen3:14b` @32k — 11.03 GB (+ `qwen2.5-coder:3b` companion = 12.34 GB, measured) | **Desktop, with the existing co-resident pair** (§VRAM reality / hardware.md) |
+
+Two hard facts drive the assignment:
+
+1. **The auditor wants the server.** The 30B MoE overshoots even a 16 GB card
+   alone (the desktop measurement spilled ~2 GB and prefill fell 102 → 57 tok/s
+   as KV paged). On the server it sits alongside 32 GB system RAM instead of the
+   desktop's smaller pool — the same spill, but a slower decay and CUDA-optimal
+   compute. This is why the run today stays desktop-resident only because the
+   server is down; the intended end state is **auditor on server, implementer on
+   desktop, reviewer wherever the auditor is not** (it must not share the
+   same-family implementer's blind spots — it already does not share training,
+   see §3 "the reviewer must be from a *different* trained family").
+2. **The reviewer has no clean third node.** At ~10.5 GB it does not fit the
+   10 GB node3 card without offload, and on the desktop it cannot co-reside with
+   the implementer (11.03 + 10.5 ≫ 14.8). The reviewer therefore means a
+   **load/unload swap between gate phases on the 16 GB node not otherwise busy** —
+   the current single-machine flow, applied across the LAN. The reviewer running
+   text-only makes slow (partially-offloaded) acceptable, so swap cost is paid in
+   wall-clock, not quality.
+
+Recommended end-state assignment (when server + node3 are up):
+
+| Machine | Resident gate seat | Must stay free of |
+|---|---|---|
+| Server (4070 Ti Super 16 GB) | **Auditor** `qwen3-coder-30b` | — |
+| Desktop (6800 XT 16 GB) | **Implementer** `qwen3:14b` + companion | reviewer, so the gate swap lands on the server instead |
+| Node3 (3080 FE 10 GB) | `qwen3:8b` / `glm4:9b` general (catalog `general embed`) | gate seats — physically can't host one cleanly |
+
+Open decision (tracked in [roadmap.md](roadmap.md)): the reviewer gap is a
+fleet-shaped problem — either a third 16 GB node, an accepted partial-offload
+reviewer on node3 (R1 at 16k is borderline there), or a different-family 7–9B
+reviewer (`glm4:9b`, estimated ~6 GB) that *does* fit node3 but is weaker than
+R1. Nothing in the method requires a specific reviewer size, only a different
+family; the trade is reviewer quality vs. a clean LAN node.
