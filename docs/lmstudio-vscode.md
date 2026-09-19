@@ -533,6 +533,16 @@ its keep. Canonical worked example + merge DoD in
    prompt):** `docs/review-gate/r2-remeasure-input.md` (paste into the
    reviewer) + `docs/review-gate/r2-remeasure-key.md` (grader's answer sheet —
    never pasted to the reviewer).
+
+   **2026-09-19 result:** re-measure run 1 FAILED. R1 (directed checklist,
+   8192-token output, `finish_reason: stop`) still returned FIRST-RUN-SAFE —
+   caught classic seams 1–4, missed the two deciding seams (Background
+   eligibility bug; direct ban-list check) and stamped its own test-veracity
+   claim wrong. Run record + grade:
+   `docs/review-gate/r2-remeasure-run1-deepseek-r1.md`. **R1 is off the
+   reviewer seat.** Next: re-measure the candidates from
+   `r2-remeasure-run1-deepseek-r1.md` → "Decision" on the same fixed input;
+   first seat that flags seams 5–6 and calls RED-MARK wins.
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
 4. **Routinize grading** — record a per-run score sheet on the four axes so
