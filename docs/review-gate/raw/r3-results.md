@@ -199,6 +199,9 @@ negatives. Any future seat rule needs both numbers.
     before trusting a seat. That probe has not been run on 0.34.1. The desktop
     and the server (pinned `ollama/ollama:0.34.0`) are also now on different
     versions.
-- Whether `r3-runner.ps1` parsed clean or needed syntax repair was not
-  reported. Nothing was committed against it, so the runner in the tree is
-  presumed to be the one that produced these results — unverified.
+- ~~Whether `r3-runner.ps1` parsed clean or needed syntax repair.~~
+  **Confirmed 2026-09-19:** it parsed clean on first check and was never
+  edited; it ran as-is for `-WhatIfPrompt` and all 18 runs. Consistent with
+  the git record — `2b913db` is the last commit touching the runner, and
+  `a5aa201` contains only `raw/r3/` paths. The runner in the tree is the one
+  that produced these results.
