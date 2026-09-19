@@ -1,11 +1,12 @@
 # Verifying model-written changes: test veracity and the fix-and-reverify pass
 
 > Companion to the review-gate methodology in
-> [docs/lmstudio-vscode.md](../lmstudio-vscode.md). Written after KaneEnabler
-> PR #82 (2026-09-19): the deck-validity PR merged with a green suite (lint
-> clean, `tsc` clean, 404 passed / 14 skipped / 0 failed) and a silent
-> correctness bug a human merge review caught. This doc exists so that "the
-> tests passed" is never again treated as "the feature works."
+> [docs/lmstudio-vscode.md](../lmstudio-vscode.md). Written after the review of
+> KaneEnabler PR #82 (2026-09-19): the deck-validity PR came in with a green
+> suite (lint clean, `tsc` clean, 404 passed / 14 skipped / 0 failed) and a
+> silent correctness bug a human PR review caught before any merge. This doc
+> exists so that "the tests passed" is never again treated as "the feature
+> works."
 
 ## Principle
 
@@ -66,11 +67,11 @@ Before merging a model-produced change:
 
 ## Three-tier verification
 
-| Tier | What it catches | PR #82 at merge |
+| Tier | What it catches | PR #82 on review |
 |---|---|---|
 | Unit (branch-coverage audit) | tests that never enter their claimed branch | missed the Background pairing bug |
 | Integration (seeded DB, real fixtures) | assertions that are internally incoherent or unproven | skipped locally — the 100-card assertion was CI-only |
-| Human merge review | silent logic bugs the suite structure can't see | **caught it** — this doc's reason for existing |
+| Human PR review | silent logic bugs the suite structure can't see | **caught it** — this doc's reason for existing |
 
 Each tier catches what the tiers above it miss; all three are required before
 "verified" is a word you use.

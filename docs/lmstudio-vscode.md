@@ -426,9 +426,10 @@ pasted decklist.
   hand-primed run (LFCbot) had caught. Verdict length ~2035 chars / 59.8 s — a
   thin pass (likely also the R1 output-budget trap).
 - **Arbiter (human, the tool-capable implementer seat = qwen3:14b):** folded
-  the 4 corrections into the implementation contract, which then shipped as
+  the 4 corrections into the implementation contract, which was opened as
   **[KaneEnabler PR #82](https://github.com/mkane848/KaneEnabler/pull/82)**
-  (`review-gate/deck-validity` @ `92a8ed0`).
+  (`review-gate/deck-validity` @ `92a8ed0`). **The PR is open, not merged** —
+  everything below is a review of the branch before any merge.
 
 ### Grade (four axes)
 
@@ -437,9 +438,9 @@ pasted decklist.
 | 1. Evidence discipline | **A** — self-derived `file:line` citations checked out against the real repo |
 | 2. Plan safety | **PASS** — no destructive step (unlike run 1's lockfile deletion) |
 | 3. Review quality | **FAIL this run** — the reviewer rubber-stamped a 4-seam-deep plan. The reviewer seat is now the known weak link, and the lever is its prompt/context, not a different model |
-| 4. Test veracity | **FAIL (found post-merge)** — the shipped Background test passed green while never entering the pairing branch it names; a silent bug shipped with it. See [docs/review-gate/testing.md](review-gate/testing.md) |
+| 4. Test veracity | **FAIL (found on PR review)** — the PR's Background test passed green while never entering the pairing branch it names; a silent bug rode the branch. See [docs/review-gate/testing.md](review-gate/testing.md) |
 
-### Post-merge arbiter verification (what holds, what doesn't)
+### Arbiter verification of the PR branch (what holds, what doesn't)
 
 - Re-ran the gates on the actual PR checkout: lint clean, `tsc` clean, **404
   passed / 14 skipped / 0 failed**, coverage 79.61/73.23/79.8/80.5 (above the
@@ -450,8 +451,9 @@ pasted decklist.
   the primitives; whole-pasted-deck size including banned/notFound; commander
   eligibility + pairing via `is_commander_eligible` + `buildCommanderUnits`;
   strict typing.
-- **Still open in the shipped validator, for a follow-up PR:** (0) the
-  Background-pairing eligibility bug below is in the merged code — a legal
+- **Still open in the submitted validator (fix on the same branch before any
+  merge):** (0) the
+  Background-pairing eligibility bug below is in the PR's code — a legal
   Background pair is rejected; (1) named `commanders` are never checked directly
   against `legality_commander` — ban enforcement is incidental, only firing when
   the pasted `list` duplicates the commander line; (2) the singleton paper-rule
@@ -459,9 +461,9 @@ pasted decklist.
   `scryfall-fetch-check` — the 100-card-valid assertion is unproven on a seeded
   DB locally; (4) `banned` / `notFound` are per-line name lists, not deduped.
 
-### The merge review that caught the silent bug (2026-09-19)
+### The PR review that caught the silent bug (2026-09-19)
 
-A human merge review of the shipped PR found a **correctness bug the green
+A human review of the **open** PR (pre-merge) found a **correctness bug the green
 suite could not see**. `deckValidation.ts` computed
 `eligible = commanders.every(c => c.is_commander_eligible === 1)`, but a
 Background card is definitionally `is_commander_eligible = 0` (schema comment in
@@ -484,9 +486,9 @@ claiming to test the pairing branch. The information that would have caught it
 file) was in the code the model was editing.
 
 **Reading:** lint, `tsc`, and 404 unit tests all green — and the feature still
-silently wrong for its headline use case. The automated suite is necessary, not
-sufficient; the human merge review is where the gate earns its keep. Canonical
-worked example + merge DoD in
+silently wrong for its headline use case on an unmerged branch. The automated
+suite is necessary, not sufficient; the human PR review is where the gate earns
+its keep. Canonical worked example + merge DoD in
 [docs/review-gate/testing.md](review-gate/testing.md).
 
 ### What this run changes about the method
@@ -502,8 +504,8 @@ worked example + merge DoD in
 - **A human arbiter is still doing the actual catching.** Until the reviewer
   reliably re-derives verdicts, the gate is "auditor crafts, human arbitrates" —
   which is better than no gate, but not yet automation.
-- **A green suite is not a working feature.** The post-merge verification below
-  reported every gate green; the merge review still found a silent Background
+- **A green suite is not a working feature.** The PR verification below
+  reported every gate green; the human PR review still found a silent Background
   eligibility bug. Model-written tests can pass without entering the branch they
   name — implementation runs end with the fix-and-reverify pass of
   [docs/review-gate/testing.md](review-gate/testing.md), and test veracity is

@@ -116,12 +116,13 @@ auditor -> reviewer -> human approval -> implementer.
 
 # KaneEnabler deck-validity follow-up — PR #82 fix-and-reverify (task list)
 
-Scope: the follow-up PR to KaneEnabler PR #82 (`review-gate/deck-validity`),
-driven by the 2026-09-19 merge review. Verdict on the merged validator: **good
-scaffolding, needs a fix-and-reverify pass before merge** — the merge review
+Scope: the follow-up work to KaneEnabler PR #82 (`review-gate/deck-validity`),
+driven by the 2026-09-19 PR review. The PR is **open, not merged** — fixes land
+on the same branch before any merge. Verdict on the submitted validator: **good
+scaffolding, needs a fix-and-reverify pass before merge** — the PR review
 found a silent Background-pairing bug despite a green suite (lint, `tsc`, 404
 passed / 14 skipped / 0 failed). Full context:
-`docs/lmstudio-vscode.md` → "The merge review that caught the silent bug" and
+`docs/lmstudio-vscode.md` → "The PR review that caught the silent bug" and
 `docs/review-gate/testing.md`.
 
 Tasks are ordered; **each fix must ship a test that fails on the old code**.
@@ -136,7 +137,7 @@ Tasks are ordered; **each fix must ship a test that fails on the old code**.
    pairing-legality check.
    Definition of done: a Background pair returns `isValid true`; Sol Ring as
    commander and two unrelated legendaries are still rejected.
-2. **Make the Background unit test exercise the pairing branch.** The shipped
+2. **Make the Background unit test exercise the pairing branch.** The PR's
    "a Background companion needs the legal Background to pair" test passes only
    `[chooser]` — it never enters the pairing branch it claims to test. Pass the
    pair (chooser + Background) so the branching path `legalUnits.some(...)` is
