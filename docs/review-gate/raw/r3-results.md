@@ -179,9 +179,26 @@ negatives. Any future seat rule needs both numbers.
   in 18, the answer is now less interesting than it was.
 - **A hosted arm.** Untried in any round. It is the only untested option that
   could plausibly change the seat answer.
-- **`ollama --version` was not reported** with these runs. Every tool-call and
-  VRAM measurement in these docs is taken against 0.34.0; template changes
-  between versions move results. Unconfirmed for this round.
+- **Ollama version: 0.34.1** (reported 2026-09-19, after the round). Every
+  tool-call and VRAM measurement elsewhere in these docs was taken against
+  **0.34.0**, and the desktop has moved off it — this is exactly the drift
+  `desktop/scripts/pin-ollama-desktop.ps1` was written on 2026-09-17 to
+  prevent, naming v0.34.1 as the staged bundle. Consequences, in order:
+  - **Round 3's internal A/B is unaffected.** All 18 runs executed on one host
+    in one session on one version; the arms are compared within-version.
+  - **Cross-round comparison is now uncertain.** Round 2 recorded no version,
+    so whether it ran on 0.34.0 or 0.34.1 is unknown. Since round 3 reproduces
+    round 2's conclusion rather than contradicting it, little rests on this.
+  - **The `think:false` anomaly may be version-specific.** A 0.34.1 change in
+    think handling is a live candidate explanation for `deepseek-r1:14b`
+    returning a populated `thinking` field, and should be checked before the
+    behaviour is attributed to the model.
+  - **Out of scope for this round but more urgent than it:** the fleet's
+    tool-calling results are all 0.34.0 measurements, and the standing rule in
+    `roadmap.md` is to re-run `tests/test-toolcalls.ps1` on any version bump
+    before trusting a seat. That probe has not been run on 0.34.1. The desktop
+    and the server (pinned `ollama/ollama:0.34.0`) are also now on different
+    versions.
 - Whether `r3-runner.ps1` parsed clean or needed syntax repair was not
   reported. Nothing was committed against it, so the runner in the tree is
   presumed to be the one that produced these results — unverified.
