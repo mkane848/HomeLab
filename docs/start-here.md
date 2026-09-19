@@ -70,8 +70,14 @@ curl.exe -s http://localhost:11434/api/version
 curl.exe -s http://localhost:11434/api/tags
 ```
 
-The first returns `{"version":"0.34.0"}`. The second lists every installed
-model. If either hangs or refuses, Ollama isn't up — check `Get-Process ollama`.
+The first returns the running version — `{"version":"0.34.1"}` as of
+2026-09-19. The second lists every installed model. If either hangs or refuses,
+Ollama isn't up — check `Get-Process ollama`.
+
+> **If the version differs from the one above**, the desktop has auto-updated
+> again (it is a native install, so the server's image pin does not cover it).
+> Re-run `.\tests\test-toolcalls.ps1` before trusting any agent seat — see the
+> tool-calling section below.
 
 > **`curl.exe`, not `curl`.** In PowerShell, `curl` is an *alias* for
 > `Invoke-WebRequest`, which doesn't understand `-s` — it swallows the flag and
@@ -174,15 +180,24 @@ An agent that can read and edit files does it by emitting a **tool call** — a
 structured block the runtime executes. A model that can't produce one will
 often *describe* the call in prose instead, and then claim it worked.
 
-Measured on this desktop, 2026-09-17 — **3 of 10 installed models pass**:
+Measured on this desktop 2026-09-17 on Ollama 0.34.0, and re-measured
+2026-09-19 on **0.34.1** after the desktop auto-updated — **5 of 13 installed
+models pass**. Every previously-measured model reproduced its earlier result,
+including the *mode* of each failure, so the two versions behave identically
+here. Raw output: [`tests/results/toolcalls-0.34.1.txt`](../tests/results/toolcalls-0.34.1.txt).
 
 | Model | Can call tools? |
 |---|---|
-| `qwen3:14b` | **yes** — the main seat (re-seated today; watch for repeated calls below) |
+| `qwen3:14b` | **yes** — the main seat (watch for repeated calls below) |
 | `qwen3:8b` | **yes** — the lighter main seat in `dev-workflow-resident`/`dev-desktop-only` |
+| `qwen3.5:9b` | **yes** — first measured 2026-09-19 |
+| `qwen3-coder:30b-a3b` | **yes** — first measured 2026-09-19; the review-gate auditor seat |
 | `devstral:24b` | yes, but 8.1 tok/s — it spills out of VRAM |
 | `qwen2.5-coder` (3b / 7b / 14b / -16k) | no — prints the call as chat text |
-| `deepseek-r1` (14b / -16k / -32k) | no — ignores the tool, answers in prose |
+| `deepseek-r1` (14b / -16k / -32k / -0528:8b) | no — ignores the tool, answers in prose |
+
+The count moved 3/10 → 5/13 only because three models were installed after the
+first baseline; two of them pass. No model changed its result.
 
 **Role tells you nothing about this.** `qwen3:14b` is classed `reasoner` in the
 catalog and calls tools fine. `qwen2.5-coder:14b` is classed `coder` and cannot

@@ -76,6 +76,11 @@ Decide its fate:
       `qwen2.5-coder:3b` and `deepseek-r1:14b`/`-32k` all return empty
       `tool_calls` and print the call as chat text. Not the bake
       (pristine re-pull behaves the same). See `docs/troubleshooting.md`.
+      **Re-measured on 0.34.1 (2026-09-19): every result reproduced, each
+      failure in the same mode.** Now 5/13 — `qwen3.5:9b` and
+      `qwen3-coder:30b-a3b` were first measured then and both pass;
+      `deepseek-r1-0528:8b` fails with the rest of its family. Raw output:
+      `tests/results/toolcalls-0.34.1.txt`.
 - [x] **Seat assignments corrected (2026-09-17, final).** Every seat that
       reads/edits/runs is a qwen3: `dev-workflow-quality` main seat re-seated
       from `qwen3:8b` to `qwen3:14b` for loose-prompt intent handling (the
@@ -114,17 +119,30 @@ Decide its fate:
 
 ## Hardening / experiments
 
-- [x] **Pin the Ollama image** (2026-09-17): `server/docker/docker-compose.yml`
-      now pins `ollama/ollama:0.34.0`, the version every tool-calling and VRAM
-      measurement in these docs was taken against. `:latest` was a live risk,
+- [x] **Pin the Ollama image** (2026-09-17; pin bumped to `0.34.1` on
+      2026-09-19 to match the desktop): `server/docker/docker-compose.yml`
+      pins `ollama/ollama:0.34.1`, the version every tool-calling measurement
+      in these docs is now taken against. (VRAM figures still date from 0.34.0
+      and have not been re-measured — they are not expected to move, but they
+      are not re-verified either.) `:latest` was a live risk,
       not just a reproducibility nicety — which models emit parseable tool calls
       depends on the Ollama version and its templates, so an unattended pull
       could silently turn a working agent into one that reports edits it never
       made. **On any version bump, re-run `tests/test-toolcalls.ps1` against the
       host before trusting a seat.**
-      - [ ] The desktop is a native install, not a container, so it is *not*
-            pinned by this. It auto-updates. Consider disabling Ollama's
-            auto-update on the desktop, or at minimum re-probe after it moves.
+      - [ ] **The desktop is a native install, not a container, so it is *not*
+            pinned by this — and on 2026-09-19 it auto-updated 0.34.0 → 0.34.1,
+            exactly as predicted.** `desktop/scripts/pin-ollama-desktop.ps1`
+            exists to prevent this (a Windows Firewall outbound block on the
+            tray updater, written 2026-09-17 naming v0.34.1 as the bundle
+            already staged), but the update happened anyway — so either the
+            guard was never applied or it did not hold. **Unresolved: find out
+            which.** No markdown file references that script, which points at
+            "never applied". The re-probe half of this item *was* done and the
+            news was good (every result reproduced on 0.34.1; docs re-baselined,
+            server pin bumped to match), so nothing is broken — but the fleet
+            is one silent update away from the same question, and next time the
+            answer may not be benign.
 - [ ] Try CUDA-only tooling on the server that the Vulkan desktop cannot run: vLLM, TensorRT-LLM, CUDA llama.cpp — good candidates for serving a 14B at higher throughput.
 - [ ] Bake a higher-context derived model if the 16 384 default is too small for one specific job (`install-model.sh --ctx N` creates `<tag>-Nk`).
 - [ ] Add `qwen3-coder` to `models/catalog.tsv` + OpenCode config when it stabilizes in the Ollama library.
