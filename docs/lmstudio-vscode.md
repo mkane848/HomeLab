@@ -1,4 +1,4 @@
-# LM Studio + VS Code: native BYOK reference and the review-gate methodology
+# VS Code + local models: BYOK setup, and the review-gate methodology built on it
 
 > Setup and method as of **2026-09-18**, measured on this desktop (RX 6800 XT,
 > VS Code 1.138.0). The purpose is twofold: (1) a **reproducible reference** for
@@ -23,6 +23,12 @@ hardware answers) exercised inside VS Code.
 
 Neither wraps the other, and neither is "smarter". VS Code does not care who is
 answering which port.
+
+**In this doc:** "Setup" through "Gotchas" is the standalone reference — read
+that and stop if you just want VS Code talking to your local models day to
+day, the way OpenCode already does from the terminal. Everything from "The
+review-gate methodology" on is a specific research thread built on top of
+that setup, not a prerequisite for using it.
 
 ---
 

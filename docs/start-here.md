@@ -1,7 +1,9 @@
 # Start Here
 
-The one page to read when you sit down. Every command below has been run on
-this desktop and the output is what you should actually see.
+The one page to read when you sit down with OpenCode. (Prefer VS Code? Same
+fleet, different door — see [lmstudio-vscode.md](lmstudio-vscode.md)
+instead.) Every command below has been run on this desktop and the output is
+what you should actually see.
 
 **Right now:** the server (`SERVER_IP`) will not POST — hardware recovery is
 in progress ([`server-recovery-cpu-led.md`](server-recovery-cpu-led.md)). So
@@ -411,5 +413,6 @@ profiles were parked. Then, by symptom:
 | check VRAM and GPU facts | [hardware.md](hardware.md) |
 | add or change a model | [AGENTS.md](../AGENTS.md) → "Model catalog" |
 | fix the server | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) |
-| run models in VS Code / review-gate a plan | [lmstudio-vscode.md](lmstudio-vscode.md) |
+| use VS Code instead of the terminal | [lmstudio-vscode.md](lmstudio-vscode.md) |
+| review-gate a plan with a second model | [lmstudio-vscode.md](lmstudio-vscode.md) → "The review-gate methodology" |
 | see what's still open | [roadmap.md](roadmap.md) |
