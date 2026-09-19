@@ -23,6 +23,20 @@
 # on each seat and the pass/fail table is the tuning signal. No config or
 # seat change until ~3 graded runs across >=2 tasks (the agreed gate).
 #
+# Reproducibility, and its current limit: every run records `ollamaVersion`/
+# `opencodeVersion` (from `ollama --version` / `opencode --version`) and the
+# raw JSONL transcript is now KEPT (moved into tests/results/, not deleted) -
+# see `samplingControl` in each result JSON. What this harness does NOT do is
+# pin a seed or temperature: `opencode run` has no known per-invocation flag
+# for either, and opencode.jsonc's model schema only supports
+# limit/modalities/tool_call (see AGENTS.md), not sampling params. Contrast
+# docs/review-gate/r3-runner.ps1, which calls the Ollama API directly to pin
+# seed/temperature/num_ctx/num_predict - at the cost of not exercising the
+# real opencode tool loop this harness exists to test. If the retained
+# transcripts turn out to carry usable request-parameter fields once
+# inspected, extracting them is a follow-up; this harness does not assume a
+# shape it hasn't verified.
+#
 # Usage (PowerShell, from anywhere; source a profile first so OPENCODE_MODEL/
 # OLLAMA_*_BASE_URL are set, or pass -Model):
 #   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model ollama-desktop/qwen3:14b
@@ -44,8 +58,10 @@
 #   -Cleanup            remove the task worktree after grading.
 #
 # Exit code: 0 if no FAIL grade across all runs, 1 otherwise.
-# Results: tests/results/tasks-<taskId>-<label>_<timestamp>.json per run, plus
-# one row appended to tests/results/tasks-summary.tsv.
+# Results: tests/results/tasks-<taskId>-<label>_<timestamp>.json AND the
+# matching .jsonl raw transcript per run, plus one row appended to
+# tests/results/tasks-summary.tsv (unchanged 12-column schema - the richer
+# new fields live in the per-run JSON, not the summary row).
 
 param(
     [string[]]$Task = @(),
@@ -295,8 +311,10 @@ function Invoke-OpencodeRun {
     if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
         Stop-Job $job -ErrorAction SilentlyContinue
         Remove-Job $job -Force -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $promptFile, $out -Force -ErrorAction SilentlyContinue
-        return [pscustomobject]@{ ExitCode = -1; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "opencode run timed out after $TimeoutSec s (prompt sha $PromptHash)" }
+        Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
+        # $out is NOT deleted here - whatever the model did before being killed
+        # is evidence, not noise. The caller rescues it into tests/results/.
+        return [pscustomobject]@{ ExitCode = -1; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "opencode run timed out after $TimeoutSec s (prompt sha $PromptHash)"; TranscriptPath = $out }
     }
     $jobResult = @(Receive-Job $job)
     Remove-Job $job -Force -ErrorAction SilentlyContinue
@@ -321,15 +339,29 @@ function Invoke-OpencodeRun {
             if ($e.type -ne "tool_use") { continue }
             if ($e.part.tool -in @("write", "edit", "Patch", "NotebookEdit")) { $writes++ }
         }
-        Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue
+        # $out is NOT deleted here - the caller moves the raw transcript into
+        # tests/results/ next to the graded JSON, so a run's "why" is auditable
+        # later instead of stranded in %TEMP% (the round-2 mistake this repo's
+        # own review-gate work already learned from - see r3-protocol.md).
     }
-    return [pscustomobject]@{ ExitCode = $code; Writes = $writes; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1) }
+    return [pscustomobject]@{ ExitCode = $code; Writes = $writes; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); TranscriptPath = $out }
 }
 
 # --- main loop ---------------------------------------------------------------
 
 Write-Host "tasks manifest: $manifestPath" -ForegroundColor DarkGray
 Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor DarkGray
+
+# Captured once per script run, not per task - neither changes mid-run.
+# Tolerant of either command being absent/erroring: Run-Native never throws,
+# so a missing/unexpected --version flag degrades to a labeled "unknown"
+# rather than aborting the whole benchmark.
+$ovOllama = Run-Native "ollama" @("--version")
+$ollamaVersion = if ($ovOllama.ExitCode -eq 0 -and $ovOllama.Output) { ($ovOllama.Output -join ' ').Trim() } else { "unknown (ollama --version exit $($ovOllama.ExitCode))" }
+$ovOpencode = Run-Native "opencode" @("--version")
+$opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
+Write-Host ("ollama: {0} | opencode: {1}" -f $ollamaVersion, $opencodeVersion) -ForegroundColor DarkGray
+
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
 $overallPass = $true
@@ -377,6 +409,12 @@ foreach ($tk in $tasksToRun) {
     if ($run.ExitCode -eq -1) {
         Write-Result $tk.id "opencode run" "FAIL" $run.Detail
         $overallPass = $false
+        if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
+            $timeoutStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $timeoutTranscript = Join-Path $resultsDir ("tasks-{0}-{1}_TIMEOUT_{2}.jsonl" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $timeoutStamp)
+            Move-Item -LiteralPath $run.TranscriptPath -Destination $timeoutTranscript -Force -ErrorAction SilentlyContinue
+            Write-Host "    partial transcript kept: $timeoutTranscript" -ForegroundColor DarkGray
+        }
         if (-not $NoReset) { Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null; Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null }
         continue
     }
@@ -490,21 +528,38 @@ foreach ($tk in $tasksToRun) {
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })
         failsOnOld = $(if ($failsOnOldOk) { "PASS" } else { "FAIL" })
     }
-    $result = [pscustomobject]@{
-        timestamp    = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
-        taskId       = $tk.id
-        taskTitle    = $tk.title
-        model        = $Model
-        modelLabel   = $ModelLabel
-        baseCommit   = $wt.Head
-        promptSha256 = $promptHashes[$tk.id]
-        opencodeExit = $run.ExitCode
-        writes       = $run.Writes
-        gates        = $gateSummary
-        typecheck    = $(if ($typecheckOk) { "PASS" } else { "WARN" })
-        elapsedSec   = $run.ElapsedSec
+    # One stamp shared by the JSON result and its .jsonl transcript, so the two
+    # files that describe the same run are trivially pairable by filename.
+    $runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $runBaseName = "tasks-{0}-{1}_{2}" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $runStamp
+    $runFile = Join-Path $resultsDir ($runBaseName + ".json")
+    $transcriptDest = Join-Path $resultsDir ($runBaseName + ".jsonl")
+    if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
+        Move-Item -LiteralPath $run.TranscriptPath -Destination $transcriptDest -Force
+        $transcriptFileField = Split-Path -Leaf $transcriptDest
+    } else {
+        $transcriptFileField = $null
+        Write-Host "    (no transcript captured for this run)" -ForegroundColor DarkGray
     }
-    $runFile = Join-Path $resultsDir ("tasks-{0}-{1}_{2}.json" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), (Get-Date -Format "yyyyMMdd-HHmmss"))
+
+    $result = [pscustomobject]@{
+        timestamp       = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
+        taskId          = $tk.id
+        taskTitle       = $tk.title
+        model           = $Model
+        modelLabel      = $ModelLabel
+        baseCommit      = $wt.Head
+        promptSha256    = $promptHashes[$tk.id]
+        opencodeExit    = $run.ExitCode
+        writes          = $run.Writes
+        gates           = $gateSummary
+        typecheck       = $(if ($typecheckOk) { "PASS" } else { "WARN" })
+        elapsedSec      = $run.ElapsedSec
+        ollamaVersion   = $ollamaVersion
+        opencodeVersion = $opencodeVersion
+        samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
+        transcriptFile  = $transcriptFileField
+    }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 
     $row = @($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,

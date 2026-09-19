@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the task-veracity benchmark harness (`tests/test-tasks.ps1`) and task
   manifest, seeded with the background-pairing task and its first graded runs
   (qwen3:14b, qwen3:8b x2, devstral:24b — all FAIL on the six mechanical gates).
+- Harden the task-veracity benchmark harness before Task 2: raw run
+  transcripts are now kept (moved into `tests/results/*.jsonl`, paired by
+  filename with the graded JSON) instead of deleted from `%TEMP%` — the same
+  round-2 mistake this repo's review-gate work already learned from. Every
+  run also records `ollamaVersion`/`opencodeVersion`. Sampling (seed/
+  temperature) is explicitly documented as NOT controlled or recorded —
+  `opencode run` has no known per-invocation flag for either, unlike
+  `docs/review-gate/r3-runner.ps1`'s direct-Ollama-API approach — rather than
+  fabricate a reading for a parameter this harness cannot currently pin.
 - Cross-check the `devstral:24b` zero-write result from the task-veracity
   benchmark (`kane-01-background-pair`) through VS Code Agent mode, same base
   commit and identical prompt: reproduced - 0 files changed. Confirms the
