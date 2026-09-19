@@ -545,10 +545,15 @@ its keep. Canonical worked example + merge DoD in
    material, strengthened checklist) flipped to FIRST-RUN-SAFE and
    **fabricated** evidence for a "COVERED" stamp. Record + grades:
    `docs/review-gate/r2-remeasure-run2-qwen35.md`. **qwen3.5:9b also does not
-   take the seat** under the registered rule. Next candidates / policy options
-   are enumerated in the run-2 record's "Options forward" (qwen3:14b draw,
-   majority-of-3 for qwen3.5, deterministic checker robot, or route the gate
-   to a hosted model).
+   take the seat** under the registered rule. Run 3 (`qwen3:14b`, think-off)
+   failed identically — FIRST-RUN-SAFE, seams 5–6 stamped COVERED with
+   non-sequitur evidence:
+   `docs/review-gate/r2-remeasure-run3-qwen314.md`. **Seat survey of four
+   projected local candidates is exhausted** (R1, qwen3.5, qwen3 — and
+   devstral/qwen2.5-coder declined as same-family traits at higher cost). The
+   live options are now: majority-of-3 on qwen3.5:9b (the only seat that ever
+   emitted a RED-MARK), or a deterministic scripted seam-checker with the LLM
+   demoted to drafting.
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
 4. **Routinize grading** — record a per-run score sheet on the four axes so
