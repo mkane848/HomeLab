@@ -72,7 +72,11 @@ Closed 2026-09-19, recorded so it is not reopened by accident.
   and changed almost nothing: deciding seams caught 1/9 under treatment, 0/9
   under control. One run transcribed the decisive argument correctly into its
   ledger and passed the broken plan anyway. **The bottleneck is verification
-  reasoning — not prompt shape, not output budget, not VRAM.**
+  reasoning — not prompt shape, not output budget, not VRAM.** **Scope:** this
+  is confirmed on one defect pair (seam 5 + seam 6), replicated 18 times across
+  three model families — internal validity is strong, but no different bug
+  shape or plan has ever been tried, so generalization past this one plan is
+  untested, the same limit the seam-checker bullet below already states.
   → [review-gate/raw/r3-results.md](review-gate/raw/r3-results.md)
 - **The deterministic seam-checker discriminates** — given genuinely covered
   seams it returns FIRST-RUN-SAFE, given the original it returns RED-MARK. It
