@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `CONTRIBUTING.md` and a GitHub pull-request template codifying the repo's
+  review-gate verification standard and changelog convention.
 - Plan the fleet decision on the review-gate results: third 16 GB node vs.
   partial-offload R1 on node3 vs. `glm4:9b` (see `docs/roadmap.md`).
 
