@@ -1,11 +1,14 @@
 # HomeLab
 
 A documented homelab: a hybrid Ubuntu-server / Windows-desktop fleet running
-local LLMs (Ollama) behind [OpenCode](https://opencode.ai), with model
-installs and per-machine profiles managed from one catalog. Written up for
-other hobbyists — hardware notes, a live-fire hardware recovery log, VRAM/tool-calling
-benchmarks measured on real models, and a small research thread on whether a
-local LLM can act as a code-review gate.
+local LLMs (Ollama), driven day to day from **both**
+[OpenCode](https://opencode.ai) (terminal agent) **and** VS Code's native
+Copilot Chat via BYOK (bring-your-own-key) — same fleet, two interfaces, and
+both stay in active rotation here. Model installs and per-machine profiles
+are managed from one catalog. Written up for other hobbyists — hardware
+notes, a live-fire hardware recovery log, VRAM/tool-calling benchmarks
+measured on real models, and a small research thread on whether a local LLM
+can act as a code-review gate.
 
 This isn't a polished product — it's working notes from running the thing,
 kept because they were useful the second and third time too.
@@ -15,10 +18,23 @@ kept because they were useful the second and third time too.
 New to the repo? **[docs/README.md](docs/README.md)** is the index — it groups
 everything below by theme. A few entry points if you want to jump straight in:
 
-- **[docs/start-here.md](docs/start-here.md)** — cold machine to a working agent, step by step.
+- **[docs/start-here.md](docs/start-here.md)** — cold machine to a working agent via OpenCode, step by step.
+- **[docs/lmstudio-vscode.md](docs/lmstudio-vscode.md)** — same fleet, driven from VS Code instead: BYOK setup for LM Studio and Ollama side by side.
 - **[docs/server-recovery-cpu-led.md](docs/server-recovery-cpu-led.md)** — a live BIOS-flash recovery log (solid CPU LED, no POST) written as the debugging happened, not after.
 - **[docs/hardware.md](docs/hardware.md)** — the fleet's hardware and measured VRAM/throughput numbers per model, not catalog-disk-size guesses.
 - **[docs/review-gate/README.md](docs/review-gate/README.md)** — can a local LLM catch what it's told to look for in a code review? A small experiment with real (mixed) results.
+
+## Two ways to talk to the fleet
+
+Both are genuinely in use, not one "official" path and one experiment:
+
+| | OpenCode | VS Code |
+|---|---|---|
+| Interface | Terminal (WezTerm) | Native Copilot Chat, agent mode |
+| Backends | Ollama (server + desktop) + OpenCode Go (cloud) | Ollama (desktop) + LM Studio, side by side |
+| Model picker | Profiles (`profiles/dev-*.sh`) pin a seat per host | VS Code's model picker — swap per message |
+| Best for | Scripted, repeatable sessions; `/plan` → task list → execute | Quick swaps between local backends; the [review-gate](docs/review-gate/README.md) research |
+| Setup | [docs/start-here.md](docs/start-here.md) | [docs/lmstudio-vscode.md](docs/lmstudio-vscode.md) |
 
 ## Quick Start
 
@@ -32,6 +48,10 @@ cd dev-docs
 
 `opencode.ps1` defaults to `dev-workflow-quality`; pass `-Profile <name>` for
 another. Add models with `.\desktop\scripts\models.ps1 -Profile`.
+
+Prefer VS Code? Skip straight to [docs/lmstudio-vscode.md](docs/lmstudio-vscode.md) —
+`startup.ps1` above still applies (it's what starts Ollama and bakes context),
+you just don't need `opencode.ps1`.
 
 On the Ubuntu server:
 

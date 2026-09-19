@@ -1,13 +1,18 @@
 # Docs
 
 Everything here documents one homelab: a hybrid Ubuntu-server / Windows-desktop
-fleet running local LLMs behind OpenCode. Grouped by theme — start with
-whichever section matches what you're after.
+fleet running local LLMs, driven from either OpenCode or VS Code — both are in
+active use. Grouped by theme — start with whichever section matches what
+you're after.
 
 ## Getting started
 
 - **[start-here.md](start-here.md)** — the one page that takes you from a
-  cold machine to a working agent, with verification at each step.
+  cold machine to a working agent via OpenCode, with verification at each step.
+- **[lmstudio-vscode.md](lmstudio-vscode.md)** — the same fleet, driven from
+  VS Code instead: BYOK setup for LM Studio and Ollama side by side. Its
+  first half is the setup reference; the second half is the review-gate
+  research built on top of it (see below).
 - **[profiles.md](profiles.md)** — how model-tier selection works: which
   profile turns which machines/models on, and why.
 
@@ -28,8 +33,6 @@ whichever section matches what you're after.
 - **[troubleshooting.md](troubleshooting.md)** — the accumulated gotchas:
   context-window truncation, tool-calling quirks, PowerShell/bash pitfalls,
   and more.
-- **[lmstudio-vscode.md](lmstudio-vscode.md)** — VS Code BYOK (bring-your-own-key)
-  reference, and the write-up for the review-gate research below.
 
 ## Research: the review-gate experiment
 
