@@ -1,5 +1,24 @@
 # Model Architecture
 
+> **⚠ STALE — written before the 2026-09-17 tool-calling finding. Do not use
+> this page to choose a seat.**
+>
+> This page predates the measurement that only the qwen3 family and
+> `devstral:24b` emit parseable tool calls. It still presents
+> `deepseek-r1-16k` and the `qwen2.5-coder` family as working seats; none of
+> them can call a tool, and an agent seated on one will claim edits it never
+> made. It also never mentions `qwen3:14b`, which is the actual default main
+> seat.
+>
+> Current sources of truth:
+> - **Which models can be agent seats** → [start-here.md](start-here.md) →
+>   "not every model can use tools", and `tests/results/toolcalls-0.34.1.txt`
+> - **What each live profile seats** → [profiles.md](profiles.md)
+> - **Measured runtime VRAM** → [hardware.md](hardware.md)
+>
+> Kept for the host/tier layout and the cloud tier, which are still accurate.
+> Rewriting it is tracked in [roadmap.md](roadmap.md).
+
 Three-tier LLM deployment across server, desktop, and (optionally) cloud. After the Sep 2026 server upgrade the fleet gained a second capable GPU host.
 
 ## Overview

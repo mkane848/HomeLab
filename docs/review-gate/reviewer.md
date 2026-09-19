@@ -1,6 +1,20 @@
 # Reviewer prompt — review-gate Step 2
 
-**Seat:** `deepseek-r1:14b` (Ollama BYOK, port 11434, `toolCalling: false`)
+> **⚠ THE SEAT IS VACANT (2026-09-19).** `deepseek-r1:14b` is named below as
+> the historical pin, not a recommendation. Round 3 settled the question: no
+> local model holds this seat. Across 18 parameter-recorded runs (three
+> families × control vs. a forced per-test ledger × three seeds) the deciding
+> seams were caught once in nine under treatment and zero in nine under
+> control. `qwen3.5:9b` produced the corpus's only fully correct review, at
+> roughly 1-in-3 — a drafting aid, never the verdict.
+>
+> **Use this prompt with a human arbiter, or with the deterministic
+> [seam-checker](seam-checker.ps1) as a regression gate on a plan it was
+> written for.** Do not seat a local model here and trust its verdict.
+> Evidence: [`raw/r3-results.md`](raw/r3-results.md),
+> [`raw/r3-robot-results.md`](raw/r3-robot-results.md).
+
+**Seat (historical pin, known-failing):** `deepseek-r1:14b` (Ollama BYOK, port 11434, `toolCalling: false`)
 **Mode:** VS Code **Ask** mode (never Agent mode — it has no tools and must not
 gain any; that is the point). The `maxOutputTokens` must stay ≥ 8192 or the
 reasoning model's budget burns on its `reasoning` block and returns empty

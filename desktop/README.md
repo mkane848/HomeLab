@@ -51,6 +51,14 @@ Scripts and configs for the personal desktop machine — the ROCm Ollama node.
 - `scripts/models.ps1` — catalog-aware model installer (see above)
 - `scripts/sync-wezterm.ps1` — deploy the WezTerm config (`..\..\wezterm\wezterm.lua`) to `C:\Users\<you>\.wezterm.lua`
 - `scripts/sync-opencode.ps1` — deploy `opencode/global/opencode.jsonc` to `~/.config/opencode/`
+- `scripts/pin-ollama-desktop.ps1` — **stop the native Ollama from silently
+  auto-upgrading.** The server's Ollama is pinned by its image tag; the desktop
+  is a native Inno Setup install whose tray app auto-updates, and upstream
+  refused a switch to disable it (ollama/ollama#9404), so this adds a Windows
+  Firewall outbound block on the updater. **Status: unverified — the desktop
+  auto-updated 0.34.0 → 0.34.1 on 2026-09-19 anyway**, so either the rule was
+  never applied or it did not hold. Check before relying on it, and re-run
+  `tests\test-toolcalls.ps1` after any version move.
 - `ollama/config.example.json` — Ollama config template (copy to `config.json`)
 
 ## Notes

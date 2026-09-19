@@ -83,9 +83,10 @@ source profiles/dev-workflow-quality.sh
 ┌─────────────────────────────────────────────────────────────┐
 │              Fleet: local LLM nodes + cloud                 │
 │                                                             │
-│  Desktop: Qwen3 8B  <- DRIVES (tool-capable, 32k ctx)       │
-│           Qwen Coder 3B (small) · 7B/14B, DeepSeek-R1 14B   │
-│           as no-tools models     (RX 6800 XT, Vulkan)       │
+│  Desktop: Qwen3 14B <- DRIVES (tool-capable, 32k ctx)       │
+│           Qwen3 8B = lighter seat · Qwen Coder 3B (small)   │
+│           Coder 7B/14B, DeepSeek-R1 14B = no-tools models   │
+│                                  (RX 6800 XT, Vulkan)       │
 │  Server:  Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3,        │
 │           general/creative, embeddings  (4070 Ti Super)     │
 │  Node3:   Qwen3 8B, GLM4 9B  (future, RTX 3080 FE)          │

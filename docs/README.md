@@ -40,6 +40,16 @@ Can a local LLM reliably act as a code-review gate? **[review-gate/README.md](re
 is the index for this thread — method, case studies, and the raw run data
 behind them.
 
+**Answered, 2026-09-19: no.** Across 18 parameter-recorded runs over three
+model families, forcing the reviewer to transcribe every test's arguments
+before judging raised its output length exactly as intended and changed almost
+nothing — one run transcribed the decisive argument correctly and passed the
+broken plan anyway. The bottleneck is verification reasoning, not prompt shape.
+The deterministic checker built alongside it *does* discriminate and is sound
+as a regression gate on the one plan it was written for. Results:
+[r3-results.md](review-gate/raw/r3-results.md) and
+[r3-robot-results.md](review-gate/raw/r3-robot-results.md).
+
 ## Roadmap
 
 - **[roadmap.md](roadmap.md)** — ordered backlog: what's landed, what's next,

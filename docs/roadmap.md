@@ -2,6 +2,89 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
+## Next up (ordered, as of 2026-09-19)
+
+The rest of this file is the full backlog by theme. This is the short list of
+what to actually pick up next, highest value first.
+
+1. **Close the KaneEnabler validator holes** under the fix-and-reverify gate —
+   Background-pairing eligibility bug, direct `legality_commander` check on
+   named commanders, singleton paper-rule, `banned`/`notFound` dedupe, and the
+   seeded-DB proof of the 100-card assertion. Task list in
+   [implementation-tasks.md](implementation-tasks.md) §C; method in
+   [review-gate/testing.md](review-gate/testing.md). **The only open item with
+   real correctness value** — everything else here is hygiene or research. Each
+   fix must ship a test that *fails on the old code*. Different repo, so it
+   needs a machine with that checkout.
+2. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
+   exists to prevent exactly the 0.34.0 → 0.34.1 move that happened anyway on
+   2026-09-19. Find out whether the firewall rule was ever applied or whether it
+   failed — the two need different fixes. Five minutes, and it is the one open
+   item that can silently break agent seats.
+3. **Probe the server when it POSTs.** It has *never* run
+   `tests/test-toolcalls.ps1` — it went down before that test existed — and its
+   image pin was bumped to `0.34.1` on 2026-09-19 to match the desktop. Nothing
+   on that host should be seated until it is probed. The four post-upgrade
+   checks are below under "Post-server-upgrade validation".
+4. **Reconcile the VRAM figures that disagree** (see "Known contradictions"
+   below). Two of them change real decisions and neither can be settled without
+   a measurement.
+5. **Rewrite `model-architecture.md`.** It predates the tool-calling finding and
+   now carries a staleness banner; it still seats models that cannot call tools
+   and never mentions `qwen3:14b`. Either bring it current or fold it into
+   `profiles.md` + `hardware.md` and delete it.
+6. **Review-gate leftovers, low priority.** The seat question is closed (see
+   "Review-gate: settled" below). What remains is optional: a hosted arm (the
+   only untried thing that could change the answer, needs an endpoint + key),
+   Arm C (the de-leaked prompt), and a seam-6 brittleness probe for the
+   deterministic checker — the fixture built for that on 2026-09-19 tested the
+   wrong thing, so the question is still open. None of these block anything.
+
+### Known contradictions (need a measurement, not an edit)
+
+Written down rather than guessed at. Each is a number that appears twice in
+these docs with two different values:
+
+- **`qwen2.5-coder:3b` runtime VRAM** — 1.31 GB (`start-here.md`), 2.26 GB
+  (`profiles.md`, `roadmap.md`, `troubleshooting.md`), "1.3–2.3 GB"
+  (`hardware.md`). Both larger figures are labelled measured. This gives the
+  flagship co-resident pair two different totals (12.34 vs 13.29 GB) and
+  *opposite* verdicts on whether it survives while gaming.
+- **`deepseek-r1:14b` resident VRAM** — ~9 GB (`lmstudio-vscode.md` §4) vs
+  ~10.5 GB @16k (same file, seat-assignment table). The node3 fit argument
+  turns on which is right.
+- **node3 "10 GB usable ~9 GB"** (`lmstudio-vscode.md`) is attributed to
+  `hardware.md`, which states no such figure — its only "usable" number is the
+  desktop's ~14.8 of 16 GB.
+- **Harness pass count** — docs say 81 PASS (`start-here.md`, `profiles.md`);
+  commit `41a457d` reports 85 PASS and 88 with `-Reliability`. The docs predate
+  that gate. Re-run `tests/test-profiles.ps1` and record the real number.
+- **VRAM figures generally** still date from Ollama 0.34.0 and were not
+  re-measured after the 0.34.1 move. Not expected to shift, but not verified.
+
+### Review-gate: settled
+
+Closed 2026-09-19, recorded so it is not reopened by accident.
+
+- **No local model holds the reviewer seat.** 18 parameter-recorded runs,
+  three families, control vs. a forced per-test ledger. The ledger raised
+  output length exactly as designed (median 1229 → 1770 tokens, 9/9 compliance)
+  and changed almost nothing: deciding seams caught 1/9 under treatment, 0/9
+  under control. One run transcribed the decisive argument correctly into its
+  ledger and passed the broken plan anyway. **The bottleneck is verification
+  reasoning — not prompt shape, not output budget, not VRAM.**
+  → [review-gate/raw/r3-results.md](review-gate/raw/r3-results.md)
+- **The deterministic seam-checker discriminates** — given genuinely covered
+  seams it returns FIRST-RUN-SAFE, given the original it returns RED-MARK. It
+  is sound as a **regression gate on the one plan it was written for**, and is
+  not a general reviewer. → [review-gate/raw/r3-robot-results.md](review-gate/raw/r3-robot-results.md)
+- **Two claims made during this work were wrong and are corrected in place**:
+  the round-2 comparison mis-scored its own draw 2 and inverted the
+  majority-of-3 conclusion; and a "ten-character margin" claim about the
+  checker's seam-6 regex was computed under a `re.DOTALL` assumption PowerShell
+  does not share. Both corrections are recorded rather than silently applied.
+- The gate remains **"auditor crafts, human arbitrates."**
+
 ## End goal (north star)
 
 Turn every machine in the house into interchangeable compute for **one Claude

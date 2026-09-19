@@ -2,15 +2,23 @@
 
 Scope: `add a --DryRun switch to desktop/scripts/sync-skills.ps1`.
 
-## Resolution — all tasks shipped in commit `eec004d` (2026-09-18)
+## Resolution — all tasks shipped in commit `3e243f9` (2026-09-18)
+
+> **Correction (2026-09-19).** This section originally cited commit
+> `eec004d`, which does not exist in this repository (`git cat-file -e` fails;
+> it appears in no branch). The work actually landed in **`3e243f9`**, confirmed
+> by `git log -S'would create remote dirs' -- desktop/scripts/sync-skills.ps1`.
+> The same phantom hash is in commit `41a457d`'s own message, so it was
+> mis-recorded at the source rather than corrupted later. The code fixes
+> themselves are real and present.
 
 - [x] Task 1 (smoke-test `-DryRun`) — PASSED 2026-09-17; the one uncovered
       defect (unguarded remote `mkdir`) became Task 2 and is now fixed.
 - [x] Task 2 (guard the remote `mkdir -p` behind `-DryRun`) — **done in
-      `eec004d`**; `sync-skills.ps1:205` now sits inside an `if ($DryRun)` /
+      `3e243f9`**; `sync-skills.ps1:205` now sits inside an `if ($DryRun)` /
       `else` split. DoD check: a dry run prints `(dry run) would create remote
       dirs` and issues no ssh.
-- [x] Task 3 (fix `$pair[1]` interpolation) — **done in `eec004d`**; both
+- [x] Task 3 (fix `$pair[1]` interpolation) — **done in `3e243f9`**; both
       interpolations are now `$($pair[1])` (sync-skills.ps1:168, 171).
 
 Kept as the `/plan` canary record: this file proves the command writes a real
