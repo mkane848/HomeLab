@@ -7,8 +7,12 @@ Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama
 **This repo is under git as of 2026-09-17.** It was not before, and that cost real work: an agent asked to edit `desktop/scripts/sync-skills.ps1` left three duplicated blocks and three unbalanced braces in it, and the only recovery was reading the damage by hand. There was no `git diff` and no `git checkout --`.
 
 - **Commit before letting an agent edit anything.** `git status` should be clean when you start.
-- After an agent edits a script, `git diff` it and syntax-check before running it:
-  `[System.Management.Automation.Language.Parser]::ParseFile(<path>,[ref]$null,[ref]$errs)` for PowerShell, `bash -n` for shell.
+- After an agent edits a script, `git diff` it and syntax-check before running it. PowerShell
+  (wrapped so only errors print, not the whole AST — the bare `ParseFile(...)` call dumps a
+  `ScriptBlockAst` to the pipeline):
+  `$errs = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile(<path>,[ref]$null,[ref]$errs); if ($errs.Count) { $errs } else { "OK" }`.
+  Verified legal on both PS 7 and Windows PowerShell 5.1 (`[ref]$null` as a discard out-param
+  works on both). Shell: `bash -n`.
 - `.env`, `desktop/docker/.env` and anything `*.env` are git-ignored; only `.env.example` templates are tracked. Secrets live in `~/.config/opencode/.secrets/`, outside the repo entirely.
 - No remote is configured. Local history is what protects you here.
 
