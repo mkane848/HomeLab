@@ -38,6 +38,9 @@ For implementation plans, work the seam checklist and flag each seam as COVERED
 - eligibility/pairing semantics — e.g. for Commander: a legal Background pair
   must be accepted even though the Background itself is never
   `is_commander_eligible`; unrelated legendaries must be rejected
+- named-commander inputs get the full legality surface — a named commander that
+  resolves in the DB must be checked against the ban list directly, not only
+  via cards that happen to re-appear in the pasted bulk list
 - strict typing — no `any`-shaped escapes in the plan's code
 - **TEST VERACITY** — for every test the plan adds: does its input actually
   reach the branch it names? A test that passes a solo chooser while claiming

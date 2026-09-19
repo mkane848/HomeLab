@@ -540,9 +540,15 @@ its keep. Canonical worked example + merge DoD in
    eligibility bug; direct ban-list check) and stamped its own test-veracity
    claim wrong. Run record + grade:
    `docs/review-gate/r2-remeasure-run1-deepseek-r1.md`. **R1 is off the
-   reviewer seat.** Next: re-measure the candidates from
-   `r2-remeasure-run1-deepseek-r1.md` → "Decision" on the same fixed input;
-   first seat that flags seams 5–6 and calls RED-MARK wins.
+   reviewer seat.** Re-measure run 2 (candidate `qwen3.5:9b`): best local
+   result yet but inconsistent — one draw RED-MARKed seam 5, the next (same
+   material, strengthened checklist) flipped to FIRST-RUN-SAFE and
+   **fabricated** evidence for a "COVERED" stamp. Record + grades:
+   `docs/review-gate/r2-remeasure-run2-qwen35.md`. **qwen3.5:9b also does not
+   take the seat** under the registered rule. Next candidates / policy options
+   are enumerated in the run-2 record's "Options forward" (qwen3:14b draw,
+   majority-of-3 for qwen3.5, deterministic checker robot, or route the gate
+   to a hosted model).
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
 4. **Routinize grading** — record a per-run score sheet on the four axes so
