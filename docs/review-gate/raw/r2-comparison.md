@@ -79,16 +79,32 @@ real classic bar cleared here is 3/4.
 - **The robot is a regression gate, not a control arm.** Every check is a
   verbatim string from the one input it was written against (seams 1, 2 and 4
   match exact test-title sentences; seam 5 reduces to "does the `commanders`
-  argument contain a comma"; seam 6 is word matching plus a proximity regex
-  that clears its threshold by roughly ten characters). Seam 3 scores COVERED
-  on the *absence* of a token, so an empty file would pass it, and since
-  RED-MARK fires on any single UNCOVERED, **RED-MARK is the robot's default
-  output for essentially any document**. It reproduces the human audit on this
-  input because the audit was compiled into it. It has never been run against a
-  second input, and no negative control (a plan that genuinely covers seams
-  5–6) has been tried, so its ability to *discriminate* is untested. Useful to
-  keep this plan's coverage from regressing; not evidence that the job is
-  mechanical.
+  argument contain a comma"; seam 6 is word matching on test titles plus a
+  same-line proximity regex over the contract). Seam 3 scores COVERED on the
+  *absence* of a token, so an empty file would pass it, and since RED-MARK
+  fires on any single UNCOVERED, **RED-MARK is the robot's default output for
+  essentially any document**. It reproduces the human audit on this input
+  because the audit was compiled into it.
+
+  > **Correction (2026-09-19).** This bullet originally said seam 6's
+  > proximity regex "clears its threshold by roughly ten characters," and that
+  > the robot's ability to discriminate was untested. Both statements have since
+  > been checked and both were wrong in the author's favour and against it
+  > respectively:
+  >
+  > - The ten-character margin was computed in a Python simulation that used
+  >   `re.DOTALL`. PowerShell's `-match` has no DOTALL, so `.` never crosses a
+  >   newline and the contract alternative cannot match text spanning two lines
+  >   at all. The margin figure is void; the real constraint is that both words
+  >   must sit on one line.
+  > - Discrimination **has** now been tested and the robot passes: given a
+  >   fixture where seams 5 and 6 are genuinely covered it returns
+  >   FIRST-RUN-SAFE, and it reproduces RED-MARK on the original. See
+  >   `r3-robot-results.md`.
+
+  It remains narrow — it was still only ever written for this one plan — so it
+  is sound as a regression gate on this plan's coverage, and is not evidence
+  that the job is mechanical in general.
 - **Both qwen3.5 draws that caught seam 5 got the mechanism partly wrong**, in
   opposite directions — draw 2 mis-states which array the Background is missing
   from, draw 3 rejects the solo-chooser reading entirely and blames the

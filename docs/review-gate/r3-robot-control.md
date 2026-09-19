@@ -36,6 +36,14 @@ ever pasted to a model; these are inputs for the deterministic checker only.
 is that one Section 2 sentence is re-worded and re-wrapped, moving the words
 "commanders" and "banned" closer together. No check was added.
 
+> **Run 2026-09-19 — results in [`raw/r3-robot-results.md`](raw/r3-robot-results.md).**
+> Two of the three predictions below held. The robot **does** discriminate: the
+> covered fixture returned FIRST-RUN-SAFE. The reflow prediction was wrong, for
+> a reason that also voids a claim made elsewhere in these docs — PowerShell's
+> `-match` has no DOTALL, so seam 6's contract regex cannot match across a line
+> break and the fixture never tested what it was built to test. The brittleness
+> question below is therefore still open.
+
 ## Predicted results
 
 Simulated against the robot's own regexes before writing this; the simulation
