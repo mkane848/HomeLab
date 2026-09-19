@@ -1,5 +1,5 @@
 param(
-  [string]$InputPath = "M:\Projects\dev-docs\docs\review-gate\r2-remeasure-input.md"
+  [string]$InputPath = (Join-Path $PSScriptRoot "raw\r2-remeasure-input.md")
 )
 $ErrorActionPreference = 'Stop'
 $raw = Get-Content -LiteralPath $InputPath -Raw
@@ -86,6 +86,6 @@ if ($uncovered.Count -gt 0) {
 $lines.Add('')
 $lines.Add('> Interpretation: the robot has no model risk and no reasoning — it reads the staged test-inventory exactly. A RED-MARK here means the plan, as written in the input, does not contain the specified coverage. Compare against the LLM seats on the same input.')
 
-$out = "M:\Projects\dev-docs\docs\review-gate\r2-robot-output.md"
+$out = Join-Path $PSScriptRoot "raw\r2-robot-output.md"
 $lines | Set-Content -LiteralPath $out -Encoding utf8
 Write-Output ($lines -join $nl)

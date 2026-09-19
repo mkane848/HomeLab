@@ -3,6 +3,11 @@
 Portable content vendored from the local Claude Code installation into dev-docs,
 so it can be re-used by OpenCode (and survives on the server).
 
+Everything under `skills/` and `claude/imports/` keeps the license of its
+origin (see the table below and each package's own `LICENSE`/`LICENSE.txt`).
+The rest of this repo — the scripts and docs that are actually about the
+homelab — is MIT, see [`/LICENSE`](../LICENSE).
+
 ## Sources & Provenance
 
 All imports were copied verbatim from the user's `~/.claude/plugins/` on

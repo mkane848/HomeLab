@@ -530,8 +530,8 @@ its keep. Canonical worked example + merge DoD in
    `maxTokens` ≥8192. The metric: de novo seams caught (1/4 → ?). That number
    decides whether R1 is salvageable or needs a different reviewer
    family/generation. **Staged, fixed inputs (same material as run 2, improved
-   prompt):** `docs/review-gate/r2-remeasure-input.md` (paste into the
-   reviewer) + `docs/review-gate/r2-remeasure-key.md` (grader's answer sheet —
+   prompt):** `docs/review-gate/raw/r2-remeasure-input.md` (paste into the
+   reviewer) + `docs/review-gate/raw/r2-remeasure-key.md` (grader's answer sheet —
    never pasted to the reviewer).
 
    **2026-09-19 result:** re-measure run 1 FAILED. R1 (directed checklist,
@@ -539,16 +539,16 @@ its keep. Canonical worked example + merge DoD in
    caught classic seams 1–4, missed the two deciding seams (Background
    eligibility bug; direct ban-list check) and stamped its own test-veracity
    claim wrong. Run record + grade:
-   `docs/review-gate/r2-remeasure-run1-deepseek-r1.md`. **R1 is off the
+   `docs/review-gate/raw/r2-remeasure-run1-deepseek-r1.md`. **R1 is off the
    reviewer seat.** Re-measure run 2 (candidate `qwen3.5:9b`): best local
    result yet but inconsistent — one draw RED-MARKed seam 5, the next (same
    material, strengthened checklist) flipped to FIRST-RUN-SAFE and
    **fabricated** evidence for a "COVERED" stamp. Record + grades:
-   `docs/review-gate/r2-remeasure-run2-qwen35.md`. **qwen3.5:9b also does not
+   `docs/review-gate/raw/r2-remeasure-run2-qwen35.md`. **qwen3.5:9b also does not
    take the seat** under the registered rule. Run 3 (`qwen3:14b`, think-off)
    failed identically — FIRST-RUN-SAFE, seams 5–6 stamped COVERED with
    non-sequitur evidence:
-   `docs/review-gate/r2-remeasure-run3-qwen314.md`. **Seat survey of four
+   `docs/review-gate/raw/r2-remeasure-run3-qwen314.md`. **Seat survey of four
    projected local candidates is exhausted** (R1, qwen3.5, qwen3 — and
    devstral/qwen2.5-coder declined as same-family traits at higher cost). The
    live options are now: majority-of-3 on qwen3.5:9b (the only seat that ever

@@ -1,7 +1,7 @@
 # Review-gate re-measure run 3 (2026-09-19) — qwen3:14b
 
 Candidate draw (Option 1 from run 2's "Options forward"). Same fixed input
-(`docs/review-gate/r2-remeasure-input.md`), same prompt controller
+(`docs/review-gate/raw/r2-remeasure-input.md`), same prompt controller
 (`docs/review-gate/reviewer.md`, including the named-commander-legality seam
 added for run 2c). Key file never pasted.
 

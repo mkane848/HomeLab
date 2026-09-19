@@ -1,20 +1,31 @@
-# Dev Docs
+# HomeLab
 
-Scripts and documentation for the hybrid Ubuntu/Windows development environment —
-a fleet of local LLM nodes (server + desktop + future third node) driven by
-OpenCode, with model installs and profiles managed from one catalog.
+A documented homelab: a hybrid Ubuntu-server / Windows-desktop fleet running
+local LLMs (Ollama) behind [OpenCode](https://opencode.ai), with model
+installs and per-machine profiles managed from one catalog. Written up for
+other hobbyists — hardware notes, a live-fire hardware recovery log, VRAM/tool-calling
+benchmarks measured on real models, and a small research thread on whether a
+local LLM can act as a code-review gate.
+
+This isn't a polished product — it's working notes from running the thing,
+kept because they were useful the second and third time too.
+
+## Start here
+
+New to the repo? **[docs/README.md](docs/README.md)** is the index — it groups
+everything below by theme. A few entry points if you want to jump straight in:
+
+- **[docs/start-here.md](docs/start-here.md)** — cold machine to a working agent, step by step.
+- **[docs/server-recovery-cpu-led.md](docs/server-recovery-cpu-led.md)** — a live BIOS-flash recovery log (solid CPU LED, no POST) written as the debugging happened, not after.
+- **[docs/hardware.md](docs/hardware.md)** — the fleet's hardware and measured VRAM/throughput numbers per model, not catalog-disk-size guesses.
+- **[docs/review-gate/README.md](docs/review-gate/README.md)** — can a local LLM catch what it's told to look for in a code review? A small experiment with real (mixed) results.
 
 ## Quick Start
-
-**New here, or coming back after a break? Read [docs/start-here.md](docs/start-here.md) first** —
-it is the one page that takes you from a cold machine to a working agent, with
-verification at each step and the concepts explained as they come up.
-
 
 Day to day, on the Windows desktop — this is the whole thing:
 
 ```powershell
-cd M:\Projects\dev-docs
+cd dev-docs
 .\desktop\scripts\startup.ps1      # start Ollama, bake each model's context
 .\desktop\scripts\opencode.ps1     # source the profile, launch OpenCode
 ```
@@ -22,8 +33,7 @@ cd M:\Projects\dev-docs
 `opencode.ps1` defaults to `dev-workflow-quality`; pass `-Profile <name>` for
 another. Add models with `.\desktop\scripts\models.ps1 -Profile`.
 
-On the Ubuntu server (currently down — see
-[docs/server-recovery-cpu-led.md](docs/server-recovery-cpu-led.md)):
+On the Ubuntu server:
 
 ```bash
 source profiles/dev-workflow-quality.sh
@@ -41,10 +51,10 @@ source profiles/dev-workflow-quality.sh
 | `server/` | Ubuntu server scripts, Docker compose, systemd unit |
 | `desktop/` | Windows 11 scripts (install, startup, sync) for native Ollama (Vulkan backend) |
 | `opencode/` | OpenCode config templates (per-host Ollama providers + Go), commands, agents |
-| `skills/` | Vendored AI skills (imported from Claude, OpenCode-compatible) |
+| `skills/` | Vendored AI skills (imported from Claude, OpenCode-compatible) — third-party, own licenses, not part of the homelab story |
 | `claude/` | Claude import provenance + raw reference material |
 | `wezterm/` | WezTerm terminal config |
-| `docs/` | **[start-here](docs/start-here.md)** (read this first), plus network topology, model architecture, hardware, profiles, roadmap, troubleshooting, [lmstudio-vscode](docs/lmstudio-vscode.md) (VS Code BYOK reference + review-gate methodology) |
+| `docs/` | **[README](docs/README.md)** (start here), grouped by getting-started / hardware & network / war stories / the review-gate research thread / roadmap |
 | `tests/` | `test-profiles.ps1` — all-profile intent/liveness/registration/schema checks, `-Bench` latency budgets. `test-toolcalls.ps1` — **does this model actually emit a tool call?** Run it before trusting any model in an agent seat |
 
 ## Architecture
@@ -65,7 +75,7 @@ source profiles/dev-workflow-quality.sh
 
 Only `qwen3` models emit parseable tool calls (3 of 10 installed pass the
 probe). Everything else is a chat box that will describe edits it never made.
-Probe any model with `.	ests	est-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
+Probe any model with `.\tests\test-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
 
 See [docs/model-architecture.md](docs/model-architecture.md) and
 [docs/hardware.md](docs/hardware.md) for details.
@@ -85,7 +95,7 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 
 ## First Time Setup
 
-1. Fill in `M:\Projects\dev-docs\.env` with your IPs, SSH user, and `NODE3_IP` once the node exists
+1. Fill in `.env` (repo root) with your IPs, SSH user, and `NODE3_IP` once a third node exists
 2. Paste your OpenCode Go API key into `~/.config/opencode/.secrets/opencode-go-api-key`
 3. Install Docker + nvidia-container-toolkit on the server (RTX 4070 Ti Super, CUDA)
 4. Install Ollama on the desktop (Vulkan backend - ROCm is unavailable on gfx1030, see docs/hardware.md) and, later, on the third node
@@ -102,4 +112,11 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 ## Fresh-Install Convenience
 
 - Nine profiles are parked in `profiles/parked/` (they need the server or the third node) — see [profiles/parked/README.md](profiles/parked/README.md). Three desktop profiles are live.
-- The [roadmap](docs/roadmap.md) tracks the node3 onboarding, image pinning, and post-upgrade validation.
+- The [roadmap](docs/roadmap.md) tracks third-node onboarding, image pinning, and post-upgrade validation.
+
+## License
+
+MIT (see [LICENSE](LICENSE)) for the scripts and documentation in this repo.
+Vendored third-party skill packages under `skills/` and `claude/imports/`
+keep their own licenses — see [claude/README.md](claude/README.md) for
+provenance.

@@ -1,7 +1,7 @@
 # Review-gate re-measure run 1 (2026-09-19) — deepseek-r1:14b
 
 Fixed-input re-measure of the reviewer seat. Same material as run 1's PR #82
-(`docs/review-gate/r2-remeasure-input.md`), improved prompt as amended in
+(`docs/review-gate/raw/r2-remeasure-input.md`), improved prompt as amended in
 `docs/review-gate/reviewer.md` (evidence + citations, seam checklist, explicit
 test-veracity clause). Prompt never included `r2-remeasure-key.md`.
 

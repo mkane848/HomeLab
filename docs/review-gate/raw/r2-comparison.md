@@ -1,6 +1,6 @@
 # Review-gate rounding: comparison across all arms (2026-09-19)
 
-One fixed input (`docs/review-gate/r2-remeasure-input.md`), one prompt
+One fixed input (`docs/review-gate/raw/r2-remeasure-input.md`), one prompt
 controller (`docs/review-gate/reviewer.md`), four decisions on the same six
 seams. Ground truth (from `docs/review-gate/testing.md` + the PR review that
 started this): a legal Background pair is rejected by the PR's

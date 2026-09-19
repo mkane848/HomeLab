@@ -1,6 +1,6 @@
 # Review-gate re-measure run 2 (2026-09-19) — qwen3.5:9b
 
-Candidate run against the same fixed input (`docs/review-gate/r2-remeasure-input.md`)
+Candidate run against the same fixed input (`docs/review-gate/raw/r2-remeasure-input.md`)
 and prompt controller (`docs/review-gate/reviewer.md`). Key file never pasted.
 
 ## Runs this session
