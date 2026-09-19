@@ -1,0 +1,2 @@
+timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	failsOnOld	typecheck	elapsedSec
+2026-09-19T18:02:01	kane-01-background-pair	ollama-desktop/qwen3:14b	qwen3-14b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	1	PASS	FAIL	FAIL	WARN	378.1

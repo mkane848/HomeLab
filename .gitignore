@@ -20,3 +20,6 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# Task-benchmark throwaway worktrees (tests/test-tasks.ps1)
+tests/.worktrees/
