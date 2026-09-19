@@ -527,9 +527,12 @@ its keep. Canonical worked example + merge DoD in
    actual evidence + file citations, an explicit seam checklist (identity
    decode, slot counting, eligibility/pairing semantics, typing, and
    **test-veracity** — does the plan's test cover the branch it names), and
-   `maxTokens` ≥8192. The metric: de novo seams caught (1/4 → ?). That number
-   decides whether R1 is salvageable or needs a different reviewer
-   family/generation. **Staged, fixed inputs (same material as run 2, improved
+   `maxTokens` ≥8192. The metric as originally written was de novo seams caught
+   (1/4 → ?), intended to decide whether R1 was salvageable. **That metric is
+   retired** — see the round-3 note below: it compared an unchecklisted baseline
+   against checklisted runs, so it moved three variables at once (checklist
+   content, evidence supplied, output budget) and could not attribute a change
+   to any of them. **Staged, fixed inputs (same material as run 2, improved
    prompt):** `docs/review-gate/raw/r2-remeasure-input.md` (paste into the
    reviewer) + `docs/review-gate/raw/r2-remeasure-key.md` (grader's answer sheet —
    never pasted to the reviewer).
@@ -548,20 +551,51 @@ its keep. Canonical worked example + merge DoD in
    take the seat** under the registered rule. Run 3 (`qwen3:14b`, think-off)
    failed identically — FIRST-RUN-SAFE, seams 5–6 stamped COVERED with
    non-sequitur evidence:
-   `docs/review-gate/raw/r2-remeasure-run3-qwen314.md`. **Seat survey of four
-   projected local candidates is exhausted** (R1, qwen3.5, qwen3 — and
-   devstral/qwen2.5-coder declined as same-family traits at higher cost). The
-   live options are now: majority-of-3 on qwen3.5:9b (the only seat that ever
-   emitted a RED-MARK), or a deterministic scripted seam-checker with the LLM
-   demoted to drafting.
+   `docs/review-gate/raw/r2-remeasure-run3-qwen314.md`. Three candidates were
+   measured (R1 and qwen3 at n=1 each; qwen3.5 across six attempts);
+   devstral/qwen2.5-coder were declined without a draw, so the earlier phrasing
+   "survey of four candidates exhausted" overstated what was run.
+
+   **Correction (2026-09-19):** the comparison that closed run 2 mis-scored the
+   `qwen3.5:9b` draw-2 arm and inverted its own conclusion — majority-of-3
+   landed on CAUTION with both deciding seams flagged by 2 of 3 draws, not
+   FIRST-RUN-SAFE at 1 of 3. R1 was additionally graded on a seam its prompt
+   never contained. See the correction block in
+   `docs/review-gate/raw/r2-comparison.md`.
+
+   **Round 3 (2026-09-19) — settled.** The hypothesis that the failure was
+   prompt-shaped (that models rubber-stamp because nothing forces them to read
+   the test arguments) was tested directly: 18 runs, three models × control vs.
+   a mandatory per-test ledger × three seeds, one fixed input, prompt hash
+   constant within arm. **Not supported.** The ledger raised output length
+   exactly as predicted (median 1229 → 1770 tokens) with 9/9 compliance, and
+   the deciding seams were still caught in only 1 run of 9 under treatment, 0
+   of 9 under control. One R1 run transcribed `commanders: [chooser]` correctly
+   into its ledger and then passed the plan anyway — transcription is not the
+   bottleneck, reasoning from it is. Full grade, citations and two instrument
+   defects (including that `think:false` is not honoured by `deepseek-r1:14b`)
+   in `docs/review-gate/raw/r3-results.md`; protocol in
+   `docs/review-gate/r3-protocol.md`, raw runs in `docs/review-gate/raw/r3/`.
+
+   **Net:** no local model holds the seat, now on 18 parameter-recorded runs
+   rather than one. `qwen3.5:9b` produced the only fully correct review in the
+   corpus (and caught an instrument defect nothing pointed it at) at roughly
+   1-in-3 — a drafting aid, never the verdict. Remaining untried option: a
+   hosted arm. The deterministic checker stays useful as a regression gate on
+   this one plan, not as a general reviewer (see the robot caveat in
+   `r2-comparison.md`).
 3. **Generalize the auditor harness to a second, non-hand-picked repo** (e.g.
    the real LFCbot remediation). n≥2 turns "~90% self-prompting" into a claim.
 4. **Routinize grading** — record a per-run score sheet on the four axes so
    successive runs become a benchmark, not anecdotes.
 5. **Fleet changes, only after the gate holds**: server up → auditor 30B moves
-   there (CUDA + 32 GB RAM, room over the desktop's spill); and settle the
-   reviewer-node gap — a 7–9B different-family reviewer (`glm4:9b`) that fits
-   node3's 10 GB is a legitimate trade against a desktop load-dance.
+   there (CUDA + 32 GB RAM, room over the desktop's spill). The reviewer-node
+   gap is **no longer a VRAM question** — round 3 shows the seat fails on
+   verification reasoning, which a larger card does not buy. `glm4:9b` is a
+   weaker candidate than three models that have now failed across 18 runs, and
+   its "~6 GB" was the catalog GGUF size, which `hardware.md` warns is not a
+   runtime VRAM figure; it has never been measured or run as a reviewer. Do not
+   size hardware for a local reviewer seat until one exists.
 
 ---
 
