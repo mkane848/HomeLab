@@ -66,7 +66,7 @@ no-tools models for code text and review.
 | `dev-local-only` | Zero cloud spend; desktop main seat, server small model | Server + Desktop | Server: `autocomplete` · Desktop: `reasoner` | `ollama-desktop/qwen3:8b` |
 | `dev-embeddings` | Semantic-search work; server hosts embed models | Server | Server: `autocomplete embed` | `ollama-server/qwen3:8b` |
 | `dev-go-only` | Test cloud models you can't run locally via OpenCode Go | Server + Go | Server: `autocomplete` | *Go default* (cloud) |
-| `dev-node3` | Onboard the node3's 3080 FE node (stub until `NODE3_IP` set) | Server (+ Node3) | Server: `autocomplete` · Node3: `general embed` | `ollama-node3/qwen3:8b`, falls back to server |
+| `dev-node3` | Onboard the third node, 3080 FE (stub until `NODE3_IP` set) | Server (+ Node3) | Server: `autocomplete` · Node3: `general embed` | `ollama-node3/qwen3:8b`, falls back to server |
 | `dev-full` | Everything online (server + desktop + Go) | Server + Desktop + Go | Server: `coder reasoner general creative embed` · Desktop: `reasoner` | *Go default* (cloud) |
 | `dev-workflow-server` | Server drives, desktop assists | Server + Desktop | — | `ollama-server/qwen3:8b` |
 

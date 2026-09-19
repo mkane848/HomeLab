@@ -27,7 +27,7 @@ source profiles/dev-server-all.sh
 | `dev-local-only.sh` | Qwen (server) + DeepSeek reasoner (desktop), zero cloud | Server + Desktop | DeepSeek-R1 16k (desktop) |
 | `dev-embeddings.sh` | Autocomplete + embeddings on the server (semantic-search work) | Server | Qwen 2.5 Coder 7B (server) |
 | `dev-go-only.sh` | Qwen + OpenCode Go (test cloud models) | Server + Go | Go default (cloud) |
-| `dev-node3.sh` | Node3's 3080 FE node (stub until `NODE3_IP` set) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
+| `dev-node3.sh` | Third node, 3080 FE (stub until `NODE3_IP` set) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
 | `dev-full.sh` | Everything online (server + desktop + Go) | Server + Desktop + Go | Go default (cloud) |
 | `dev-workflow-quality.sh` | qwen3:14b drives in-thread, `/plan` on the main agent (desktop) | Desktop | Qwen3 14B (desktop) |
 | `dev-workflow-resident.sh` | Qwen3 8B orchestrator + coder/deepseek subagents (desktop) | Desktop | Qwen3 8B (desktop) |

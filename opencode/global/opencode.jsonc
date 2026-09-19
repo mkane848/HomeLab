@@ -322,7 +322,7 @@
       }
     },
 
-    // Third node's RTX 3080 FE node - only meaningful when dev-node3.sh sets
+    // The third node (RTX 3080 FE) - only meaningful when dev-node3.sh sets
     // OLLAMA_NODE3_BASE_URL to its IP. 10 GB card, so 16384 only.
     "ollama-node3": {
       "models": {

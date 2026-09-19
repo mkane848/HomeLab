@@ -29,7 +29,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 │  └─────────────────────┘          └─────────────────────┘           │
 │          │                                │                          │
 │          │         ┌──────────────┐       │        ┌──────────────┐  │
-│          ├────────>│  CLOUD APIs  │<──────┼───────>│ THIRD NODE    │  │
+│          ├────────>│  CLOUD APIs  │<──────┼───────>│ THIRD NODE   │  │
 │          │         │  OpenCode Go │       │        │ (future)     │  │
 │          │         └──────────────┘       │        │ :11434       │  │
 │          │                                │        └──────────────┘  │

@@ -58,7 +58,7 @@ source profiles/dev-workflow-quality.sh
 │           as no-tools models     (RX 6800 XT, Vulkan)       │
 │  Server:  Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3,        │
 │           general/creative, embeddings  (4070 Ti Super)     │
-│  Node3's:  Qwen3 8B, GLM4 9B  (future, RTX 3080 FE)          │
+│  Node3:   Qwen3 8B, GLM4 9B  (future, RTX 3080 FE)          │
 │  Cloud:   OpenCode Go (test models you can't run)           │
 └─────────────────────────────────────────────────────────────┘
 ```
