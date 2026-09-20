@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Plan the third-node (RTX 3080 FE) onboarding now that the hardware exists:
+  expand `docs/roadmap.md`'s onboarding checklist into a concrete join →
+  probe → put-to-work sequence (CUDA, not Vulkan — no flash-attention
+  workaround needed), flag that `glm4:9b`'s `"tool_call": true` entry in
+  `opencode/global/opencode.jsonc` doesn't appear in the actual measured
+  tool-calling pass/fail list and needs a real probe before it holds an
+  agent seat, and note the concrete payoff for the task-veracity benchmark
+  (real parallel trial capacity, not just another row in a table). Also
+  records Unsloth's installation on that machine as a separate, explicitly
+  gated future track (fine-tuning) — gated on there being a genuine
+  successful trajectory to train on, which the benchmark doesn't have yet.
+  No config or seat changes made; nothing here is live until the node is
+  actually onboarded.
 - Task-veracity benchmark: external research pass on the combined Task 1 +
   Task 2 result (0/7 graded runs). Confirms the harness's 4-gate design
   (scope/suite/failsOnOld/typecheck) matches SWE-bench's own methodology,
