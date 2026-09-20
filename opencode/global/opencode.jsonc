@@ -335,11 +335,16 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 4096 }
         },
+        // Measured FAIL on the real probe (2026-09-20, node3):
+        // ignored the tool entirely and answered in prose. Do not flip this
+        // back to true without a new passing tests/test-toolcalls.ps1 run -
+        // see AGENTS.md Gotchas. No-tools chat model only, like
+        // qwen2.5-coder:14b.
         "glm4:9b": {
-          "name": "GLM4 9B (Node3)",
+          "name": "GLM4 9B (Node3, NO TOOLS)",
           "attachment": true,
           "reasoning": false,
-          "tool_call": true,
+          "tool_call": false,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
