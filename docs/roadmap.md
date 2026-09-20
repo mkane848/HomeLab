@@ -70,9 +70,12 @@ these docs with two different values:
 - **`deepseek-r1:14b` resident VRAM** — ~9 GB (`lmstudio-vscode.md` §4) vs
   ~10.5 GB @16k (same file, seat-assignment table). The node3 fit argument
   turns on which is right.
-- **node3 "10 GB usable ~9 GB"** (`lmstudio-vscode.md`) is attributed to
-  `hardware.md`, which states no such figure — its only "usable" number is the
-  desktop's ~14.8 of 16 GB.
+- **node3 usable VRAM is unmeasured.** `lmstudio-vscode.md`'s "10 GB usable
+  ~9 GB, per `hardware.md`" attribution was removed 2026-09-20 (hardware.md
+  states no such figure — its only "usable" number is the desktop's ~14.8 of
+  16 GB). To-do: with nothing loaded on node3, record free VRAM from
+  `/api/ps` into `docs/hardware.md`, the same way the desktop's 14.8 GB was
+  established. Until then, no node3 fit verdict should cite a usable figure.
 - **Harness pass count** — ~~docs say 81 PASS (`start-here.md`, `profiles.md`);
   commit `41a457d` reports 85 PASS and 88 with `-Reliability`~~ — resolved
   2026-09-20: re-ran `tests/test-profiles.ps1` across all four live profiles
@@ -82,6 +85,21 @@ these docs with two different values:
   node3 `hosts`-column false positive; the 2 SKIP taps are the dead server.
 - **VRAM figures generally** still date from Ollama 0.34.0 and were not
   re-measured after the 0.34.1 move. Not expected to shift, but not verified.
+- **Server `glm4:9b` `tool_call: true` is unprobed.** The only measurement is
+  the node3 FAIL (2026-09-20, ignored the tool, answered in prose); the server
+  copy has been down since before `test-toolcalls.ps1` existed. To-do: when
+  the server POSTs, run `.\tests\test-toolcalls.ps1 -Model glm4:9b -OllamaHost
+  http://SERVER_IP:11434` and flip the server-block entry to `false` if it
+  fails the same way (expected — same weights, same CUDA backend). Recorded
+  in `opencode/global/opencode.jsonc`'s server-block comment; see also
+  "Post-server-upgrade validation" below.
+- **Node3 WARN false positive needs a harness fix.** `test-profiles.ps1`
+  expands `DEV_NODE3_MODELS="general embed"` by catalog group membership
+  without checking the `hosts` column, so it WARNs on `qwen3:14b` (deliberately
+  unregistered on node3 — tight on 10 GB) and `gpt-oss:20b` (never
+  node3-eligible). To-do: respect `hosts` when computing per-host install
+  intent. Do not pull either model onto node3 to silence the WARN in the
+  meantime.
 
 ### Review-gate: settled
 
