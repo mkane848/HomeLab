@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add Task 2 to the task-veracity benchmark manifest:
+  `lfc-01-listing-status-guard` (lfc-bot), a missing-validation bug —
+  `setStatus()` in `src/services/listings.ts` updates a listing's status by
+  `id` alone with no guard on its current status, so an already
+  fulfilled/deleted/expired listing can be re-fulfilled or re-deleted,
+  silently resurrecting it. Deliberately a different bug shape from Task 1's
+  eligibility/conditional-logic bug. Found by codebase survey, independently
+  verified against the actual source, all three call sites, and existing
+  test coverage before being written into the manifest — never taking a
+  survey's word for it, same discipline as the rest of this repo's research.
+  Fixes the harness to get there: `Ensure-Worktree`'s install step was
+  hardcoded to `pnpm install`, which would silently mis-install an
+  npm-only repo (no pnpm lockfile); it's now `packageManager`-aware per task
+  (defaults to `pnpm`, so kane-01 is unaffected). The task's scoped
+  typecheck extends `tsconfig.eslint.json`, not `tsconfig.json` — confirmed
+  empirically (`tsc --noEmit --listFiles`) that the latter's inherited
+  `exclude: [..., "tests"]` silently drops the test file from an explicit
+  `include` even when named directly, which would have made the typecheck
+  gate a no-op on exactly the file it needs to check.
 - Add the task-veracity benchmark harness (`tests/test-tasks.ps1`) and task
   manifest, seeded with the background-pairing task and its first graded runs
   (qwen3:14b, qwen3:8b x2, devstral:24b — all FAIL on the six mechanical gates).

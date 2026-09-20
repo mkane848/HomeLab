@@ -231,11 +231,18 @@ function Ensure-Worktree {
     }
 
     if ($installed -ne $head -and -not $SkipInstall) {
-        Write-Host "    pnpm install $($Task.installFlags -join ' ') (first run on this worktree)..." -ForegroundColor DarkGray
-        $installArgs = @("install") + @($Task.installFlags)
-        $r = Run-Native "pnpm" $installArgs $WtPath
+        # packageManager is optional per-task (manifest field); default "pnpm"
+        # keeps kane-01 (no such field) running exactly as before. npm uses
+        # `ci`, not `install`, as the lockfile-respecting equivalent of
+        # pnpm's --frozen-lockfile - `npm install <flags>` would NOT enforce
+        # the lockfile the way `ci` does.
+        $pm = if ($Task.packageManager) { $Task.packageManager } else { "pnpm" }
+        $pmVerb = if ($pm -eq "npm") { "ci" } else { "install" }
+        Write-Host "    $pm $pmVerb $($Task.installFlags -join ' ') (first run on this worktree)..." -ForegroundColor DarkGray
+        $installArgs = @($pmVerb) + @($Task.installFlags)
+        $r = Run-Native $pm $installArgs $WtPath
         if ($r.ExitCode -ne 0) {
-            Write-Result $Task.id "install" "FAIL" "pnpm install failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts (already default for kane-01)"
+            Write-Result $Task.id "install" "FAIL" "$pm $pmVerb failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts"
             return $null
         }
         foreach ($step in @($Task.setup)) {
