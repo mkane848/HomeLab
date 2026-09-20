@@ -14,10 +14,10 @@ LAN connection map for the dev environment.
 |---------|------|----|----|-------|
 | Ubuntu Server | Ollama host (Qwen Coder 7B/14B, DeepSeek 14B, Qwen3, embed), OpenCode CLI | `SERVER_IP` | Ubuntu | RTX 4070 Ti Super, Docker |
 | Windows Desktop | Ollama host (DeepSeek-R1 16k, Qwen Coder 7B, GLM4, embed), WezTerm | `DESKTOP_IP` | Windows 11 | RX 6800 XT, native Vulkan |
-| Third node *(future)* | Ollama node (Qwen3 8B, GLM4 9B) | `NODE3_IP` | Windows 11 | RTX 3080 FE, 5950X |
+| Third node | Ollama node (Qwen3 8B, GLM4 9B) | `NODE3_IP` | Windows 11 | RTX 3080 FE, 5950X — onboarded 2026-09-20 |
 
 Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
-(`.env` at repo root; `NODE3_IP` is a commented placeholder until their node is onboarded).
+(`.env` at repo root).
 
 ## Connections
 
@@ -36,7 +36,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 │          │                                │                          │
 │          │         ┌──────────────┐       │        ┌──────────────┐  │
 │          ├────────>│  CLOUD APIs  │<──────┼───────>│ THIRD NODE   │  │
-│          │         │  OpenCode Go │       │        │ (future)     │  │
+│          │         │  OpenCode Go │       │        │ (node3)      │  │
 │          │         └──────────────┘       │        │ :11434       │  │
 │          │                                │        └──────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
@@ -48,7 +48,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 |---------|------|----------|----------|-------|
 | Server Ollama | 11434 | TCP | 0.0.0.0 | Docker container |
 | Desktop Ollama | 11434 | TCP | 0.0.0.0 | Native install |
-| Third-node Ollama (future) | 11434 | TCP | 0.0.0.0 | Native install |
+| Third-node Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | SSH | 22 | TCP | 0.0.0.0 | Server access |
 
 OpenCode reaches each Ollama node through a per-host provider (`ollama-server`,
@@ -66,7 +66,7 @@ can only point at one host.
 - **Inbound**: Allow TCP 11434 from desktop IP (if server calls desktop)
 - **Inbound**: Allow TCP 22 from desktop IP (SSH)
 
-### Windows (Third node — when onboarded)
+### Windows (Third node)
 - **Inbound**: Allow TCP 11434 from desktop + server IPs (OpenCode → its Ollama)
 
 ## Environment Variables
@@ -79,7 +79,7 @@ auto-sourced by all profiles:
 SERVER_IP=        # your Ubuntu server LAN IP
 DESKTOP_IP=       # your Windows desktop LAN IP
 SSH_USER=         # your SSH username on the server
-# NODE3_IP=        # uncomment when the node is onboarded
+NODE3_IP=         # third-node LAN IP (onboarded 2026-09-20)
 ```
 
 On each Ollama host, also set the bind:
@@ -102,7 +102,7 @@ curl.exe http://${DESKTOP_IP}:11434/api/tags
 # From desktop, test server Ollama
 curl.exe http://${SERVER_IP}:11434/api/tags
 
-# From desktop, test node3 Ollama (once onboarded)
+# From desktop, test node3 Ollama
 curl.exe http://${NODE3_IP}:11434/api/tags
 
 # Test SSH

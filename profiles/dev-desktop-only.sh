@@ -19,7 +19,6 @@ export DEV_DESKTOP_MODELS="qwen2.5-coder:7b deepseek-r1:14b qwen3:8b"
 export OLLAMA_DESKTOP_URL="http://localhost:11434"
 export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:11434/v1}"
 
-# Desktop DeepSeek (16k ctx - the baked model from startup.ps1)
 # MAIN SEAT = qwen3:8b - only the qwen3 family (8b/14b) emits a parseable tool
 # call (probe: tests/test-toolcalls.ps1). A qwen2.5-coder or deepseek-r1 tag
 # here makes the agent chat-only: it describes edits it never made. Those tags

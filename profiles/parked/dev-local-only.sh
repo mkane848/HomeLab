@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # dev-local-only.sh - Full local stack, no API costs
-# Qwen 7b autocomplete (server) + DeepSeek 14b reasoner (desktop, native ROCm).
+# Qwen 7b autocomplete (server) + DeepSeek 14b reasoner (desktop, native Vulkan).
 
 # Load shared vars from .env
 DEVDOCS_ENV="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"

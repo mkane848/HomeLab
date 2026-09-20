@@ -7,7 +7,7 @@
 #
 # CPU-only by design: the desktop .wslconfig sets gpuSupport=false (WSL
 # ConfigureGpu workaround), so there is NO GPU passthrough. Ollama stays native
-# via ROCm on the host - nothing here should ever try to run a model.
+# via Vulkan on the host - nothing here should ever try to run a model.
 #
 # No secrets ever: projects that need a DATABASE_URL pass it at run time
 # (--env / envfile), they are not baked into this image.

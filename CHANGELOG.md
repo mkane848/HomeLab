@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documentation cleanup after the node3 onboarding: every live/parked
+  profile count now says 4 / 8 (was 3 / 9 across `README.md`,
+  `docs/profiles.md`, `profiles/README.md`); `dev-node3.sh`'s `FUTURE/STUB`
+  header, `profiles/parked/README.md`'s "never provisioned" section, and
+  `docs/network-topology.md`'s `(future)` labels updated for the live node;
+  ROCm remnants corrected to Vulkan (`desktop/README.md` rewritten sections,
+  `dev.dockerfile`, `docker-compose.yml`, `sandbox.md`, `troubleshooting.md`,
+  `models.ps1`, `config.example.json` — whose stale `OLLAMA_CONTEXT_LENGTH`
+  note now describes the per-model bake); `opencode/README.md` counts fixed
+  (73 skills with vercel at 44, 4 agents, no `planner.md`) and its provider
+  table corrected (no GLM4 on desktop, full desktop seat list);
+  `docs/start-here.md` + `CONTRIBUTING.md` expect the measured **100 PASS /
+  0 FAIL / 1 WARN / 2 SKIP**, closing the roadmap's pass-count contradiction;
+  `dev-workflow-resident.sh`'s VRAM header re-based to the served 32k figures
+  (11.97 GB) with its removed-subagent echo fixed; server-block `tool_call`
+  comment records the measured node3 `glm4:9b` FAIL. Verified with
+  `test-profiles.ps1` (full: 100/0/1/2) and `-Profile dev-node3` (15/0/1/2).
 - Refresh `AGENTS.md` for the node3 onboarding and other drift: 4 live
   profiles / 8 parked (was 3 / 9), `origin` remote documented (was "no
   remote configured"), node3 marked onboarded with `qwen3:8b` as the only

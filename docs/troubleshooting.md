@@ -684,7 +684,7 @@ Docker Desktop first.
 ### Containers can't see the GPU
 
 By design. `.wslconfig` disables GPU passthrough (`gpuSupport=false`) so
-containers are CPU-only and Ollama stays native via ROCm. Don't try to run a
+containers are CPU-only and Ollama stays native (Vulkan) on the host. Don't try to run a
 model inside a container on the desktop; point it at the host
 (`OLLAMA_DESKTOP_BASE_URL` / `http://localhost:11434`).
 

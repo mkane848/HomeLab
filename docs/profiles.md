@@ -21,24 +21,25 @@ process (Git bash: `source profiles/<name>.sh`).
 
 ## Live vs parked (changed 2026-09-17)
 
-**Three profiles are live.** All are desktop-only, because the server
-(`SERVER_IP`) will not POST:
+**Four profiles are live** — three desktop-only (the server `SERVER_IP` will
+not POST) plus the onboarded third node:
 
 | Profile | Main seat | Use it when |
 |---|---|---|
 | `dev-workflow-quality` | `qwen3:14b` @32k + `qwen2.5-coder:3b` | default — everyday work |
 | `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` | you want the 7B resident for code text |
 | `dev-desktop-only` | `qwen3:8b` | plain local console, no extras |
+| `dev-node3` | `qwen3:8b` on node3 (onboarded 2026-09-20) | general + embed work on the 3080 FE |
 
-**Nine are parked** in `profiles/parked/` — see
+**Eight are parked** in `profiles/parked/` — see
 [`profiles/parked/README.md`](../profiles/parked/README.md). They are correct,
-not deprecated; they target the server or the unprovisioned third node. Bringing
-one back is a `git mv`.
+not deprecated; they target the down server. Bringing one back is a `git mv`.
 
 Why park rather than leave them: the harness ran all twelve and emitted **38
-WARNs**, every one of them "server unreachable." It now reports **81 PASS, 0
-FAIL, 0 WARN**. Warnings you learn to scroll past are how the original config
-bug survived for weeks.
+WARNs**, every one of them "server unreachable." With node3 live it now reports
+**100 PASS, 0 FAIL, 1 WARN, 2 SKIP** (measured 2026-09-20 — the WARN is a
+documented node3 false positive, the SKIP taps are the dead server). Warnings you
+learn to scroll past are how the original config bug survived for weeks.
 
 > **Everything below this line describing server or cloud profiles refers to
 > parked files.** The content is accurate and worth keeping for when the
@@ -51,7 +52,7 @@ Every profile:
 3. Exports install intent: `DEV_SERVER_MODELS`, `DEV_DESKTOP_MODELS`, `DEV_NODE3_MODELS` (space-separated catalog tags or groups — consumed by `install-model.sh` / `models.ps1` with `--profile`/`-Profile`).
 4. Sets OpenCode defaults: `OPENCODE_MODEL` / `OPENCODE_SMALL_MODEL` (model ID format `ollama-server/qwen2.5-coder:7b`) and the per-host `OLLAMA_*_BASE_URL`.
 
-## The 9 parked profiles (in `profiles/parked/`)
+## The 8 parked profiles (in `profiles/parked/`)
 
 Every main seat below is `qwen3:8b` — they were repointed on 2026-09-17 when the
 tool-calling probe showed the coder and reasoner models cannot edit files. The
@@ -66,7 +67,6 @@ no-tools models for code text and review.
 | `dev-local-only` | Zero cloud spend; desktop main seat, server small model | Server + Desktop | Server: `autocomplete` · Desktop: `reasoner` | `ollama-desktop/qwen3:8b` |
 | `dev-embeddings` | Semantic-search work; server hosts embed models | Server | Server: `autocomplete embed` | `ollama-server/qwen3:8b` |
 | `dev-go-only` | Test cloud models you can't run locally via OpenCode Go | Server + Go | Server: `autocomplete` | *Go default* (cloud) |
-| `dev-node3` | Onboard the third node, 3080 FE (stub until `NODE3_IP` set) | Server (+ Node3) | Server: `autocomplete` · Node3: `general embed` | `ollama-node3/qwen3:8b`, falls back to server |
 | `dev-full` | Everything online (server + desktop + Go) | Server + Desktop + Go | Server: `coder reasoner general creative embed` · Desktop: `reasoner` | *Go default* (cloud) |
 | `dev-workflow-server` | Server drives, desktop assists | Server + Desktop | — | `ollama-server/qwen3:8b` |
 
@@ -79,8 +79,9 @@ down since before `tests/test-toolcalls.ps1` existed. Probe before trusting one:
 
 ## The workflow profiles (`dev-workflow-*`, the default test target)
 
-The three live profiles are what
-`tests/test-profiles.ps1` validates by default (81 PASS, 0 FAIL, 0 WARN), each
+The four live profiles are what
+`tests/test-profiles.ps1` validates by default (100 PASS, 0 FAIL, 1 WARN,
+2 SKIP — measured 2026-09-20), each
 against its intent manifest (purpose, tier flags, main/small model, and whether the main seat can actually call tools):
 
 | Profile | Purpose | Main / small model |
@@ -88,6 +89,7 @@ against its intent manifest (purpose, tier flags, main/small model, and whether 
 | `dev-workflow-quality` | Default. qwen3:14b drives in-thread at 32k, `/plan` on demand | `qwen3:14b` / `qwen2.5-coder:3b` |
 | `dev-workflow-resident` | Same, but keeps the 7B coder resident as a no-tools code/review model | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
+| `dev-node3` | Third node (RTX 3080 FE): general + embed on node3, server autocomplete | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) |
 
 `dev-workflow-quality` also exports `DEV_DOCKER_STACK=true`, so `startup.ps1`
 starts the local Postgres + Redis stack (`desktop/docker`) at login alongside
@@ -228,7 +230,9 @@ tools with no per-session toggling.
 
 ## `dev-node3` interplay with `.env`
 
-`dev-node3.sh` is a stub: it activates the third-node tier **only** when `NODE3_IP` is set in `.env`. Otherwise it warns and behaves like `dev-quick` with a server-side default. Deactivate it by sourcing another profile.
+`dev-node3.sh` activates the third-node tier when `NODE3_IP` is set in `.env`
+(it is — onboarded 2026-09-20). Without `NODE3_IP` it warns and behaves like
+`dev-quick` with a server-side default. Deactivate it by sourcing another profile.
 
 ## Reasoner placement (how it was split)
 

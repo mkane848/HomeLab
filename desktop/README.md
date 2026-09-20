@@ -1,18 +1,19 @@
 # Desktop (Windows 11)
 
-Scripts and configs for the personal desktop machine — the ROCm Ollama node.
+Scripts and configs for the personal desktop machine — the native-Vulkan Ollama node.
 
 ## Hardware
 
 - AMD Ryzen 7 5800X3D
-- AMD Radeon RX 6800 XT (16 GB VRAM, ROCm)
+- AMD Radeon RX 6800 XT (16 GB VRAM, **Vulkan** — gfx1030 is unsupported by the Windows HIP SDK, so ROCm is permanently unavailable; see `docs/hardware.md`)
 - Windows 11
 
 ## What Runs Here
 
-- **DeepSeek-R1 14B** — reasoning and planning via native AMD-ROCm Ollama (derived `deepseek-r1-16k`, num_ctx baked in)
-- **Qwen 2.5 Coder 7B, GLM4 9B, embeddings** — pulled via `models.ps1`
-- **Ollama** — host for desktop-side model serving
+- **Qwen3 14B / 8B** — the tool-capable agent seats (baked 32k ctx), driven via OpenCode
+- **Qwen 2.5 Coder 3B/7B/14B, DeepSeek-R1 14B** — no-tools models for code text, explanation and review (derived `-16k`/`-32k` bakes, `num_ctx` baked in)
+- **Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B** — LM-Studio imports (not in `models/catalog.tsv`)
+- **Ollama** — host for desktop-side model serving (native install, Vulkan backend)
 
 ## Quick Start
 
@@ -63,7 +64,9 @@ Scripts and configs for the personal desktop machine — the ROCm Ollama node.
 
 ## Notes
 
-- The Windows Ollama app **overrides** `OLLAMA_CONTEXT_LENGTH` (VRAM-based default),
-  so high contexts are baked into derived models (e.g. `deepseek-r1-16k`) via a
-  Modelfile — don't rely on the env var here.
-- ROCm only: no vLLM/TensorRT; use the server (CUDA) for those experiments.
+- Per-model context is baked into each tag by `scripts/startup.ps1`
+  (`$contextModels`) via a Modelfile — `OLLAMA_CONTEXT_LENGTH` is honoured on
+  Windows since Ollama 0.34.0, but it is a single global default and cannot
+  give per-model control. Keep `limit.context` in `opencode.jsonc` in sync
+  with the bake.
+- Vulkan only: no vLLM/TensorRT/CUDA tooling; use the server (CUDA) for those experiments.

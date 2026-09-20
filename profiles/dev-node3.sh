@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# dev-node3.sh - Activate the third node as an Ollama node (RTX 3080 FE, 10GB)
-# FUTURE/STUB: the node is NOT onboarded yet. Requires NODE3_IP in .env.
-# When live, it hosts general + embed models; its 5950X is strong enough for
-# good CPU offload of larger models too.
+# dev-node3.sh - Third node as an Ollama node (RTX 3080 FE, 10GB).
+# Onboarded 2026-09-20. Hosts general + embed models; qwen3:8b is the only
+# tool-capable seat (glm4:9b probed FAIL on this host - no-tools chat only).
 #
-# Until NODE3_IP is set, this profile still works (server autocomplete only) but
-# prints a warning and keeps the third-node tier off.
+# Requires NODE3_IP in .env. Until it is set, this profile still works
+# (server autocomplete only) but prints a warning and keeps the third-node
+# tier off.
 
 # Load shared vars from .env
 DEVDOCS_ENV="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"

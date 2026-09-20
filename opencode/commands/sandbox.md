@@ -6,7 +6,7 @@ description: Run a disposable scratch container for quick experiments (runtimes,
 
 Spin up a throwaway container to experiment without touching the host. CPU-only
 (desktop `.wslconfig` has `gpuSupport=false` - no GPU passthrough - so Ollama
-stays native/ROCm and never runs here). Run via the regular **Bash tool with
+stays native (Vulkan) and never runs here). Run via the regular **Bash tool with
 `docker` CLI** (gives us `--rm`/`--memory`/`--cpus`, which the docker MCP tools
 don't expose). The docker MCP is for managing the compose stack / inspection.
 

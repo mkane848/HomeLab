@@ -41,7 +41,9 @@ PRs are how changes land. A template lives in
 Run the relevant checks before you open a PR, and paste the output into the
 PR's "Verification" section rather than asserting success:
 
-- Profiles: `.\tests\test-profiles.ps1` (expect 81 PASS / 0 FAIL / 0 WARN;
+- Profiles: `.\tests\test-profiles.ps1` (expect 100 PASS / 0 FAIL / 1 WARN /
+   2 SKIP as of 2026-09-20 — the WARN is a documented node3 false positive,
+   the SKIP taps are the dead server;
    server-reachable WARNs are green-lit for `dev-workflow-server` only).
 - Tool-calling: `.\tests\test-toolcalls.ps1` before trusting any model in a
   seat that reads/edits/runs. `PASS` is one row — the whole probe exits 1 if

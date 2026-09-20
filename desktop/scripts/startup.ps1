@@ -70,8 +70,8 @@ try {
 # now - the serve-log env map shows the value we set, and qwen3:8b (no bake)
 # serves at it. The old "the app zeroes it" workaround is obsolete. Baking is
 # still what we do, but for a different and better reason: the env var is a
-# single GLOBAL default, and we need PER-MODEL context. The 14b coder and the
-# deepseek planner want 32k; the small/companion models must stay at 16k or
+# single GLOBAL default, and we need PER-MODEL context. The qwen3 seats and the
+# 14b coder want 32k; the small/companion models must stay at 16k or
 # their KV cache evicts the main model from VRAM.
 #
 # Per entry:

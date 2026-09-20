@@ -89,7 +89,8 @@ source profiles/dev-workflow-quality.sh
 │                                  (RX 6800 XT, Vulkan)       │
 │  Server:  Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3,        │
 │           general/creative, embeddings  (4070 Ti Super)     │
-│  Node3:   Qwen3 8B, GLM4 9B  (future, RTX 3080 FE)          │
+│  Node3:   Qwen3 8B (agent seat), GLM4 9B (no-tools)         │
+│           + embeddings (RTX 3080 FE, live since 2026-09-20) │
 │  Cloud:   OpenCode Go (test models you can't run)           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -133,7 +134,7 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 
 ## Fresh-Install Convenience
 
-- Nine profiles are parked in `profiles/parked/` (they need the server or the third node) — see [profiles/parked/README.md](profiles/parked/README.md). Three desktop profiles are live.
+- Eight profiles are parked in `profiles/parked/` (they need the server) — see [profiles/parked/README.md](profiles/parked/README.md). Four profiles are live (three desktop + `dev-node3`).
 - The [roadmap](docs/roadmap.md) tracks third-node onboarding, image pinning, and post-upgrade validation.
 
 ## License
