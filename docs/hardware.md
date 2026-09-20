@@ -8,7 +8,7 @@ The fleet that runs the local LLM setup. Refresh the VRAM budget when any node's
 |------|----|-----|-----|------|-----|----|------|
 | Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Primary Ollama node (Docker) |
 | Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | ? | `DESKTOP_IP` | Native Ollama (Vulkan) |
-| Third node *(future)* | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | ? | `NODE3_IP` | Third node (general + embed) |
+| Third node *(future)* | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Third node (general + embed) |
 | GTX 1070 | — | — | GTX 1070 | 8 GB | — | — | Retired from server Sep 2026; backup / spare candidate |
 
 **Sep 2026 upgrade:** the server switched GPU (GTX 1070 8 GB → RTX 4070 Ti Super 16 GB) and RAM (16 → 32 GB). Everything below assumes the new hardware.

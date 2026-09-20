@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Third node (RTX 3080 FE) onboarding, steps 1-6 done 2026-09-20: Ollama
+  installed, LAN bind + firewall confirmed (`0.0.0.0:11434` listening),
+  `qwen3:8b`/`glm4:9b`/`nomic-embed-text`/`mxbai-embed-large` pulled,
+  `NODE3_IP` reachable from the desktop. Real tool-calling probes run for the
+  first time on this host: `qwen3:8b` **PASS** (62.3s, real `write_file`
+  call), `glm4:9b` **FAIL** (32.8s, ignored the tool and answered in prose).
+  The `glm4:9b` result closes a real gap flagged in the previous entry —
+  `opencode/global/opencode.jsonc`'s `ollama-node3` block claimed
+  `"tool_call": true` for it with no measurement behind that claim; corrected
+  to `false` now that one exists, and it's recorded in AGENTS.md's Gotchas
+  alongside the other measured failures. `qwen3:8b` stays the only node3
+  agent seat, unchanged from `dev-node3.sh`'s existing default. Also fills in
+  `docs/hardware.md`'s previously-unknown node3 RAM figure (32 GB).
 - Task-veracity benchmark: 15 more harness runs to bulk up the graded sample
   on the qwen3 seats for both tasks (base `92a8ed0` for
   `kane-01-background-pair`, `4906dc2` for `lfc-01-listing-status-guard`).

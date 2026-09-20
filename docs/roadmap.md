@@ -142,34 +142,36 @@ to work on the task-veracity benchmark. Unlike the desktop, this card is
 Ollama's native NVIDIA backend applies directly.
 
 **Join:**
-1. Install Ollama on its Windows machine (native, from ollama.com — CUDA
-   auto-detected).
-2. `OLLAMA_HOST=0.0.0.0:11434`, restart Ollama, open Windows Firewall for
-   11434 scoped to the LAN subnet (not public).
-3. Pull the two chat models + two embed models `dev-node3.sh` expects
+1. [x] Install Ollama on its Windows machine (native, from ollama.com — CUDA
+   auto-detected). Done 2026-09-20.
+2. [x] `OLLAMA_HOST=0.0.0.0:11434`, restart Ollama, open Windows Firewall for
+   11434 scoped to the LAN subnet (not public). Done — confirmed via
+   `netstat -an | findstr 11434` showing `0.0.0.0:11434` listening.
+3. [x] Pull the two chat models + two embed models `dev-node3.sh` expects
    (`DEV_NODE3_MODELS="general embed"`): `qwen3:8b`, `glm4:9b`,
-   `nomic-embed-text`, `mxbai-embed-large`. `desktop\scripts\models.ps1` has
-   no AMD/Vulkan-specific logic — it's a thin wrapper over `ollama pull` — so
-   it works unmodified if the repo is also cloned on node3; otherwise plain
-   `ollama pull <tag>` per model is equivalent for just four models.
-4. Set `NODE3_IP` in `.env` (real LAN IP, replacing the commented
-   placeholder) and confirm from the desktop: `curl.exe http://NODE3_IP:11434/api/tags`.
+   `nomic-embed-text`, `mxbai-embed-large`. Done — confirmed via
+   `/api/tags` on the node.
+4. [x] Set `NODE3_IP` in `.env` and confirm from the desktop:
+   `curl.exe http://<node3-ip>:11434/api/tags` — done, returned all four
+   models.
 
 **Prove it before trusting it — do not skip:**
-5. `.\tests\test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://NODE3_IP:11434`.
-   `opencode/global/opencode.jsonc`'s `ollama-node3` block already declares
-   `"tool_call": true` for this model, but that's the *config's* claim, not a
-   measured one for this host — run the real probe.
-6. Same for `glm4:9b`. Its `"tool_call": true` entry in the same config block
-   is a real gap worth flagging: the Gotchas section's actual measured
-   pass/fail list (`tests/results/toolcalls-0.34.1.txt`) names `qwen3:8b`,
-   `qwen3:14b`, `qwen3.5:9b`, `qwen3-coder:30b-a3b`, and `devstral:24b` as
-   passing and the `qwen2.5-coder`/`deepseek-r1` families as failing —
-   `glm4:9b` appears in neither list. Its config entry may be an unverified,
-   aspirational default rather than a measured result. Probe it for real
-   before letting it hold an agent seat, per this repo's own rule ("probe it
-   first ... only seat it as a main model or tool-using subagent if it
-   PASSes").
+5. [x] `.\tests\test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://<node3-ip>:11434`.
+   **PASS** (2026-09-20, 62.3s, real `write_file` tool call). Confirms the
+   qwen3 family's tool-calling holds on this CUDA host too, not just
+   Vulkan/desktop — recorded in AGENTS.md's Gotchas.
+6. [x] Same for `glm4:9b` — this was the real open question, since its
+   `"tool_call": true` config entry had no measurement behind it (didn't
+   appear in either the passing or failing side of the 13-model
+   `toolcalls-0.34.1.txt` batch). **FAIL** (2026-09-20, 32.8s): ignored the
+   tool entirely and answered in prose ("To write the text 'hello' to a
+   file..."), same shape as the `qwen2.5-coder`/`deepseek-r1` failures.
+   **Corrected `opencode/global/opencode.jsonc`'s `ollama-node3` block to
+   `"tool_call": false` for it** — it stays registered as a no-tools chat
+   model, same treatment as `qwen2.5-coder:14b`, and must not hold an agent
+   seat. `qwen3:8b` remains the only node3 agent seat, matching
+   `dev-node3.sh`'s existing `OPENCODE_MODEL` default — no profile change
+   needed.
 7. `git mv profiles/parked/dev-node3.sh profiles/` once `NODE3_IP` is set
    (per `profiles/parked/README.md`'s own "bringing one back" step).
 8. `.\tests\test-profiles.ps1 -Profile dev-node3` — confirms intent
@@ -192,9 +194,10 @@ Ollama's native NVIDIA backend applies directly.
     notice once both are producing rows in `tests/results/tasks-summary.tsv`,
     no dedicated experiment required.
 
-**Docs cleanup once live:** `docs/hardware.md`'s third-node row still says
-`(future)` and has an unfilled RAM column — update both once the machine is
-actually up.
+**Docs cleanup:** `docs/hardware.md`'s third-node RAM figure is now known
+(32 GB) and updated. The `(future)` tag stays until steps 7-8 (profile
+unparked, `test-profiles.ps1` green) actually complete — network-reachable
+and tool-call-probed isn't the same as fleet-validated yet.
 
 ### Third node: fine-tuning with Unsloth (future, unscheduled)
 
