@@ -4,3 +4,5 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-19T18:37:31	kane-01-background-pair	ollama-desktop/qwen3:8b	qwen3-8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	32	PASS	FAIL	FAIL	PASS	462.3
 2026-09-19T18:39:45	kane-01-background-pair	ollama-desktop/devstral:24b	devstral-24b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	0	FAIL	PASS	FAIL	PASS	119.5
 2026-09-19T19:00:00	kane-01-background-pair	vscode-agent/ollama-desktop/devstral:24b	devstral-24b-vscode-agent	92a8ed0df10262cc878d4d214d0a312d542375ec	n/a	0	FAIL	NOT_RUN	NOT_RUN	NOT_RUN	n/a
+2026-09-19T21:35:56	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	qwen3-8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	20	PASS	FAIL	FAIL	WARN	525.6
+2026-09-19T22:09:55	lfc-01-listing-status-guard	ollama-desktop/qwen3:14b	qwen3-14b-rerun	4906dc2881d362bda2006d3407e0ba63e005b91b	0	2	FAIL	PASS	FAIL	PASS	167.1
