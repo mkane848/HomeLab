@@ -1,8 +1,8 @@
 # desktop/docker/docker-compose.yml - Local dev services on the desktop.
 #
 # CPU-only by design: .wslconfig has gpuSupport=false (the WSL ConfigureGpu
-# workaround), so NO GPU passthrough into containers. Ollama stays native via
-# ROCm on the host - these are lightweight CPU services for app development
+# workaround), so NO GPU passthrough into containers. Ollama stays native
+# (Vulkan) on the host - these are lightweight CPU services for app development
 # (local Postgres for apps like asohav that speak `pg`, Redis for queues/cache).
 #
 # Security: every port binds to 127.0.0.1 ONLY - nothing is exposed on the LAN.

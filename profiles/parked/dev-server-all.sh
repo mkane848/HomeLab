@@ -2,7 +2,7 @@
 # dev-server-all.sh - Everything on the server, desktop idle
 # Qwen 7b autocomplete + Qwen 14b coder + DeepSeek 14b reasoner, all on the
 # server. This is the point of the 4070 Ti Super: heavier loads the desktop
-# (ROCm) could not handle, on one box.
+# (Vulkan, 16 GB) could not hold alongside day-to-day use, on one box.
 
 # Load shared vars from .env
 DEVDOCS_ENV="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"

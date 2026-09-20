@@ -7,8 +7,10 @@ what you should actually see.
 
 **Right now:** the server (`SERVER_IP`) will not POST — hardware recovery is
 in progress ([`server-recovery-cpu-led.md`](server-recovery-cpu-led.md)). So
-everything runs on the Windows desktop, and the profile you want is
+the default loop runs on the Windows desktop, and the profile you want is
 `dev-workflow-quality` (qwen3:14b at 32k). Nothing below needs the server.
+(The third node is live too — `dev-node3` serves `qwen3:8b` general + embed on
+the 3080 FE; see [profiles.md](profiles.md).)
 
 ---
 
@@ -197,6 +199,7 @@ here. Raw output: [`tests/results/toolcalls-0.34.1.txt`](../tests/results/toolca
 | `devstral:24b` | yes, but 8.1 tok/s — it spills out of VRAM |
 | `qwen2.5-coder` (3b / 7b / 14b / -16k) | no — prints the call as chat text |
 | `deepseek-r1` (14b / -16k / -32k / -0528:8b) | no — ignores the tool, answers in prose |
+| `glm4:9b` | no — ignores the tool, answers in prose (probed 2026-09-20 on node3, the only host it holds an agent-adjacent seat on) |
 
 The count moved 3/10 → 5/13 only because three models were installed after the
 first baseline; two of them pass. No model changed its result.
@@ -400,14 +403,15 @@ trivial request and read `task.n_tokens` from the Ollama log.
 ## When something looks wrong
 
 Run this first — it checks every live profile against what is actually configured
-and serving (expect 81 PASS, 0 FAIL, 0 WARN):
+and serving (expect 100 PASS, 0 FAIL, 1 WARN, 2 SKIP — measured 2026-09-20):
 
 ```powershell
 .\tests\test-profiles.ps1
 ```
 
-Expect `0 FAIL` and `0 WARN`. Server-related WARNs disappeared when those
-profiles were parked. Then, by symptom:
+Expect `0 FAIL`. The 1 WARN is a documented node3 false positive (the harness
+expands install intent without checking the catalog `hosts` column — do not
+install to silence it) and the 2 SKIP taps are the dead server. Then, by symptom:
 
 | Symptom | Likely cause | Where |
 |---|---|---|

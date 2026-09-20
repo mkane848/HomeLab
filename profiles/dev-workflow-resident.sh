@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # dev-workflow-resident.sh - qwen3 drives; 7b coder kept resident as a no-tools model
 #
-# Fits the whole trio's day-to-day work in VRAM with no swaps.
+# Fits the day-to-day pair in VRAM with no swaps.
 #
 # VRAM (MEASURED via /api/ps with OLLAMA_FLASH_ATTENTION=1 + KV q8_0 - these
 # are runtime figures: weights + KV cache + compute buffers, NOT the catalog's
 # disk sizes, which undercount by 1-3 GB):
-#   qwen3:8b          @16k  = 5.93 GB  main orchestrator - disciplined tool
-#                                      loop, thinking mode on tap
+#   qwen3:8b          @32k  = 7.16 GB  main seat - disciplined tool loop,
+#                                      thinking mode on tap
 #   qwen2.5-coder-16k @16k  = 4.81 GB  no-tools code/review model, on tap
 #   ----------------------------------------------------------------
-#   normal-work residency   = 10.74 GB of ~14.8 GB usable
+#   normal-work residency   = 11.97 GB of ~14.8 GB usable
+# (qwen3:8b is baked at 32k by startup.ps1 - the old @16k 5.93 GB figure no
+# longer applies to the served tag.)
 #
 # NOTE (2026-09-17): the coder subagent and /implement were removed - the 7b
 # cannot call tools (tests/test-toolcalls.ps1: only the qwen3 family + devstral
@@ -49,4 +51,4 @@ export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:1143
 export OPENCODE_MODEL="ollama-desktop/qwen3:8b"
 export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:7b"
 
-echo "[profile] Workflow Resident: qwen3 orchestrates, coder + deepseek subagents"
+echo "[profile] Workflow Resident: qwen3:8b drives in-thread, 7b coder resident for no-tools code text"

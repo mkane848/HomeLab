@@ -600,7 +600,8 @@ its keep. Canonical worked example + merge DoD in
    verification reasoning, which a larger card does not buy. `glm4:9b` is a
    weaker candidate than three models that have now failed across 18 runs, and
    its "~6 GB" was the catalog GGUF size, which `hardware.md` warns is not a
-   runtime VRAM figure; it has never been measured or run as a reviewer. Do not
+   runtime VRAM figure; it has been probe-measured for tool-calling (FAIL on
+   node3, 2026-09-20) but never run as a reviewer. Do not
    size hardware for a local reviewer seat until one exists.
 
 ---
@@ -623,10 +624,10 @@ its keep. Canonical worked example + merge DoD in
 
 ## Fleet seat assignment (the three machines)
 
-Each gate seat wants something and there are exactly two usable VRAM pools today
-(the two 16 GB cards: server = 4070 Ti Super CUDA, desktop = 6800 XT Vulkan).
-The third node — node3's RTX 3080 FE, **10 GB usable ~9 GB**, per [hardware.md](hardware.md)
-— cannot hold any current gate seat cleanly:
+Each gate seat wants something and there are two 16 GB VRAM pools
+(server = 4070 Ti Super CUDA, desktop = 6800 XT Vulkan) plus the onboarded
+third node — node3's RTX 3080 FE (10 GB), which hosts `qwen3:8b` general today
+but cannot hold any current gate seat cleanly:
 
 | Seat | Requirement | Model & resident VRAM | Fits where |
 |---|---|---|---|

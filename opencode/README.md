@@ -86,7 +86,7 @@ Two scripts manage the lifecycle:
 .\desktop\scripts\sync-skills.ps1 -Server    # server only
 ```
 
-Vendored in `skills/`: **65 skills** (vercel 33, render 21, ui-ux-pro-max 7,
+Vendored in `skills/`: **73 skills** (vercel 44, render 21, ui-ux-pro-max 7,
 frontend-design 1). Only **8 of them deploy globally** — `frontend-design` and
 `ui-ux-pro-max`, listed in `$GLOBAL_SKILL_SOURCES` in `sync-skills.ps1`. The
 rest stay in this repo and a project opts in by path:
@@ -100,8 +100,9 @@ system prompt of **every** request (~5.5k tokens for all 65). Use
 `-Scope all` to deploy everything globally, and `-Prune` when narrowing scope
 or the old ones stay behind.
 
-Current `opencode/` has **9 commands** and **5 agents**. `plan.md` +
-`planner.md` are the `/plan` flow; the rest are Vercel/Render imports.
+Current `opencode/` has **9 commands** and **4 agents**. `plan.md` is the
+`/plan` flow (it runs on the main agent — there is no planner subagent);
+the rest are Vercel/Render imports.
 
 > `implement.md` and `coder.md` were **deleted 2026-09-17**. The coder subagent
 > was pinned to `qwen2.5-coder-16k`, which cannot emit a parseable tool call, so
@@ -126,8 +127,8 @@ vars via `{env:...}` substitution:
 |----------|--------------------|------|--------|
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `{file:.secrets/opencode-go-api-key}` | any, via `opencode-go/<model-id>` |
 | `ollama-server` | `{env:OLLAMA_SERVER_BASE_URL}` | None | Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3 8B/14B, GLM4 9B, Gemma3 12B, Codestral, GPT-OSS 20B, QwQ 32B |
-| `ollama-desktop` | `{env:OLLAMA_DESKTOP_BASE_URL}` | None | DeepSeek-R1 16k (baked) + base 14b, Qwen Coder 7B (+ `-16k` bake), Qwen Coder 14B, Qwen3 8B, GLM4 9B |
-| `ollama-node3` | `{env:OLLAMA_NODE3_BASE_URL}` (set once `NODE3_IP` exists) | None | Qwen3 8B, GLM4 9B |
+| `ollama-desktop` | `{env:OLLAMA_DESKTOP_BASE_URL}` | None | Qwen3 14B/8B (baked 32k), Qwen Coder 14B/7B/3B (+ `-16k` bake), DeepSeek-R1 16k/32k (baked) + base 14b, Devstral 24B, Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B |
+| `ollama-node3` | `{env:OLLAMA_NODE3_BASE_URL}` | None | Qwen3 8B (tool-capable seat), GLM4 9B (no-tools) |
 
 > **No `:-default` fallbacks.** OpenCode's `{env:...}` substitution does not
 > support shell-style defaults — `{env:VAR:-foo}` resolves to an empty string,

@@ -463,7 +463,7 @@ $profileIntents = @{
     "dev-embeddings"        = New-Intent -Purpose "server autocomplete + nomic/mxbai embeddings for semantic search" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
     "dev-go-only"           = New-Intent -Purpose "cloud evaluation: OPENCODE_MODEL must stay unset (config default = Go model)" -Main "<unset>" -Role "unset" -Small "<unset>" -Server $true -Go $true -GoDefault $true
     "dev-full"              = New-Intent -Purpose "all tiers, cloud default for testing anything new" -Main "<unset>" -Role "unset" -Small "<unset>" -Server $true -Desktop $true -Go $true -GoDefault $true
-    "dev-node3"              = New-Intent -Purpose "third node (stub): server autocomplete always; degrades gracefully without NODE3_IP" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Stub $true
+    "dev-node3"              = New-Intent -Purpose "third node (RTX 3080 FE, live since 2026-09-20): node3 qwen3:8b when NODE3_IP set; degrades gracefully to server autocomplete without it" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Stub $true
 }
 
 $capCache    = @{}

@@ -1,4 +1,4 @@
-# models.ps1 — Install models into the desktop Ollama (ROCm) from the catalog
+# models.ps1 — Install models into the desktop Ollama (native Vulkan) from the catalog
 #
 # Usage (PowerShell):
 #   .\desktop\scripts\models.ps1 -List                 # show catalog

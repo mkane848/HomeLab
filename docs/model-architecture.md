@@ -38,11 +38,11 @@ Three-tier LLM deployment across server, desktop, and (optionally) cloud. After 
 │   + glm4:9b                  │ │  Qwen3 8B/14B      │ │  reliable)    │
 │   + embed models             │ │  + general/creative│ │               │
 └──────────────────────────────┘ └───────────────────┘ └───────────────┘
-                  ┌───────────────────────────┐
-                  │   THIRD NODE (future)      │
-                  │   RTX 3080 FE, CUDA 10GB  │
-                  │   qwen3:8b + glm4:9b      │
-                  └───────────────────────────┘
+                   ┌───────────────────────────┐
+                   │   THIRD NODE (live)        │
+                   │   RTX 3080 FE, CUDA 10GB  │
+                   │   qwen3:8b + glm4:9b      │
+                   └───────────────────────────┘
 ```
 
 Every Ollama-capable machine is a node, reachable by OpenCode through a per-host `ollama-*` provider (`ollama-server`, `ollama-desktop`, `ollama-node3`). Which node runs what is decided by the active **profile** — see `docs/profiles.md`.
@@ -53,7 +53,7 @@ Every Ollama-capable machine is a node, reachable by OpenCode through a per-host
 |------|------|-----|--------------------------|---------------------|
 | Local coder | Server (Docker Ollama, CUDA) | 4070 Ti Super 16 GB | `autocomplete` (Qwen 7B) · `coder` (Qwen 14B) · `reasoner` (DeepSeek 14B, Qwen3) · `general creative embed` | `dev-coder`, `dev-server-all` |
 | Local reasoner | Desktop (native Ollama, Vulkan) | RX 6800 XT 16 GB | `reasoner` (DeepSeek-R1 14B via `deepseek-r1-16k` bake) · Qwen Coder 7B · GLM4 9B · embeddings | `dev-local-only` |
-| Future node | Third node (CUDA) | RTX 3080 FE 10 GB | `general embed` (Qwen3 8B, GLM4 9B) | `dev-node3` |
+| Third node | node3 (CUDA, onboarded 2026-09-20) | RTX 3080 FE 10 GB | `general embed` (Qwen3 8B, GLM4 9B) | `dev-node3` |
 | Cloud | OpenCode Go API | N/A | DeepSeek V4, Qwen3.x, Kimi, GLM + more | `dev-go-only`, `dev-full` |
 
 ## Tier Details

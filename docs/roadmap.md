@@ -73,9 +73,13 @@ these docs with two different values:
 - **node3 "10 GB usable ~9 GB"** (`lmstudio-vscode.md`) is attributed to
   `hardware.md`, which states no such figure — its only "usable" number is the
   desktop's ~14.8 of 16 GB.
-- **Harness pass count** — docs say 81 PASS (`start-here.md`, `profiles.md`);
-  commit `41a457d` reports 85 PASS and 88 with `-Reliability`. The docs predate
-  that gate. Re-run `tests/test-profiles.ps1` and record the real number.
+- **Harness pass count** — ~~docs say 81 PASS (`start-here.md`, `profiles.md`);
+  commit `41a457d` reports 85 PASS and 88 with `-Reliability`~~ — resolved
+  2026-09-20: re-ran `tests/test-profiles.ps1` across all four live profiles
+  (node3 now live) → **100 PASS, 0 FAIL, 1 WARN, 2 SKIP**, and every doc
+  claiming 81 PASS now says so (`start-here.md`, `profiles.md`,
+  `CONTRIBUTING.md`, `profiles/parked/README.md`). The 1 WARN is the known
+  node3 `hosts`-column false positive; the 2 SKIP taps are the dead server.
 - **VRAM figures generally** still date from Ollama 0.34.0 and were not
   re-measured after the 0.34.1 move. Not expected to shift, but not verified.
 
@@ -189,8 +193,9 @@ Ollama's native NVIDIA backend applies directly.
    while `hosts=all`, was deliberately left off node3's `opencode.jsonc`
    provider block (only `qwen3:8b` is registered there) because 14B weights
    alone run ~9-9.5 GB, tight on a 10 GB card per `docs/hardware.md`'s VRAM
-   table. Same "catalog↔config diff is not automatically a defect" pattern
-   AGENTS.md already documents for `glm4:9b`/`gemma3:12b` being server-only.
+    table. Same "catalog↔config diff is not automatically a defect" pattern
+    AGENTS.md documents (per-host registration gaps and unprobed-only entries
+    are usually deliberate — see its Model catalog section).
    **Do not pull either model onto node3 to silence this WARN.** A harness
    fix (respect `hosts` when computing per-host install intent) is a real,
    minor improvement but out of scope here — untouched, no local `pwsh` to

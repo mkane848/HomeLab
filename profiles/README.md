@@ -18,20 +18,16 @@ source profiles/dev-server-all.sh
 
 ## Profiles
 
+Four profiles are live. Eight server profiles are parked in `parked/` (correct,
+not deprecated — they target the down server; see `parked/README.md` for the
+bring-back procedure).
+
 | Profile | Purpose | Online | OpenCode default model |
 |---------|---------|--------|------------------------|
-| `dev-quick.sh` | Fast autocomplete only | Server | Qwen 2.5 Coder 7B (server) |
-| `dev-coder.sh` | Heavy coding on the server's 14B | Server | Qwen 2.5 Coder 14B (server) |
-| `dev-server-all.sh` | Coder + reasoner both on the server | Server | Qwen 2.5 Coder 14B (server) |
-| `dev-desktop-only.sh` | **Everything local on this PC** — use when the server is down | Desktop | DeepSeek-R1 16k (desktop) |
-| `dev-local-only.sh` | Qwen (server) + DeepSeek reasoner (desktop), zero cloud | Server + Desktop | DeepSeek-R1 16k (desktop) |
-| `dev-embeddings.sh` | Autocomplete + embeddings on the server (semantic-search work) | Server | Qwen 2.5 Coder 7B (server) |
-| `dev-go-only.sh` | Qwen + OpenCode Go (test cloud models) | Server + Go | Go default (cloud) |
-| `dev-node3.sh` | Third node, 3080 FE (stub until `NODE3_IP` set) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
-| `dev-full.sh` | Everything online (server + desktop + Go) | Server + Desktop + Go | Go default (cloud) |
 | `dev-workflow-quality.sh` | qwen3:14b drives in-thread, `/plan` on the main agent (desktop) | Desktop | Qwen3 14B (desktop) |
-| `dev-workflow-resident.sh` | Qwen3 8B orchestrator + coder/deepseek subagents (desktop) | Desktop | Qwen3 8B (desktop) |
-| `dev-workflow-server.sh` | Server 14B coder + autocomplete, desktop R1 planner | Server + Desktop | Qwen 2.5 Coder 14B (server) |
+| `dev-workflow-resident.sh` | qwen3:8b drives in-thread, 7B coder resident for no-tools code text (desktop) | Desktop | Qwen3 8B (desktop) |
+| `dev-desktop-only.sh` | **Everything local on this PC** — use when the server is down | Desktop | Qwen3 8B (desktop) |
+| `dev-node3.sh` | Third node, 3080 FE (onboarded 2026-09-20) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
 
 ## Cloud Tier Purpose
 
@@ -57,7 +53,7 @@ Each profile auto-sources the `.env` file from the dev-docs root, then exports:
   per-host `OLLAMA_*_BASE_URL` that the `ollama-server`, `ollama-desktop`,
   `ollama-node3` providers read via `{env:...}`.
 
-Variables from `.env` (SERVER_IP, DESKTOP_IP, NODE3_IP placeholder, SSH_USER) are
+Variables from `.env` (SERVER_IP, DESKTOP_IP, NODE3_IP, SSH_USER) are
 automatically available in every profile without re-typing.
 
 ## Choosing the OpenCode model
@@ -82,18 +78,18 @@ in — always use it, or large prompts fail with `exceed_context_size_error`.
 ## Interactive Menu
 
 `select-model.sh` uses `fzf` if available, otherwise falls back to a numbered
-menu (1–9). It sources the chosen profile for you.
+menu. It discovers `profiles/*.sh` dynamically, so it always lists exactly the
+live profiles (currently four) and nothing parked. It sources the chosen
+profile for you.
 
 ```bash
 ./profiles/select-model.sh
 # then run your startup / installs
 ```
 
-> `select-model.sh` only menus the nine fallback profiles — it does **not** list
-> the active `dev-workflow-*` trio; source those directly. On Windows, load the
-> desktop-only profile into the current PowerShell process by dot-sourcing
-> `profiles/dev-desktop-only.ps1` (the only `.ps1` wrapper); every other profile
-> loads in Git bash via `source profiles/<name>.sh`.
+> On Windows, load the desktop-only profile into the current PowerShell process
+> by dot-sourcing `profiles/dev-desktop-only.ps1` (the only `.ps1` wrapper);
+> every other profile loads in Git bash via `source profiles/<name>.sh`.
 
 ## Creating Custom Profiles
 
