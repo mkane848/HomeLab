@@ -25,24 +25,31 @@ what to actually pick up next, highest value first.
    a lot more cheaply than authoring new task shapes right now. The hosted/
    frontier-model calibration arm in the same section is the other open lever
    here, whenever the fleet owner wants to spend the API cost on it.
-3. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
+3. **Onboard the third node (RTX 3080 FE) — started 2026-09-20.** The
+   hardware now exists; see "Onboarding the third node" below for the full
+   join → probe → put-to-work sequence. Directly serves item 2: once live,
+   it doubles trial-collection throughput by running `ollama-node3/qwen3:8b`
+   concurrently with the desktop's batch instead of serially. Unsloth is
+   already installed there for a later, explicitly gated fine-tuning track —
+   not part of this item.
+4. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
    exists to prevent exactly the 0.34.0 → 0.34.1 move that happened anyway on
    2026-09-19. Find out whether the firewall rule was ever applied or whether it
    failed — the two need different fixes. Five minutes, and it is the one open
    item that can silently break agent seats.
-4. **Probe the server when it POSTs.** It has *never* run
+5. **Probe the server when it POSTs.** It has *never* run
    `tests/test-toolcalls.ps1` — it went down before that test existed — and its
    image pin was bumped to `0.34.1` on 2026-09-19 to match the desktop. Nothing
    on that host should be seated until it is probed. The four post-upgrade
    checks are below under "Post-server-upgrade validation".
-5. **Reconcile the VRAM figures that disagree** (see "Known contradictions"
+6. **Reconcile the VRAM figures that disagree** (see "Known contradictions"
    below). Two of them change real decisions and neither can be settled without
    a measurement.
-6. **Rewrite `model-architecture.md`.** It predates the tool-calling finding and
+7. **Rewrite `model-architecture.md`.** It predates the tool-calling finding and
    now carries a staleness banner; it still seats models that cannot call tools
    and never mentions `qwen3:14b`. Either bring it current or fold it into
    `profiles.md` + `hardware.md` and delete it.
-7. **Review-gate leftovers, low priority.** The seat question is closed (see
+8. **Review-gate leftovers, low priority.** The seat question is closed (see
    "Review-gate: settled" below). What remains is optional: a hosted arm (the
    only untried thing that could change the answer, needs an endpoint + key),
    Arm C (the de-leaked prompt), and a seam-6 brittleness probe for the
@@ -126,14 +133,97 @@ answers it.
 
 ## Onboarding the third node (RTX 3080 FE, 10 GB / 5950X)
 
-The catalog, OpenCode provider (`ollama-node3`), and `dev-node3.sh` profile are already in place — the node just needs to exist.
+Started 2026-09-20 — the hardware exists now (previously "future"). The catalog,
+OpenCode provider (`ollama-node3`), and `dev-node3.sh` profile were already in
+place; this is the concrete sequence to actually bring it up, prove it before
+trusting it (same standing rule as every other seat in this repo), and put it
+to work on the task-veracity benchmark. Unlike the desktop, this card is
+**CUDA, not Vulkan** — no `OLLAMA_VULKAN`/flash-attention workaround needed,
+Ollama's native NVIDIA backend applies directly.
 
-1. Install Ollama on its Windows machine.
-2. Confirm its LAN bind (`OLLAMA_HOST=0.0.0.0:11434`) and open Windows Firewall for 11434 (Desktop subnet or IP-scoped).
-3. Set `NODE3_IP` in `.env` (currently commented placeholder).
-4. `.\desktop\scripts\models.ps1 -Profile` with `dev-node3.sh` sourced → installs its `general embed` groups.
-5. `select-model.sh` → **dev-node3** → confirms OpenCode reaches `ollama-node3`.
-6. `desktop/scripts/startup.ps1` optionally starts its Ollama app at boot.
+**Join:**
+1. Install Ollama on its Windows machine (native, from ollama.com — CUDA
+   auto-detected).
+2. `OLLAMA_HOST=0.0.0.0:11434`, restart Ollama, open Windows Firewall for
+   11434 scoped to the LAN subnet (not public).
+3. Pull the two chat models + two embed models `dev-node3.sh` expects
+   (`DEV_NODE3_MODELS="general embed"`): `qwen3:8b`, `glm4:9b`,
+   `nomic-embed-text`, `mxbai-embed-large`. `desktop\scripts\models.ps1` has
+   no AMD/Vulkan-specific logic — it's a thin wrapper over `ollama pull` — so
+   it works unmodified if the repo is also cloned on node3; otherwise plain
+   `ollama pull <tag>` per model is equivalent for just four models.
+4. Set `NODE3_IP` in `.env` (real LAN IP, replacing the commented
+   placeholder) and confirm from the desktop: `curl.exe http://NODE3_IP:11434/api/tags`.
+
+**Prove it before trusting it — do not skip:**
+5. `.\tests\test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://NODE3_IP:11434`.
+   `opencode/global/opencode.jsonc`'s `ollama-node3` block already declares
+   `"tool_call": true` for this model, but that's the *config's* claim, not a
+   measured one for this host — run the real probe.
+6. Same for `glm4:9b`. Its `"tool_call": true` entry in the same config block
+   is a real gap worth flagging: the Gotchas section's actual measured
+   pass/fail list (`tests/results/toolcalls-0.34.1.txt`) names `qwen3:8b`,
+   `qwen3:14b`, `qwen3.5:9b`, `qwen3-coder:30b-a3b`, and `devstral:24b` as
+   passing and the `qwen2.5-coder`/`deepseek-r1` families as failing —
+   `glm4:9b` appears in neither list. Its config entry may be an unverified,
+   aspirational default rather than a measured result. Probe it for real
+   before letting it hold an agent seat, per this repo's own rule ("probe it
+   first ... only seat it as a main model or tool-using subagent if it
+   PASSes").
+7. `git mv profiles/parked/dev-node3.sh profiles/` once `NODE3_IP` is set
+   (per `profiles/parked/README.md`'s own "bringing one back" step).
+8. `.\tests\test-profiles.ps1 -Profile dev-node3` — confirms intent
+   manifest, tool-capability, and host liveness together, not just that it
+   answers a ping.
+
+**Put it to work on the task-veracity benchmark:**
+9. Once steps 1-8 pass, `tests/test-tasks.ps1 -Model ollama-node3/qwen3:8b`
+   works with no code changes — the provider block already exists. This
+   turns node3 into real parallel capacity, not just another row in a table:
+   the repeat-trial batch from 2026-09-20 (bringing qwen3:8b/14b to ~5 runs
+   per task each) can now split across two hosts running concurrently —
+   desktop keeps its `ollama-desktop/*` batch, node3 runs an independent
+   `ollama-node3/qwen3:8b` batch on both tasks at the same time, roughly
+   halving the wall-clock cost of collecting the same number of trials.
+10. Free bonus check this setup enables: node3's `qwen3:8b` is bit-identical
+    weights to desktop's, served over CUDA instead of Vulkan. Any systematic
+    difference in graded outcomes between the two hosts would point at a
+    backend/quantization artifact rather than the model itself — cheap to
+    notice once both are producing rows in `tests/results/tasks-summary.tsv`,
+    no dedicated experiment required.
+
+**Docs cleanup once live:** `docs/hardware.md`'s third-node row still says
+`(future)` and has an unfilled RAM column — update both once the machine is
+actually up.
+
+### Third node: fine-tuning with Unsloth (future, unscheduled)
+
+Unsloth was installed on the node3 machine 2026-09-20, ahead of the node
+being fully onboarded above. Recorded here so the intent isn't lost, but
+explicitly **not started** — it's gated on something that doesn't exist yet.
+
+- **Hardware fit:** Unsloth's 4-bit QLoRA is memory-efficient enough that
+  `qwen3:8b` fine-tunes comfortably inside 10 GB. `qwen3:14b` is a real
+  stretch on this card — 4-bit base weights alone run ~8-9 GB, leaving thin
+  headroom for gradients/activations — so `qwen3:8b` is the realistic local
+  fine-tuning target here, not the 14b main seat.
+- **Resource conflict, not a hardware limit:** one 10 GB card can't serve
+  Ollama inference and run Unsloth training at full tilt simultaneously.
+  Default node3 to inference duty (the onboarding above) and treat
+  fine-tuning as a scheduled, exclusive-use activity, not a background job
+  competing with benchmark runs.
+- **The actual gate: there is no training data yet.** Fine-tuning "on our
+  failures" doesn't make sense as a first move — imitation learning needs
+  examples of the *correct* behavior, and the task-veracity benchmark has
+  produced **zero successful trajectories** across both tasks so far (0/7
+  graded local runs, per "external research pass" above). The realistic
+  path in: if the hosted-calibration arm (OpenCode Go's Qwen3.8-Max/DeepSeek
+  V4, or an Anthropic-credit run) actually lands a genuine PASS on kane-01 or
+  lfc-01, *that* transcript is real distillation data — fine-tune local
+  `qwen3:8b` on the stronger model's successful trajectory, then re-run it
+  through the unmodified harness to see whether the fine-tune moved the
+  needle. Until a first successful trajectory exists from somewhere, there
+  is nothing correct to fine-tune toward.
 
 ## GTX 1070 (retired from server)
 
