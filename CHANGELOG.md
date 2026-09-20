@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Refresh `AGENTS.md` for the node3 onboarding and other drift: 4 live
+  profiles / 8 parked (was 3 / 9), `origin` remote documented (was "no
+  remote configured"), node3 marked onboarded with `qwen3:8b` as the only
+  agent seat, desktop context-bake list corrected against `startup.ps1`
+  `$contextModels`, catalog↔`opencode.jsonc` gap note rewritten (per-host
+  registration + the three LM-Studio imports with no catalog row), and new
+  pointers to the `-Reliability` canary, the `test-tasks.ps1` benchmark, and
+  the PR/changelog convention. Commits the staged `dev-node3.sh` unpark
+  alongside so the live-profile count holds in-tree.
 - Third node (RTX 3080 FE) onboarding complete 2026-09-20: `dev-node3.sh`
   unparked, `test-profiles.ps1 -Profile dev-node3` green (15 PASS, 0 FAIL,
   1 WARN, 2 SKIP). The WARN (`install intent (node3) -> missing on host:
