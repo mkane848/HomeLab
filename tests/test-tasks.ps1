@@ -245,7 +245,7 @@ function Ensure-Worktree {
             Write-Result $Task.id "install" "FAIL" "$pm $pmVerb failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts"
             return $null
         }
-        foreach ($step in @($Task.setup)) {
+        foreach ($step in @($Task.setup | Where-Object { $_ })) {
             $stepDir = if ($step.cwd) { Join-Path $WtPath $step.cwd } else { $WtPath }
             Write-Host "    setup: $($step.cmd -join ' ') (in $($step.cwd))" -ForegroundColor DarkGray
             $r = Run-Native $step.cmd[0] @($step.cmd[1..($step.cmd.Count - 1)]) $stepDir
@@ -278,16 +278,44 @@ function Invoke-Test {
 
 function Get-FailedTestNames {
     param([string[]]$Output)
-    $names = @()
+    $names = [System.Collections.Generic.List[string]]::new()
     foreach ($line in $Output) {
         foreach ($m in [regex]::Matches($line, '(?m)\s*FAIL\s+.*>\s*(.+?)\s*$')) {
-            $names += $m.Groups[1].Value.Trim()
+            $names.Add($m.Groups[1].Value.Trim())
         }
-        foreach ($m in [regex]::Matches($line, 'Tests\s+(\d+) failed')) {
-            $names += "($($m.Groups[1].Value) failed)"
+        foreach ($m in [regex]::Matches($line, 'Tests\s+(\d+)\s+failed')) {
+            $names.Add("($($m.Groups[1].Value) failed)")
         }
     }
-    return ($names | Select-Object -Unique)
+    # Suite-level failures are a different animal from per-test failures: vitest
+    # reports a file that fails to LOAD (module-level parse/transform error) as
+    # "Failed Suites N" / "Test Files N failed" / "Tests no tests", with the file
+    # on a bare "FAIL <file> [ <file> ]" line (no "> test name"), and produces no
+    # "Tests N failed" line. The old matchers missed all of it, so a model that
+    # broke a file's compilation read as an unexplained empty FAIL (confirmed on
+    # lfc-01 2026-09-19: qwen3:8b left top-level `await` + an unbound `db` in
+    # listings.ts; the suite FAIL printed no names). Capture it explicitly so the
+    # distinction shows up in the grade detail instead of vanishing.
+    $suiteCount = 0
+    $suiteFiles = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in $Output) {
+        # "Failed Suites N" is THE suite-level signal: vitest emits it only for
+        # load/parse failures, while ordinary per-test failures ("Failed Tests N")
+        # still raise the "Test Files N failed" summary counter. Gate on it so a
+        # normal failing suite never gets misclassified (confirmed against real
+        # vitest v5 output on 2026-09-19).
+        $m = [regex]::Match($line, 'Failed Suites\s+(\d+)')
+        if ($m.Success) { $suiteCount = [int]$m.Groups[1].Value }
+        foreach ($f in [regex]::Matches($line, 'FAIL\s+(\S+\.test\.\S+)\s+\[')) {
+            $suiteFiles.Add($f.Groups[1].Value)
+        }
+    }
+    if ($suiteCount -gt 0) {
+        $files = @($suiteFiles | Select-Object -Unique)
+        $detail = if ($files) { ": $($files -join ', ')" } else { " (file not detected)" }
+        $names.Add("($suiteCount failed suite(s) - load/parse error, per-test list skipped$detail)")
+    }
+    return @($names | Select-Object -Unique)
 }
 
 function Invoke-OpencodeRun {

@@ -239,6 +239,55 @@ Decide its fate:
 - [ ] **Fleet decision: reviewer node gap — reframed 2026-09-19, no longer a VRAM question.** The original framing (third 16 GB node vs. partial-offload R1 on node3 vs. `glm4:9b`) assumed the blocker was fitting a reviewer on a card. Round 3 (18 runs, three models, control vs. forced per-test ledger) shows the seat fails on verification *reasoning*: models transcribe the deciding argument correctly and still pass the plan. A bigger card does not buy that, and `glm4:9b` is weaker than three models that have already failed — its "~6 GB" was catalog disk size, never a measured runtime figure, and it has never been run as a reviewer. **Do not buy or reassign hardware for a local reviewer seat until one exists.** See `docs/review-gate/raw/r3-results.md`. The live options are a hosted gate seat, or the deterministic checker as a regression gate with the human arbiter retained. Note the reviewer VRAM figure itself is inconsistent in the docs (~9 GB at `docs/lmstudio-vscode.md` §4 vs ~10.5 GB in the seat table) — resolve before any sizing decision is revived.
 - [ ] **Review-gate run 2 follow-ups** (see [docs/lmstudio-vscode.md](lmstudio-vscode.md) → "Next steps"): (1) close KaneEnabler validator holes — **Background-pairing eligibility bug** (a legal Background pair is rejected: `eligible` demands `is_commander_eligible === 1` on every named commander, but a Background is definitionally 0; fix `usableAsCommander = c => c.is_commander_eligible === 1 || c.is_background === 1`), **direct `legality_commander` ban-list check on named commanders** (today enforced only incidentally when the pasted `list` duplicates the commander line), singleton paper-rule, `banned`/`notFound` dedupe, and prove the 100-card-valid assertion on a seeded DB — **merge gate: fix-and-reverify pass** (audit every new test against its claimed branch; run 2's Background test passed green while never passing the pair). See [docs/review-gate/testing.md](review-gate/testing.md); (2) ~~re-measure the reviewer seat~~ **— done, closed 2026-09-19.** Run to exhaustion in r2 (three candidates, two never drawn) and then settled by round 3: 18 runs, control vs. forced per-test ledger, prompt hash constant within arm, all parameters recorded. No local model holds the seat, and the failure is verification reasoning rather than prompt shape or output budget — confirmed on one defect pair (seam 5 + seam 6) replicated 18 times, not yet tested across a different bug shape. `qwen3.5:9b` produced the corpus's only fully correct review at ~1-in-3 — drafting aid, never the verdict. The "1/4 → ?" metric is retired: it compared an unchecklisted baseline against checklisted runs and measured three changes at once. See `docs/review-gate/raw/r3-results.md`; (3) run the auditor harness on a second non-hand-picked repo; (4) routinize per-run grading on the **four** axes (evidence discipline, plan safety, review quality, test veracity) so runs become a benchmark. Gate is currently "auditor crafts, human arbitrates" — reviewer must earn its seat before this scales past the human arbiter.
 
+### Task-veracity benchmark: Task 2 first graded runs (lfc-01, 2026-09-19/20)
+
+The task-veracity harness (`tests/test-tasks.ps1`) ran `lfc-01-listing-status-guard`
+(re-act on a non-active listing: `setStatus` updates by id with no current-status
+guard) once per seat on the real `opencode run` tool loop, graded by the four
+mechanical gates. Baseline green 21/21 on every run; base commit `4906dc2`.
+**0 of 3 seats landed the fix — each failed in a different way**, and none of the
+failures is a near-miss:
+
+| Model | Run | Writes | scope | suite | failsOnOld | Failure shape |
+|---|---|---|---|---|---|---|
+| qwen3:14b | #1 | — | — | — | — | TIMEOUT @900s (no transcript, buffered output lost) |
+| qwen3:14b | #2 | 2 | FAIL | PASS⁺ | FAIL | **liar mode**: both `edit` calls errored (multi-match `oldString` in `setStatus`'s shared `where(eq(id,id))`; guessed literal `it('...',…)` anchor that doesn't exist), then it ran vitest, saw the untouched green suite, and *asserted in prose* "the fix has been implemented… two new tests… they pass" — no changes in the worktree. This is the AGENTS.md "coder claims it edited files it never touched" pathology now caught by the harness with a transcript, not by eye. |
+| qwen3:8b | #1 | 20 | PASS | FAIL | FAIL | **build-break**: the one model that actually wrote source — but deleted `const db = getDb();` and wrote module-level `await db.select(...)/db.update(...)` into the sync `setStatus` (TS2304 + TS1308 + TS7006; a read-back API that doesn't exist in this better-sqlite3 codebase). Omitting `async` isn't a tweak — the file never parses, so the suite runs **0 tests** (`Failed Suites 1`). Never touched the test file despite 20 write calls. |
+| devstral:24b | #1 | — | — | — | — | TIMEOUT @900s |
+| devstral:24b | #2 | — | — | — | — | TIMEOUT @1800s |
+| devstral:24b | direct | — | — | — | — | **destructive rewrite, then stall**: the out-of-band `opencode run` (stdout → file) *did* write — the worktree proves it. At 23:20 (12 min in, model fully GPU-resident 13.89/15.01 GB) it replaced the 516-line `tests/services/listings.test.ts` with 4 mangled comment lines (`<%/* … */%`, invalid TS — evidence `tasks-lfc-01-listing-status-guard-devstral-24b-direct_ARTIFACT_testfile_…txt`) and then produced nothing flushed for 7.5 h. The `tool_use` events are missing from the transcript only because the force-kill dropped node's buffered stdout — the "one step_start, zero after" file is post-kill-truncated, **not** proof of a pure stall the way it first looked. Two harness runs (900 s and 1800 s) had already timed out; the direct run shows those timeouts hid a 516→4-line test file destruction, not idleness. |
+
+⁺ `suite` was trivially green — nothing had changed.
+
+Evidence already homed in `tests/results/`: per-run `.json` + `.jsonl` transcripts
+(qwen3-8b, qwen3-14b-rerun), the devstral post-kill transcript
+(`…devstral-24b-direct_STALL_…jsonl`, truncated — see below), and the destroyed
+test file preserved verbatim (`…devstral-24b-direct_ARTIFACT_testfile_…txt`). Task 1
+(kane-01) graded runs were all FAIL too (14b and 8b x2 and devstral on 2026-09-19,
+in `tests/results/tasks-summary.tsv`) — mostly the close-attempts Task 1 had
+reported; Task 2's failures are *structural*: edit tools that bounce and a model
+that gives up/asserts, a write that can't compile, and a whole-file rewrite that
+destroyed 516 test lines before stalling. This is the same
+lesson round 3 proved for the reviewer seat, now measured on the **producer**
+side of the loop: the blocker is not fit or throughput, it is whether a seat can
+land a two-edit change on an unfamiliar repo. No seat change until the existing
+gate (≥3 graded runs across ≥2 tasks) is actually satisfied by *something*.
+
+Harness changes made on the way (branch `task2`, uncommitted): the `setup`-array
+crash (a task without `setup` iterated `$null` once — `@($Task.setup)`) and the
+`Get-FailedTestNames` blind spot that printed an **empty** FAIL for the broken
+module (it only matched `FAIL … > test` / `Tests N failed`; suite-level failures
+report `Failed Suites N` / `Tests no tests` instead — now captured, gated on
+`Failed Suites N`, with the failing file named). Also confirmed, not fixed: the
+timeout path keeps **no transcript** — `Stop-Job` kills the job before the
+buffered `$events | Out-File` runs (transcript retention only helps finished-but-
+uncollected jobs). For a true-hang diagnostic, run `opencode run` out-of-band with
+stdout redirected straight to a file — but read its limits: the file only captures
+what node flushes *before* the kill. A `Stop-Process -Force` drops the buffered
+remainder, so a large late event (devstral's whole-file write) can be absent from
+the transcript and yet provable from the worktree — check both before concluding.
+Same lesson as Task 2 overall: the transcript is evidence, not the whole picture.
+
 ### Task-veracity benchmark: scaffold-from-scratch (future, unscheduled)
 
 Proposed 2026-09-20, not started — no effort or hardware committed. Tasks 1

@@ -1,0 +1,4 @@
+<%/*
+  Test that setStatus only updates listing status if it's active.
+  Before the fix, status could be changed from any state.
+*/%
