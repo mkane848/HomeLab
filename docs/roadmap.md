@@ -25,13 +25,14 @@ what to actually pick up next, highest value first.
    a lot more cheaply than authoring new task shapes right now. The hosted/
    frontier-model calibration arm in the same section is the other open lever
    here, whenever the fleet owner wants to spend the API cost on it.
-3. **Onboard the third node (RTX 3080 FE) — started 2026-09-20.** The
-   hardware now exists; see "Onboarding the third node" below for the full
-   join → probe → put-to-work sequence. Directly serves item 2: once live,
-   it doubles trial-collection throughput by running `ollama-node3/qwen3:8b`
-   concurrently with the desktop's batch instead of serially. Unsloth is
-   already installed there for a later, explicitly gated fine-tuning track —
-   not part of this item.
+3. **~~Onboard the third node (RTX 3080 FE)~~ — done 2026-09-20.** Join →
+   probe → validate all complete (see "Onboarding the third node" below):
+   `qwen3:8b` is a real, measured agent seat on this host, `test-profiles.ps1
+   -Profile dev-node3` is green. **Actually pick this up now:** run
+   `ollama-node3/qwen3:8b` trials concurrently with the desktop's batch on
+   item 2, instead of serially — that's the whole point of onboarding it.
+   Unsloth is installed there for a later, explicitly gated fine-tuning
+   track — still not part of this item.
 4. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
    exists to prevent exactly the 0.34.0 → 0.34.1 move that happened anyway on
    2026-09-19. Find out whether the firewall rule was ever applied or whether it
@@ -123,9 +124,11 @@ Progress gates by hardware, not by preference:
    profile stream (`profiles/parked/`) is already in place. Server becomes the
    heavyweight node (server-side `qwen3`, reasoners, embeddings) so the desktop
    can stay a conversational seat.
-3. **Third node (RTX 3080 FE)** — last; the `ollama-node3` provider, `dev-node3.sh`
-   stub and `DEV_TIERS_NODE3` toggle exist and activate the moment `NODE3_IP` is
-   set.
+3. **Third node (RTX 3080 FE)** — **live as of 2026-09-20**, ahead of the
+   server (stage 2), which still hasn't POSTed. `qwen3:8b` is a measured,
+   tool-capable agent seat on this host; see "Onboarding the third node"
+   below. Progress here gated by hardware, not by the plan's original
+   ordering — node3 came up first.
 
 Each node joins by taking a profile, not by re-learning the workflow. The end
 state is a pool: a loose prompt, and whichever hardware is up and fastest
@@ -172,11 +175,33 @@ Ollama's native NVIDIA backend applies directly.
    seat. `qwen3:8b` remains the only node3 agent seat, matching
    `dev-node3.sh`'s existing `OPENCODE_MODEL` default — no profile change
    needed.
-7. `git mv profiles/parked/dev-node3.sh profiles/` once `NODE3_IP` is set
-   (per `profiles/parked/README.md`'s own "bringing one back" step).
-8. `.\tests\test-profiles.ps1 -Profile dev-node3` — confirms intent
+7. [x] `git mv profiles/parked/dev-node3.sh profiles/` once `NODE3_IP` is set
+   (per `profiles/parked/README.md`'s own "bringing one back" step). Done.
+8. [x] `.\tests\test-profiles.ps1 -Profile dev-node3` — confirms intent
    manifest, tool-capability, and host liveness together, not just that it
-   answers a ping.
+   answers a ping. **Done 2026-09-20: 15 PASS, 0 FAIL, 1 WARN, 2 SKIP.**
+   The 2 SKIPs are the already-known Ubuntu server outage, unrelated to
+   node3. The 1 WARN (`install intent (node3) -> missing on host: qwen3:14b,
+   gpt-oss:20b`) is a **false positive**, not a real gap: the harness expands
+   `DEV_NODE3_MODELS="general embed"` by catalog tag-group membership only,
+   without checking the `hosts` column. `gpt-oss:20b` is
+   `hosts=server,desktop` — never node3-eligible at all — and `qwen3:14b`,
+   while `hosts=all`, was deliberately left off node3's `opencode.jsonc`
+   provider block (only `qwen3:8b` is registered there) because 14B weights
+   alone run ~9-9.5 GB, tight on a 10 GB card per `docs/hardware.md`'s VRAM
+   table. Same "catalog↔config diff is not automatically a defect" pattern
+   AGENTS.md already documents for `glm4:9b`/`gemma3:12b` being server-only.
+   **Do not pull either model onto node3 to silence this WARN.** A harness
+   fix (respect `hosts` when computing per-host install intent) is a real,
+   minor improvement but out of scope here — untouched, no local `pwsh` to
+   syntax-check a `test-profiles.ps1` edit against, so it's flagged rather
+   than attempted blind.
+
+**Third node onboarding: complete as of 2026-09-20.** Both agent seats
+measured for real (`qwen3:8b` PASS, `glm4:9b` FAIL — corrected in config),
+network reachable, profile live, `test-profiles.ps1` green modulo the one
+documented false-positive above and the pre-existing server outage.
+`docs/hardware.md`'s `(future)` tag removed accordingly.
 
 **Put it to work on the task-veracity benchmark:**
 9. Once steps 1-8 pass, `tests/test-tasks.ps1 -Model ollama-node3/qwen3:8b`
@@ -193,11 +218,6 @@ Ollama's native NVIDIA backend applies directly.
     backend/quantization artifact rather than the model itself — cheap to
     notice once both are producing rows in `tests/results/tasks-summary.tsv`,
     no dedicated experiment required.
-
-**Docs cleanup:** `docs/hardware.md`'s third-node RAM figure is now known
-(32 GB) and updated. The `(future)` tag stays until steps 7-8 (profile
-unparked, `test-profiles.ps1` green) actually complete — network-reachable
-and tool-call-probed isn't the same as fleet-validated yet.
 
 ### Third node: fine-tuning with Unsloth (future, unscheduled)
 

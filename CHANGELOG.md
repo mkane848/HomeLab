@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Third node (RTX 3080 FE) onboarding complete 2026-09-20: `dev-node3.sh`
+  unparked, `test-profiles.ps1 -Profile dev-node3` green (15 PASS, 0 FAIL,
+  1 WARN, 2 SKIP). The WARN (`install intent (node3) -> missing on host:
+  qwen3:14b, gpt-oss:20b`) is a documented false positive — the harness's
+  group-expansion for `DEV_NODE3_MODELS` doesn't check the catalog's
+  `hosts` column, and neither model was ever intended for this host
+  (`gpt-oss:20b` is `hosts=server,desktop` only; `qwen3:14b` isn't
+  registered in node3's `opencode.jsonc` block because 14B weights are
+  tight on a 10 GB card). Do not install either to silence it. The 2 SKIPs
+  are the pre-existing, unrelated Ubuntu server outage. `docs/hardware.md`'s
+  `(future)` tag on the third-node row is removed accordingly, and the
+  roadmap's north-star progression note updated to record that node3 came
+  online ahead of the server (stage 2), inverting the plan's original
+  ordering.
+
 - Third node (RTX 3080 FE) onboarding, steps 1-6 done 2026-09-20: Ollama
   installed, LAN bind + firewall confirmed (`0.0.0.0:11434` listening),
   `qwen3:8b`/`glm4:9b`/`nomic-embed-text`/`mxbai-embed-large` pulled,
