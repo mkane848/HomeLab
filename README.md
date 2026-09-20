@@ -3,11 +3,13 @@
 A documented homelab: a hybrid Ubuntu-server / Windows-desktop fleet running
 local LLMs (Ollama), driven day to day from **both**
 [OpenCode](https://opencode.ai) (terminal agent) **or** VS Code's native
-Copilot Chat via BYOK (bring-your-own-key) — same fleet tested with two interfaces. Model installs and per-machine profiles
-are managed from one catalog. Written up for other hobbyists — hardware
-notes, a live-fire hardware recovery log, VRAM/tool-calling benchmarks
-measured on real models, and a small research thread on whether a local LLM
-can act as a code-review gate.
+Copilot Chat via BYOK (bring-your-own-key).
+
+Model installs and per-machine profiles
+are managed from one catalog. I'm hoping this can be helpful or interesting to other hobbyists.
+I've included hardware notes, a live-fire hardware recovery log, VRAM/tool-calling benchmarks
+measured on real models, and a small research thread on my attempts to make a local LLM
+act as a code-review gate.
 
 
 ## Start here
