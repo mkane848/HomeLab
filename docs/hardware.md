@@ -8,7 +8,7 @@ The fleet that runs the local LLM setup. Refresh the VRAM budget when any node's
 |------|----|-----|-----|------|-----|----|------|
 | Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Primary Ollama node (Docker) |
 | Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | ? | `DESKTOP_IP` | Native Ollama (Vulkan) |
-| Third node *(future)* | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Third node (general + embed) |
+| Third node | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Onboarded 2026-09-20 (general + embed) |
 | GTX 1070 | — | — | GTX 1070 | 8 GB | — | — | Retired from server Sep 2026; backup / spare candidate |
 
 **Sep 2026 upgrade:** the server switched GPU (GTX 1070 8 GB → RTX 4070 Ti Super 16 GB) and RAM (16 → 32 GB). Everything below assumes the new hardware.
@@ -53,7 +53,7 @@ If the server won't POST (solid CPU EZ Debug LED), see the recovery log:
 
 - Server: CUDA, best software ecosystem (see roadmap for alternatives).
 - Desktop: **Vulkan**, not ROCm — see below. No vLLM/TensorRT.
-- Node3's GPU (if onboarded): CUDA 10 GB — good for 7–9B, tight for 12–14B.
+- Node3: CUDA 10 GB — good for 7–9B (`qwen3:8b` is the measured, tool-capable agent seat; `glm4:9b` is a no-tools chat model, confirmed by probe), tight for 12–14B (`qwen3:14b` deliberately not registered on this host).
 
 ## Desktop backend: Vulkan (settled 2026-09-17)
 
