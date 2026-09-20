@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Task-veracity benchmark: external research pass on the combined Task 1 +
+  Task 2 result (0/7 graded runs). Confirms the harness's 4-gate design
+  (scope/suite/failsOnOld/typecheck) matches SWE-bench's own methodology,
+  and that Task 1/2 sidestep a documented SWE-bench contamination critique
+  by using private, unpublished bugs. Names the qwen3:14b "liar mode" and
+  devstral destructive-rewrite failures as a studied class (reward hacking /
+  MIRAGE-Bench's agent-hallucination taxonomy), not one-off flukes.
+  **Correction:** published base rates for the *un-tuned* models this fleet
+  seats (plain Qwen3-8B ≈ 8% on SWE-bench Verified; Devstral-Small ≈ 17.2%
+  pass@1 on SWE-MERA) put 0 successes in 7 trials at roughly 20–55%
+  probability by chance alone — so "0/7" should be read as an
+  under-powered sample, not confirmed evidence of a hard capability
+  ceiling. Adds an unscheduled testing-plan item (hosted/frontier-model
+  calibration arm on the existing Task 1/2 prompts) and reorders "Next up"
+  to prioritize more repeat trials over a 3rd task shape. See
+  `docs/roadmap.md` → "Task-veracity benchmark: external research pass".
 - Run Task 2 of the task-veracity benchmark (`lfc-01-listing-status-guard`)
   across all three seats on the real `opencode run` tool loop (base `4906dc2`,
   baseline green 21/21 every run): **0 of 3 landed the fix**, each failing

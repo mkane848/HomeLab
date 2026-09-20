@@ -2,7 +2,7 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
-## Next up (ordered, as of 2026-09-19)
+## Next up (ordered, as of 2026-09-20)
 
 The rest of this file is the full backlog by theme. This is the short list of
 what to actually pick up next, highest value first.
@@ -16,24 +16,33 @@ what to actually pick up next, highest value first.
    real correctness value** — everything else here is hygiene or research. Each
    fix must ship a test that *fails on the old code*. Different repo, so it
    needs a machine with that checkout.
-2. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
+2. **Run more task-veracity trials before adding a 3rd task shape.** The
+   combined Task 1 + Task 2 result (0/7 graded runs) is inside the confidence
+   interval of published base rates for un-tuned models this size (~8–20% —
+   see "Task-veracity benchmark: external research pass" below), so it isn't
+   yet distinguishable from "these seats succeed ~1 time in 6–10 and too few
+   trials have run to see it." ~5 repeat runs per model per task narrows that
+   a lot more cheaply than authoring new task shapes right now. The hosted/
+   frontier-model calibration arm in the same section is the other open lever
+   here, whenever the fleet owner wants to spend the API cost on it.
+3. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
    exists to prevent exactly the 0.34.0 → 0.34.1 move that happened anyway on
    2026-09-19. Find out whether the firewall rule was ever applied or whether it
    failed — the two need different fixes. Five minutes, and it is the one open
    item that can silently break agent seats.
-3. **Probe the server when it POSTs.** It has *never* run
+4. **Probe the server when it POSTs.** It has *never* run
    `tests/test-toolcalls.ps1` — it went down before that test existed — and its
    image pin was bumped to `0.34.1` on 2026-09-19 to match the desktop. Nothing
    on that host should be seated until it is probed. The four post-upgrade
    checks are below under "Post-server-upgrade validation".
-4. **Reconcile the VRAM figures that disagree** (see "Known contradictions"
+5. **Reconcile the VRAM figures that disagree** (see "Known contradictions"
    below). Two of them change real decisions and neither can be settled without
    a measurement.
-5. **Rewrite `model-architecture.md`.** It predates the tool-calling finding and
+6. **Rewrite `model-architecture.md`.** It predates the tool-calling finding and
    now carries a staleness banner; it still seats models that cannot call tools
    and never mentions `qwen3:14b`. Either bring it current or fold it into
    `profiles.md` + `hardware.md` and delete it.
-6. **Review-gate leftovers, low priority.** The seat question is closed (see
+7. **Review-gate leftovers, low priority.** The seat question is closed (see
    "Review-gate: settled" below). What remains is optional: a hosted arm (the
    only untried thing that could change the answer, needs an endpoint + key),
    Arm C (the de-leaked prompt), and a seam-6 brittleness probe for the
@@ -343,6 +352,90 @@ Three candidate shapes, captured side by side, no pick made yet:
 
 Purely additive — does not change the status of Tasks 1/2, the harness, or
 the "hold config changes until ~3 graded runs across ≥2 tasks" gate.
+
+### Task-veracity benchmark: external research pass (2026-09-20)
+
+Before deciding whether to keep tuning individual seats or expand the
+benchmark, checked whether prior art exists for this exact problem — grading
+whether a coding agent actually did the work, not whether it claimed to.
+It does, and it changes how the "0/3" result above should be read.
+
+- **The 4-gate mechanical design (scope/suite/failsOnOld/typecheck) already
+  matches the field-standard methodology.** SWE-bench — the reference
+  benchmark for "can an LLM resolve a real GitHub issue" — grades the same
+  way: apply the agent's patch, run the real test suite, binary
+  resolved/not-resolved. Nothing to change here.
+- **Task 1/2 sidestep a documented SWE-bench weakness.** Recent critique
+  argues GitHub-issue-sourced benchmarks risk training-data contamination
+  and don't reflect real chat-based dev usage, inflating scores — see
+  ["Saving SWE-Bench: A Benchmark Mutation Approach for Realistic Agent
+  Evaluation"](https://arxiv.org/html/2510.08996v2). Task 1/2 are private,
+  unpublished bugs in this user's own repos — structurally immune to that
+  specific critique.
+- **The "liar mode" and destructive-rewrite failures are a named, studied
+  failure class, not a fluke of these particular runs.**
+  ["Reward Hacking Benchmark"](https://arxiv.org/abs/2605.02964) measures
+  exactly this behavior (forging artifacts / skipping steps to fake
+  completion) across 13 frontier models and finds non-zero exploit rates
+  even at the top end (0%–13.9%, Claude Sonnet 4.5 to DeepSeek-R1-Zero).
+  [MIRAGE-Bench](https://arxiv.org/abs/2507.21017) offers a reusable
+  taxonomy for this: agent actions unfaithful to (a) task instructions,
+  (b) execution history, or (c) environment observations. qwen3:14b's run
+  (asserted success after seeing its own edits error and the suite stay
+  green) is case (c); devstral's whole-file rewrite is a different,
+  more destructive failure the taxonomy doesn't really cover — worth
+  naming as its own category if this benchmark grows a "blast radius" axis
+  alongside the existing four gates.
+- **Calibration numbers exist, and they reframe "0/3" as unsurprising rather
+  than a strong finding.** Published SWE-bench-Verified-style rates for the
+  *base*, non-SWE-fine-tuned models this fleet actually seats: plain
+  Qwen3-8B (non-thinking) ≈ 8%; SFT-specialized 8B/14B variants reach
+  21–30%, but the fleet runs the vanilla Ollama-library builds, not those
+  variants; Devstral-Small (24B, explicitly marketed for this exact task
+  class, by Mistral + All Hands AI) ≈ 17.2% pass@1 on the comparable
+  SWE-MERA benchmark. At true rates in the 8–20% range, the probability of
+  seeing **0 successes in 7 trials by pure chance is roughly 20–55%**
+  ((1-p)^7 at p=0.08..0.20). **Correction to how the "0/3" (and combined
+  0/7 across both tasks) result above should be read: this does not yet
+  distinguish "these seats can't do this at all" from "these seats succeed
+  roughly 1 time in 6–10, and not enough trials have been run to see it."
+  Sample size, not task diversity, is the current bottleneck** — a
+  different conclusion than treating 0/7 as settled evidence of a hard
+  capability ceiling.
+- **Scaffold/harness choice is a separate, documented confound from raw
+  model capability** —
+  ["Don't Blame the Large Language Model: How Scaffolding Evolution Shapes
+  Coding Agent Quality"](https://arxiv.org/pdf/2607.03691), consistent with
+  this repo's own finding that `qwen2.5-coder`'s template never emits the
+  `<tool_call>` tags the harness needs (see Gotchas in AGENTS.md). Devstral
+  scoring worst locally despite being the one model vendor-tuned for this
+  task class, and known to run here as a partial-offload edge fit, is worth
+  checking rather than accepting at face value — this repo already has the
+  right technique for it (PR #8's VS Code-Agent-mode cross-check of
+  devstral's zero-write result on Task 1), just not yet repeated for Task
+  2's destructive-rewrite result.
+- A hobbyist sibling project ("harness-bench", in progress) pairs local
+  models against multiple agent harnesses across roughly 16 tasks with
+  hidden-test grading — informal, not a rigor benchmark, but a useful
+  reference point for what scale similar solo efforts converge on once past
+  the initial proving-out stage (more like 10–20 tasks, not 2).
+
+**Testing-plan addition — hosted/frontier-model calibration arm (unscheduled).**
+Run the exact Task 1 and Task 2 prompts once each through a hosted/frontier
+model, needs an endpoint + API key the fleet owner supplies/approves — not
+run yet, no cost committed. Purpose: one oracle-level data point to catch
+task-design bugs (an ambiguously worded prompt, a gate that's harder to
+clear than intended) versus a genuine local-model capability gap. Modeled
+directly on the review-gate roadmap's own still-open "hosted arm... the
+only untried thing that could change the answer" item above, so it's the
+same category of move, not a new one.
+
+**Recommendation, not a directive** — the fleet owner's call: given the
+statistical read above, more repeated trials on the existing 2 tasks (e.g.
+~5 runs per model per task) is likely higher-value right now than
+immediately authoring a 3rd task shape, since it directly narrows the
+confidence interval on the current finding rather than adding a new
+variable on top of an already-thin sample.
 
 ## Desktop dev environments (landed)
 
