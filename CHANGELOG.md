@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Task-veracity benchmark: 15 more harness runs to bulk up the graded sample
+  on the qwen3 seats for both tasks (base `92a8ed0` for
+  `kane-01-background-pair`, `4906dc2` for `lfc-01-listing-status-guard`).
+  11 new graded rows appended to `tests/results/tasks-summary.tsv`; 4 runs hit
+  the harness's 900 s `opencode run` cap and append no row (existing timeout
+  design). Results — Task 1, qwen3:14b x4: 0/4 landed (two zero-write
+  liar-mode runs, one 1-write run that broke the suite with a re-parse error,
+  one 7-write run whose suite failed a legality assertion; the test file went
+  unmodified every run, so failsOnOld stayed red). Task 1, qwen3:8b x3:
+  0/3 landed (the 30- and 2-write runs edited only `deckValidation.ts` and
+  left the test file untouched so the claimed branch is never exercised; the
+  35-write run left the suite green but still never touched the test, so
+  failsOnOld stayed red). Task 2, qwen3:14b x2: 0/2 landed (both runs the
+  same shape — 3 writes, both claimed files in scope, but `listings.test.ts`
+  left with a `'} expected'` parse error, suite load/parse FAIL, typecheck
+  WARN). Task 2, qwen3:8b x2: 0/2 landed (9- and 30-write runs edited only
+  `listings.ts`, leaving the guard test unwritten; suite FAIL, failsOnOld
+  FAIL). Cumulative: still 0 successful fixes across both tasks — the
+  "test never enters its claimed branch" class now dominates the failures,
+  consistent with the existing read of an under-powered sample rather than a
+  hard ceiling.
 - Plan the third-node (RTX 3080 FE) onboarding now that the hardware exists:
   expand `docs/roadmap.md`'s onboarding checklist into a concrete join →
   probe → put-to-work sequence (CUDA, not Vulkan — no flash-attention

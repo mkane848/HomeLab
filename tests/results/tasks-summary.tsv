@@ -6,3 +6,14 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-19T19:00:00	kane-01-background-pair	vscode-agent/ollama-desktop/devstral:24b	devstral-24b-vscode-agent	92a8ed0df10262cc878d4d214d0a312d542375ec	n/a	0	FAIL	NOT_RUN	NOT_RUN	NOT_RUN	n/a
 2026-09-19T21:35:56	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	qwen3-8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	20	PASS	FAIL	FAIL	WARN	525.6
 2026-09-19T22:09:55	lfc-01-listing-status-guard	ollama-desktop/qwen3:14b	qwen3-14b-rerun	4906dc2881d362bda2006d3407e0ba63e005b91b	0	2	FAIL	PASS	FAIL	PASS	167.1
+2026-09-20T08:33:13	kane-01-background-pair	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	0	FAIL	PASS	FAIL	PASS	436.4
+2026-09-20T08:37:09	kane-01-background-pair	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	1	PASS	FAIL	FAIL	WARN	225.5
+2026-09-20T08:43:22	kane-01-background-pair	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	0	FAIL	PASS	FAIL	PASS	341.3
+2026-09-20T08:58:20	kane-01-background-pair	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	7	PASS	FAIL	FAIL	PASS	890.7
+2026-09-20T09:07:51	kane-01-background-pair	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	30	PASS	FAIL	FAIL	WARN	564
+2026-09-20T09:15:13	kane-01-background-pair	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	35	PASS	PASS	FAIL	PASS	434.6
+2026-09-20T09:16:22	kane-01-background-pair	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	2	PASS	PASS	FAIL	PASS	62.3
+2026-09-20T09:37:56	lfc-01-listing-status-guard	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	FAIL	PASS	WARN	306.5
+2026-09-20T15:48:27	lfc-01-listing-status-guard	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	FAIL	PASS	WARN	310.6
+2026-09-20T15:54:16	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	9	PASS	FAIL	FAIL	WARN	339.2
+2026-09-20T16:23:31	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	30	PASS	FAIL	FAIL	WARN	840
