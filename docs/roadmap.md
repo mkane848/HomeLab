@@ -239,6 +239,62 @@ Decide its fate:
 - [ ] **Fleet decision: reviewer node gap — reframed 2026-09-19, no longer a VRAM question.** The original framing (third 16 GB node vs. partial-offload R1 on node3 vs. `glm4:9b`) assumed the blocker was fitting a reviewer on a card. Round 3 (18 runs, three models, control vs. forced per-test ledger) shows the seat fails on verification *reasoning*: models transcribe the deciding argument correctly and still pass the plan. A bigger card does not buy that, and `glm4:9b` is weaker than three models that have already failed — its "~6 GB" was catalog disk size, never a measured runtime figure, and it has never been run as a reviewer. **Do not buy or reassign hardware for a local reviewer seat until one exists.** See `docs/review-gate/raw/r3-results.md`. The live options are a hosted gate seat, or the deterministic checker as a regression gate with the human arbiter retained. Note the reviewer VRAM figure itself is inconsistent in the docs (~9 GB at `docs/lmstudio-vscode.md` §4 vs ~10.5 GB in the seat table) — resolve before any sizing decision is revived.
 - [ ] **Review-gate run 2 follow-ups** (see [docs/lmstudio-vscode.md](lmstudio-vscode.md) → "Next steps"): (1) close KaneEnabler validator holes — **Background-pairing eligibility bug** (a legal Background pair is rejected: `eligible` demands `is_commander_eligible === 1` on every named commander, but a Background is definitionally 0; fix `usableAsCommander = c => c.is_commander_eligible === 1 || c.is_background === 1`), **direct `legality_commander` ban-list check on named commanders** (today enforced only incidentally when the pasted `list` duplicates the commander line), singleton paper-rule, `banned`/`notFound` dedupe, and prove the 100-card-valid assertion on a seeded DB — **merge gate: fix-and-reverify pass** (audit every new test against its claimed branch; run 2's Background test passed green while never passing the pair). See [docs/review-gate/testing.md](review-gate/testing.md); (2) ~~re-measure the reviewer seat~~ **— done, closed 2026-09-19.** Run to exhaustion in r2 (three candidates, two never drawn) and then settled by round 3: 18 runs, control vs. forced per-test ledger, prompt hash constant within arm, all parameters recorded. No local model holds the seat, and the failure is verification reasoning rather than prompt shape or output budget — confirmed on one defect pair (seam 5 + seam 6) replicated 18 times, not yet tested across a different bug shape. `qwen3.5:9b` produced the corpus's only fully correct review at ~1-in-3 — drafting aid, never the verdict. The "1/4 → ?" metric is retired: it compared an unchecklisted baseline against checklisted runs and measured three changes at once. See `docs/review-gate/raw/r3-results.md`; (3) run the auditor harness on a second non-hand-picked repo; (4) routinize per-run grading on the **four** axes (evidence discipline, plan safety, review quality, test veracity) so runs become a benchmark. Gate is currently "auditor crafts, human arbitrates" — reviewer must earn its seat before this scales past the human arbiter.
 
+### Task-veracity benchmark: scaffold-from-scratch (future, unscheduled)
+
+Proposed 2026-09-20, not started — no effort or hardware committed. Tasks 1
+(`kane-01-background-pair`) and 2 (`lfc-01-listing-status-guard`) both test
+one capability: fix a real, pre-diagnosed bug in an existing, tested repo,
+graded by four mechanical gates (scope/suite/failsOnOld/typecheck) that all
+assume a passing baseline suite already exists to diff against. A genuinely
+different capability — **building something new from a plain-English
+prompt, no existing repo, no pre-existing bug** — matches how projects
+actually get started day to day and is worth testing eventually, but is not
+the same benchmark shape and needs its own design.
+
+TanStack Start's own homepage "Start Prompt" was proposed as the example:
+
+> "Build a TanStack Start application with file-based TanStack Router
+> routes, validated search params, route loaders, typed server functions,
+> full-document SSR, and streaming. Keep server-only work behind explicit
+> boundaries, choose the appropriate SSR mode per route, and target the
+> deployment runtime without changing the application model."
+
+Reviewed and agreed: it doesn't fit the existing four-gate harness as
+written. It bundles ~6 distinct capabilities into one shot (routing, search
+params, loaders, server functions, SSR-mode selection, streaming, deploy
+targeting) rather than the narrow single root cause that made Task 1/2
+gradable; some of those (per-route SSR-mode choice, deployment-runtime
+targeting) are judgment calls without an obvious mechanical pass/fail the
+way "does the suite pass" is; and there is no pre-existing baseline to diff
+against or revert to, so `failsOnOld` as currently implemented does not
+apply. It is also TanStack's own marketing prompt — likely heavily
+represented in training data, so a model could produce a plausible,
+memorized-pattern scaffold without real reasoning about a specific
+codebase, which would measure something different from what Tasks 1-2
+measure. TanStack Start's source lives in the `TanStack/router` monorepo
+(github.com/TanStack/router) alongside TanStack Router, not a separate repo
+— pointer for whoever picks this up.
+
+Three candidate shapes, captured side by side, no pick made yet:
+
+- **A — CLI/data-transform scaffold.** Fixed input fixture, exact expected
+  output to diff against. Fully mechanical, closest in rigor to Tasks 1-2,
+  but the weakest fit to the actual (web-app) workflow this is meant to
+  test.
+- **B — Decomposed slices.** Break the Start Prompt into narrow,
+  individually-gradable mini-tasks (one route + loader, one server-function
+  boundary check, etc.) instead of one monolithic build. Keeps the real
+  workflow shape while restoring the narrow-root-cause property that made
+  Task 1/2 gradable.
+- **C — Full prompt, staged grading.** Keep the whole prompt as the eventual
+  target; build mechanical checks incrementally (build succeeds → route
+  tree resolves → loader fires → server function absent from client
+  bundle); explicitly punt the judgment-heavy parts (SSR-mode choice,
+  deploy targeting) rather than force a fake-mechanical answer for them.
+
+Purely additive — does not change the status of Tasks 1/2, the harness, or
+the "hold config changes until ~3 graded runs across ≥2 tasks" gate.
+
 ## Desktop dev environments (landed)
 
 - [x] Desktop local service stack (`desktop/docker/docker-compose.yml` — Postgres 16 + Redis 7, loopback-only, `docker-stack.ps1`).
