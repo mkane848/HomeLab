@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document the `gh pr create/edit --body` PowerShell trap in `AGENTS.md`
+  (Gotchas) and `CONTRIBUTING.md`: inline `--body "..."` eats backticks, so
+  write the body to a file, pass `--body-file`, and re-read the rendered body
+  with `gh pr view`. Learned the hard way on PR #19/#20, whose bodies had to
+  be re-saved after merge.
 - Documentation cleanup after the node3 onboarding: every live/parked
   profile count now says 4 / 8 (was 3 / 9 across `README.md`,
   `docs/profiles.md`, `profiles/README.md`); `dev-node3.sh`'s `FUTURE/STUB`

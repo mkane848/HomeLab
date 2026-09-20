@@ -34,6 +34,10 @@ PRs are how changes land. A template lives in
   `tests: add probe for qwen3.5:9b`, `fix: correct VRAM table in hardware.md`.
 - Keep PRs small and single-purpose. A docs change and a script change in one
   PR should be because they are actually one change.
+- Creating the PR via `gh` from PowerShell? Write the body to a file and pass
+  `--body-file` — inline `--body "..."` mangles backticks (PowerShell eats
+  them as escape characters), then re-read the rendered body with
+  `gh pr view <n> --json body --jq .body` before asking for review.
 - Model-written changes carry extra proof obligations (below).
 
 ## Verifying changes
