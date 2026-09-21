@@ -16,15 +16,17 @@ what to actually pick up next, highest value first.
    real correctness value** — everything else here is hygiene or research. Each
    fix must ship a test that *fails on the old code*. Different repo, so it
    needs a machine with that checkout.
-2. **Run more task-veracity trials before adding a 3rd task shape.** The
-   combined Task 1 + Task 2 result (0/7 graded runs) is inside the confidence
-   interval of published base rates for un-tuned models this size (~8–20% —
-   see "Task-veracity benchmark: external research pass" below), so it isn't
-   yet distinguishable from "these seats succeed ~1 time in 6–10 and too few
-   trials have run to see it." ~5 repeat runs per model per task narrows that
-   a lot more cheaply than authoring new task shapes right now. The hosted/
-   frontier-model calibration arm in the same section is the other open lever
-   here, whenever the fleet owner wants to spend the API cost on it.
+2. **Superseded 2026-09-21 — the goal is general capability, not these 2
+   tasks specifically, so the strategy is now breadth over depth.** Cap
+   per-model-per-task N at **10** (was heading toward 30–50, the right
+   number for narrowing the CI on these exact 2 tasks, but that no longer
+   answers the actual question); redirect the freed-up capacity into task
+   *count*: **8 tasks now** (kane-01/02/03/04, lfc-01/02, asohav-01/02 — see
+   "Task-veracity benchmark: task set expansion" below), **16 as the
+   target**. See that section for the full reasoning (within-task vs.
+   between-task variance) and the new tasks' provenance. The hosted/
+   frontier-model calibration arm below is still open, separately, whenever
+   the fleet owner wants to spend the API cost on it.
 3. **~~Onboard the third node (RTX 3080 FE)~~ — done 2026-09-20.** Join →
    probe → validate all complete (see "Onboarding the third node" below):
    `qwen3:8b` is a real, measured agent seat on this host, `test-profiles.ps1
@@ -572,6 +574,105 @@ statistical read above, more repeated trials on the existing 2 tasks (e.g.
 immediately authoring a 3rd task shape, since it directly narrows the
 confidence interval on the current finding rather than adding a new
 variable on top of an already-thin sample.
+
+### Task-veracity benchmark: task set expansion (2026-09-21)
+
+The fleet owner clarified the actual goal: **general capability** ("is this
+model good at fixing bugs", not "is this model good at fixing `kane-01` and
+`lfc-01`"). That changes which axis more trials should grow.
+
+**Why breadth beats depth once the goal is general capability.** Two
+sources of uncertainty were tangled together: run-to-run noise (does the
+same model on the same task succeed reliably?) and task-to-task variance
+(does success on one task predict success on a bug you haven't tried?).
+Everything in the external-research-pass section above narrows the first
+one only. At 2 tasks, the second is essentially unmeasured no matter how
+many repeats run — a 50-run sample on `lfc-01` alone still says nothing
+about a race-condition bug or a schema-mismatch bug. This is the same
+breadth-vs-depth split SWE-bench resolves by going wide (500–2,294 distinct
+issues, one attempt each) instead of deep, and today's own data already
+shows the between-task variance is real: `qwen3:14b` scored one full PASS
+and one classic 6-write regression on `lfc-01` back to back (see the run
+log below), and node3's `qwen3:8b` liar-moded on `kane-01` and `lfc-01`
+alike while desktop's identical model tag never has — neither pattern is
+visible from re-running one task harder.
+
+**Decision: N=10 per model/task cell, 8 tasks now, 16 the target.** Wilson
+95%-CI math (still 0 successes / at a 20% true rate): n=5→±29pts,
+n=10→±23pts, n=20→±17pts, n=50→±11pts, n=100→±8pts — classic diminishing
+1/√n returns. n=10 is the realistic floor used by community local-model
+eval harnesses (bigcode-evaluation-harness-style setups; the academic
+Codex/HumanEval pass@k standard is n=200, but assumes near-free parallel
+cloud sampling this fleet does not have). Past ~50–100 the marginal
+tightening isn't worth the run time here — that budget is better spent on
+more tasks. 8 is the near-term stop (up from 2); **16 tracks the "harness-
+bench" sibling hobby project's own scale** (§ above) as an informal
+reference point for where a solo effort's task-authoring cost starts to
+bind.
+
+**The 6 new tasks (`tests/tasks/manifest.json`).** Sourced from real,
+already-merged bug-fix commits in the fleet owner's own repos — not invented
+bugs — by scanning each repo's commit history for a `fix` commit touching
+exactly one source file and its test, then verifying each one directly
+(clone, checkout the commit *before* the fix, confirm the baseline suite is
+green, then apply *only* the fix commit's test-file changes against the
+still-buggy source and confirm the suite goes red — the same `failsOnOld`
+contract the harness itself enforces). Picked for genuine diversity against
+each other and against `kane-01`/`lfc-01`, not more of the same shape:
+
+| Task | Repo | Bug class | Baseline | failsOnOld check |
+|---|---|---|---|---|
+| `kane-02-multiword-creature-type` | KaneEnabler | string/word-boundary parsing | 28/28 | 2/31 fail |
+| `kane-03-saga-chapter-triggers` | KaneEnabler | stateful event/trigger bug | 23/23 | 3/27 fail |
+| `kane-04-singleton-up-to-n` | KaneEnabler | regex/lookup-table fallback | 13/13 | 3/16 fail |
+| `asohav-01-library-write-reporting` | ASoHaVCompanionApp | async operation-ordering (report success/failure across 2 non-transactional DB calls) | 35/35 | 7/43 fail |
+| `asohav-02-changelog-uuid-id` | ASoHaVCompanionApp | schema/id-generation mismatch | 194/194 (full suite — new test file) | 2/4 fail |
+| `lfc-02-scryfall-headers` | lfc-bot | external API contract (missing required headers) | 11/11 | 1/12 fail |
+
+Two candidates were found and **dropped** rather than forced: ASoHaVCompanionApp's
+glossary-depth-cap commit bundled a real bug fix in a React component together
+with an unrelated "See also chips" feature addition, spanning CSS/component
+files well past the 2-file `allowFiles` shape every other task uses — no
+clean isolation existed. `asohav-01`/`asohav-02` are themselves each scoped
+*down* from a larger real commit (7 and 9 files respectively) to just their
+backend logic + test, dropping frontend-surfacing and release-bump files
+that were bundled into the same original commit but aren't the bug.
+
+**Known caveat — `lfc-02` and `MANAPOOL_API_KEY`.** `tests/services/scryfall.test.ts`
+has a pre-existing, unrelated flake: one test's fetch-call-count assertion
+depends on whether `MANAPOOL_API_KEY` is set in the ambient environment
+(a real extra network call fires if it is). Reproduced directly during
+verification. **`MANAPOOL_API_KEY` must be unset/empty in the shell running
+`test-tasks.ps1` for `lfc-02`'s baseline gate to be reliable** — the task's
+own prompt tells the model this too, but the baseline check runs before the
+model sees anything.
+
+**Setup required before these run — new local branches.** `test-tasks.ps1`
+resolves `refs/heads/<branch>` in the task's local `repo` checkout (not the
+GitHub remote), so each new task's pre-fix state needs a real local branch
+pinned at the exact parent commit verified above. In each local checkout:
+
+```powershell
+# C:\Projects\KaneEnabler
+git fetch origin
+git branch bench/multi-word-creature-types 0e9b703047d37e31abbccbda2c9de175ae3e33cb
+git branch bench/saga-chapter-triggers 4029a94a8bd5a22df1f3dcf819719c0e448270b4
+git branch bench/singleton-up-to-n 420372615ef8b95566dc8ab24039c1532830fdbf
+
+# M:\TTRPG\A Story of Heroes and Villains
+git fetch origin
+git branch bench/library-write-reporting c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5
+git branch bench/changelog-uuid-id d83381ad650b3474a50310e0dd3441a03cd89706
+
+# M:\Projects\LFCbot
+git fetch origin
+git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7363
+```
+
+`ASoHaVCompanionApp` and `KaneEnabler` are npm-installed via `git clone`
+(GitHub: `mkane848/asohavcompanionapp`, `mkane848/kaneenabler`,
+`mkane848/lfc-bot`) — same repos, same commit hashes, independently
+verifiable by anyone with read access.
 
 ## Desktop dev environments (landed)
 
