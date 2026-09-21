@@ -12,7 +12,19 @@ Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama
   `ScriptBlockAst` to the pipeline):
   `$errs = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile(<path>,[ref]$null,[ref]$errs); if ($errs.Count) { $errs } else { "OK" }`.
   Verified legal on both PS 7 and Windows PowerShell 5.1 (`[ref]$null` as a discard out-param
-  works on both). Shell: `bash -n`.
+  works on both). Shell: `bash -n`. Use forward slashes for the path on Linux/remote sessions —
+  a Windows-style backslash path resolves to a literal (wrong) filename and `ParseFile` reports a
+  misleading `FileReadError` that looks like a syntax failure but isn't.
+- **Remote/Claude-Code-web sessions get `pwsh` via `.claude/hooks/session-start.sh`** (a
+  `SessionStart` hook, gated on `$CLAUDE_CODE_REMOTE`) — added 2026-09-21 after a manifest bug
+  (`kane-02`'s `setup` step) shipped because the sandbox had no PowerShell to actually run the
+  syntax-check above, only a bracket-balance guess. Installs the official Linux x64/arm64 binary
+  tarball to `/opt/microsoft/powershell/7`, symlinked to `/usr/local/bin/pwsh`; idempotent
+  (no-ops if `pwsh` is already on `PATH`). Syntax-checking a `.ps1` is still necessary, not
+  sufficient — it catches malformed PowerShell, not wrong data (`kane-02`'s bug was a valid
+  script pointed at a `setup` step that doesn't apply at that historical commit). The real fix
+  for that class of mistake is verifying against a genuinely fresh `git worktree add`, never a
+  reused branch checkout — see the `kane-02` postmortem in `CHANGELOG.md`.
 - `.env`, `desktop/docker/.env` and anything `*.env` are git-ignored; only `.env.example` templates are tracked. Secrets live in `~/.config/opencode/.secrets/`, outside the repo entirely.
 - Remote is `origin` (`github.com/mkane848/HomeLab`). Don't force-push `main`; revert-and-re-PR instead.
 

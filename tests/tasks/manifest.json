@@ -74,7 +74,7 @@
     {
       "id": "kane-02-multiword-creature-type",
       "title": "KaneEnabler: recognize multi-word creature types (e.g. 'Time Lord') instead of silently dropping them",
-      "source": "Mined from KaneEnabler commit 8f4555b2fd543e8a54cf2d38c0f6b96be3e68a9a (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's signals.test.ts at the parent commit (0e9b703047d37e31abbccbda2c9de175ae3e33cb): 28/28 baseline, then applying the fix commit's test-file changes alone against the unfixed source (2/31 fail) to confirm failsOnOld before authoring this entry.",
+      "source": "Mined from KaneEnabler commit 8f4555b2fd543e8a54cf2d38c0f6b96be3e68a9a (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's signals.test.ts at the parent commit (0e9b703047d37e31abbccbda2c9de175ae3e33cb): 28/28 baseline, then applying the fix commit's test-file changes alone against the unfixed source (2/31 fail) to confirm failsOnOld before authoring this entry. Originally shipped with a `setup` step copied from kane-01 (build @mtg/rules) - wrong, since `packages/rules` doesn't exist yet at this commit (`git ls-tree` confirms only `packages/config` does at that point in history) and signals.ts's only import at this commit is a local relative type. The original verification pass fell for this: it ran `pnpm install` + built `@mtg/rules` while still on `main` (current HEAD, where that package does exist), *then* created this branch - the stale `packages/rules/dist/` build output was untracked and survived the branch switch, so the sandbox test passed even though a fresh worktree (no such leftover) genuinely cannot resolve it. Caught 2026-09-21 when three real runs on node3 all failed identically at the setup step; removed the setup block entirely - re-verified clean via `git show <commit>:<path> | grep import` (no working-tree checkout involved, so no way to repeat the same mistake).",
       "repo": "C:/Projects/KaneEnabler",
       "branch": "bench/multi-word-creature-types",
       "baselineExpect": {
@@ -91,14 +91,6 @@
       "testDir": "apps/commander-recommender/server",
       "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/signals.test.ts"],
       "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
-      "setup": [
-        {
-          "note": "build @mtg/rules so signals.ts's workspace import resolves; cp is a bash-ism so replicate the cp step with Copy-Item",
-          "cwd": "packages/rules",
-          "cmd": ["pnpm", "exec", "tsc", "-p", "tsconfig.build.json"],
-          "copy": ["cjs-dist-package.json", "dist/package.json"]
-        }
-      ],
       "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender. apps/commander-recommender/server/src/services/signals.ts exports parseCreatureTypes(typeLine, knownTypes), which extracts a card's creature types from its type line (e.g. 'Legendary Creature — Goblin Wizard') and keeps only the words that appear in knownTypes, a Set of every real creature type from Scryfall's catalog. There is a bug: it splits the subtype text on whitespace and checks EACH WORD individually against knownTypes. Scryfall's catalog has one multi-word creature type, 'Time Lord' - since neither 'Time' nor 'Lord' is itself a member of knownTypes, a word-by-word check can never recognize it, and the type is silently dropped entirely instead of being kept as a single entry. Fix parseCreatureTypes so: (1) a multi-word type present in knownTypes is recognized and kept as one string, not dropped and not split into separate words; (2) an ordinary single-word type still works exactly as before; (3) a word that happens to be the first word of a multi-word type, but isn't followed by the rest of that type, is NOT kept on its own (e.g. if knownTypes has 'Time Lord' but the type line's words are '...Time Wizard...' and 'Time Wizard' is not itself a known type, neither 'Time' alone nor the pair should be kept unless 'Wizard' is independently a known type). Add or update tests in signals.test.ts that exercise these three cases. Your added/updated test(s) must FAIL if only your parseCreatureTypes change is reverted while the test changes stay - they must genuinely depend on the fix. Change ONLY these two files: apps/commander-recommender/server/src/services/signals.ts and apps/commander-recommender/server/src/services/signals.test.ts. Do not commit. Do not touch any other file. When done, run the server package's signals unit tests and make sure they pass."
     },
     {
