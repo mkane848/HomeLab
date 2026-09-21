@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Task-veracity benchmark: strategy pivot from depth to breadth, since the
+  actual goal is general capability, not just `kane-01`/`lfc-01`. Cap N at
+  **10 per model/task cell** (was heading toward 30-50), added GitHub read
+  access + shallow clones for `mkane848/kaneenabler`, `asohavcompanionapp`
+  and `lfc-bot`, mined each repo's commit history for real merged bug-fix
+  commits, and added **6 new tasks** to `tests/tasks/manifest.json` —
+  `kane-02-multiword-creature-type`, `kane-03-saga-chapter-triggers`,
+  `kane-04-singleton-up-to-n`, `asohav-01-library-write-reporting`,
+  `asohav-02-changelog-uuid-id`, `lfc-02-scryfall-headers` — bringing the
+  set to 8, with 16 as the target. Every task independently verified
+  (baseline green at the parent commit, `failsOnOld` confirmed red) before
+  being added; two candidates found and dropped for not isolating cleanly
+  to a 2-file scope. Full reasoning, the verification table, the dropped
+  candidates, and the `MANAPOOL_API_KEY` caveat on `lfc-02` in
+  `docs/roadmap.md` ("Task-veracity benchmark: task set expansion"). Each
+  new task's pre-fix state lives on a new local branch (`bench/*`) that
+  must be created in the corresponding local checkout before it can run —
+  commands in the same roadmap section.
 - Harden `tests/test-tasks.ps1`'s prompt-hash line: it called
   `[Security.Cryptography.SHA256]::HashData(...)` and `[Convert]::ToHexString(...)`,
   both .NET 5+ convenience APIs. Hit a `does not contain a method named 'HashData'`
