@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `tests/run-tasks-batch.ps1`: wraps `test-tasks.ps1` for day-to-day use.
+  Ensures every task's local `bench/*` branch exists (idempotent, reads repo
+  paths from the manifest, commit hashes match `docs/roadmap.md`'s task-set-
+  expansion table), then interactively prompts for which task(s), which
+  model(s), and how many repeats of each, and runs one `test-tasks.ps1`
+  invocation per (task, model, rep) combination. `-SetupOnly`/`-SkipSetup`
+  split the two phases. Sequential by design, not parallel — the worktree-
+  keyed-by-task-id constraint means true concurrency still needs two
+  separate terminals running non-overlapping task IDs directly.
 - Task-veracity benchmark: strategy pivot from depth to breadth, since the
   actual goal is general capability, not just `kane-01`/`lfc-01`. Cap N at
   **10 per model/task cell** (was heading toward 30-50), added GitHub read
