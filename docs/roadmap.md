@@ -674,44 +674,82 @@ git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7
 `mkane848/lfc-bot`) — same repos, same commit hashes, independently
 verifiable by anyone with read access.
 
-### Node3's `qwen3:8b` liar mode: likely a context-budget bug, not a capability finding (2026-09-21)
+### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
-Node3's `qwen3:8b` has now liar-moded (0 write calls, describes the change
-instead of making it) on **6 of 6 real task-veracity runs, across 3
-different tasks in 2 different repos** — `kane-01` ×2, `lfc-01` ×1,
-`kane-02` ×3 (the last of these on a task node3 had never touched before,
-ruling out anything specific to the first two prompts). Desktop's
-*identical* `qwen3:8b` model tag is 9/9 real writes across the same two
-original tasks. Task-specific bad luck stopped being a plausible
-explanation once the pattern held on a third, unrelated task.
+**Superseding the context-budget explanation previously recorded here.** That
+explanation was wrong, and so was the config change made on the strength of it.
 
-`opencode/global/opencode.jsonc`'s `ollama-node3` block had `qwen3:8b`
-capped at `limit.context: 16384` (desktop: `32768`) — set at onboarding on
-an unverified "10 GB card, so 16384 only" guess, never checked against a
-measured number. The math: 16384 total minus the 4096 output reserve
-leaves ~12,288 tokens of input budget; the measured preamble alone (post
-skill-rider fix, see the Preamble Budget entry above) is **14,364
-tokens** — already over that budget before the task prompt is even added.
-OpenCode would have to silently trim the system prompt / tool schema
-itself to fit, plausibly stripping the tool-calling scaffold entirely —
-which produces exactly this failure mode, on any task, regardless of
-content. Desktop's own measured `qwen3:8b` @ 32768 is 7.16 GB
-(`docs/hardware.md`), comfortably inside node3's 10 GB with ~2.8 GB to
-spare, and node3 has no co-resident second model competing for VRAM the
-way desktop does — nothing about the original 16384 cap was actually
-required by hardware.
+Node3's `qwen3:8b` was recorded as having liar-moded (0 write calls, describes
+the change instead of making it) on **6 of 6 real task-veracity runs across 3
+tasks in 2 repos** — `kane-01` ×2, `lfc-01` ×1, `kane-02` ×3 — while desktop's
+identical tag was 9/9 real writes. The pattern holding across a third,
+unrelated task is what made task-specific bad luck implausible and pointed at
+a per-host cause. That much was sound. The cause identified was not.
 
-**Fixed the config side** (bumped to `32768`, matching desktop) but **this
-is necessary, not sufficient** — it changes what OpenCode expects, not what
-Ollama actually serves. Node3 has no context-baking step the way desktop's
-`startup.ps1` does (`$contextModels`); onboarding just did a raw `ollama
-pull qwen3:8b`. Confirm/set `OLLAMA_CONTEXT_LENGTH=32768` on node3's own
-Ollama service (restart required) and verify with `curl
-http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'` (look for
-`num_ctx`) before trusting any new node3 results either way — **every
-node3 run to date (6/6 liar mode) should be treated as invalidated by this
-bug, not as a measured capability finding, until that's confirmed fixed
-and re-run.**
+Re-reading the raw transcripts: **all six are 307 bytes and contain exactly one
+event.**
+
+```json
+{"type":"error","error":{"name":"APIError","data":{"message":
+"Cannot connect to API: Unable to connect. Is the computer able to access the url?",
+"metadata":{"url":"http://NODE3_IP:11434/v1/chat/completions"}}}}
+```
+
+No request ever reached Ollama on node3. A context-budget bug requires the model
+to *respond* — to receive a truncated prompt and answer without the tool
+scaffold. These never got a response at all, so they are not evidence about
+context, about tool-calling, or about this model in any direction.
+
+Three independent signals in the data already said so and were missed:
+
+- **All six carry `opencodeExit=1`; every desktop row carries `0`.** Real liar
+  mode exits 0 — the model answered, it just answered in prose.
+- **Elapsed time clusters at 191.9–195.3s across all three tasks.** A uniform
+  ~192s is a connect timeout, not three different tasks each reasoning its way
+  to the same wrong answer.
+- **The probe passed on this host the day before** (`AGENTS.md`, 2026-09-20:
+  `qwen3:8b` on node3, 62.3s, real `write_file` call). The endpoint worked, then
+  stopped answering. That is availability, not configuration.
+
+**So node3's liar-mode denominator is 0, not 6 — and not the 3 that `CHANGELOG.md`
+implied by attributing the `kane-02` subset to that task's stale `setup` step.**
+That stale step was real and is fixed, but it is not what these runs hit: the
+same single-`APIError` signature appears on `kane-01` and `lfc-01`, which never
+had that setup step. **node3 has no capability data at all yet, good or bad.**
+
+**The `limit.context` bump to 32768 is reverted** (back to the 16384 onboarding
+default) because the evidence behind it evaporated. The preamble arithmetic it
+relied on is still worth knowing and still unresolved: 16384 minus the 4096
+output reserve leaves ~12,288 tokens of input budget against a measured
+14,364-token preamble, so *if* node3 really serves 16384, this seat is over
+budget before the task prompt. That makes measurement urgent; it does not
+justify a second guess. Node3 has no context-baking step the way desktop's
+`startup.ps1` (`$contextModels`) does — onboarding just did a raw `ollama pull`.
+
+Before node3 rejoins the rotation, in order:
+
+1. `curl http://NODE3_IP:11434/api/tags` — confirm it answers at all.
+2. `curl http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'` — read the
+   `num_ctx` Ollama actually serves; set `OLLAMA_CONTEXT_LENGTH` on node3's own
+   service (restart required) and set `limit.context` to what it then reports.
+3. `curl http://NODE3_IP:11434/api/ps` with the model loaded — closes the
+   long-open "node3 usable VRAM never measured" to-do above.
+4. `tests/test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://NODE3_IP:11434`
+   — confirm the seat still passes as it did on 2026-09-20.
+
+**The harness bug that produced this is fixed.** `tests/test-tasks.ps1` bailed
+out only on its `-1` timeout sentinel, so any *other* non-zero exit fell through
+to the writes gate and was stamped "the old liar mode. This run does not count."
+It now treats any non-zero exit as infrastructure: a `FAIL`ed run, an
+`_INFRA_`-tagged transcript, and **no summary row**, because a run that never
+reached the model measured nothing. `tests/run-tasks-batch.ps1` also checks every
+host it is about to drive (`/api/tags`) before starting, and refuses to run
+against one that is not answering — including the small-model host, which
+`profiles/dev-node3.sh` still points at the dead server.
+
+The standing lesson is narrower than "check your config": **an exit code the
+harness does not understand became a capability finding about a model.** When a
+whole cell fails identically, read one raw transcript before writing down why.
 
 ## Desktop dev environments (landed)
 
