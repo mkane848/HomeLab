@@ -607,9 +607,16 @@ breadth-vs-depth split SWE-bench resolves by going wide (500–2,294 distinct
 issues, one attempt each) instead of deep, and today's own data already
 shows the between-task variance is real: `qwen3:14b` scored one full PASS
 and one classic 6-write regression on `lfc-01` back to back (see the run
-log below), and node3's `qwen3:8b` liar-moded on `kane-01` and `lfc-01`
-alike while desktop's identical model tag never has — neither pattern is
-visible from re-running one task harder.
+log below) — a pattern not visible from re-running one task harder.
+
+> **Correction (2026-09-21).** This paragraph originally offered a second
+> example: that node3's `qwen3:8b` "liar-moded on `kane-01` and `lfc-01`
+> alike while desktop's identical model tag never has". **Withdrawn** — those
+> runs never reached Ollama at all (see "Node3's `qwen3:8b` 'liar mode' was
+> never liar mode" below), so they are not evidence of between-task variance
+> or of anything else about that seat. The `qwen3:14b` example above still
+> stands on its own, and the breadth-over-depth conclusion does not depend on
+> the withdrawn one.
 
 **Decision: N=10 per model/task cell, 8 tasks now, 16 the target.** Wilson
 95%-CI math (still 0 successes / at a 20% true rate): n=5→±29pts,

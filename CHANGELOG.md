@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bring `AGENTS.md`'s task-veracity harness description up to date with the
+  2026-09-21 fixes. It still described grading as "scope / suite / failsOnOld /
+  typecheck" with no mention that a run is graded **only** if `opencode run`
+  exited 0, that any non-zero exit is infrastructure and writes no
+  `tasks-summary.tsv` row, that `run-tasks-batch.ps1` now refuses to start
+  against a host that is not answering, or that `typecheck` can be `SKIP`.
+  `AGENTS.md` is the first file an agent reads, so a stale harness contract
+  there is the one most likely to be acted on.
+- Withdraw a stale citation in `docs/roadmap.md`'s breadth-vs-depth rationale.
+  It offered node3's `qwen3:8b` "liar mode" on `kane-01`/`lfc-01` as a second
+  worked example of between-task variance; those runs never reached Ollama, so
+  they are not evidence of anything about that seat. The `qwen3:14b` example
+  still stands and the N=10 conclusion does not depend on the withdrawn one.
+- Record the worktree-keying trade-off as an open follow-up in
+  `docs/implementation-tasks.md`: `test-tasks.ps1` keys both the worktree and
+  the install marker by task id alone, which is what makes same-task
+  concurrency unsafe. Keying by task id **and** model label would delete that
+  rule rather than document it, at the cost of one worktree and one
+  `node_modules` per (task, seat) pair.
+
 - Fix `tests/test-tasks.ps1` recording `typecheck: PASS` for tasks that never
   ran `tsc`. The flag was a boolean initialised to `$true` *before* the
   `if ($tk.typecheck)` guard, so the 6 of 8 manifest tasks with no `typecheck`
