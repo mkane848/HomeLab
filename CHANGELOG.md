@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtimes (AGENTS.md), so swapped to `SHA256.Create()` + `ComputeHash()` +
   `BitConverter.ToString()`, which needs nothing newer than .NET Framework and
   produces the identical uppercase 12-char hex prefix.
+- Task-veracity benchmark: 4 more graded runs (2026-09-20 evening, Ollama
+  0.34.1, opencode 1.18.31; base `92a8ed0` for `kane-01-background-pair`,
+  `4906dc2` for `lfc-01-listing-status-guard`).
+  `kane-01-background-pair` on `ollama-node3/qwen3:8b` x2 (21:55, 22:05) —
+  both exit 1 with 0 writes, scope FAIL / suite PASS / failsOnOld FAIL.
+  `lfc-01-listing-status-guard` on `ollama-desktop/qwen3:14b` x2 — 21:58
+  fully landed (2 writes, all four gates PASS), 22:12 scope PASS / suite
+  FAIL / failsOnOld PASS (6 writes). Rows appended to
+  `tests/results/tasks-summary.tsv`; raw `.json`/`.jsonl` transcripts
+  committed verbatim, ungraded per CONTRIBUTING.
 - Disable the `~/.claude` skill rider: opencode auto-loaded the Claude Code
   plugin's synced skills (`~/.claude/skills/synced/`, 10 SKILL.md, 167 KB) into
   every request behind `$GLOBAL_SKILL_SOURCES`'s back. Measured on the desktop
