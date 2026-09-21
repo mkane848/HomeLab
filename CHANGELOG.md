@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix `kane-02-multiword-creature-type`'s manifest entry: it shipped with a
+  `setup` step (build `@mtg/rules`) copied from `kane-01`'s entry without
+  re-checking it against `kane-02`'s own pinned commit - `packages/rules`
+  doesn't exist yet at that point in KaneEnabler's history (`git ls-tree`
+  confirms only `packages/config` does), and `signals.ts` has no `@mtg/rules`
+  import there at all. The original verification pass missed this because it
+  built `@mtg/rules` while still on `main` (current HEAD) *before* creating
+  the task's bench branch - the stale `packages/rules/dist/` build output
+  was untracked and survived the branch switch, so the sandbox test passed
+  even though a real `git worktree add` (no such leftover) cannot resolve
+  it. Surfaced 2026-09-21 when three real node3 runs all failed identically
+  at the setup step. Removed the `setup` block; re-verified in a genuinely
+  fresh worktree (28/28, no setup needed) and re-audited every other new
+  task's import requirements directly against git history (`git show
+  <commit>:<path>` - no working-tree checkout, so immune to the same
+  mistake) - `kane-03`/`kane-04`/`lfc-02` correctly have no setup step,
+  `asohav-01`/`asohav-02` correctly do.
 - Add `tests/run-tasks-batch.ps1`: wraps `test-tasks.ps1` for day-to-day use.
   Ensures every task's local `bench/*` branch exists (idempotent, reads repo
   paths from the manifest, commit hashes match `docs/roadmap.md`'s task-set-
