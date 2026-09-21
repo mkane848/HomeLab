@@ -303,3 +303,13 @@ dead endpoint can no longer burn a batch silently.
       2026-09-16. The new preflight catches it; nothing fixes it yet.
 - [ ] PR #29's Verification checkboxes are unchecked while its prose asserts they
       are satisfied.
+- [ ] **The worktree being keyed by task id alone is the root cause of the
+      concurrency footgun**, not just a rule to work around. `test-tasks.ps1`
+      builds it as `$wtPath = Join-Path $wtRoot $tk.id` (`:448`) and the install
+      marker as `$wtRoot/.<taskId>.installed` (`:205`), so the same task can
+      never run on two seats at once. Keying both by task id **and** model label
+      would make same-task concurrency safe and delete the rule instead of
+      documenting it — at the cost of one worktree and one `node_modules` per
+      (task, seat) pair rather than per task, which is the real trade-off to
+      weigh. Not attempted here: it changes install-marker semantics and disk
+      cost, and wants a desktop run to validate.
