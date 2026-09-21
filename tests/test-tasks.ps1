@@ -19,6 +19,18 @@
 #   typecheck  - scoped to the touched module graph (informational/WARN, the
 #                full project needs every workspace package built first).
 #
+# What is NOT graded, and why that distinction is load-bearing: a run only
+# reaches those gates if `opencode run` exited 0. opencode exits 0 even when
+# the model answers in prose and writes nothing, so `writes = 0` on an exit-0
+# run means liar mode and nothing else. ANY non-zero exit is infrastructure -
+# unreachable provider, bad model id, crash - and is reported as a FAILed run
+# with an `_INFRA_`/`_TIMEOUT_` transcript and NO summary row, because it
+# measured nothing about the model. This used to fall through to the writes
+# gate, which is how six unreachable-endpoint transcripts ("Cannot connect to
+# API", 307 bytes each) were recorded as a "6/6 liar mode" capability finding
+# for node3 and then cited in a config change. A missing row is the correct
+# record of a run that never happened.
+#
 # Which model/setting combos to compare is the whole point - run the same task
 # on each seat and the pass/fail table is the tuning signal. No config or
 # seat change until ~3 graded runs across >=2 tasks (the agreed gate).
@@ -318,6 +330,26 @@ function Get-FailedTestNames {
     return @($names | Select-Object -Unique)
 }
 
+function Get-FirstTranscriptError {
+    # opencode writes a JSONL event stream; a provider-level failure shows up as
+    # a single {"type":"error",...} line and nothing else (the six node3 runs of
+    # 2026-09-20/21 were 307-byte transcripts holding exactly that). Surface its
+    # message so the console says "Cannot connect to API" instead of "exit 1".
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
+    foreach ($line in [System.IO.File]::ReadLines($Path)) {
+        if (-not $line.Trim()) { continue }
+        try { $e = $line | ConvertFrom-Json } catch { continue }
+        if ($e.type -ne "error") { continue }
+        $text = (@($e.error.name, $e.error.data.message) | Where-Object { $_ }) -join ": "
+        $url  = $e.error.data.metadata.url
+        if ($url) { $text = "$text [$url]" }
+        if ($text) { return $text }
+    }
+    return $null
+}
+
 function Invoke-OpencodeRun {
     param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec)
 
@@ -450,14 +482,30 @@ foreach ($tk in $tasksToRun) {
     }
 
     $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
-    if ($run.ExitCode -eq -1) {
-        Write-Result $tk.id "opencode run" "FAIL" $run.Detail
+    # A run that never reached the model is not a result. opencode exits 0 even
+    # when the model refuses to write (real liar mode), so ANY non-zero exit is
+    # infrastructure: unreachable provider, bad model id, crash. Grading those as
+    # behaviour is exactly how six "Cannot connect to API" transcripts became a
+    # "6/6 liar mode" capability finding - see docs/roadmap.md. Bail out BEFORE
+    # the writes gate and append no summary row, the same way a timeout and a
+    # failed baseline already do.
+    if ($run.ExitCode -ne 0) {
+        $isTimeout = ($run.ExitCode -eq -1)
+        $kind      = if ($isTimeout) { "TIMEOUT" } else { "INFRA" }
+        if ($run.Detail) {
+            $runDetail = $run.Detail
+        } else {
+            $firstErr  = Get-FirstTranscriptError -Path $run.TranscriptPath
+            $errSuffix = if ($firstErr) { " - $firstErr" } else { "" }
+            $runDetail = "opencode exited $($run.ExitCode) without a gradable run$errSuffix (prompt sha $($promptHashes[$tk.id])). Infrastructure failure, NOT model behaviour: not graded, no summary row."
+        }
+        Write-Result $tk.id "opencode run" "FAIL" $runDetail
         $overallPass = $false
         if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
-            $timeoutStamp = Get-Date -Format "yyyyMMdd-HHmmss"
-            $timeoutTranscript = Join-Path $resultsDir ("tasks-{0}-{1}_TIMEOUT_{2}.jsonl" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $timeoutStamp)
-            Move-Item -LiteralPath $run.TranscriptPath -Destination $timeoutTranscript -Force -ErrorAction SilentlyContinue
-            Write-Host "    partial transcript kept: $timeoutTranscript" -ForegroundColor DarkGray
+            $failStamp      = Get-Date -Format "yyyyMMdd-HHmmss"
+            $failTranscript = Join-Path $resultsDir ("tasks-{0}-{1}_{2}_{3}.jsonl" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $kind, $failStamp)
+            Move-Item -LiteralPath $run.TranscriptPath -Destination $failTranscript -Force -ErrorAction SilentlyContinue
+            Write-Host "    partial transcript kept: $failTranscript" -ForegroundColor DarkGray
         }
         if (-not $NoReset) { Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null; Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null }
         continue

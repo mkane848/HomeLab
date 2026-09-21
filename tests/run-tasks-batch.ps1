@@ -182,6 +182,99 @@ if (($selectedTasks -contains "lfc-02-scryfall-headers") -and $env:MANAPOOL_API_
     Write-Host ""
 }
 
+# --- 2b. endpoint preflight -------------------------------------------------
+# Six node3 runs on 2026-09-20/21 produced 307-byte transcripts holding one
+# "Cannot connect to API" error each, and the harness graded all six as model
+# behaviour ("6/6 liar mode") - a reading that reached a config change, the
+# CHANGELOG and docs/roadmap.md before anyone re-read the transcripts. A run
+# against a host that is not answering measures nothing, so every host this
+# batch would touch gets checked BEFORE the hours are spent. Costs ~1s per host.
+
+function Get-ProviderEndpoint {
+    # "ollama-node3/qwen3:8b" -> $env:OLLAMA_NODE3_BASE_URL, the same variable
+    # the profile exports and opencode.jsonc resolves through {env:...}.
+    # Non-ollama providers (opencode-go and friends) return $null: they are not
+    # host-scoped and there is no local endpoint to probe.
+    param([string]$ModelId)
+
+    $provider = ($ModelId -split "/")[0]
+    if ($provider -notmatch '^ollama-(.+)$') { return $null }
+    $varName = "OLLAMA_{0}_BASE_URL" -f $Matches[1].ToUpper().Replace("-", "_")
+    return [pscustomobject]@{
+        Provider = $provider
+        VarName  = $varName
+        BaseUrl  = [Environment]::GetEnvironmentVariable($varName)
+    }
+}
+
+function Test-OllamaEndpoint {
+    # /api/tags is the cheapest check that proves Ollama itself is answering
+    # rather than just that something holds the port. The tag count comes back
+    # too, so a host serving zero models still reads as suspicious.
+    param([string]$BaseUrl)
+
+    # Profiles export the .../v1 OpenAI-compatible surface; /api/tags is on the
+    # native root.
+    $root = $BaseUrl -replace '/v1/?$', ''
+    try {
+        $tags = Invoke-RestMethod -Uri "$root/api/tags" -TimeoutSec 5 -ErrorAction Stop
+        return [pscustomobject]@{ Ok = $true; Detail = "{0} model tag(s)" -f @($tags.models).Count }
+    } catch {
+        return [pscustomobject]@{ Ok = $false; Detail = $_.Exception.Message }
+    }
+}
+
+Write-Host "=== Endpoint preflight ===" -ForegroundColor Cyan
+
+# The seats this batch drives, plus the small model opencode uses for titles and
+# summaries - dev-node3.sh points that at ollama-server, down since 2026-09-16,
+# so a node3 batch can still be reaching for a dead box on every run.
+$endpointIds = New-Object System.Collections.Generic.List[string]
+foreach ($m in $selectedModels) { $endpointIds.Add($m) }
+if ($env:OPENCODE_SMALL_MODEL) { $endpointIds.Add($env:OPENCODE_SMALL_MODEL) }
+
+$seen      = @{}
+$preflight = New-Object System.Collections.Generic.List[pscustomobject]
+foreach ($id in $endpointIds) {
+    $p = Get-ProviderEndpoint -ModelId $id
+    if (-not $p) { continue }
+    if ($seen.ContainsKey($p.Provider)) { continue }
+    $seen[$p.Provider] = $true
+
+    if (-not $p.BaseUrl) {
+        $preflight.Add([pscustomobject]@{
+            Provider = $p.Provider
+            Ok       = $false
+            Detail   = "$($p.VarName) is not set - source the profile that exports it first"
+        })
+        continue
+    }
+    $probe = Test-OllamaEndpoint -BaseUrl $p.BaseUrl
+    $preflight.Add([pscustomobject]@{
+        Provider = $p.Provider
+        Ok       = $probe.Ok
+        Detail   = "$($p.BaseUrl) - $($probe.Detail)"
+    })
+}
+
+foreach ($e in $preflight) {
+    if ($e.Ok) {
+        Write-Host ("  [PASS] {0}  {1}" -f $e.Provider, $e.Detail) -ForegroundColor Green
+    } else {
+        Write-Host ("  [FAIL] {0}  {1}" -f $e.Provider, $e.Detail) -ForegroundColor Red
+    }
+}
+Write-Host ""
+
+$deadEndpoints = @($preflight | Where-Object { -not $_.Ok })
+if ($deadEndpoints.Count -gt 0) {
+    Write-Host "$($deadEndpoints.Count) endpoint(s) not answering - not starting the batch." -ForegroundColor Red
+    Write-Host "A run against an unreachable host yields a transcript with one APIError" -ForegroundColor Red
+    Write-Host "and nothing gradable. Bring the host up, or drop that seat from the" -ForegroundColor Red
+    Write-Host "selection, and re-run." -ForegroundColor Red
+    exit 1
+}
+
 $go = Read-Host "Proceed? (y/N)"
 if ($go.Trim().ToLower() -ne "y") {
     Write-Host "Cancelled."
