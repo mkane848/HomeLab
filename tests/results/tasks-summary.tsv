@@ -18,3 +18,4 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-20T15:54:16	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	9	PASS	FAIL	FAIL	WARN	339.2
 2026-09-20T16:23:31	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	30	PASS	FAIL	FAIL	WARN	840
 2026-09-20T20:58:17	lfc-01-listing-status-guard	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	20	PASS	FAIL	FAIL	WARN	761.2
+2026-09-21T10:56:53	lfc-01-listing-status-guard	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	1	0	FAIL	PASS	FAIL	PASS	192.3
