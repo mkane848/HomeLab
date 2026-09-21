@@ -262,11 +262,22 @@ Rationale: `docs/roadmap.md`'s own 2026-09-21 pivot — breadth over depth, 8
 tasks now, 16 the target. Two of eight tasks currently have any gradable data,
 so between-task variance is essentially unmeasured.
 
-- [ ] Seats: `ollama-desktop/qwen3:8b` and `ollama-node3/qwen3:8b`, **run
-      concurrently** — that is the stated reason node3 was onboarded, and since
-      node3's `qwen3:8b` is bit-identical weights over CUDA against desktop's
-      Vulkan, any systematic split between them flags a backend artifact for
-      free.
+- [ ] Seats: `ollama-desktop/qwen3:8b` and `ollama-node3/qwen3:8b`. node3's
+      `qwen3:8b` is bit-identical weights served over CUDA against desktop's
+      Vulkan, so any systematic split between the two seats flags a backend
+      artifact for free — the stated reason node3 was onboarded.
+- [ ] **Never run the same task id in two terminals at once.** The worktree is
+      keyed by task id alone (`test-tasks.ps1:448`,
+      `$wtPath = Join-Path $wtRoot $tk.id`), and so is the install marker
+      (`:205`) — two concurrent runs of one task share a worktree and corrupt
+      each other. AGENTS.md states the rule: *"different task IDs only, never
+      the same one twice"*. `run-tasks-batch.ps1` is sequential by design.
+      To keep both machines busy, **partition by task, not by seat**: e.g.
+      terminal A takes `kane-03` + `kane-04`, terminal B takes `asohav-01` +
+      `asohav-02` + `lfc-02`, each running its own tasks against *both* seats.
+      No task id then appears in two terminals. (Both terminals may hit the
+      same Ollama host at once; that is a throughput question, not a
+      correctness one.)
 - [ ] **Hold `qwen3:14b` out of this batch.** It needs its own `kane-01` re-run
       post-cap-fix to establish whether its record was truncation or capability
       — a separate question from task breadth.

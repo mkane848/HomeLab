@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuous `PASS` values to the next breadth batch. Rows written before this
   change still carry the old vacuous `PASS`; `tests/results/README.md` says
   how to read them.
+- Correct the node3 concurrency plan in `docs/roadmap.md` (step 9 under
+  "Put it to work on the task-veracity benchmark", and the pointer in item 3).
+  It said desktop and node3 should run the same tasks "at the same time";
+  `tests/test-tasks.ps1` keys the worktree by task id alone
+  (`$wtPath = Join-Path $wtRoot $tk.id`), as it does the install marker, so two
+  concurrent runs of one task id share a worktree and corrupt each other -
+  the constraint AGENTS.md already states as "different task IDs only, never
+  the same one twice". Split the terminals by disjoint task id instead, each
+  running both seats; the wall-clock saving is identical.
 - Add a desktop handoff to `docs/implementation-tasks.md`: the outstanding
   on-hardware verification for the harness and config changes, the ordered
   node3 bring-back sequence (measure `/api/show` before setting

@@ -33,6 +33,9 @@ what to actually pick up next, highest value first.
    -Profile dev-node3` is green. **Actually pick this up now:** run
    `ollama-node3/qwen3:8b` trials concurrently with the desktop's batch on
    item 2, instead of serially — that's the whole point of onboarding it.
+   Split the two terminals by **task id**, never by seat on a shared task —
+   see the correction under step 9 below, and the handoff in
+   `docs/implementation-tasks.md`.
    Unsloth is installed there for a later, explicitly gated fine-tuning
    track — still not part of this item.
 4. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
@@ -233,10 +236,21 @@ documented false-positive above and the pre-existing server outage.
    works with no code changes — the provider block already exists. This
    turns node3 into real parallel capacity, not just another row in a table:
    the repeat-trial batch from 2026-09-20 (bringing qwen3:8b/14b to ~5 runs
-   per task each) can now split across two hosts running concurrently —
-   desktop keeps its `ollama-desktop/*` batch, node3 runs an independent
-   `ollama-node3/qwen3:8b` batch on both tasks at the same time, roughly
-   halving the wall-clock cost of collecting the same number of trials.
+   per task each) can now split across two hosts running concurrently,
+   roughly halving the wall-clock cost of collecting the same number of
+   trials.
+
+   **Correction (2026-09-21): split the hosts by TASK, not by seat.** This
+   step originally said desktop keeps its batch while node3 runs the same
+   tasks "at the same time" — that collides. `test-tasks.ps1` keys the
+   worktree by task id alone (`$wtPath = Join-Path $wtRoot $tk.id`), as it
+   does the install marker, so two concurrent runs of one task id share a
+   worktree and corrupt each other. AGENTS.md already states the rule:
+   *"different task IDs only, never the same one twice"*. Give each terminal
+   its own disjoint set of task ids and let each run both seats — e.g.
+   terminal A takes `kane-03` + `kane-04`, terminal B takes `asohav-01` +
+   `asohav-02` + `lfc-02`. The wall-clock saving is the same; the collision
+   is not.
 10. Free bonus check this setup enables: node3's `qwen3:8b` is bit-identical
     weights to desktop's, served over CUDA instead of Vulkan. Any systematic
     difference in graded outcomes between the two hosts would point at a
