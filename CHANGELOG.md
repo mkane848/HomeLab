@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `.claude/hooks/session-start.sh` (`SessionStart` hook, registered in
+  `.claude/settings.json`): installs `pwsh` in remote/Claude-Code-web
+  sessions, gated on `$CLAUDE_CODE_REMOTE` so it never touches a local
+  session that already has real Windows PowerShell. Idempotent (no-ops if
+  `pwsh` is already on `PATH`). Prompted by the `kane-02` bug below - AGENTS.md's
+  own `ParseFile` syntax-check convention had no PowerShell to actually run
+  against in a remote session, only a bracket-balance approximation.
+  Installs the official Linux binary tarball (x64/arm64) to
+  `/opt/microsoft/powershell/7`, symlinked to `/usr/local/bin/pwsh`. Verified:
+  ran the hook directly (`CLAUDE_CODE_REMOTE=true .claude/hooks/session-start.sh`)
+  from a clean state, confirmed `pwsh --version` afterward and confirmed
+  `tests/run-tasks-batch.ps1` and `tests/test-tasks.ps1` both parse clean.
 - Fix `kane-02-multiword-creature-type`'s manifest entry: it shipped with a
   `setup` step (build `@mtg/rules`) copied from `kane-01`'s entry without
   re-checking it against `kane-02`'s own pinned commit - `packages/rules`
