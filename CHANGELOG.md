@@ -7,20 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Bump `ollama-node3`'s `qwen3:8b` context limit from 16384 to 32768 in
-  `opencode/global/opencode.jsonc`, matching desktop. The 16384 cap was an
-  unverified "10 GB card" guess from onboarding; desktop's own measured
-  `qwen3:8b` @ 32768 is 7.16 GB, comfortably inside node3's 10 GB. At
-  16384 (minus the 4096 output reserve) there's only ~12,288 tokens of
-  input budget, and the measured preamble alone is 14,364 tokens - already
-  over budget before the task prompt, plausibly explaining node3's 6/6
-  liar-mode result across 3 different tasks (task-veracity benchmark).
-  Config-side fix only - node3 has no context-baking step the way
-  desktop's `startup.ps1` does, so `OLLAMA_CONTEXT_LENGTH=32768` still
-  needs setting (and the Ollama service restarting) on node3 itself before
-  this is confirmed fixed. Every node3 task-veracity result to date should
-  be treated as invalidated by this bug until then - see
-  `docs/roadmap.md`'s "Node3's qwen3:8b liar mode" entry.
+- Fix `tests/test-tasks.ps1` grading infrastructure failures as model
+  behaviour. It bailed out only on its `-1` timeout sentinel, so any other
+  non-zero `opencode run` exit fell through to the writes gate and was
+  stamped "0 write/edit calls - the model described the change instead of
+  making it (the old liar mode)". opencode exits 0 even when a model
+  answers in prose, so a non-zero exit is always infrastructure - an
+  unreachable provider, a bad model id, a crash - and now produces a
+  `FAIL`ed run, an `_INFRA_`-tagged transcript and **no summary row**,
+  because a run that never reached the model measured nothing. The console
+  now also quotes the transcript's first error event, so an unreachable
+  host reads as "Cannot connect to API" instead of "exit 1".
+- Add an endpoint preflight to `tests/run-tasks-batch.ps1`: every host the
+  batch is about to drive is checked with `/api/tags` before the first run,
+  and the batch refuses to start against one that is not answering. Covers
+  `$env:OPENCODE_SMALL_MODEL`'s host too, which matters because
+  `profiles/dev-node3.sh` points the small model at `ollama-server` - down
+  since 2026-09-16.
+- Correct the record on node3's `qwen3:8b` "liar mode", and **revert** the
+  `limit.context` 16384 -> 32768 bump in `opencode/global/opencode.jsonc`
+  that was made on the strength of it. All six node3 task-veracity
+  transcripts are 307 bytes holding exactly one event: an `APIError`,
+  "Cannot connect to API", against `http://NODE3_IP:11434/v1/chat/completions`.
+  No request ever reached Ollama, so those runs are not evidence about
+  context budget, tool-calling or this model in any direction - and the
+  `kane-02` subset is not the stale `setup` step either, since the same
+  signature appears on `kane-01` and `lfc-01`, which never had that step.
+  Node3's liar-mode denominator is **0, not 6**; it has no capability data
+  yet. The preamble arithmetic remains unresolved (~12,288 tokens of input
+  budget at 16384 vs a measured 14,364-token preamble), so measure what
+  node3 actually serves before setting this number again - see
+  `docs/roadmap.md`'s corrected entry for the order to do it in.
+- Raise `ollama-desktop`'s `qwen3:14b` `limit.output` from 4096 to 8192.
+  At 4096 the seat exhausted its output budget inside its own reasoning
+  block on 8 of 16 task-veracity runs (`step_finish` reason `"length"`,
+  usage output exactly 4096, ~25k of the context window still unused), and
+  on `kane-01` it hit the cap before any edit call on 7 of 9 runs - leaving
+  the seat with almost no gradable data and invalidating every 14b-vs-8b
+  comparison drawn from it. 8192 is the reasoner budget that file's own
+  rules already prescribe; the prompt window stays at 24,576.
 - Add `.claude/hooks/session-start.sh` (`SessionStart` hook, registered in
   `.claude/settings.json`): installs `pwsh` in remote/Claude-Code-web
   sessions, gated on `$CLAUDE_CODE_REMOTE` so it never touches a local
@@ -43,8 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the task's bench branch - the stale `packages/rules/dist/` build output
   was untracked and survived the branch switch, so the sandbox test passed
   even though a real `git worktree add` (no such leftover) cannot resolve
-  it. Surfaced 2026-09-21 when three real node3 runs all failed identically
-  at the setup step. Removed the `setup` block; re-verified in a genuinely
+  it. Surfaced 2026-09-21 while investigating three node3 runs of this task
+  that failed identically - those runs turned out to have died at the
+  `opencode run` API call (node3 unreachable), not here, since a failed
+  setup step returns before any summary row is appended and all three
+  appended one. Reading them is what exposed this. Removed the `setup` block; re-verified in a genuinely
   fresh worktree (28/28, no setup needed) and re-audited every other new
   task's import requirements directly against git history (`git show
   <commit>:<path>` - no working-tree checkout, so immune to the same
