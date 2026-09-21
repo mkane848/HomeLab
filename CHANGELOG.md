@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Disable the `~/.claude` skill rider: opencode auto-loaded the Claude Code
+  plugin's synced skills (`~/.claude/skills/synced/`, 10 SKILL.md, 167 KB) into
+  every request behind `$GLOBAL_SKILL_SOURCES`'s back. Measured on the desktop
+  (2026-09-20): OK probe `task.n_tokens` 16,851 → 14,364 and prompt prefill
+  113 s → 84 s with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. Baked into all
+  four live profiles + forwarded by `desktop/scripts/opencode.ps1` + set as a
+  User-level env default; `AGENTS.md` Preamble Budget gotcha expanded with the
+  measurement and the keep-it-set warning.
 - Document the `gh pr create/edit --body` PowerShell trap in `AGENTS.md`
   (Gotchas) and `CONTRIBUTING.md`: inline `--body "..."` eats backticks, so
   write the body to a file, pass `--body-file`, and re-read the rendered body
