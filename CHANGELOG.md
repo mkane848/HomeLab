@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix `tests/test-tasks.ps1` recording `typecheck: PASS` for tasks that never
+  ran `tsc`. The flag was a boolean initialised to `$true` *before* the
+  `if ($tk.typecheck)` guard, so the 6 of 8 manifest tasks with no `typecheck`
+  block recorded a clean compile having compiled nothing - most starkly the
+  three `kane-02` rows, which never reached the model at all. It is now
+  tri-state: `PASS`/`WARN` only when the task defines the block, `SKIP`
+  otherwise (a status the console summary already counted but never emitted).
+  Only `kane-01` and `lfc-01` define one, so the other six now read `SKIP` -
+  including all five never-run tasks, which would otherwise have added ~30
+  vacuous `PASS` values to the next breadth batch. Rows written before this
+  change still carry the old vacuous `PASS`; `tests/results/README.md` says
+  how to read them.
+- Add a desktop handoff to `docs/implementation-tasks.md`: the outstanding
+  on-hardware verification for the harness and config changes, the ordered
+  node3 bring-back sequence (measure `/api/show` before setting
+  `limit.context` again), the dry-run preflight for the five never-run tasks
+  with the `@asohav/shared` setup-step warning, and the N=3-then-N=10 breadth
+  batch plan.
+
 - Fix `tests/test-tasks.ps1` grading infrastructure failures as model
   behaviour. It bailed out only on its `-1` timeout sentinel, so any other
   non-zero `opencode run` exit fell through to the writes gate and was
