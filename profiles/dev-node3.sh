@@ -22,6 +22,11 @@ export DEV_NODE3_MODELS="general embed"
 export OLLAMA_SERVER_URL="http://localhost:11434"
 export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://localhost:11434/v1}"
 
+# Don't let opencode auto-load ~/.claude/skills into every request (10 synced
+# SKILL.md files = ~1.5k standing tokens of the preamble; measured 16851 total
+# vs the ~11.4k baseline). Lean global scope; projects opt in via skills.paths.
+export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+
 if [[ -n "${NODE3_IP:-}" ]]; then
     export DEV_TIERS_NODE3=true
     export OLLAMA_NODE3_URL="http://${NODE3_IP}:11434"

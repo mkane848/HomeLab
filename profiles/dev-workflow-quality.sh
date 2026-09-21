@@ -67,6 +67,11 @@ export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:1143
 export OPENCODE_MODEL="ollama-desktop/qwen3:14b"
 export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:3b"
 
+# Don't let opencode auto-load ~/.claude/skills into every request (10 synced
+# SKILL.md files = ~1.5k standing tokens of the preamble; measured 16851 total
+# vs the ~11.4k baseline). Lean global scope; projects opt in via skills.paths.
+export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+
 # Start the local dev stack (Postgres + Redis) with startup.ps1 at login.
 export DEV_DOCKER_STACK=true
 
