@@ -431,7 +431,16 @@ foreach ($tk in $tasksToRun) {
 
     $prompt = $tk.prompt
     if (-not $promptHashes.ContainsKey($tk.id)) {
-        $promptHashes[$tk.id] = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($prompt))).Substring(0, 12)
+        # SHA256.HashData / Convert.ToHexString are .NET 5+ only - not present under
+        # Windows PowerShell 5.1 (.NET Framework). Create()+ComputeHash()+BitConverter
+        # works on both PS 5.1 and PS 7.
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            $hashBytes = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($prompt))
+        } finally {
+            $sha256.Dispose()
+        }
+        $promptHashes[$tk.id] = ([BitConverter]::ToString($hashBytes) -replace '-', '').Substring(0, 12)
     }
     Write-Host ("  prompt: {0} chars (sha256 {1})" -f $prompt.Length, $promptHashes[$tk.id]) -ForegroundColor DarkGray
 

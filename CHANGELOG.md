@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Harden `tests/test-tasks.ps1`'s prompt-hash line: it called
+  `[Security.Cryptography.SHA256]::HashData(...)` and `[Convert]::ToHexString(...)`,
+  both .NET 5+ convenience APIs. Hit a `does not contain a method named 'HashData'`
+  failure on desktop (2026-09-21) on the first invocation of a shell session; an
+  identical retry succeeded, so the root cause looks like a transient type-resolution
+  race rather than a real PS 5.1/PS 7 split — but the script already targets both
+  runtimes (AGENTS.md), so swapped to `SHA256.Create()` + `ComputeHash()` +
+  `BitConverter.ToString()`, which needs nothing newer than .NET Framework and
+  produces the identical uppercase 12-char hex prefix.
 - Task-veracity benchmark: 4 more graded runs (2026-09-20 evening, Ollama
   0.34.1, opencode 1.18.31; base `92a8ed0` for `kane-01-background-pair`,
   `4906dc2` for `lfc-01-listing-status-guard`).
