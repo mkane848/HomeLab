@@ -70,6 +70,163 @@
         "compilerOptions": {}
       },
       "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards. Listings are marked terminal via two service functions in src/services/listings.ts: fulfillListing(id) and softDeleteListing(id), both implemented through a shared setStatus(id, status) helper. There is a bug: setStatus updates the listing's status by id alone, with no check on the listing's CURRENT status - it runs db.update(listings).set({ status, updatedAt: now() }).where(eq(listings.id, id)).run(). This means a listing that is already 'fulfilled', 'deleted', or 'expired' can be fulfilled or deleted again, silently resurrecting it. The command handlers (fulfill.ts, delete.ts, admin/remove.ts) only check listing ownership or server membership, never the listing's current status, so this reaches production behavior directly. Implement the fix and update the matching test coverage in tests/services/listings.test.ts. Requirements: (1) setStatus (and therefore fulfillListing and softDeleteListing) must only change a listing's status when its CURRENT status is 'active' - calling fulfillListing or softDeleteListing on a listing whose status is already 'fulfilled', 'deleted', or 'expired' must leave its status unchanged. (2) Calling fulfillListing or softDeleteListing on a genuinely active listing must still work exactly as before. (3) Add test coverage in tests/services/listings.test.ts proving this: seed a listing, call softDeleteListing on it once, then call fulfillListing on the same id and assert its status is still 'deleted', not 'fulfilled' (and the symmetric fulfill-then-delete case). (4) Your new test must FAIL if only your setStatus fix is reverted while the test stays - it must genuinely depend on the fix, not pass regardless. Change ONLY these two files: src/services/listings.ts and tests/services/listings.test.ts. Do not commit. Do not touch any other file, including the command handlers. When done, run `npx vitest run tests/services/listings.test.ts` and make sure it passes."
+    },
+    {
+      "id": "kane-02-multiword-creature-type",
+      "title": "KaneEnabler: recognize multi-word creature types (e.g. 'Time Lord') instead of silently dropping them",
+      "source": "Mined from KaneEnabler commit 8f4555b2fd543e8a54cf2d38c0f6b96be3e68a9a (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's signals.test.ts at the parent commit (0e9b703047d37e31abbccbda2c9de175ae3e33cb): 28/28 baseline, then applying the fix commit's test-file changes alone against the unfixed source (2/31 fail) to confirm failsOnOld before authoring this entry.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/multi-word-creature-types",
+      "baselineExpect": {
+        "testsTotal": 28,
+        "testsPass": 28
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts",
+        "apps/commander-recommender/server/src/services/signals.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/signals.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "setup": [
+        {
+          "note": "build @mtg/rules so signals.ts's workspace import resolves; cp is a bash-ism so replicate the cp step with Copy-Item",
+          "cwd": "packages/rules",
+          "cmd": ["pnpm", "exec", "tsc", "-p", "tsconfig.build.json"],
+          "copy": ["cjs-dist-package.json", "dist/package.json"]
+        }
+      ],
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender. apps/commander-recommender/server/src/services/signals.ts exports parseCreatureTypes(typeLine, knownTypes), which extracts a card's creature types from its type line (e.g. 'Legendary Creature — Goblin Wizard') and keeps only the words that appear in knownTypes, a Set of every real creature type from Scryfall's catalog. There is a bug: it splits the subtype text on whitespace and checks EACH WORD individually against knownTypes. Scryfall's catalog has one multi-word creature type, 'Time Lord' - since neither 'Time' nor 'Lord' is itself a member of knownTypes, a word-by-word check can never recognize it, and the type is silently dropped entirely instead of being kept as a single entry. Fix parseCreatureTypes so: (1) a multi-word type present in knownTypes is recognized and kept as one string, not dropped and not split into separate words; (2) an ordinary single-word type still works exactly as before; (3) a word that happens to be the first word of a multi-word type, but isn't followed by the rest of that type, is NOT kept on its own (e.g. if knownTypes has 'Time Lord' but the type line's words are '...Time Wizard...' and 'Time Wizard' is not itself a known type, neither 'Time' alone nor the pair should be kept unless 'Wizard' is independently a known type). Add or update tests in signals.test.ts that exercise these three cases. Your added/updated test(s) must FAIL if only your parseCreatureTypes change is reverted while the test changes stay - they must genuinely depend on the fix. Change ONLY these two files: apps/commander-recommender/server/src/services/signals.ts and apps/commander-recommender/server/src/services/signals.test.ts. Do not commit. Do not touch any other file. When done, run the server package's signals unit tests and make sure they pass."
+    },
+    {
+      "id": "kane-03-saga-chapter-triggers",
+      "title": "KaneEnabler: manual count edits on a Saga must catch up any chapter triggers they cross",
+      "source": "Mined from KaneEnabler commit 6b04fcb9bbf18f1938b38de5bd38662598b9d21f (2026-08-16, real merged fix), verified by running apps/time-counters's useGameState.test.ts at the parent commit (4029a94a8bd5a22df1f3dcf819719c0e448270b4): 23/23 baseline, then applying the fix commit's test-file changes alone against the unfixed source (3/27 fail) to confirm failsOnOld. Deliberately a stateful trigger/event bug, not another parsing bug like kane-02/kane-04.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/saga-chapter-triggers",
+      "baselineExpect": {
+        "testsTotal": 23,
+        "testsPass": 23
+      },
+      "allowFiles": [
+        "apps/time-counters/src/hooks/useGameState.ts",
+        "apps/time-counters/src/hooks/useGameState.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/time-counters/src/hooks/useGameState.ts"
+      ],
+      "testDir": "apps/time-counters",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/hooks/useGameState.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "prompt": "You are working in the KaneEnabler repository, in the time-counters app (apps/time-counters): a Magic: The Gathering counter tracker. The useGameState hook (apps/time-counters/src/hooks/useGameState.ts) manages tracked cards, including Sagas, which have numbered chapter abilities that fire when a card's lore-counter count first reaches or passes each chapter's threshold. The hook's automatic nextTurn flow already fires chapter triggers correctly and records which chapters have fired in a card's triggeredChapters list. There is a bug: the two functions that let a player MANUALLY edit a card's count - setCount (jump directly to an exact count) and adjustCount (step the count up or down by a delta) - never check for or record newly-crossed chapter thresholds. Concretely: a 3-chapter Saga at 0 lore counters, manually set to 2, should be understood as having crossed chapters I and II (even though nextTurn never ran for those turns) - but today neither chapter gets added to triggeredChapters, and the card's Game Log entry never mentions them. Fix setCount and adjustCount so a manual edit that crosses one or more chapter thresholds records each newly-crossed chapter in triggeredChapters (without re-triggering a chapter already recorded, and without triggering anything if the edit moves the count DOWN past a threshold rather than up across it - a chapter only fires going forward, matching how nextTurn's own logic already works). Add or update tests in useGameState.test.ts proving: a manual setCount jump across multiple chapter thresholds records all of them; a manual adjustCount step across a threshold records it; moving the count back down does not un-trigger an already-recorded chapter. Your added/updated test(s) must FAIL if only your setCount/adjustCount fix is reverted while the test changes stay. Change ONLY these two files: apps/time-counters/src/hooks/useGameState.ts and apps/time-counters/src/hooks/useGameState.test.ts. Do not commit. Do not touch any other file. When done, run the time-counters package's useGameState unit tests and make sure they pass."
+    },
+    {
+      "id": "kane-04-singleton-up-to-n",
+      "title": "KaneEnabler: a digit (not just a spelled-out number) in an 'up to N' singleton clause must parse correctly",
+      "source": "Mined from KaneEnabler commit 5837c59db4a74b36e5ea53100b61219cd5742f7b (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's singleton.test.ts at the parent commit (420372615ef8b95566dc8ab24039c1532830fdbf): 13/13 baseline, then applying the fix commit's test-file changes alone against the unfixed source (3/16 fail) to confirm failsOnOld. A regex/lookup-fallback bug, distinct from kane-02's word-matching bug despite both being in commander-recommender.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/singleton-up-to-n",
+      "baselineExpect": {
+        "testsTotal": 13,
+        "testsPass": 13
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/services/singleton.ts",
+        "apps/commander-recommender/server/src/services/singleton.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/services/singleton.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/singleton.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender. apps/commander-recommender/server/src/services/singleton.ts computes a card's singleton copy limit from its oracle text, including cards with an 'up to N' style clause (e.g. 'A deck can have up to seven cards named [this card]'). The number is parsed by looking the captured word up in a word-to-number map (NUMBER_WORDS, covering 'one' through 'twelve'). There is a bug: the regex that captures the number accepts EITHER a spelled-out word OR a plain digit string, but NUMBER_WORDS only ever has word keys - a digit like '7' is never going to be found in it. When the lookup misses, the code silently falls back to a limit of 1 (the most restrictive possible answer) with no warning that anything went wrong - so a card with a numeral in its 'up to N' clause, or a spelled-out number past twelve, gets silently under-counted. Fix singletonLimit so: (1) a plain integer in the clause (e.g. '7') is parsed correctly, not silently forced to 1; (2) spelled-out numbers already in NUMBER_WORDS keep working exactly as before; (3) when the value genuinely cannot be determined (neither a parseable integer nor a known word), the function still returns the conservative default of 1, but now also emits a warning (e.g. console.warn) so the failure is visible instead of silent. Add or update tests in singleton.test.ts proving: a plain-digit 'up to N' clause parses to the correct limit; the genuinely-unparseable case still returns 1 AND triggers a warning. Your added/updated test(s) must FAIL if only your singletonLimit fix is reverted while the test changes stay. Change ONLY these two files: apps/commander-recommender/server/src/services/singleton.ts and apps/commander-recommender/server/src/services/singleton.test.ts. Do not commit. Do not touch any other file. When done, run the server package's singleton unit tests and make sure they pass."
+    },
+    {
+      "id": "asohav-01-library-write-reporting",
+      "title": "ASoHaVCompanionApp: a committed library write must never be reported as a failure because the audit log append threw",
+      "source": "Mined from ASoHaVCompanionApp commit fe57b89556c6de096090b44343790d2cab04a358 (2026-09-13, real merged fix), scoped down to its backend-only concern (the original commit also bundled frontend surfacing across api.ts/AdminPanelPage.tsx and release version bumps, which are out of scope here). Verified by running apps/server's library.test.ts at the parent commit (c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5): 35/35 baseline, then applying the fix commit's test-file changes alone against the unfixed source (7/43 fail, matching exactly the 7 write routes named in the commit) to confirm failsOnOld. An async/operation-ordering reporting bug - a new failure class versus kane-*/lfc-01's logic bugs.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/library-write-reporting",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 35,
+        "testsPass": 35
+      },
+      "allowFiles": [
+        "apps/server/src/routes/library.ts",
+        "apps/server/src/routes/library.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/server/src/routes/library.ts"
+      ],
+      "testDir": "apps/server",
+      "testCmd": ["npx", "vitest", "run", "src/routes/library.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "setup": [
+        {
+          "note": "build @asohav/shared so the server package's workspace import resolves",
+          "cwd": "packages/shared",
+          "cmd": ["npx", "tsc", "-p", "tsconfig.json"]
+        }
+      ],
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains): a tabletop companion app with a Content Admin panel for editing the shared game library (glossary, moves, clocks, etc). apps/server/src/routes/library.ts has seven write routes (create, update, delete, settings, import, reset, restore) that each do two things in sequence: first call saveLibrary(...) to persist the change, then call appendChangeLog(...) to record an audit-log entry. These are two separate, non-transactional database calls, and the save always happens first. There is a bug: if appendChangeLog throws (for any reason - a schema mismatch, a transient DB error, anything), the route lets that exception propagate and reports the whole request as failed with a 5xx - even though the actual library write already succeeded and is fully committed. An admin who sees a failure response for a write that actually landed has no correct next move: retrying re-applies a change that already happened, and assuming nothing saved is simply wrong. Fix this so a failure in the audit-log append is reported as a WARNING alongside a successful response, never as a failed request - the response should still indicate success (its normal shape/status), but carry an additional optional field (e.g. warning: string) noting that the audit entry could not be written, while the underlying error is still logged server-side (e.g. via console.error) so it isn't silently swallowed. This must apply to all seven write routes (create, update, delete, settings, import, reset, restore). A route call where the audit log succeeds must behave exactly as before (no warning field, or an undefined/absent one). Add or update tests in library.test.ts proving: for each of the seven routes, if appendChangeLog throws, the response still reports the underlying operation's normal success status (not a 5xx) and includes a warning noting the audit failure, AND that saveLibrary was actually called (the write really happened) before the warning path is reached; and that no warning field appears when the audit log succeeds normally. Your added/updated test(s) must FAIL if only your route-handling fix is reverted while the test changes stay. Change ONLY these two files: apps/server/src/routes/library.ts and apps/server/src/routes/library.test.ts. Do not commit. Do not touch any other file (in particular, do not touch any frontend/web files - this task is server-only). When done, run `npx vitest run src/routes/library.test.ts` from apps/server and make sure it passes."
+    },
+    {
+      "id": "asohav-02-changelog-uuid-id",
+      "title": "ASoHaVCompanionApp: stop generating a non-UUID id for a column the database already defaults to a real UUID",
+      "source": "Mined from ASoHaVCompanionApp commit be055bec6aed4e242b274a390c71f1fa99c340e8 (2026-09-13, real merged fix), scoped down to its backend-only concern (the original commit also bundled release version bumps and CHANGELOG/HANDOFF doc updates, out of scope here). Verified by running apps/server's FULL suite at the parent commit (d83381ad650b3474a50310e0dd3441a03cd89706): 194/194 baseline (this task adds a brand-new test file, so there is no existing single-file baseline to target), then adding the fix commit's new test file alone against the unfixed source (2/4 of the new tests fail) to confirm failsOnOld. A schema/id-generation mismatch bug - a new failure class versus every other task in this manifest.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/changelog-uuid-id",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 194,
+        "testsPass": 194
+      },
+      "allowFiles": [
+        "apps/server/src/repo.ts",
+        "apps/server/src/repo.changelog.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/server/src/repo.ts"
+      ],
+      "testDir": "apps/server",
+      "testCmd": ["npx", "vitest", "run"],
+      "installFlags": ["--ignore-scripts"],
+      "setup": [
+        {
+          "note": "build @asohav/shared so the server package's workspace import resolves",
+          "cwd": "packages/shared",
+          "cmd": ["npx", "tsc", "-p", "tsconfig.json"]
+        }
+      ],
+      "prompt": "You are working in the ASoHaVCompanionApp repository. apps/server/src/repo.ts's appendChangeLog function inserts a new row into the 'changelog' table via a Supabase client call, and currently generates its own id for that row using a helper (newId('log')) that produces a string like 'log-2mks435g'. There is a bug: the changelog table's id column is defined in the database schema as `uuid primary key default gen_random_uuid()` - a genuine UUID column with a server-side default generator. Inserting an explicitly-generated non-UUID string into a uuid column is rejected by Postgres with a type error (invalid input syntax for type uuid), which means EVERY call to appendChangeLog throws, even though nothing about the actual change being logged was ever invalid - it is a pure id-generation/schema mismatch. Because every write route in this app saves its actual data BEFORE calling appendChangeLog (see apps/server/src/routes/library.ts), this means every write silently succeeds while its audit-log call throws afterward. Fix appendChangeLog so it does not generate or send its own id for the insert at all - let the database's own default (gen_random_uuid()) supply it, the same way any other column with a working server-side default would be left alone. Nothing else about the function should need to change: the insert should proceed with all its other columns exactly as before, just without an explicit id key in the payload. Add tests in a NEW file, apps/server/src/repo.changelog.test.ts, following this codebase's existing pattern elsewhere of mocking the Supabase client module rather than hitting a real database, proving: the insert payload sent to the mocked client does not include an id key at all; the payload includes exactly the columns the changelog table declares, correctly mapped to snake_case; and that if the mocked insert call itself rejects, the error still propagates (is not silently swallowed). Your added test(s) must FAIL if only your appendChangeLog fix is reverted while the test file stays - they must genuinely depend on the fix. Change ONLY these two files: apps/server/src/repo.ts and apps/server/src/repo.changelog.test.ts (a new file - it does not exist yet). Do not commit. Do not touch any other file. When done, run `npx vitest run` from apps/server and make sure the whole suite passes."
+    },
+    {
+      "id": "lfc-02-scryfall-headers",
+      "title": "lfc-bot: every outbound Scryfall request must send the Accept header and a name/version User-Agent Scryfall requires",
+      "source": "Mined from lfc-bot commit 30b99a5dfc17946d352908be377bf8b0ef5c8d5f (2026-09-13, real merged fix), verified by running tests/services/scryfall.test.ts at the parent commit (170b395baf8ad4205f6fb6d409b29c25635e7363): 11/11 baseline WITH MANAPOOL_API_KEY unset (an unrelated pre-existing flake in this same file makes one test fail if that env var happens to be set - see the prompt's note), then applying the fix commit's test-file changes alone against the unfixed source (1/12 fail) to confirm failsOnOld. An external API contract bug (missing required headers) - a new failure class versus every KaneEnabler/ASoHaVCompanionApp task in this manifest.",
+      "repo": "M:/Projects/LFCbot",
+      "branch": "bench/scryfall-required-headers",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 11,
+        "testsPass": 11
+      },
+      "allowFiles": [
+        "src/services/scryfall.ts",
+        "tests/services/scryfall.test.ts"
+      ],
+      "srcRevertFiles": [
+        "src/services/scryfall.ts"
+      ],
+      "testDir": ".",
+      "testCmd": ["npx", "vitest", "run", "tests/services/scryfall.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards, which looks up card data from the Scryfall API. src/services/scryfall.ts's scryfallFetchOnce function sends every outbound request to Scryfall with only a single header: User-Agent. Scryfall's API documentation requires BOTH a descriptive User-Agent (naming the application, ideally with a version) AND an Accept header on every request, and states it may block requests that omit either. There is a bug: no Accept header is sent at all, and the User-Agent value that IS sent is just a bare repository URL (via PROJECT_NAME/PROJECT_REPOSITORY), not a name/version pair as Scryfall's docs describe. Fix scryfallFetchOnce so every outbound Scryfall request includes: (1) an Accept header (any reasonable value indicating JSON is acceptable, e.g. 'application/json'); (2) a User-Agent header that identifies the application by name AND a real version number read from this package's own package.json (not hardcoded, so it cannot silently drift out of sync with an actual release) - do not import package.json with a static import (it sits outside this package's TypeScript rootDir and would break the build); read it a way that works correctly under both the test runner and the compiled dist/ build. Add or update a test in tests/services/scryfall.test.ts proving that an outbound request (e.g. via autocompleteCards) carries a truthy Accept header and a User-Agent matching a name/version pattern (e.g. matches /^LFCbot\\/\\d+\\.\\d+\\.\\d+/). Your added/updated test must FAIL if only your header fix is reverted while the test changes stay. Change ONLY these two files: src/services/scryfall.ts and tests/services/scryfall.test.ts. Do not commit. Do not touch any other file. Before running the suite, make sure the MANAPOOL_API_KEY environment variable is unset or empty in your shell for this task - a real key present in your environment makes an unrelated existing test in this same file flaky (it triggers a real extra network call the test does not expect), independent of anything in this task. When done, run `npx vitest run tests/services/scryfall.test.ts` and make sure it passes."
     }
   ]
 }
