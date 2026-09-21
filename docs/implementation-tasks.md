@@ -166,3 +166,140 @@ Tasks are ordered; **each fix must ship a test that fails on the old code**.
    pass is complete (see `docs/review-gate/testing.md`).
 6. (Pre-existing, still open): singleton paper-rule; `banned`/`notFound`
    dedupe.
+
+# Task-veracity: next testing round — desktop handoff (2026-09-21)
+
+Written for whoever picks this up **on the desktop**, with fleet access. This
+container had neither the task repos (Windows paths) nor the LAN, so everything
+below is either verified-here-and-noted or explicitly left for you.
+
+## Where things stand
+
+The 2026-09-19 → 09-21 corpus is 43 rows, of which **18 measured nothing about a
+model** and **exactly one run is a genuine pass** (`lfc-01` on
+`ollama-desktop/qwen3:14b`, 2026-09-20T21:58). Full inventory and the reasoning:
+`tests/results/README.md`.
+
+Two instrument defects produced most of that and are now fixed (PR #30 and the
+`typecheck` change alongside this entry):
+
+- `test-tasks.ps1` graded any non-zero `opencode run` exit as "liar mode".
+  Six node3 runs whose transcripts hold nothing but `Cannot connect to API`
+  became a "6/6 liar mode" capability finding that reached `docs/roadmap.md`,
+  `CHANGELOG.md` and a config change. **node3's liar-mode denominator is 0.**
+- `ollama-desktop/qwen3:14b` truncated at its 4096 `limit.output` on 8 of 16
+  runs — on `kane-01`, before any edit call on 7 of 9. **Any 14b-vs-8b
+  comparison from the old corpus is invalid.** Cap is now 8192.
+
+**Read this before touching node3:** its six failures were HTTP refusals on
+`:11434`. Nothing in this repo reaches node3 over SSH — `docs/network-topology.md`
+gives it one firewall rule, inbound TCP 11434. The only SSH item in the repo is
+the *server's* pending key auth, and the server has been down since 2026-09-16.
+Fixing SSH on node3, if that is what was done, does not by itself restore the
+benchmark path.
+
+## 1. Verify the merged changes on real hardware
+
+None of these could run here.
+
+- [ ] `opencode debug config` — confirm `ollama-desktop/qwen3:14b` and
+      `ollama-node3/qwen3:8b` both still resolve **with** a `limit` block. A key
+      the schema rejects is dropped silently and brings the truncation bug
+      straight back (`opencode.jsonc`'s own RULES block, rule 3).
+- [ ] One run against a deliberately wrong base URL → expect a `FAIL` naming the
+      exit code, an `_INFRA_`-tagged transcript, and **no new row** in
+      `tasks-summary.tsv`. Then a normal run → expect a row as before.
+- [ ] One `kane-01` run on `ollama-desktop/qwen3:14b` → expect no
+      `step_finish` with `reason: "length"`, and a non-zero write count.
+- [ ] A run of any task **without** a `typecheck` block (e.g. `kane-03`) →
+      expect `typecheck: SKIP`, not `PASS`.
+- [ ] `.\tests\test-profiles.ps1` → 100 PASS / 0 FAIL / 1 WARN / 2 SKIP. The
+      WARN is the known node3 catalog-group false positive; **do not** silence it
+      by pulling `qwen3:14b` or `gpt-oss:20b` onto node3
+      (`docs/roadmap.md`, "do not pull either onto node3").
+
+## 2. Bring node3 back, in this order
+
+Full reasoning in `docs/roadmap.md` → "Node3's `qwen3:8b` 'liar mode' was never
+liar mode". Do not skip to step 4.
+
+- [ ] `curl http://NODE3_IP:11434/api/tags` — does it answer at all?
+- [ ] `curl http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'` — read the
+      `num_ctx` Ollama **actually serves**. node3 has no context-baking step the
+      way desktop's `startup.ps1` (`$contextModels`) does. Set
+      `OLLAMA_CONTEXT_LENGTH` on node3's own service, restart it, re-read, then
+      set `limit.context` in `opencode.jsonc` to what it reports. It is at the
+      16384 onboarding default right now, which the preamble arithmetic suggests
+      is too small (~12,288 tokens of input budget vs a measured 14,364-token
+      preamble) — but measure, do not guess again.
+- [ ] `curl http://NODE3_IP:11434/api/ps` with the model loaded — closes the
+      long-open "node3 usable VRAM never measured" to-do in `docs/roadmap.md`.
+- [ ] `tests/test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://NODE3_IP:11434`
+      — confirm the seat still passes as it did on 2026-09-20.
+
+## 3. Preflight the five never-run tasks
+
+`kane-03`, `kane-04`, `asohav-01`, `asohav-02`, `lfc-02` have **never been run**.
+`kane-02`'s only three rows are node3 connection failures, so it has no data
+either — only `kane-01` and `lfc-01` do.
+
+- [ ] `.\tests\run-tasks-batch.ps1 -SetupOnly` — creates the six `bench/*`
+      branches.
+- [ ] `test-tasks.ps1 -DryRun` for each of the five (validates worktree +
+      install + baseline, skips the model run).
+- [ ] **Give `asohav-01` and `asohav-02` extra scrutiny.** Both carry a `setup`
+      step building `@asohav/shared` via `npx tsc` — the same shape as the step
+      that invalidated `kane-02`: a workspace package built into an untracked
+      `dist/` that survives a branch switch and makes a stale tree look green.
+      Confirm the baseline passes in a genuinely fresh worktree.
+- [ ] `asohav-02` runs the full 194-test suite (unfiltered `npx vitest run`) —
+      slower, more flake surface. `lfc-02` has the `MANAPOOL_API_KEY` flake
+      guard; unset the key first.
+
+## 4. Run the breadth batch
+
+Rationale: `docs/roadmap.md`'s own 2026-09-21 pivot — breadth over depth, 8
+tasks now, 16 the target. Two of eight tasks currently have any gradable data,
+so between-task variance is essentially unmeasured.
+
+- [ ] Seats: `ollama-desktop/qwen3:8b` and `ollama-node3/qwen3:8b`. node3's
+      `qwen3:8b` is bit-identical weights served over CUDA against desktop's
+      Vulkan, so any systematic split between the two seats flags a backend
+      artifact for free — the stated reason node3 was onboarded.
+- [ ] **Never run the same task id in two terminals at once.** The worktree is
+      keyed by task id alone (`test-tasks.ps1:448`,
+      `$wtPath = Join-Path $wtRoot $tk.id`), and so is the install marker
+      (`:205`) — two concurrent runs of one task share a worktree and corrupt
+      each other. AGENTS.md states the rule: *"different task IDs only, never
+      the same one twice"*. `run-tasks-batch.ps1` is sequential by design.
+      To keep both machines busy, **partition by task, not by seat**: e.g.
+      terminal A takes `kane-03` + `kane-04`, terminal B takes `asohav-01` +
+      `asohav-02` + `lfc-02`, each running its own tasks against *both* seats.
+      No task id then appears in two terminals. (Both terminals may hit the
+      same Ollama host at once; that is a throughput question, not a
+      correctness one.)
+- [ ] **Hold `qwen3:14b` out of this batch.** It needs its own `kane-01` re-run
+      post-cap-fix to establish whether its record was truncation or capability
+      — a separate question from task breadth.
+- [ ] **N=3 first, not N=10.** 5 tasks × 2 seats × 3 = 30 runs satisfies the
+      repo's own action gate (">=3 graded runs across >=2 tasks",
+      `test-tasks.ps1` header) and surfaces a broken task definition after 6 runs
+      rather than 20. Fill to the N=10 statistical target only for cells that
+      come through clean. `run-tasks-batch.ps1` defaults reps to 1 — set it
+      explicitly at the prompt.
+
+The batch runner now refuses to start against a host that is not answering, so a
+dead endpoint can no longer burn a batch silently.
+
+## Open follow-ups, not yet done
+
+- [ ] `test-tasks.ps1` hardcodes `pnpm exec tsc` even for `packageManager: npm`
+      tasks. `lfc-01` is npm and WARNs on 10 of 17 rows — **confirm whether those
+      are real type errors or pnpm failing in an npm-installed tree** before
+      trusting that column for npm tasks. Deliberately not changed blind: it
+      needs a desktop run to tell the two apart.
+- [ ] `profiles/dev-node3.sh` points `OPENCODE_SMALL_MODEL` at
+      `ollama-server/qwen2.5-coder:7b` — the machine that has not POSTed since
+      2026-09-16. The new preflight catches it; nothing fixes it yet.
+- [ ] PR #29's Verification checkboxes are unchecked while its prose asserts they
+      are satisfied.

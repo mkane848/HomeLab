@@ -16,8 +16,11 @@
 #                model's test), the suite must now FAIL. This is the PR #82
 #                "green test that never enters its claimed branch" trap made
 #                mechanical: a test that passes on broken code = FAIL here.
-#   typecheck  - scoped to the touched module graph (informational/WARN, the
-#                full project needs every workspace package built first).
+#   typecheck  - scoped to the touched module graph (informational, never FAIL:
+#                the full project needs every workspace package built first).
+#                PASS/WARN only when the task defines a `typecheck` block;
+#                SKIP when it does not, because a task that compiled nothing
+#                must not read as one that compiled cleanly.
 #
 # What is NOT graded, and why that distinction is load-bearing: a run only
 # reaches those gates if `opencode run` exited 0. opencode exits 0 even when
@@ -586,8 +589,16 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 4 (informational): scoped typecheck ----------------------------
-    $typecheckOk = $true
-    if ($tk.typecheck) {
+    # Tri-state, because "did not run" and "compiled cleanly" are not the same
+    # claim. This was previously a boolean initialised to $true BEFORE the guard
+    # below, so every task without a `typecheck` block recorded typecheck=PASS
+    # having compiled nothing - 6 of the 8 manifest tasks, among them all three
+    # kane-02 rows that never reached the model at all. Only kane-01 and lfc-01
+    # define the block, so the other six now read SKIP.
+    $typecheckStatus = "SKIP"
+    if (-not $tk.typecheck) {
+        Write-Result $tk.id "typecheck (scoped)" "SKIP" "task defines no typecheck block - nothing compiled, nothing claimed"
+    } else {
         $tcDir = Join-Path $wt.Wt $tk.testDir
         $tcFile = Join-Path $tcDir "_bench-typecheck.json"
         $tcCfg = [ordered]@{
@@ -602,9 +613,10 @@ foreach ($tk in $tasksToRun) {
         try {
             $tc = Run-Native "pnpm" @("exec", "tsc", "--noEmit", "-p", "_bench-typecheck.json") $tcDir
             if ($tc.ExitCode -eq 0) {
+                $typecheckStatus = "PASS"
                 Write-Result $tk.id "typecheck (scoped)" "PASS" "touched module graph compiles"
             } else {
-                $typecheckOk = $false
+                $typecheckStatus = "WARN"
                 Write-Result $tk.id "typecheck (scoped)" "WARN" ("tsc errors: {0}" -f (($tc.Output | Select-Object -First 4) -join ' '))
             }
         } finally {
@@ -645,7 +657,7 @@ foreach ($tk in $tasksToRun) {
         opencodeExit    = $run.ExitCode
         writes          = $run.Writes
         gates           = $gateSummary
-        typecheck       = $(if ($typecheckOk) { "PASS" } else { "WARN" })
+        typecheck       = $typecheckStatus
         elapsedSec      = $run.ElapsedSec
         ollamaVersion   = $ollamaVersion
         opencodeVersion = $opencodeVersion

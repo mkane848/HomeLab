@@ -11,7 +11,15 @@ runs. This file is that separate pass for the 2026-09-19 → 2026-09-21 corpus.
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.
-`typecheck` is informational (PASS/WARN, never FAIL) and does not affect it.
+`typecheck` is informational (never FAIL) and does not affect it.
+
+`typecheck` is `PASS`/`WARN` only for tasks that define a `typecheck` block —
+`kane-01` and `lfc-01`. The other six manifest tasks now record `SKIP`. **Rows
+written before that change show `PASS` for those tasks having compiled
+nothing**, because the flag was initialised to true before the guard that runs
+`tsc`; all three `kane-02` rows are the clearest case, since they never reached
+the model at all. Treat a pre-change `typecheck: PASS` on any task other than
+`kane-01`/`lfc-01` as "not run".
 
 `failsOnOld` is the one that matters most: revert the source fix, keep the
 model's test, and the suite must now go red. A test that stays green on broken
