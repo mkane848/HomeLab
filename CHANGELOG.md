@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bump `ollama-node3`'s `qwen3:8b` context limit from 16384 to 32768 in
+  `opencode/global/opencode.jsonc`, matching desktop. The 16384 cap was an
+  unverified "10 GB card" guess from onboarding; desktop's own measured
+  `qwen3:8b` @ 32768 is 7.16 GB, comfortably inside node3's 10 GB. At
+  16384 (minus the 4096 output reserve) there's only ~12,288 tokens of
+  input budget, and the measured preamble alone is 14,364 tokens - already
+  over budget before the task prompt, plausibly explaining node3's 6/6
+  liar-mode result across 3 different tasks (task-veracity benchmark).
+  Config-side fix only - node3 has no context-baking step the way
+  desktop's `startup.ps1` does, so `OLLAMA_CONTEXT_LENGTH=32768` still
+  needs setting (and the Ollama service restarting) on node3 itself before
+  this is confirmed fixed. Every node3 task-veracity result to date should
+  be treated as invalidated by this bug until then - see
+  `docs/roadmap.md`'s "Node3's qwen3:8b liar mode" entry.
 - Add `.claude/hooks/session-start.sh` (`SessionStart` hook, registered in
   `.claude/settings.json`): installs `pwsh` in remote/Claude-Code-web
   sessions, gated on `$CLAUDE_CODE_REMOTE` so it never touches a local
