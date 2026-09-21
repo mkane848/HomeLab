@@ -326,9 +326,27 @@
     },
 
     // The third node (RTX 3080 FE) - only meaningful when dev-node3.sh sets
-    // OLLAMA_NODE3_BASE_URL to its IP. 10 GB card, so 16384 only.
+    // OLLAMA_NODE3_BASE_URL to its IP.
     "ollama-node3": {
       "models": {
+        // Was capped at 16384 on an unverified "10 GB card, so 16384 only"
+        // guess - never checked against a measured number. Desktop's own
+        // measured qwen3:8b @ 32768 is 7.16 GB (docs/hardware.md), which
+        // fits node3's 10 GB with ~2.8 GB to spare, and node3 has no
+        // co-resident second model competing for VRAM the way desktop does.
+        // Bumped to match desktop 2026-09-21 after 6/6 liar-mode runs across
+        // 3 different tasks on this seat: at 16384 (minus the 4096 output
+        // reserve) there's only ~12,288 tokens of input budget, and the
+        // measured preamble alone is 14,364 tokens post skill-rider-fix
+        // (AGENTS.md Preamble Budget gotcha) - already over budget before
+        // the task prompt, likely truncating the tool-calling scaffold
+        // itself. This config change is necessary but NOT sufficient: it
+        // changes what OpenCode expects, not what Ollama actually serves.
+        // node3 has no context-baking step the way desktop's startup.ps1
+        // does - confirm/set OLLAMA_CONTEXT_LENGTH=32768 on node3's own
+        // Ollama service (restart required) and verify with
+        // `curl http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'`
+        // (look for num_ctx) before trusting new node3 results either way.
         "qwen3:8b": {
           "name": "Qwen3 8B (Node3)",
           "attachment": true,
@@ -336,7 +354,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         // Measured FAIL on the real probe (2026-09-20, node3):
         // ignored the tool entirely and answered in prose. Do not flip this

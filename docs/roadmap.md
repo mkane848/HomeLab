@@ -674,6 +674,45 @@ git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7
 `mkane848/lfc-bot`) — same repos, same commit hashes, independently
 verifiable by anyone with read access.
 
+### Node3's `qwen3:8b` liar mode: likely a context-budget bug, not a capability finding (2026-09-21)
+
+Node3's `qwen3:8b` has now liar-moded (0 write calls, describes the change
+instead of making it) on **6 of 6 real task-veracity runs, across 3
+different tasks in 2 different repos** — `kane-01` ×2, `lfc-01` ×1,
+`kane-02` ×3 (the last of these on a task node3 had never touched before,
+ruling out anything specific to the first two prompts). Desktop's
+*identical* `qwen3:8b` model tag is 9/9 real writes across the same two
+original tasks. Task-specific bad luck stopped being a plausible
+explanation once the pattern held on a third, unrelated task.
+
+`opencode/global/opencode.jsonc`'s `ollama-node3` block had `qwen3:8b`
+capped at `limit.context: 16384` (desktop: `32768`) — set at onboarding on
+an unverified "10 GB card, so 16384 only" guess, never checked against a
+measured number. The math: 16384 total minus the 4096 output reserve
+leaves ~12,288 tokens of input budget; the measured preamble alone (post
+skill-rider fix, see the Preamble Budget entry above) is **14,364
+tokens** — already over that budget before the task prompt is even added.
+OpenCode would have to silently trim the system prompt / tool schema
+itself to fit, plausibly stripping the tool-calling scaffold entirely —
+which produces exactly this failure mode, on any task, regardless of
+content. Desktop's own measured `qwen3:8b` @ 32768 is 7.16 GB
+(`docs/hardware.md`), comfortably inside node3's 10 GB with ~2.8 GB to
+spare, and node3 has no co-resident second model competing for VRAM the
+way desktop does — nothing about the original 16384 cap was actually
+required by hardware.
+
+**Fixed the config side** (bumped to `32768`, matching desktop) but **this
+is necessary, not sufficient** — it changes what OpenCode expects, not what
+Ollama actually serves. Node3 has no context-baking step the way desktop's
+`startup.ps1` does (`$contextModels`); onboarding just did a raw `ollama
+pull qwen3:8b`. Confirm/set `OLLAMA_CONTEXT_LENGTH=32768` on node3's own
+Ollama service (restart required) and verify with `curl
+http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'` (look for
+`num_ctx`) before trusting any new node3 results either way — **every
+node3 run to date (6/6 liar mode) should be treated as invalidated by this
+bug, not as a measured capability finding, until that's confirmed fixed
+and re-run.**
+
 ## Desktop dev environments (landed)
 
 - [x] Desktop local service stack (`desktop/docker/docker-compose.yml` — Postgres 16 + Redis 7, loopback-only, `docker-stack.ps1`).
