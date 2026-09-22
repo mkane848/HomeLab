@@ -3,8 +3,16 @@
 # (2) interactively picks tasks + models + a repeat count and runs the batch
 # through test-tasks.ps1, one (task, model) pair per invocation.
 #
-# See docs/roadmap.md "Task-veracity benchmark: task set expansion (2026-09-21)"
-# for why these 6 branches/commits exist and where the numbers below came from.
+# Both pickers are data-driven, so adding a task or a model is NOT a script
+# edit:
+#   - Tasks come from tests/tasks/manifest.json. Each task that needs a bench
+#     branch contributes it via its own `branch` + `benchBaseCommit` fields
+#     (see docs/roadmap.md "Task-veracity benchmark: task set expansion
+#     (2026-09-21)" for the branch<->commit table).
+#   - Model seats come from tests/run-tasks-models.tsv - the tags the toolcalls
+#     probe (tests/test-toolcalls.ps1) actually measured PASS on - intersected
+#     with live /api/tags, so a new tool-capable model is one TSV row and a
+#     down host/unpulled model quietly stops being offered on its own.
 #
 # Usage:
 #   .\tests\run-tasks-batch.ps1                # ensure branches, then prompt
@@ -34,19 +42,15 @@ $tasksById = @{}
 foreach ($t in $manifest.tasks) { $tasksById[$t.id] = $t }
 
 # --- 1. bench branches: task id -> (branch name, exact pre-fix commit) -----
-# Mirrors docs/roadmap.md exactly - each commit is the one immediately BEFORE
-# the real merged fix that task grades, independently verified (baseline
-# green, failsOnOld red) when the task was authored. Repo path for each is
-# read from the manifest, not hardcoded here, so it stays in sync if that
-# ever changes.
-$benchBranches = @(
-    [pscustomobject]@{ TaskId = "kane-02-multiword-creature-type";  Branch = "bench/multi-word-creature-types"; Commit = "0e9b703047d37e31abbccbda2c9de175ae3e33cb" }
-    [pscustomobject]@{ TaskId = "kane-03-saga-chapter-triggers";    Branch = "bench/saga-chapter-triggers";     Commit = "4029a94a8bd5a22df1f3dcf819719c0e448270b4" }
-    [pscustomobject]@{ TaskId = "kane-04-singleton-up-to-n";        Branch = "bench/singleton-up-to-n";         Commit = "420372615ef8b95566dc8ab24039c1532830fdbf" }
-    [pscustomobject]@{ TaskId = "asohav-01-library-write-reporting"; Branch = "bench/library-write-reporting";  Commit = "c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5" }
-    [pscustomobject]@{ TaskId = "asohav-02-changelog-uuid-id";      Branch = "bench/changelog-uuid-id";         Commit = "d83381ad650b3474a50310e0dd3441a03cd89706" }
-    [pscustomobject]@{ TaskId = "lfc-02-scryfall-headers";          Branch = "bench/scryfall-required-headers"; Commit = "170b395baf8ad4205f6fb6d409b29c25635e7363" }
-)
+# Driven by the manifest, not a hardcoded table: each task that needs a bench
+# branch carries `branch` and `benchBaseCommit`; tasks without one (kane-01,
+# lfc-01) are simply skipped. Mirrors docs/roadmap.md exactly - each commit is
+# the one immediately BEFORE the real merged fix that task grades,
+# independently verified (baseline green, failsOnOld red) when the task was
+# authored.
+$benchBranches = @($manifest.tasks | Where-Object { $_.benchBaseCommit } | ForEach-Object {
+    [pscustomobject]@{ TaskId = $_.id; Branch = $_.branch; Commit = $_.benchBaseCommit }
+})
 
 if (-not $SkipSetup) {
     Write-Host "=== Ensuring bench branches exist ===" -ForegroundColor Cyan
@@ -114,6 +118,69 @@ function Select-FromList {
     return $picked
 }
 
+function Get-ProviderEndpoint {
+    # "ollama-node3/qwen3:8b" -> $env:OLLAMA_NODE3_BASE_URL, the same variable
+    # the profile exports and opencode.jsonc resolves through {env:...}.
+    # Non-ollama providers (opencode-go and friends) return $null: they are not
+    # host-scoped and there is no local endpoint to probe.
+    param([string]$ModelId)
+
+    $provider = ($ModelId -split "/")[0]
+    if ($provider -notmatch '^ollama-(.+)$') { return $null }
+    $varName = "OLLAMA_{0}_BASE_URL" -f $Matches[1].ToUpper().Replace("-", "_")
+    return [pscustomobject]@{
+        Provider = $provider
+        VarName  = $varName
+        BaseUrl  = [Environment]::GetEnvironmentVariable($varName)
+    }
+}
+
+function Get-AvailableModelSeats {
+    # Reads tests/run-tasks-models.tsv - the (tag, hosts) pairings the toolcalls
+    # probe has actually measured PASS on (AGENTS.md Gotchas: "Only the qwen3
+    # family can reliably call tools..."). Each candidate becomes an option ONLY
+    # if OLLAMA_<HOST>_BASE_URL is set AND that host answers /api/tags AND lists
+    # the tag - so a down host or an unpulled model silently disappears from the
+    # picker instead of failing the preflight later. Adding a model = one TSV row.
+    param([string]$RegistryPath)
+
+    $seats = [System.Collections.Generic.List[string]]::new()
+    if (-not (Test-Path -LiteralPath $RegistryPath)) {
+        Write-Host "  [WARN] no model registry at $RegistryPath - only the custom option is available" -ForegroundColor Yellow
+        return ,@()
+    }
+    foreach ($line in Get-Content -LiteralPath $RegistryPath) {
+        $t = $line.Trim()
+        if (-not $t -or $t.StartsWith('#')) { continue }
+        $cols = $t -split "`t"
+        if ($cols.Count -lt 2) { continue }
+        $tag = $cols[0].Trim()
+        if (-not $tag -or $tag -eq "tag") { continue }   # header row
+        foreach ($hostName in (($cols[1] -split '\s+') | Where-Object { $_ })) {
+            $modelId = "ollama-$hostName/$tag"
+            $ep = Get-ProviderEndpoint -ModelId $modelId
+            if (-not $ep -or -not $ep.BaseUrl) {
+                Write-Host ("  [skip] {0} - OLLAMA_{1}_BASE_URL is not set in this shell (source a profile first)" -f "ollama-$hostName", $hostName.ToUpper()) -ForegroundColor DarkGray
+                continue
+            }
+            $root = $ep.BaseUrl -replace '/v1/?$', ''
+            try {
+                $resp = Invoke-RestMethod -Uri "$root/api/tags" -TimeoutSec 5 -ErrorAction Stop
+            } catch {
+                Write-Host ("  [skip] {0} - host not answering /api/tags" -f "ollama-$hostName") -ForegroundColor DarkGray
+                continue
+            }
+            $installed = @($resp.models | ForEach-Object { $_.name })
+            if ($installed -contains $tag) {
+                if (-not $seats.Contains($modelId)) { $seats.Add($modelId) }
+            } else {
+                Write-Host ("  [skip] {0} - tag '{1}' not pulled there yet" -f "ollama-$hostName", $tag) -ForegroundColor DarkGray
+            }
+        }
+    }
+    return ,@($seats | Sort-Object)
+}
+
 Write-Host "=== Select tasks ===" -ForegroundColor Cyan
 $taskOptions = $manifest.tasks | ForEach-Object { "$($_.id)  -  $($_.title)" }
 $taskIdx = Select-FromList -Prompt "Tasks to run" -Options $taskOptions
@@ -125,17 +192,14 @@ $selectedTasks = $taskIdx | ForEach-Object { $manifest.tasks[$_].id }
 
 Write-Host ""
 Write-Host "=== Select models ===" -ForegroundColor Cyan
-# Curated to the seats AGENTS.md's own toolcalls probe has actually measured
-# PASS on (Gotchas: "Only the qwen3 family can reliably call tools..."). Pick
+# Seats come from tests/run-tasks-models.tsv - the tags the toolcalls probe has
+# actually measured PASS on (Gotchas: "Only the qwen3 family can reliably call
+# tools...") - intersected with each live host's /api/tags, so a new model is
+# one TSV row and a down host / an unpulled tag drops out by itself. Pick
 # "custom" to type any other opencode model id - nothing stops you, but an
 # un-probed model may silently no-op (liar mode) instead of failing loudly.
-$modelOptions = @(
-    "ollama-desktop/qwen3:14b"
-    "ollama-desktop/qwen3:8b"
-    "ollama-desktop/devstral:24b"
-    "ollama-node3/qwen3:8b"
-    "(custom model id - type your own)"
-)
+$modelOptions = @(Get-AvailableModelSeats -RegistryPath (Join-Path $scriptDir "run-tasks-models.tsv"))
+$modelOptions += "(custom model id - type your own)"
 $modelIdx = Select-FromList -Prompt "Models to run" -Options $modelOptions
 if ($modelIdx.Count -eq 0) {
     Write-Host "No models selected - nothing to do." -ForegroundColor Yellow
@@ -189,23 +253,7 @@ if (($selectedTasks -contains "lfc-02-scryfall-headers") -and $env:MANAPOOL_API_
 # CHANGELOG and docs/roadmap.md before anyone re-read the transcripts. A run
 # against a host that is not answering measures nothing, so every host this
 # batch would touch gets checked BEFORE the hours are spent. Costs ~1s per host.
-
-function Get-ProviderEndpoint {
-    # "ollama-node3/qwen3:8b" -> $env:OLLAMA_NODE3_BASE_URL, the same variable
-    # the profile exports and opencode.jsonc resolves through {env:...}.
-    # Non-ollama providers (opencode-go and friends) return $null: they are not
-    # host-scoped and there is no local endpoint to probe.
-    param([string]$ModelId)
-
-    $provider = ($ModelId -split "/")[0]
-    if ($provider -notmatch '^ollama-(.+)$') { return $null }
-    $varName = "OLLAMA_{0}_BASE_URL" -f $Matches[1].ToUpper().Replace("-", "_")
-    return [pscustomobject]@{
-        Provider = $provider
-        VarName  = $varName
-        BaseUrl  = [Environment]::GetEnvironmentVariable($varName)
-    }
-}
+# (Get-ProviderEndpoint is defined above with the seat picker.)
 
 function Test-OllamaEndpoint {
     # /api/tags is the cheapest check that proves Ollama itself is answering

@@ -77,6 +77,7 @@
       "source": "Mined from KaneEnabler commit 8f4555b2fd543e8a54cf2d38c0f6b96be3e68a9a (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's signals.test.ts at the parent commit (0e9b703047d37e31abbccbda2c9de175ae3e33cb): 28/28 baseline, then applying the fix commit's test-file changes alone against the unfixed source (2/31 fail) to confirm failsOnOld before authoring this entry. Originally shipped with a `setup` step copied from kane-01 (build @mtg/rules) - wrong, since `packages/rules` doesn't exist yet at this commit (`git ls-tree` confirms only `packages/config` does at that point in history) and signals.ts's only import at this commit is a local relative type. The original verification pass fell for this: it ran `pnpm install` + built `@mtg/rules` while still on `main` (current HEAD, where that package does exist), *then* created this branch - the stale `packages/rules/dist/` build output was untracked and survived the branch switch, so the sandbox test passed even though a fresh worktree (no such leftover) genuinely cannot resolve it. Caught 2026-09-21 while investigating three node3 runs of this task that failed identically - those runs actually died at the `opencode run` API call (node3 was unreachable), not at this setup step: a failed setup step returns before a summary row is written and all three wrote one. Reading them is what exposed this. Removed the setup block entirely - re-verified clean via `git show <commit>:<path> | grep import` (no working-tree checkout involved, so no way to repeat the same mistake).",
       "repo": "C:/Projects/KaneEnabler",
       "branch": "bench/multi-word-creature-types",
+      "benchBaseCommit": "0e9b703047d37e31abbccbda2c9de175ae3e33cb",
       "baselineExpect": {
         "testsTotal": 28,
         "testsPass": 28
@@ -99,6 +100,7 @@
       "source": "Mined from KaneEnabler commit 6b04fcb9bbf18f1938b38de5bd38662598b9d21f (2026-08-16, real merged fix), verified by running apps/time-counters's useGameState.test.ts at the parent commit (4029a94a8bd5a22df1f3dcf819719c0e448270b4): 23/23 baseline, then applying the fix commit's test-file changes alone against the unfixed source (3/27 fail) to confirm failsOnOld. Deliberately a stateful trigger/event bug, not another parsing bug like kane-02/kane-04.",
       "repo": "C:/Projects/KaneEnabler",
       "branch": "bench/saga-chapter-triggers",
+      "benchBaseCommit": "4029a94a8bd5a22df1f3dcf819719c0e448270b4",
       "baselineExpect": {
         "testsTotal": 23,
         "testsPass": 23
@@ -121,6 +123,7 @@
       "source": "Mined from KaneEnabler commit 5837c59db4a74b36e5ea53100b61219cd5742f7b (2026-08-16, real merged fix), verified by running apps/commander-recommender/server's singleton.test.ts at the parent commit (420372615ef8b95566dc8ab24039c1532830fdbf): 13/13 baseline, then applying the fix commit's test-file changes alone against the unfixed source (3/16 fail) to confirm failsOnOld. A regex/lookup-fallback bug, distinct from kane-02's word-matching bug despite both being in commander-recommender.",
       "repo": "C:/Projects/KaneEnabler",
       "branch": "bench/singleton-up-to-n",
+      "benchBaseCommit": "420372615ef8b95566dc8ab24039c1532830fdbf",
       "baselineExpect": {
         "testsTotal": 13,
         "testsPass": 13
@@ -143,6 +146,7 @@
       "source": "Mined from ASoHaVCompanionApp commit fe57b89556c6de096090b44343790d2cab04a358 (2026-09-13, real merged fix), scoped down to its backend-only concern (the original commit also bundled frontend surfacing across api.ts/AdminPanelPage.tsx and release version bumps, which are out of scope here). Verified by running apps/server's library.test.ts at the parent commit (c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5): 35/35 baseline, then applying the fix commit's test-file changes alone against the unfixed source (7/43 fail, matching exactly the 7 write routes named in the commit) to confirm failsOnOld. An async/operation-ordering reporting bug - a new failure class versus kane-*/lfc-01's logic bugs.",
       "repo": "M:/TTRPG/A Story of Heroes and Villains",
       "branch": "bench/library-write-reporting",
+      "benchBaseCommit": "c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5",
       "packageManager": "npm",
       "baselineExpect": {
         "testsTotal": 35,
@@ -173,6 +177,7 @@
       "source": "Mined from ASoHaVCompanionApp commit be055bec6aed4e242b274a390c71f1fa99c340e8 (2026-09-13, real merged fix), scoped down to its backend-only concern (the original commit also bundled release version bumps and CHANGELOG/HANDOFF doc updates, out of scope here). Verified by running apps/server's FULL suite at the parent commit (d83381ad650b3474a50310e0dd3441a03cd89706): 194/194 baseline (this task adds a brand-new test file, so there is no existing single-file baseline to target), then adding the fix commit's new test file alone against the unfixed source (2/4 of the new tests fail) to confirm failsOnOld. A schema/id-generation mismatch bug - a new failure class versus every other task in this manifest.",
       "repo": "M:/TTRPG/A Story of Heroes and Villains",
       "branch": "bench/changelog-uuid-id",
+      "benchBaseCommit": "d83381ad650b3474a50310e0dd3441a03cd89706",
       "packageManager": "npm",
       "baselineExpect": {
         "testsTotal": 194,
@@ -203,6 +208,7 @@
       "source": "Mined from lfc-bot commit 30b99a5dfc17946d352908be377bf8b0ef5c8d5f (2026-09-13, real merged fix), verified by running tests/services/scryfall.test.ts at the parent commit (170b395baf8ad4205f6fb6d409b29c25635e7363): 11/11 baseline WITH MANAPOOL_API_KEY unset (an unrelated pre-existing flake in this same file makes one test fail if that env var happens to be set - see the prompt's note), then applying the fix commit's test-file changes alone against the unfixed source (1/12 fail) to confirm failsOnOld. An external API contract bug (missing required headers) - a new failure class versus every KaneEnabler/ASoHaVCompanionApp task in this manifest.",
       "repo": "M:/Projects/LFCbot",
       "branch": "bench/scryfall-required-headers",
+      "benchBaseCommit": "170b395baf8ad4205f6fb6d409b29c25635e7363",
       "packageManager": "npm",
       "baselineExpect": {
         "testsTotal": 11,
