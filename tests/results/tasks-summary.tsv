@@ -54,3 +54,6 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-21T22:33:07	lfc-02-scryfall-headers	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	170b395baf8ad4205f6fb6d409b29c25635e7363	0	36	FAIL	PASS	FAIL	SKIP	1474.7
 2026-09-21T22:44:02	kane-04-singleton-up-to-n	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	420372615ef8b95566dc8ab24039c1532830fdbf	0	48	FAIL	PASS	FAIL	SKIP	951.5
 2026-09-21T23:14:52	lfc-02-scryfall-headers	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	170b395baf8ad4205f6fb6d409b29c25635e7363	0	88	FAIL	PASS	FAIL	SKIP	988.1
+2026-09-22T07:02:48	kane-04-singleton-up-to-n	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	420372615ef8b95566dc8ab24039c1532830fdbf	0	2	PASS	PASS	PASS	SKIP	317.4
+2026-09-22T07:44:11	asohav-02-changelog-uuid-id	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	d83381ad650b3474a50310e0dd3441a03cd89706	0	2	FAIL	PASS	FAIL	SKIP	371.8
+2026-09-22T08:01:18	asohav-02-changelog-uuid-id	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	d83381ad650b3474a50310e0dd3441a03cd89706	0	14	PASS	FAIL	PASS	SKIP	1017.4
