@@ -262,37 +262,102 @@ Rationale: `docs/roadmap.md`'s own 2026-09-21 pivot — breadth over depth, 8
 tasks now, 16 the target. Two of eight tasks currently have any gradable data,
 so between-task variance is essentially unmeasured.
 
-- [ ] Seats: `ollama-desktop/qwen3:8b` and `ollama-node3/qwen3:8b`. node3's
+- [x] Seats: `ollama-desktop/qwen3:8b` and `ollama-node3/qwen3:8b`. node3's
       `qwen3:8b` is bit-identical weights served over CUDA against desktop's
       Vulkan, so any systematic split between the two seats flags a backend
-      artifact for free — the stated reason node3 was onboarded.
-- [ ] **Never run the same task id in two terminals at once.** The worktree is
+      artifact for free — the stated reason node3 was onboarded. **(Ran
+      2026-09-21; harvested per-seat: the node3 leg was lost to an outage —
+      see the results block below.)**
+- [x] **Never run the same task id in two terminals at once.** The worktree is
       keyed by task id alone (`test-tasks.ps1:448`,
       `$wtPath = Join-Path $wtRoot $tk.id`), and so is the install marker
       (`:205`) — two concurrent runs of one task share a worktree and corrupt
       each other. AGENTS.md states the rule: *"different task IDs only, never
       the same one twice"*. `run-tasks-batch.ps1` is sequential by design.
-      To keep both machines busy, **partition by task, not by seat**: e.g.
-      terminal A takes `kane-03` + `kane-04`, terminal B takes `asohav-01` +
+      To keep both machines busy, **partition by task, not by seat**:
+      terminal A took `kane-03` + `kane-04`, terminal B took `asohav-01` +
       `asohav-02` + `lfc-02`, each running its own tasks against *both* seats.
-      No task id then appears in two terminals. (Both terminals may hit the
+      No task id then appeared in two terminals. (Both terminals may hit the
       same Ollama host at once; that is a throughput question, not a
       correctness one.)
-- [ ] **Hold `qwen3:14b` out of this batch.** It needs its own `kane-01` re-run
+- [x] **Hold `qwen3:14b` out of this batch.** It needs its own `kane-01` re-run
       post-cap-fix to establish whether its record was truncation or capability
       — a separate question from task breadth.
-- [ ] **N=3 first, not N=10.** 5 tasks × 2 seats × 3 = 30 runs satisfies the
+- [x] **N=3 first, not N=10.** 5 tasks × 2 seats × 3 = 30 runs satisfies the
       repo's own action gate (">=3 graded runs across >=2 tasks",
       `test-tasks.ps1` header) and surfaces a broken task definition after 6 runs
       rather than 20. Fill to the N=10 statistical target only for cells that
-      come through clean. `run-tasks-batch.ps1` defaults reps to 1 — set it
-      explicitly at the prompt.
+      come through clean. `run-tasks-batch.ps1` defaults reps to 1.
 
-The batch runner now refuses to start against a host that is not answering, so a
-dead endpoint can no longer burn a batch silently.
+The batch runner refuses to start against a host that is not answering, so a
+dead endpoint can no longer burn a batch silently. **It is a point-in-time
+snapshot, not a watch — node3 answered `/api/tags` at 20:43 and was unreachable
+by the first node3 attempt ~22:47.**
+
+### 4a. Results (2026-09-21 batch: 30 runs attempted)
+
+Ran via two detached `pwsh` drivers (`tests/run-tasks-batch.ps1` is interactive;
+the drivers looped `test-tasks.ps1 -Task <t> -Model <m> -RunTimeout 1500
+-CommandTimeout 300`, one per partition, `-DryRun`-preflighted in Section 3).
+Transcripts + the batch rows are in `tests/results/`; 9 new `tasks-summary.tsv`
+rows, 6 TIMEOUTs (no row), 15 `_INFRA_` (no row — harness correctly refused to
+grade a host that was not answering; this is the fixed behaviour, not a repeat
+of the "6/6 liar mode" misreading).
+
+**node3 (15 runs) — infrastructure outage, zero gradable data.** Host healthy
+at batch start (20:43, 4 tags), dead by first node3 run ~22:47: every node3 run
+failed `Cannot connect to API [http://192.168.1.235:11434/v1/chat/completions]`
+and was recorded `_INFRA_`. Confirmed down after (TCP 11434 refused, `ssh`
+hangs). **The whole node3 breadth leg is unmeasured — re-run seats
+`ollama-node3/qwen3:8b` across the same 5 tasks × N=3 once the box is back.**
+(Follow-up entry below.)
+
+**desktop (15 runs) — 1 clean PASS of 9 graded.** Two failure shapes, neither
+is liar mode:
+
+1. **Phantom-edit loop (dominant; kane-03 ×1, kane-04 ×1, lfc-02 ×2).** The
+   model reads the real file, then issues `edit` calls whose `oldString` does
+   not match the file — e.g. kane-03 tried to pattern-match `const newCount =
+   count + delta;`, which does *not* exist (actual: `const to = clampCount(
+   c.count + delta, ...)`). Every call returns `Could not find oldString...`
+   and it retries in a loop: 17, 36, 48, 88 `edit` calls, re-running vitest
+   8–13×, exiting 0 with **zero** real changes. `writes` in the TSV counts
+   tool *calls*, so the writes-gate passes and the scope gate correctly FAILs.
+   2× kane-03 and 1× each of the rest also TIMED OUT at 1500s.
+2. **Suite-breaking source edit (asohav-02 ×3).** rep1 landed the real fix
+   (removed `const id = newId('log')` from the insert in `repo.ts`) but its
+   added test failed to compile → suite FAIL "load/parse error"; rep3 edited
+   only the test (scope FAIL, "test-only change passes a buggy source").
+   This is a narrower miss than the phantom loop — the fix itself was correct
+   and applied — but the pairing kill (test breaks the build) still fails the
+   gate. Worth one targeted follow-up before trusting these results.
+
+**Clean PASS: `asohav-01-library-write-reporting` rep2** (18 writes, 8 true
+edits + 10 failed, all gates closed). The only cell that satisfied the N→
+follow-up bar naturally. **All other desktop cells are under N=3** (1–2 graded
+runs + timeouts), so the "fill clean cells to N=10" decision is deferred but
+the batch already surfaces the phantom-edit mode after 6 runs, per the plan's
+own rationale.
 
 ## Open follow-ups, not yet done
 
+- [ ] **Re-run the node3 breadth leg** (Section 4 was a 30-run batch; node3 was
+      down for its 15). Once the box answers, run the full 5 tasks ×
+      `ollama-node3/qwen3:8b` × N=3 (kane-03, kane-04, asohav-01, asohav-02,
+      lfc-02). Partition identically to §4 (by task, never the same task id in
+      two terminals). If it is down again at start, `run-tasks-batch.ps1`'s
+      preflight refuses to start — that is the intended guard, not a reason to
+      bypass it.
+- [ ] **The phantom-edit loop is a new failure mode distinct from liar mode**
+      (`tests/results/tasks-kane-03-saga-chapter-triggers-ollama-desktop_qwen3_8b_20260921-210616.jsonl`).
+      The model reads files then edits with a fabricated `oldString`, rolls on
+      dozens of `Could not find oldString` errors, exits 0 having written
+      nothing. The writes-gate counts calls and passes; only the scope gate
+      catches it. Worth (a) a `test-tasks.ps1`-level note or test — e.g. a
+      scope gate already covers it, but a "writes > 5 with scope==no-changes"
+      heuristic in the summary would make the mode legible at a glance — and
+      (b) a probe of whether `qwen3:8b`'s edit reliability degrades with the
+      preamble size / prompt length (the §1 OK-probe runs edited fine).
 - [ ] `test-tasks.ps1` hardcodes `pnpm exec tsc` even for `packageManager: npm`
       tasks. `lfc-01` is npm and WARNs on 10 of 17 rows — **confirm whether those
       are real type errors or pnpm failing in an npm-installed tree** before
