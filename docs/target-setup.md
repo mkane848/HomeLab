@@ -133,8 +133,8 @@ routing between.
 - **Terminus SSH access is undocumented.** Record which hosts it reaches and
   where the key lives (not the key itself) in
   [network-topology.md](network-topology.md).
-- **Free disk per machine** and **the LAN link between hosts** (wired gigabit
-  or Wi-Fi) are not in [hardware.md](hardware.md). Candidate models are
-  15–25 GB each, and every agent turn re-sends the prompt to the model host.
+- ~~Free disk and LAN link.~~ Settled 2026-09-22: all hosts are wired, and
+  disk is not a constraint. Per-option totals are in
+  [hardware.md](hardware.md) → "Network and storage".
 - **node3 sleep settings.** Its 2026-09-21/22 mid-batch dropouts were Windows
   sleep, not a fault. Disable sleep before giving it scheduled work.

@@ -103,8 +103,29 @@ listed because they move too fast to record.
    below), it is the gaming machine, and the target setup keeps it off the
    critical path. More RAM only if it ends up a regular executor.
 
-Also unrecorded: free disk per machine (models are 15–25 GB each) and whether
-the hosts are on wired gigabit.
+## Network and storage
+
+- **LAN:** all three machines are wired (confirmed 2026-09-22). Every agent turn
+  re-sends the prompt to the model host, so this matters for remote seats.
+- **Storage:** there is enough space and there are spare SSDs, so disk is not
+  a constraint. Budget from the totals below.
+
+Disk needed per option (Ollama Q4 download sizes; Ollama dedupes shared blobs,
+so derived `-16k`/`-32k` aliases cost almost nothing):
+
+| What | Host | Disk |
+|---|---|---|
+| Currently installed (measured 2026-09-22, `~/.ollama/models/blobs`) | desktop (C:) | **85.8 GB** |
+| All five large candidates: `devstral-small-2` 15 + `north-mini-code-1.0` 19 + `laguna-xs-2.1` 20 + `qwen3.6:35b-a3b-coding` 23 + `nemotron-3.5-lightning` 25 | desktop now, server later | **~102 GB** |
+| Top three only (`devstral-small-2`, `north-mini-code-1.0`, `laguna-xs-2.1`) | desktop / server | ~54 GB |
+| Small candidates: `ornith:9b` 5.6 + `ministral-3:8b` 6.0 + `lfm2.5:8b` 5.2 | node3 | **~17 GB** |
+| Server steady state: executor winner + runner-up + `qwen3:8b`/`qwen3:14b` + embeddings | server | ~60–70 GB |
+| Upgrade-gated: `qwen3-coder-next` (needs 64 GB RAM) | server | +52 GB |
+
+The desktop's models live on C:, which had **204 GB free** on 2026-09-22.
+The full candidate set fits and leaves ~100 GB. If C: gets tight, point
+`OLLAMA_MODELS` at M: (3.4 TB free) instead of pruning. Losing candidates
+costs nothing: a failed probe means `ollama rm`.
 
 ## Verify the new hardware
 

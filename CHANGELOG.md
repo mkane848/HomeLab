@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   files. Close the node3 "flapping" follow-up: the cause was Windows sleep.
 - `docs/hardware.md`: desktop RAM (32 GB), free-RAM-for-spill notes, the
   2026-09-22 Ollama library scan of candidate executor models per host, and
-  ranked hardware upgrade candidates for AI.
+  ranked hardware upgrade candidates for AI. Adds wired LAN and per-option
+  disk totals (~102 GB for all large candidates, ~17 GB for node3's; the
+  desktop's current install measures 85.8 GB).
 
 - Set node3's `qwen3:8b` `limit.context` to `32768` in `opencode/global/opencode.jsonc`,
   this time backed by a measurement: `/api/ps` on a healthy node3 reports
