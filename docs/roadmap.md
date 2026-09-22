@@ -161,6 +161,12 @@ Each node joins by taking a profile, not by re-learning the workflow. The end
 state is a pool: a loose prompt, and whichever hardware is up and fastest
 answers it.
 
+**Concrete shape (2026-09-22): [target-setup.md](target-setup.md).** A strong
+model plans interactively with you (Claude Code/Codex, or the server's best
+local model offline). The fleet executes the approved work orders unattended,
+with several attempts across hosts, and the existing gates decide what
+passed. That doc also has the machine roles and the ordered milestones.
+
 ## Onboarding the third node (RTX 3080 FE, 10 GB / 5950X)
 
 Started 2026-09-20 — the hardware exists now (previously "future"). The catalog,
