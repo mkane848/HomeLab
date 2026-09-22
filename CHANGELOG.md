@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Set node3's `qwen3:8b` `limit.context` to `32768` in `opencode/global/opencode.jsonc`,
+  this time backed by a measurement: `/api/ps` on a healthy node3 reports
+  `context_length 32768` and `7.84 GiB` VRAM (Ollama 0.34.2) with the model
+  loaded. The same number was set and reverted earlier on an unmeasured
+  justification ("6/6 liar mode" that turned out to be six unreachable-host
+  transcripts) — this entry replaces that guess with a reading.
+- Fix `tests/test-tasks.ps1` silently stranding INFRA/TIMEOUT transcripts in
+  `%TEMP%`. The cross-volume move (`C:\Temp` → `M:\results`) failed when a
+  handle briefly held the file (opencode teardown / AV scan); the old
+  `Move-Item -ErrorAction SilentlyContinue` swallowed the failure and still
+  printed "kept," which is how 15 transcripts on 2026-09-21 and 12 more on
+  2026-09-22 were left behind uncollected. A new `Move-Transcript` helper
+  retries with backoff, falls back to copy+delete, and prints a truthful WARN
+  with the stranded path when a source is genuinely stuck.
 - Bring `AGENTS.md`'s task-veracity harness description up to date with the
   2026-09-21 fixes. It still described grading as "scope / suite / failsOnOld /
   typecheck" with no mention that a run is graded **only** if `opencode run`

@@ -341,13 +341,32 @@ own rationale.
 
 ## Open follow-ups, not yet done
 
-- [ ] **Re-run the node3 breadth leg** (Section 4 was a 30-run batch; node3 was
-      down for its 15). Once the box answers, run the full 5 tasks ×
-      `ollama-node3/qwen3:8b` × N=3 (kane-03, kane-04, asohav-01, asohav-02,
-      lfc-02). Partition identically to §4 (by task, never the same task id in
-      two terminals). If it is down again at start, `run-tasks-batch.ps1`'s
-      preflight refuses to start — that is the intended guard, not a reason to
-      bypass it.
+- [ ] **Re-run the node3 breadth leg — attempted 2026-09-22, still incomplete.**
+      Two partial attempts so far, neither reached N=3 on all 5 tasks:
+      - 2026-09-22 07:02–08:01: node3 answered at the start, then flapped mid-leg
+        (12 of 15 runs hit `Cannot connect to API`, correctly recorded `_INFRA_`,
+        no row). 3 runs reached the model: `kane-04` rep1 **FULL PASS**
+        (2 writes, real fix, suite green, fails-on-old red — the first fully
+        clean node3 result); `asohav-02` rep2 phantom-write FAIL; `asohav-02`
+        rep3 suite-break FAIL (14 writes, same shape as desktop's rep1/rep3).
+      - 2026-09-22 09:14: one ad hoc `kane-03` rep on node3 — FAIL (scope/
+        failsOnOld), 11 writes, the phantom-edit loop (repeated
+        `Could not find oldString`) reproducing on node3 the same way it did on
+        desktop. **Confirms the phantom-edit mode is seat-general, not a
+        Vulkan/desktop artifact.**
+      Running tally: `kane-04` 1/3, `asohav-02` 2/3, `kane-03` 1/3,
+      **`asohav-01` 0/3, `lfc-02` 0/3 — no node3 data at all yet.** Still needed:
+      those two tasks plus 1–2 more reps each on the three that have started.
+      Partition identically to §4 (by task, never the same task id in two
+      terminals). If node3 is down at start, `run-tasks-batch.ps1`'s preflight
+      refuses to start — that is the intended guard, not a reason to bypass it.
+- [ ] **node3 has now flapped mid-batch twice** (2026-09-21 ~20:43→22:47 outage
+      during §4, 2026-09-22 flap during the re-run leg above) — both times
+      *after* an initial healthy `/api/tags` check, which the batch-start
+      preflight cannot catch. Worth deciding whether this is worth a
+      per-request health check (cost: latency) or just accepted as "node3 is a
+      personal desktop, not a server" and left to the existing `_INFRA_`
+      handling. Not attempted here.
 - [ ] **The phantom-edit loop is a new failure mode distinct from liar mode**
       (`tests/results/tasks-kane-03-saga-chapter-triggers-ollama-desktop_qwen3_8b_20260921-210616.jsonl`).
       The model reads files then edits with a fabricated `oldString`, rolls on
