@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-21T22:44:02",
+  "taskId": "kane-04-singleton-up-to-n",
+  "taskTitle": "KaneEnabler: a digit (not just a spelled-out number) in an 'up to N' singleton clause must parse correctly",
+  "model": "ollama-desktop/qwen3:8b",
+  "modelLabel": "ollama-desktop/qwen3:8b",
+  "baseCommit": "420372615ef8b95566dc8ab24039c1532830fdbf",
+  "promptSha256": "B63AF9A6F823",
+  "opencodeExit": 0,
+  "writes": 48,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "elapsedSec": 951.5,
+  "ollamaVersion": "ollama version is 0.34.1",
+  "opencodeVersion": "1.18.31",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-04-singleton-up-to-n-ollama-desktop_qwen3_8b_20260921-224402.jsonl"
+}

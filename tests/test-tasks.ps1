@@ -333,6 +333,34 @@ function Get-FailedTestNames {
     return @($names | Select-Object -Unique)
 }
 
+# Archive a transcript into tests/results/ with retry. The source lives in
+# %TEMP% and was written by a just-finished/killed background job; a cross-volume
+# move (C:\Temp -> M:\results is a copy+delete) fails with a sharing violation if
+# any handle (opencode teardown, AV/indexer scan) still holds the file. The old
+# code ran Move-Item -ErrorAction SilentlyContinue and still printed "kept",
+# which is how 15 transcripts stranded on 2026-09-21 and 12 more on 2026-09-22.
+# This retries the move, falls back to copy+delete (copy succeeds when the lock
+# only blocks the delete step), and reports loudly if the source is truly stuck.
+function Move-Transcript {
+    param([string]$Source, [string]$Destination)
+
+    for ($i = 1; $i -le 5; $i++) {
+        try {
+            Move-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+            return $true
+        } catch {
+            Start-Sleep -Milliseconds (250 * $i)
+        }
+    }
+    try {
+        Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+        Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function Get-FirstTranscriptError {
     # opencode writes a JSONL event stream; a provider-level failure shows up as
     # a single {"type":"error",...} line and nothing else (the six node3 runs of
@@ -507,8 +535,11 @@ foreach ($tk in $tasksToRun) {
         if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
             $failStamp      = Get-Date -Format "yyyyMMdd-HHmmss"
             $failTranscript = Join-Path $resultsDir ("tasks-{0}-{1}_{2}_{3}.jsonl" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $kind, $failStamp)
-            Move-Item -LiteralPath $run.TranscriptPath -Destination $failTranscript -Force -ErrorAction SilentlyContinue
-            Write-Host "    partial transcript kept: $failTranscript" -ForegroundColor DarkGray
+            if (Move-Transcript -Source $run.TranscriptPath -Destination $failTranscript) {
+                Write-Host "    partial transcript kept: $failTranscript" -ForegroundColor DarkGray
+            } else {
+                Write-Host "    WARN: transcript could not be archived - still at $($run.TranscriptPath); move it manually to preserve evidence" -ForegroundColor Yellow
+            }
         }
         if (-not $NoReset) { Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null; Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null }
         continue
@@ -639,8 +670,12 @@ foreach ($tk in $tasksToRun) {
     $runFile = Join-Path $resultsDir ($runBaseName + ".json")
     $transcriptDest = Join-Path $resultsDir ($runBaseName + ".jsonl")
     if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
-        Move-Item -LiteralPath $run.TranscriptPath -Destination $transcriptDest -Force
-        $transcriptFileField = Split-Path -Leaf $transcriptDest
+        if (Move-Transcript -Source $run.TranscriptPath -Destination $transcriptDest) {
+            $transcriptFileField = Split-Path -Leaf $transcriptDest
+        } else {
+            $transcriptFileField = $null
+            Write-Host "    WARN: transcript could not be archived - still at $($run.TranscriptPath); move it manually to preserve evidence" -ForegroundColor Yellow
+        }
     } else {
         $transcriptFileField = $null
         Write-Host "    (no transcript captured for this run)" -ForegroundColor DarkGray

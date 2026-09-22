@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-22T09:14:59",
+  "taskId": "kane-03-saga-chapter-triggers",
+  "taskTitle": "KaneEnabler: manual count edits on a Saga must catch up any chapter triggers they cross",
+  "model": "ollama-node3/qwen3:8b",
+  "modelLabel": "ollama-node3/qwen3:8b",
+  "baseCommit": "4029a94a8bd5a22df1f3dcf819719c0e448270b4",
+  "promptSha256": "F9DC389CE88F",
+  "opencodeExit": 0,
+  "writes": 11,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "elapsedSec": 1226.9,
+  "ollamaVersion": "ollama version is 0.34.1",
+  "opencodeVersion": "1.18.31",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-03-saga-chapter-triggers-ollama-node3_qwen3_8b_20260922-091459.jsonl"
+}

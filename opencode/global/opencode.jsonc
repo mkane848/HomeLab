@@ -342,36 +342,27 @@
     // OLLAMA_NODE3_BASE_URL to its IP.
     "ollama-node3": {
       "models": {
-        // 16384 here is the ONBOARDING DEFAULT and is still unverified - do
-        // not read it as a measured number.
+        // MEASURED 2026-09-21, healthy node: /api/ps with qwen3:8b loaded
+        // reports context_length 32768 and size_vram 7.84 GiB (8,416,489,635
+        // bytes) on Ollama 0.34.2. The onboarding-default 16384 this used to
+        // read was a guess, and the 32768 bump that briefly replaced it was
+        // justified by "6/6 liar-mode runs" that turned out to be six 307-byte
+        // "Cannot connect to API" transcripts - neither number had a
+        // measurement behind it. This one does.
         //
-        // It was briefly bumped to 32768 on 2026-09-21, justified by "6/6
-        // liar-mode runs across 3 different tasks" on this seat. That
-        // justification does not survive the transcripts, so the bump is
-        // reverted. All six of those files are 307 bytes and hold exactly one
-        // event: an APIError, "Cannot connect to API: Unable to connect",
-        // against http://NODE3_IP:11434/v1/chat/completions. No request ever
-        // reached Ollama, so they say nothing about context budget, and
-        // nothing about this model, in either direction. All six also carry
-        // opencodeExit=1 while every desktop row carries 0 - real liar mode
-        // exits 0. node3 has NO capability data yet, good or bad.
+        // 32768 aligns node3's seat with desktop's qwen3:8b (also 32768,
+        // baked by startup.ps1) and clears the preamble-budget arithmetic:
+        // 16384 minus the 4096 output reserve left ~12,288 tokens of input
+        // budget against a measured 14,364-token preamble - over budget before
+        // the task prompt. 7.84 GiB of the 3080 FE's 10 GB at 32k ctx leaves
+        // ~2 GiB, so glm4:9b (5.5 GB) cannot co-reside with it loaded; that is
+        // a VRAM juggling constraint, not a correctness one.
         //
-        // The arithmetic that bump leaned on is still worth knowing: 16384
-        // minus the 4096 output reserve leaves ~12,288 tokens of input budget,
-        // and the measured preamble alone is 14,364 tokens post skill-rider-fix
-        // (AGENTS.md Preamble Budget gotcha). If node3 really serves 16384,
-        // this seat is over budget before the task prompt is added. That makes
-        // measuring urgent - it does not license a second guess.
-        //
-        // So: before changing this number, measure what node3 actually serves.
-        // It has no context-baking step the way desktop's startup.ps1 does:
-        //   curl http://NODE3_IP:11434/api/show -d '{"name":"qwen3:8b"}'  # num_ctx
-        //   curl http://NODE3_IP:11434/api/ps                             # VRAM when loaded
-        // Set OLLAMA_CONTEXT_LENGTH on node3's own Ollama service (restart
-        // required), re-read /api/show, and set this to what it reports.
-        // Desktop's measured qwen3:8b @ 32768 is 7.16 GB (docs/hardware.md),
-        // which would fit node3's 10 GB with ~2.8 GB spare - but node3's own
-        // usable VRAM has still never been read (open to-do in docs/roadmap.md).
+        // No context-baking step exists on node3 (unlike desktop's
+        // startup.ps1), so the served window comes from the daemon's own
+        // OLLAMA_CONTEXT_LENGTH. Re-verify with
+        //   curl http://NODE3_IP:11434/api/ps   # context_length when loaded
+        // if node3's Ollama is ever restarted with a different env.
         "qwen3:8b": {
           "name": "Qwen3 8B (Node3)",
           "attachment": true,
@@ -379,7 +370,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         // Measured FAIL on the real probe (2026-09-20, node3):
         // ignored the tool entirely and answered in prose. Do not flip this

@@ -1,0 +1,1 @@
+{"type":"error","timestamp":1790078879399,"sessionID":"ses_f36feed4bffeVklnaKVb1YY9Bv","error":{"name":"APIError","data":{"message":"Cannot connect to API: Unable to connect. Is the computer able to access the url?","isRetryable":true,"metadata":{"url":"http://192.168.1.235:11434/v1/chat/completions"}}}}
