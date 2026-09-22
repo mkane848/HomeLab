@@ -354,9 +354,12 @@ own rationale.
         `Could not find oldString`) reproducing on node3 the same way it did on
         desktop. **Confirms the phantom-edit mode is seat-general, not a
         Vulkan/desktop artifact.**
+      - 2026-09-22 13:31: `asohav-01` rep1 on node3 — suite-breaking edit (real
+        changes to `library.ts` + `library.test.ts`, scope PASS, suite FAIL,
+        failsOnOld PASS), the same shape as `asohav-02`'s rep1/rep3 above.
       Running tally: `kane-04` 1/3, `asohav-02` 2/3, `kane-03` 1/3,
-      **`asohav-01` 0/3, `lfc-02` 0/3 — no node3 data at all yet.** Still needed:
-      those two tasks plus 1–2 more reps each on the three that have started.
+      `asohav-01` 1/3, **`lfc-02` 0/3 — still no node3 data.** Still needed:
+      `lfc-02` plus 1–2 more reps each on the four that have started.
       Partition identically to §4 (by task, never the same task id in two
       terminals). If node3 is down at start, `run-tasks-batch.ps1`'s preflight
       refuses to start — that is the intended guard, not a reason to bypass it.
