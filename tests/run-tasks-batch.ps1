@@ -34,7 +34,9 @@
 # confirmations. -Tasks/-Models take ids or 'all'; in Probe/Both mode -Models
 # picks what to probe and also takes 'new' (no result on the host's current
 # Ollama version). -OnlyMissing skips task x model pairs that already have a
-# graded row in tests/results/tasks-summary.tsv. "One run of everything that
+# graded row in tests/results/tasks-summary.tsv. -RunTimeout/-CommandTimeout
+# override the per-run caps for every invocation (0 = test-tasks.ps1
+# defaults, 900/300). "One run of everything that
 # has no data yet":
 #   .\tests\run-tasks-batch.ps1 -SkipSetup -Mode Both -Models new -Tasks all -Reps 1 -OnlyMissing -Yes
 
@@ -47,7 +49,14 @@ param(
     [string[]]$Models,
     [int]$Reps = 0,
     [switch]$OnlyMissing,
-    [switch]$Yes
+    [switch]$Yes,
+    # Seconds per opencode run / per grading command, forwarded to every
+    # test-tasks.ps1 invocation. 0 (default) leaves test-tasks.ps1's own
+    # defaults in place (900 / 300). Pass 1800 for the 18-25 GB offloading
+    # seats, whose runs otherwise die at the default cap with no transcript
+    # (see docs/implementation-tasks.md → "Gap-fill batch review").
+    [int]$RunTimeout = 0,
+    [int]$CommandTimeout = 0
 )
 
 $scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -671,7 +680,10 @@ foreach ($run in $runList) {
     $runNum++
     Write-Host ""
     Write-Host ">>> [$runNum/$total] $($run.Task)  x  $($run.Model)  (rep $($run.Rep) of $repCount)" -ForegroundColor Cyan
-    & $testTasksPs1 -Task $run.Task -Model $run.Model -ModelLabel $run.Model
+    $taskArgs = @{ Task = $run.Task; Model = $run.Model; ModelLabel = $run.Model }
+    if ($RunTimeout -gt 0) { $taskArgs['RunTimeout'] = $RunTimeout }
+    if ($CommandTimeout -gt 0) { $taskArgs['CommandTimeout'] = $CommandTimeout }
+    & $testTasksPs1 @taskArgs
     $results.Add([pscustomobject]@{
         Task     = $run.Task
         Model    = $run.Model

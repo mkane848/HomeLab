@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `tests/run-tasks-batch.ps1`: add `-RunTimeout`/`-CommandTimeout`, forwarded
+  to every `test-tasks.ps1` invocation (0 = its 900/300 defaults). The
+  18–25 GB offloading seats need 1800 or they die at the default cap with no
+  transcript — the gap-fill review's largest failure class. Requested there,
+  applied here.
 - Re-inventory `tests/results/README.md` for the 102-row corpus (was 43 rows /
   1 pass): 21 genuine passes listed, an era-confound box (no desktop qwen3 row
   exists post-09-22, so incumbent-vs-challenger comparisons span three harness
