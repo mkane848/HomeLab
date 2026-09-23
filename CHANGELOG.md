@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Agree the Stage 1 starting build (2026-09-23, server down): planner
+  `qwen3.6:35b-a3b-coding` (fully local loop, first plans small and
+  benchmark-shaped), executor attempt 1 `qwen3.5:9b` Q8 as measured (5/6),
+  attempt 2 `laguna-xs-2.1` (3/3), parallel attempt `qwen3:8b` on node3,
+  review-side `nemotron-3.5-lightning` (reviewer-seat trial per the round-3
+  protocol — the seat is empty, auditor duty meanwhile), dispatcher manual.
+  `ministral-3:8b` (0/7), `lfm2.5:8b` (0/8) and `ornith:9b` (1/7, liar mode
+  2026-09-23) are out as executors. Recorded in `docs/target-setup.md` →
+  "Starting build".
+- `opencode/global/opencode.jsonc`: raise the `qwen3.6:35b-a3b-coding` seat to
+  `limit.output` 8192 (it plans now — multi-order work orders plus acceptance
+  tests do not fit the 4096 executor budget that truncated `qwen3:14b`).
+
 - Record the aborted 2026-09-23 2-lane executor launch in
   `docs/implementation-tasks.md` (open follow-ups): Lane 1 control and Lane 2
   node3 gap fill both picked `kane-02` within 18 seconds — `-OnlyMissing`
