@@ -574,5 +574,79 @@ Pass by task, across all seats:
         structural answer. Voided cells stay open and are covered by the
         replan: `kane-02`/desktop-14b gets one clean single-cell re-run at
         the end of Lane 1 (even a PASS from the collided run would be
-        suspect), `kane-02`/node3-8b is re-picked by Lane 2's `-OnlyMissing`
-        on its own.
+       suspect), `kane-02`/node3-8b is re-picked by Lane 2's `-OnlyMissing`
+       on its own.
+
+# Session closeout — starting build agreed, reruns pending (2026-09-23)
+
+## What landed
+
+- Afternoon probe, 23 seats on desktop 0.34.3 + node3 0.34.2: full
+  reproduction (9 desktop PASSes re-PASS, 8 FAILs re-FAIL with identical
+  shapes); `qwen3.6:35b-a3b-coding` PASS (123.3 s); `lfm2.5:8b` /
+  `ministral-3:8b` probe-PASS in 3–7 s despite 0/8 and 0/5 task records
+  (probe is necessary, not sufficient); `glm4:9b` FAIL reproduced.
+  23 rows in `tests/results/toolcalls-summary.tsv`.
+- Two task lanes, 6 attempts, disjoint task sets (no collision): 3 graded —
+  `ministral × kane-03` FAIL/suite (broke test-file loading),
+  `ministral × kane-04` FAIL/failsOnOld (test never modified, the kane-04
+  disease), `ornith × lfc-02` FAIL liar mode (exit 0, 0 writes) — and 3
+  timeout unknowns at the 900 s cap (`qwen3:8b-node3 × lfc-02`,
+  `qwen3.6 × asohav-01/asohav-02`, no rows). Corpus 102 → 105.
+  Ministral 0/7, ornith 1/7; `lfm2.5`/`ministral`/`ornith` out as executors.
+- Starting build agreed (server down): planner `qwen3.6` (fully local, first
+  plans small and benchmark-shaped), attempt 1 `qwen3.5:9b` Q8 as measured,
+  attempt 2 `laguna-xs-2.1`, parallel attempt `qwen3:8b` on node3,
+  review-side `nemotron-3.5-lightning` (reviewer-seat trial per round-3
+  protocol — the seat is empty), dispatcher manual. Recorded in
+  `docs/target-setup.md` → "Starting build"; `qwen3.6` raised to
+  `limit.output` 8192.
+- PR #45 (`tests/afternoon-probe-and-runs`: probe rows + 3 graded rows +
+  evidence) and PR #46 (`config/starting-build-seats`: cap + lineup doc).
+  Merge results first, then config.
+
+## New open follow-ups
+
+- [ ] **`test-tasks.ps1` stamps the local desktop Ollama version onto
+      remote-host runs.** Node3 is live on 0.34.2 (verified) but every
+      node3 evidence `.json` from this session reads `"ollamaVersion":
+      "ollama version is 0.34.3"`. Fix: query the target host's
+      `/api/version` instead of localhost. Contained: the TSV has no
+      version column, so corpus analysis is safe — only per-run files
+      misstate it. Fix before the next results PR so new files stamp
+      correctly.
+- [ ] **Timeout runs print "Summary appended" but append nothing.** The 3
+      timeouts above printed `Summary appended to tasks-summary.tsv`,
+      added no row, and wrote no `_TIMEOUT_` transcript (repo-wide search:
+      none exist from 2026-09-23). Extends the streaming item under
+      "Next" above: at minimum make the message honest; the real fix is
+      the `_TIMEOUT_` transcript the docs already promise. Until then a
+      timeout is a pure unknown — slow-but-working and wedged look
+      identical afterward.
+
+## Next steps (ordered)
+
+1. Merge #45, then #46; pull main; delete branches.
+2. Fresh session: close all `opencode` instances (this session's harness
+   PID included — it holds the pre-sync config), new terminal, source
+   `dev-desktop-only`, verify both base URLs + MANAPOOL unset. The
+   staged live config already carries the 8192 cap, so new sessions get
+   it automatically.
+3. Rerun the 3 timeout unknowns with headroom (PR #43's passthrough;
+   `-OnlyMissing` re-targets exactly these — timeouts left no rows —
+   and the sets are disjoint):
+   - T1 desktop: `.\tests\run-tasks-batch.ps1 -Mode Tasks -Reps 1
+     -OnlyMissing -RunTimeout 1800` → model `qwen3.6`, tasks
+     `asohav-01, asohav-02`.
+   - T2 node3: same command → model node3 `qwen3:8b`, task `lfc-02`.
+   - If `qwen3.6` times out again at 1800 it is a seat finding, not a
+     cap finding; if node3 `qwen3:8b` hangs again on a task its desktop
+     twin handles, it is a host finding.
+4. Draft the `qwen3.6` planner prompt (read-only explore + interview +
+   work orders with planner-written acceptance tests); keep first plans
+   small and benchmark-shaped; planner test must fail on current code
+   before the order queues.
+5. Blind trial per the 2026-09-23 protocol (branch per order, 2–3 file /
+   ~300-line cap, abort on 3 consecutive gate failures). The `lfm2.5`
+   version-rematch (drop `-OnlyMissing` deliberately) stays deferred
+   until the lanes clear.
