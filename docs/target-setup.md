@@ -26,26 +26,45 @@ a description of what runs today; [start-here.md](start-here.md) is today.
 - **Current hardware only.** Upgrade ideas go in
   [hardware.md](hardware.md) → "Upgrade candidates"; nothing here depends on
   them.
+- **Winners first, rigor later (2026-09-23).** Pick winners per role on thin
+  samples; the N=10-per-cell backfill and further task authoring wait until a
+  working setup lands and earns deeper measurement. A miss reads as "wrong job
+  for this model", tracked in role-fit columns, not just pass@1.
+- **TypeScript only until first real use lands.** No .NET/C# benchmark tasks
+  before then.
+- **Server-centric with overflow.** The dispatcher and the main executor live
+  on the server once it POSTs; desktop and node3 take overflow attempts when
+  available (see Machine roles for the CPU asymmetry behind that split).
+- **Hosted calibration unscheduled.** The OpenCode Go key is available whenever
+  the owner wants a frontier oracle arm.
 
-## What the data says local models can do (as of 2026-09-22)
+## What the data says local models can do (as of 2026-09-23)
 
-From 54 graded `test-tasks.ps1` runs. The per-run table is
-`tests/results/tasks-summary.tsv`, and the transcript analysis that produced
-these numbers is under "Edit-reliability analysis across the whole corpus" in
-[implementation-tasks.md](implementation-tasks.md).
+Numbers live in `tests/results/README.md` (corpus inventory) and the
+per-attempt table plus pass audit in
+[implementation-tasks.md](implementation-tasks.md) → "Gap-fill batch review";
+what follows is the reading, not a second copy of the tables.
 
-- **pass@1 is 4/54 (7%)** for `qwen3:8b` + `qwen3:14b`. Tasks are
-  single-bug fixes over 2 files of 100–900 lines.
-- **`edit` succeeds 85 of 783 times (11%). 79% of the misses target code that
-  is not in the file**, and only 0.3% are whitespace near-misses. 94% of
-  `read` calls pass a small `limit` (20 lines most often), and 30% of edits hit
-  a file the model never read. The models edit from imagination, not from what
-  they read.
+- **Guided-repair pass@1 now separates the field.** The 8 executor candidates
+  have first task data (41 gap-fill runs, all post-fix harness): the desktop
+  seats pass where `qwen3:8b` mostly didn't, led by `qwen3.5:9b`, while
+  node3's small candidates do not execute (`lfm2.5:8b` 0/8, all zero-write;
+  `ministral-3:8b` 0/5). All 17 gap-fill passes audited non-hollow, with
+  behavioural `failsOnOld`. Timeout counts come from the per-attempt table —
+  timeouts are the largest failure class for the 18–25 GB offloading seats
+  under the 900 s cap, so their capability is unmeasured, not low.
+- **The old 7% pooled rate is retired.** It mixed harness eras (pre/post
+  INFRA split, pre/post output-cap fix) and is superseded by the per-seat,
+  per-attempt numbers above.
+- **`edit` succeeds 85 of 783 times (11%) in the 2026-09-22 corpus. 79% of
+  the misses target code that is not in the file**, and only 0.3% are
+  whitespace near-misses. 94% of `read` calls pass a small `limit` (20 lines
+  most often), and 30% of edits hit a file the model never read. The models
+  edit from imagination, not from what they read. (The gap-fill passes
+  themselves show 0–3 failed edits each — the loop is a property of weak
+  seats, not of the harness.)
 - **Writing a test that fails on the old code is the gate local models miss
   most** (`failsOnOld`), even when their source fix is right.
-- **The agent-trained candidates are untested.** `qwen3-coder:30b-a3b`, a
-  fair `devstral` run, and the 2026 releases in
-  [hardware.md](hardware.md) have no task data yet.
 
 What follows from that: a local model *must not* be asked to plan, design
 tests, or judge its own completion. Give it a small, precisely scoped change
@@ -90,9 +109,9 @@ with the acceptance test already written, and grade it mechanically.
 
 | Machine | Role | Seats (provisional) | Why |
 |---|---|---|---|
-| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host + dispatcher.** Serves the best executor model to every worker 24/7 and runs the queue. In mode C it is also the local planner. | Winner of the executor batch, most likely a 30B-A3B MoE coder spilling into RAM (`qwen3-coder:30b-a3b`, `north-mini-code-1.0`, `laguna-xs-2.1`, …) | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. |
-| **node3** (3080 10 GB CUDA, 5950X 16c/32t, 32 GB, always on once sleep is disabled) | **Worker: parallel attempts + CPU-heavy test runs.** Runs worktrees, `pnpm install`, vitest, typecheck. Serves a small executor for extra attempts and embeddings. | `qwen3:8b` today. `ornith:9b` / `ministral-3:8b` if they probe well. `nomic-embed-text` | The 16-core CPU is its best AI-adjacent asset: test/build execution is a big share of every attempt's wall-clock. 10 GB caps it at ~9B models. |
-| **Desktop** (6800 XT 16 GB Vulkan, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here. When not in use, its GPU adds attempts or hosts the review-gate seat. | Review-gate seat. Overflow executor | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it. |
+| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host + dispatcher.** Serves the best executor model to every worker 24/7 and runs the queue. In mode C it is also the local planner. | Winner of the executor batch, most likely a 30B-A3B MoE coder spilling into RAM (`qwen3-coder:30b-a3b`, `north-mini-code-1.0`, `laguna-xs-2.1`, …) | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
+| **node3** (3080 10 GB CUDA, 5950X 16c/32t, 32 GB, always on once sleep is disabled) | **Worker: parallel attempts + CPU-heavy test runs.** Runs worktrees, `pnpm install`, vitest, typecheck. Serves a small executor for extra attempts and embeddings. | `qwen3:8b` today; Q4 `qwen3.5:9b` trial next (only strong seat small enough for 10 GB). `ornith:9b` passed only the easiest task; `lfm2.5:8b` / `ministral-3:8b` are not executors. `nomic-embed-text` | The 16-core CPU is the best in the fleet: test/build execution is a big share of every attempt's wall-clock, so node3 is where worktrees run. 10 GB caps its served models at ~9B. |
+| **Desktop** (6800 XT 16 GB Vulkan, 5800X3D, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here. When not in use, its GPU adds attempts or hosts the review-gate seat. | Review-gate seat. Overflow executor (gap-fill winner, once chosen) | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it — but while idle it is a free second executor with a strong CPU. |
 | **GTX 1070** (8 GB) | Spare | — | See [hardware.md](hardware.md) → "Upgrade candidates". |
 
 **One front door.** OpenCode (or the dispatcher) should see one endpoint, and
@@ -108,6 +127,12 @@ routing between.
    [hardware.md](hardware.md) with `tests/test-toolcalls.ps1`. Run the
    passers through the 8-task batch, 2 reps each, harness unchanged, beside
    `qwen3-coder:30b-a3b`. Node3 runs its small candidates in parallel.
+   **Status 2026-09-23: first pass done** (gap-fill batch — all 8 candidates
+   have task data; per-attempt table + audit in the "Gap-fill batch review").
+   Still owed: the `qwen3` control rematch on the current harness, `qwen3.5:9b`
+   to N=3, raised-timeout re-runs for the offloaders, and the unfinished
+   `qwen3-coder:30b-a3b` ×8. The N=10-per-cell backfill waits until after
+   milestone 5 lands.
 2. **Harness fixes as A/B tests.** A local-executor agent prompt ("read the
    whole file before editing it; never put `...` in `oldString`; re-read after
    any miss") and a consecutive-miss cap on edit loops. One variable at a
