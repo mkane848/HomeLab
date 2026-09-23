@@ -24,7 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ranked hardware upgrade candidates for AI. Adds wired LAN and per-option
   disk totals (~102 GB for all large candidates, ~17 GB for node3's; the
   desktop's current install measures 85.8 GB).
-
+- Make `tests/run-tasks-batch.ps1`'s task and model pickers data-driven. The hardcoded
+  seat list is gone: options now come from `tests/run-tasks-models.tsv` (a row
+  per tag the toolcalls probe measured PASS on, with eligible hosts)
+  intersected against each live host's `/api/tags`, so a new tool-capable model
+  is one TSV row and a down host or an unpulled tag stops being offered on its
+  own. The newly imported `qwen3.5:9b` and `qwen3-coder:30b-a3b` seats appear
+  via that mechanism (`deepseek-r1-0528:8b` stays custom-option-only — the
+  probe measured it FAIL). Bench-branch pins moved into the tasks manifest
+  (`branch` + `benchBaseCommit` per task) so `-SetupOnly` and the task picker
+  are manifest-driven too.
 - Set node3's `qwen3:8b` `limit.context` to `32768` in `opencode/global/opencode.jsonc`,
   this time backed by a measurement: `/api/ps` on a healthy node3 reports
   `context_length 32768` and `7.84 GiB` VRAM (Ollama 0.34.2) with the model
