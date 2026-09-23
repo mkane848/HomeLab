@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `docs/target-setup.md`: the planned fleet end state once the server is
+  back, derived from the owner's stated workflow (interactive planning only;
+  unattended, slow implementation is fine; TypeScript first; offload to local
+  rather than replace Claude Code/Codex). A strong model writes work orders
+  with the acceptance test already in them. The fleet runs N attempts across
+  hosts, and the existing task-harness gates pick the winner. Includes machine
+  roles and ordered milestones.
+- Record the 2026-09-22 edit-reliability analysis in
+  `docs/implementation-tasks.md`: `edit` succeeds 11% of the time across all
+  graded transcripts. 79% of misses target code that isn't in the file (not
+  whitespace), 94% of reads are small slices, and 30% of edits hit unread
+  files. Close the node3 "flapping" follow-up: the cause was Windows sleep.
+- `docs/hardware.md`: desktop RAM (32 GB), free-RAM-for-spill notes, the
+  2026-09-22 Ollama library scan of candidate executor models per host, and
+  ranked hardware upgrade candidates for AI. Adds wired LAN and per-option
+  disk totals (~102 GB for all large candidates, ~17 GB for node3's; the
+  desktop's current install measures 85.8 GB).
 - Make `tests/run-tasks-batch.ps1`'s task and model pickers data-driven. The hardcoded
   seat list is gone: options now come from `tests/run-tasks-models.tsv` (a row
   per tag the toolcalls probe measured PASS on, with eligible hosts)

@@ -374,13 +374,35 @@ own rationale.
       Partition identically to §4 (by task, never the same task id in two
       terminals). If node3 is down at start, `run-tasks-batch.ps1`'s preflight
       refuses to start — that is the intended guard, not a reason to bypass it.
-- [ ] **node3 has now flapped mid-batch twice** (2026-09-21 ~20:43→22:47 outage
+- [x] **node3 has now flapped mid-batch twice** (2026-09-21 ~20:43→22:47 outage
       during §4, 2026-09-22 flap during the re-run leg above) — both times
       *after* an initial healthy `/api/tags` check, which the batch-start
-      preflight cannot catch. Worth deciding whether this is worth a
-      per-request health check (cost: latency) or just accepted as "node3 is a
-      personal desktop, not a server" and left to the existing `_INFRA_`
-      handling. Not attempted here.
+      preflight cannot catch. **Resolved 2026-09-22: both were Windows sleep
+      on node3** (power settings never changed after onboarding), per the
+      owner. No per-request health check needed. Disable sleep on node3
+      before scheduling work on it.
+- [ ] **Edit-reliability analysis across the whole corpus (2026-09-22).** Every
+      graded transcript was mined for tool-call outcomes. Failed `oldString`s
+      were classified against each file at the task's `baseCommit`
+      (`git show <baseCommit>:<path>`):
+      - `edit`: **85 succeeded, 698 failed (11%)**. `write` (whole file): 8/8.
+      - Of the failures: **79% hallucinated** (code not in the file at all),
+        8.7% present in the base file (drift after an earlier edit, or a
+        non-unique match), 8.5% placeholder `...` in `oldString`, 2.7%
+        partially real, **0.3% whitespace/indent-only**. Every target file is
+        LF, so CRLF is ruled out. A fuzzy-match edit tool would fix almost
+        none of this.
+      - `read`: **167 of 177 calls pass a `limit`**. The most common is 20
+        lines; target files are 96–907 lines. **238 of 783 edits (30%) hit a
+        file the model had not read** in that run.
+      - Per seat: `qwen3:14b` makes zero edits in 7 of 19 graded runs (it
+        reads, then answers in prose). `qwen3:8b` never makes zero edits but
+        loops on misses (up to 95 in one run). Two different failure modes,
+        so a single harness fix will not cover both.
+      - pass@1 across all 54 graded rows: 4 (7%).
+      Conclusion and plan: [target-setup.md](target-setup.md) → "Milestones"
+      (agent-trained executor candidates first, then a read-before-edit agent
+      prompt and a miss-loop cap as A/B tests).
 - [ ] **The phantom-edit loop is a new failure mode distinct from liar mode**
       (`tests/results/tasks-kane-03-saga-chapter-triggers-ollama-desktop_qwen3_8b_20260921-210616.jsonl`).
       The model reads files then edits with a fabricated `oldString`, rolls on
