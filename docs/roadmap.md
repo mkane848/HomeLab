@@ -2,7 +2,7 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
-## Next up (ordered, as of 2026-09-20)
+## Next up (ordered, as of 2026-09-23)
 
 The rest of this file is the full backlog by theme. This is the short list of
 what to actually pick up next, highest value first.
@@ -16,26 +16,38 @@ what to actually pick up next, highest value first.
    real correctness value** — everything else here is hygiene or research. Each
    fix must ship a test that *fails on the old code*. Different repo, so it
    needs a machine with that checkout.
-2. **Superseded 2026-09-21 — the goal is general capability, not these 2
-   tasks specifically, so the strategy is now breadth over depth.** Cap
-   per-model-per-task N at **10** (was heading toward 30–50, the right
-   number for narrowing the CI on these exact 2 tasks, but that no longer
-   answers the actual question); redirect the freed-up capacity into task
-   *count*: **8 tasks now** (kane-01/02/03/04, lfc-01/02, asohav-01/02 — see
-   "Task-veracity benchmark: task set expansion" below), **16 as the
-   target**. See that section for the full reasoning (within-task vs.
-   between-task variance) and the new tasks' provenance. The hosted/
-   frontier-model calibration arm below is still open, separately, whenever
-   the fleet owner wants to spend the API cost on it.
+2. **Executor selection, winners-first (supersedes the 2026-09-21 breadth
+    plan in the same item).** The 2026-09-23 gap-fill batch put first task
+    data on all 8 executor candidates (`docs/implementation-tasks.md` →
+    "Gap-fill batch review" for the per-attempt table and the non-hollow
+    audit; `tests/results/README.md` for the corpus inventory). The strategy
+    the fleet owner chose 2026-09-23: pick winners per role on thin samples,
+    then do more testing once a working setup lands — so the N=10-per-cell
+    backfill and the 16-task expansion both wait until after first real use.
+    A miss is read as "wrong job for this model", and the scoreboard keeps
+    role-fit columns (timeout rate, writes-per-pass, failsOnOld-miss rate),
+    not just pass@1. Next runs, in order: (a) **control** — `qwen3:14b` /
+    `qwen3:8b` rematch on Ollama 0.34.3, owed before the jump is credited to
+    the new models rather than the version move; (b) **`qwen3.5:9b` to N=3**
+    on every task, plus a Q4 copy on node3 (only strong seat small enough for
+    10 GB); (c) raised-`-RunTimeout` re-runs for the offloading seats via
+    `-OnlyMissing`; (d) the unfinished `qwen3-coder:30b-a3b` ×8. What the
+    tasks measure is **guided repair** (each prompt names file, function, and
+    bug shape), which transfers to the work-order executor role — not
+    autonomous debugging. The hosted/frontier-model calibration arm stays
+    unscheduled; the OpenCode Go key is available whenever the owner wants
+    to spend it.
 3. **~~Onboard the third node (RTX 3080 FE)~~ — done 2026-09-20.** Join →
    probe → validate all complete (see "Onboarding the third node" below):
    `qwen3:8b` is a real, measured agent seat on this host, `test-profiles.ps1
-   -Profile dev-node3` is green. **Actually pick this up now:** run
-   `ollama-node3/qwen3:8b` trials concurrently with the desktop's batch on
-   item 2, instead of serially — that's the whole point of onboarding it.
-   Split the two terminals by **task id**, never by seat on a shared task —
-   see the correction under step 9 below, and the handoff in
-   `docs/implementation-tasks.md`.
+   -Profile dev-node3` is green. **Done since: the node3 breadth leg ran in
+   the 2026-09-23 gap-fill batch** (19 node3 runs with evidence), the sleep
+   flap was root-caused to Windows sleep, and the small candidates are
+   measured: `ornith:9b` passes only the easiest task (1/6), `lfm2.5:8b`
+   (0/8, all zero-write) and `ministral-3:8b` (0/5) are not executors — see
+   the "Gap-fill batch review" grading pass. Node3's next job is overflow
+   worker duty plus a Q4 `qwen3.5:9b` trial, not more small-candidate
+   batches.
    Unsloth is installed there for a later, explicitly gated fine-tuning
    track — still not part of this item.
 4. **Settle the desktop Ollama auto-update.** `desktop/scripts/pin-ollama-desktop.ps1`
@@ -57,7 +69,8 @@ what to actually pick up next, highest value first.
    `profiles.md` + `hardware.md` and delete it.
 8. **Review-gate leftovers, low priority.** The seat question is closed (see
    "Review-gate: settled" below). What remains is optional: a hosted arm (the
-   only untried thing that could change the answer, needs an endpoint + key),
+   only untried thing that could change the answer — unscheduled, OpenCode Go
+   key available),
    Arm C (the de-leaked prompt), and a seam-6 brittleness probe for the
    deterministic checker — the fixture built for that on 2026-09-19 tested the
    wrong thing, so the question is still open. None of these block anything.
@@ -623,6 +636,10 @@ log below) — a pattern not visible from re-running one task harder.
 > or of anything else about that seat. The `qwen3:14b` example above still
 > stands on its own, and the breadth-over-depth conclusion does not depend on
 > the withdrawn one.
+
+> **2026-09-23: the N=10 backfill and the 16-task expansion wait until
+> after first real use (winners-first — see "Next up" item 2). The decision
+> below is the target, not the current order.**
 
 **Decision: N=10 per model/task cell, 8 tasks now, 16 the target.** Wilson
 95%-CI math (still 0 successes / at a 20% true rate): n=5→±29pts,

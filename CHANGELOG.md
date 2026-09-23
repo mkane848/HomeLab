@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timeout counts with the lost-transcript caveat. Defers per-attempt rates to
   `docs/implementation-tasks.md` → "Gap-fill batch review" instead of
   duplicating them.
+- Reframe `docs/roadmap.md` and `docs/target-setup.md` around the owner's
+  2026-09-23 decisions: executor selection winners-first (N=10 backfill and
+  16-task expansion wait until after first real use; misses read as role-fit,
+  not model quality), TypeScript-only until first real use, server-centric
+  fleet with desktop/node3 overflow, hosted calibration unscheduled with the
+  OpenCode Go key available. Roadmap Next-up item 2 replaced, node3 and
+  review-gate items closed out with pointers, `target-setup.md` data section
+  re-based off the gap-fill review (retiring the pooled 7%), machine roles
+  record the CPU asymmetry (server serves, node3/desktop run worktrees).
 - Grade the 2026-09-23 gap-fill batch (`docs/implementation-tasks.md` →
   "Gap-fill batch review"). Rates are now per attempt, because timeouts
   leave no row and graded-only ratios overstate: `qwen3.5:9b` 5/8,
