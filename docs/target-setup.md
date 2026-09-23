@@ -121,6 +121,28 @@ last step, not the first. A routing proxy on the server (e.g. LiteLLM) is the
 likely shape, but it only pays off once there are two executor hosts worth
 routing between.
 
+## Starting build (Stage 1, agreed 2026-09-23, server down)
+
+The end state above waits on the server; this is what runs now, picked
+winners-first off the 105-row corpus (`tests/results/README.md`):
+
+| Position | Seat | Evidence |
+|---|---|---|
+| Planner (fully local) | `qwen3.6:35b-a3b-coding` (desktop) | Probe PASS 2026-09-23; slowest seat (123 s probe), 3/6 executor record with 2 timeout unknowns — first plans stay small and benchmark-shaped |
+| Executor attempt 1 (desktop) | `qwen3.5:9b` Q8, as measured | 5/6, strongest record anywhere; Q8 deliberately (the record was earned on Q8, Q4 is a separate experiment) |
+| Executor attempt 2 (desktop, sequential) | `laguna-xs-2.1` | 3/3, non-Qwen weights for attempt diversity |
+| Parallel attempt + CPU worker (node3) | `qwen3:8b` | Only tool-reliable seat fitting 10 GB; node3's 16 cores run the CPU-heavy half (worktrees, vitest) |
+| Review-side | `nemotron-3.5-lightning` | 3/4, non-Qwen; trials for the empty reviewer seat per the round-3 protocol, auditor duty meanwhile |
+| Embeddings | `nomic-embed-text` | Already on both hosts |
+| Autocomplete | deferred | No seat until the server is back |
+| Dispatcher | manual (owner runs the batch per order) | Until milestone 4 sets N from data |
+
+Out as executors: `ministral-3:8b` (0/7), `lfm2.5:8b` (0/8, all
+zero-write), `ornith:9b` (1/7, liar mode 2026-09-23). Planner discipline (from
+the data): the planner writes the acceptance test, the test must fail on
+current code before the order queues, one file per order — the loop in "The
+shape" is unchanged, only the planner's name is filled in.
+
 ## Milestones (ordered; each is measurable with the existing harness)
 
 1. **Pick executor models.** Probe the candidates in

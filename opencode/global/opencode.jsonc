@@ -368,6 +368,9 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 4096 }
         },
+        // Starting-build planner seat (agreed 2026-09-23): a plan carries
+        // multi-order work orders plus acceptance tests, which does not fit
+        // the 4096 executor budget (the qwen3:14b truncation trap) - 8192.
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Desktop, candidate, offloads)",
           "attachment": true,
@@ -375,7 +378,7 @@
           "tool_call": true,
           "modalities": { "input": ["image", "text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 32768, "output": 8192 }
         },
         "nemotron-3.5-lightning": {
           "name": "Nemotron 3.5 Lightning 30B-A3B (Desktop, candidate, offloads)",
