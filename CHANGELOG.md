@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Grade the 2026-09-23 gap-fill batch (`docs/implementation-tasks.md` →
+  "Gap-fill batch review"). Rates are now per attempt, because timeouts
+  leave no row and graded-only ratios overstate: `qwen3.5:9b` 5/8,
+  `laguna-xs-2.1` 3/8 (5 timeouts), `nemotron-3.5-lightning` 3/8,
+  `qwen3.6:35b-a3b-coding` 3/8, `north-mini-code-1.0` 1/8,
+  `devstral-small-2:24b` 1/8 (7 timeouts). An audit of the transcripts of all
+  17 passes finds none hollow: real edits to both source and test, and every
+  `failsOnOld` is a behavioural failure, not an import crash. Records the
+  lost-timeout-transcript bug, the `kane-02` compaction failures behind both
+  `_INFRA_` runs, and the missing Ollama-version control. Nothing else changes.
+
 - Task-veracity benchmark: gap-fill batch 2026-09-23, 41 graded runs (22
   desktop + 19 node3) across the new executor candidates, evidence committed
   verbatim (per-run `.json` + `.jsonl`; 2 extra `_INFRA_` transcripts with no

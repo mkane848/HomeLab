@@ -339,6 +339,111 @@ runs + timeouts), so the "fill clean cells to N=10" decision is deferred but
 the batch already surfaces the phantom-edit mode after 6 runs, per the plan's
 own rationale.
 
+## Gap-fill batch review (2026-09-23)
+
+Batch: `run-tasks-batch.ps1 -Mode Both -Models new -Tasks all -Reps 1
+-OnlyMissing`, 2026-09-22 23:00 → 2026-09-23 08:34. The desktop lane ran from
+`M:\Projects\dev-docs` and a node3 lane ran from a second checkout at the same
+time. Both were stopped before finishing. The evidence was committed verbatim
+in PR #38. This section is the separate grading pass.
+
+**Recorded data is complete.** 41 graded rows, each with its `.json` and
+`.jsonl`, plus 2 `_INFRA_` transcripts.
+
+### Pass rate per attempt, not per graded run
+
+A timeout leaves **no row and no transcript** (see the bug below), so the
+graded-only ratios in the CHANGELOG ("`laguna-xs-2.1` 3/3") overstate the
+models. Attempts are reconstructed from the 15-minute gaps between rows and
+from the Ollama server log, which shows requests in every 10-minute window
+all night.
+
+| Seat | Attempts | Full PASS | Timeout | `_INFRA_` | 0-write | Other FAIL | Median s (graded) |
+|---|---|---|---|---|---|---|---|
+| `ollama-desktop/qwen3.5:9b` | 8 | **5** | 1 | 1 | 1 | 0 | 269 |
+| `ollama-desktop/laguna-xs-2.1` | 8 | 3 | 5 | 0 | 0 | 0 | 497 |
+| `ollama-desktop/nemotron-3.5-lightning` | 8 | 3 | 4 | 0 | 1 | 0 | 510 |
+| `ollama-desktop/qwen3.6:35b-a3b-coding` | 8 | 3 | 2 | 0 | 1 | 2 | 358 |
+| `ollama-desktop/north-mini-code-1.0` | 8 | 1 | 5 | 1 | 1 | 0 | 730 |
+| `ollama-desktop/devstral-small-2:24b` | 8 | 1 | 7 | 0 | 0 | 0 | 732 |
+| `ollama-node3/ornith:9b` | 6 | 1 | 0 | 0 | 3 | 2 | 77 |
+| `ollama-node3/ministral-3:8b` | 8 | 0 | 3 | 0 | 0 | 5 | 230 |
+| `ollama-node3/lfm2.5:8b` | 8 | 0 | 0 | 0 | 8 | 0 | 20 |
+
+Pass by task, across all seats:
+
+| Task | Passes | Note |
+|---|---|---|
+| `kane-04` | 7 | Easy: `ornith:9b` passed it in 65 s |
+| `lfc-01` | 4 | |
+| `lfc-02` | 3 | |
+| `kane-01` | 2 | |
+| `kane-03` | 1 | |
+| `kane-02` | 0 | 907-line `signals.ts`. Both `_INFRA_` runs are this task |
+| `asohav-01`, `asohav-02` | 0 | 3 of the 7 zero-write runs outside `lfm2.5` are ASoHaV tasks. No seat has passed either one |
+
+### Transcript audit of all 17 full passes
+
+- **None is hollow.** Every pass has successful edits to both the source file
+  and the test file, within `allowFiles`.
+- **Every `failsOnOld` PASS is a behavioural failure, not an import crash.**
+  The test imports added by the models were checked against each task's base
+  commit: `chapterRoman` exists at `kane-03`'s base (`counters.ts:151`), and
+  `singletonLimit`/`applySingletonLimits` exist at `kane-04`'s base
+  (`singleton.ts:42/77`). Nothing else imports a symbol the fix introduced.
+- **The phantom-edit loop is essentially gone in these runs.** Most passes have
+  **0 failed edits** (the worst has 3). The 2026-09-22 corpus had 85 of 783
+  edits succeed.
+
+### Failure modes
+
+- **Timeouts are the largest failure class for the offloading models** (the 18–25 GB
+  MoE/dense candidates). `test-tasks.ps1` defaults `-RunTimeout` to 900 s. Those
+  models' true capability is unmeasured, not low.
+- **Both `_INFRA_` runs are context overflow on `kane-02`, not host failures.**
+  The model filled 32k, then OpenCode's compaction failed.
+  `north-mini-code-1.0` made a tool call during the summary ("Tool call not
+  allowed while generating summary"). `qwen3.5:9b`'s chat template raised "No
+  user query found in messages" (HTTP 500). Each had worked for minutes
+  first. They are recorded as infrastructure and have no row, so
+  `-OnlyMissing` will retry them.
+- **`lfm2.5:8b` passes the tool-call probe and is liar mode in the real
+  loop.** It made 0 writes on 8 of 8 tasks in 9–44 s. The probe is necessary,
+  not sufficient.
+
+### What the batch does NOT show yet
+
+- **Model versus environment.** Ollama moved 0.34.1 → 0.34.3 between the old
+  corpus and this batch. The `qwen3:14b`/`qwen3:8b` gap-fill runs, which would
+  be the control, were queued last and never ran. Run them before crediting
+  the jump to the new models.
+- **Unfinished work:** `qwen3-coder:30b-a3b` ×8, `devstral:24b` ×7,
+  `qwen3:14b` ×6, `ollama-desktop/qwen3:8b` ×1, `ornith:9b` ×2,
+  `ollama-node3/qwen3:8b` ×4. `-OnlyMissing` picks these up.
+
+### Next
+
+- [ ] **Timeout transcripts are lost.** `Invoke-OpencodeRun` writes the job's
+      output with `$events | Out-File` only after `opencode run` returns, so
+      `Stop-Job` on timeout leaves nothing to rescue. The "partial transcript
+      kept" branch can never fire for a timeout. Stream to the file instead
+      (`opencode run ... | Out-File` inside the job, or `Tee-Object`).
+- [ ] **Raise the timeout for the offloading seats** (for example
+      `-RunTimeout 1800`, passed through from `run-tasks-batch.ps1`). Then
+      re-run `-OnlyMissing` for `laguna-xs-2.1`, `nemotron-3.5-lightning`,
+      `qwen3.6:35b-a3b-coding`, `north-mini-code-1.0` and
+      `devstral-small-2:24b`.
+- [ ] **Run the control:** `qwen3:14b` and `qwen3:8b` on all 8 tasks on
+      0.34.3.
+- [ ] **`qwen3.5:9b` is the lead candidate:** 5/8, fits in VRAM, and has the
+      fastest median. Give it N=3 on every task. It is also the only strong
+      seat small enough for node3's 10 GB at Q4 (the installed desktop copy is
+      a 10.4 GB Q8 import), so pulling a Q4 `qwen3.5:9b` on node3 is the
+      obvious next node3 candidate.
+- [ ] **node3's small candidates are not executors.** Drop `lfm2.5:8b` and
+      `ministral-3:8b` from task batches. `ornith:9b` only passes the easiest
+      task.
+
 ## Open follow-ups, not yet done
 
 - [ ] **Re-run the node3 breadth leg — attempted 2026-09-22, still incomplete.**
