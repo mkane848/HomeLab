@@ -93,6 +93,20 @@ $contextModels = @(
     @{ Base = "deepseek-r1:14b";   Ctx = 16384; Aliases = @(16384, 32768) }
     @{ Base = "qwen2.5-coder:7b";  Ctx = 16384; Aliases = @(16384)        }
     @{ Base = "qwen2.5-coder:14b"; Ctx = 32768; Aliases = @()             }
+    # Tool-capable seats and executor candidates (2026-09-22). All 32k for the
+    # same preamble arithmetic as the qwen3 pair: at the 16384 User-level
+    # default, OpenCode's ~14.4k-token standing preamble plus the 4096 output
+    # reserve does not fit, and the model loses its system prompt before it
+    # sees the task. Tags without a version get ":latest" spelled out, because
+    # the /api/tags existence check above compares the full name.
+    @{ Base = "qwen3.5:9b";                     Ctx = 32768; Aliases = @() }
+    @{ Base = "qwen3-coder:30b-a3b";            Ctx = 32768; Aliases = @() }
+    @{ Base = "devstral:24b";                   Ctx = 32768; Aliases = @() }
+    @{ Base = "devstral-small-2:24b";           Ctx = 32768; Aliases = @() }
+    @{ Base = "north-mini-code-1.0:latest";     Ctx = 32768; Aliases = @() }
+    @{ Base = "laguna-xs-2.1:latest";           Ctx = 32768; Aliases = @() }
+    @{ Base = "qwen3.6:35b-a3b-coding";         Ctx = 32768; Aliases = @() }
+    @{ Base = "nemotron-3.5-lightning:latest";  Ctx = 32768; Aliases = @() }
 )
 
 $ctxOverride = $PSBoundParameters.ContainsKey('ContextLength')

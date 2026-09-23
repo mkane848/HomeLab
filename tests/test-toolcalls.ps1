@@ -13,18 +13,37 @@
 # Usage:
 #   .\tests\test-toolcalls.ps1                      # every installed chat model
 #   .\tests\test-toolcalls.ps1 -Model qwen3:8b      # one model
-#   .\tests\test-toolcalls.ps1 -Model a,b -Host http://SERVER_IP:11434
+#   .\tests\test-toolcalls.ps1 -Model a,b -OllamaHost http://SERVER_IP:11434 -HostLabel server
+#
+# Every result is appended to tests/results/toolcalls-summary.tsv, tagged with
+# the host and the Ollama version it ran against. A probe result is only valid
+# for that version, and before this log they were recorded by hand
+# (toolcalls-0.34.1.txt). -NoLog skips the append. run-tasks-batch.ps1 reads
+# this file to show each model's last probe result in its menus.
 #
 # Exit code: 0 if every tested model passed, 1 otherwise.
 
 param(
     [string[]]$Model,
     [string]$OllamaHost = "http://localhost:11434",
+    # Short name for the host in the log: desktop / node3 / server. Matches the
+    # opencode provider suffix (ollama-<label>). Defaults to "desktop" for
+    # localhost, else the URL's host part.
+    [string]$HostLabel,
+    [string]$LogFile = (Join-Path $PSScriptRoot "results\toolcalls-summary.tsv"),
+    [switch]$NoLog,
     [int]$TimeoutSec = 900,
     [switch]$KeepLoaded
 )
 
 $ErrorActionPreference = "Stop"
+
+$OllamaHost = $OllamaHost -replace '/v1/?$', '' -replace '/$', ''
+if (-not $HostLabel) {
+    $HostLabel = if ($OllamaHost -match '//(localhost|127\.0\.0\.1)[:/]?') { "desktop" } else { ([uri]$OllamaHost).Host }
+}
+try   { $ollamaVersion = (Invoke-RestMethod -Uri "$OllamaHost/api/version" -TimeoutSec 10).version }
+catch { $ollamaVersion = "unknown" }
 
 # Embedding models have no chat endpoint; skip them.
 $SKIP_PATTERN = 'embed|bge-|nomic|mxbai'
@@ -93,7 +112,7 @@ $targets = if ($Model) { $Model } else { Get-ChatModels }
 if (-not $targets) { Write-Host "No chat models found at $OllamaHost" -ForegroundColor Yellow; exit 1 }
 
 Write-Host ""
-Write-Host "=== Tool-calling probe against $OllamaHost ===" -ForegroundColor Cyan
+Write-Host "=== Tool-calling probe against $OllamaHost ($HostLabel, Ollama $ollamaVersion) ===" -ForegroundColor Cyan
 Write-Host "    PASS = returns a structured tool_calls entry (safe for an agent seat)" -ForegroundColor Gray
 Write-Host "    FAIL = empty tool_calls; will claim edits it never made" -ForegroundColor Gray
 Write-Host ""
@@ -103,6 +122,15 @@ $results = foreach ($t in $targets) {
     $r = Test-ToolCall -Tag $t
     $color = switch ($r.Status) { "PASS" { "Green" } "FAIL" { "Red" } "WARN" { "Yellow" } default { "Magenta" } }
     Write-Host ("  [{0,-5}] {1,-26} {2,6}s  {3}" -f $r.Status, $r.Model, $r.Sec, $r.Detail) -ForegroundColor $color
+    if (-not $NoLog) {
+        if (-not (Test-Path -LiteralPath $LogFile)) {
+            "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail" | Set-Content -LiteralPath $LogFile -Encoding utf8
+        }
+        # Tabs/newlines in model output would break the TSV.
+        $detail = $r.Detail -replace '[\t\r\n]+', ' '
+        ("{0}`t{1}`t{2}`t{3}`t{4}`t{5}`t{6}" -f (Get-Date -Format "yyyy-MM-ddTHH:mm:ss"), $HostLabel, $ollamaVersion, $r.Model, $r.Status, $r.Sec, $detail) |
+            Add-Content -LiteralPath $LogFile -Encoding utf8
+    }
     $r
 }
 

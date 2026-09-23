@@ -1,0 +1,6 @@
+timestamp	host	ollamaVersion	model	status	sec	detail
+2026-09-22T21:55:10	desktop	0.34.3	deepseek-r1-0528:8b	FAIL	50.2	ignored the tool entirely -> [I can't directly create or modify files for you due to my restrictions as a language model. However, here's th...]
+2026-09-22T21:56:23	desktop	0.34.3	deepseek-r1-16k	FAIL	73.8	ignored the tool entirely -> [To write the text 'hello' to a file named a.txt using the command line, you can use the following command: ```...]
+2026-09-22T21:56:58	desktop	0.34.3	deepseek-r1-32k	FAIL	34.5	ignored the tool entirely -> [I'm not sure which tool you're referring to, as I don't have information about specific external tools. Howeve...]
+2026-09-22T21:57:58	desktop	0.34.3	deepseek-r1:14b	FAIL	60.3	ignored the tool entirely -> [To write the text 'hello' to a file named a.txt, follow these steps using a command-line interface: 1. **Open ...]
+2026-09-22T22:16:56	node3	0.34.2	lfm2.5:8b	PASS	12.5	tool_calls -> write_file {"path":"a.txt","content":"hello"}
