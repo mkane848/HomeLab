@@ -6,7 +6,8 @@ a graded `.json`, the raw `.jsonl` opencode transcript, and one appended row in
 
 Everything here is committed **verbatim and ungraded** per `CONTRIBUTING.md` —
 grading happens separately, against the key, by someone who did not generate the
-runs. This file is that separate pass for the 2026-09-19 → 2026-09-21 corpus.
+runs. This file is that separate pass for the full corpus, re-inventoried
+2026-09-23 at 102 rows (was 43 rows / 1 pass).
 
 ## What counts as a pass
 
@@ -17,24 +18,84 @@ A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.
 `kane-01` and `lfc-01`. The other six manifest tasks now record `SKIP`. **Rows
 written before that change show `PASS` for those tasks having compiled
 nothing**, because the flag was initialised to true before the guard that runs
-`tsc`; all three `kane-02` rows are the clearest case, since they never reached
-the model at all. Treat a pre-change `typecheck: PASS` on any task other than
+`tsc`. Treat a pre-change `typecheck: PASS` on any task other than
 `kane-01`/`lfc-01` as "not run".
 
 `failsOnOld` is the one that matters most: revert the source fix, keep the
 model's test, and the suite must now go red. A test that stays green on broken
 code is the PR #82 trap (`docs/review-gate/testing.md`) and fails here.
 
-**In 43 recorded runs there is exactly one genuine pass:**
+**In 102 recorded rows there are 21 genuine passes**, 17 of them from the
+2026-09-23 gap-fill batch (new executor candidates on the post-fix harness):
 
 | timestamp | task | seat |
 |---|---|---|
 | `2026-09-20T21:58:16` | `lfc-01-listing-status-guard` | `ollama-desktop/qwen3:14b` |
+| `2026-09-21T19:15:18` | `kane-01-background-pair` | `ollama-desktop/qwen3:14b` |
+| `2026-09-21T21:27:59` | `asohav-01-library-write-reporting` | `ollama-desktop/qwen3:8b` |
+| `2026-09-22T07:02:48` | `kane-04-singleton-up-to-n` | `ollama-node3/qwen3:8b` |
+| `2026-09-23T00:14:30` | `kane-04-singleton-up-to-n` | `ollama-desktop/devstral-small-2:24b` |
+| `2026-09-23T01:23:38` | `lfc-01-listing-status-guard` | `ollama-desktop/laguna-xs-2.1` |
+| `2026-09-23T02:01:55` | `kane-04-singleton-up-to-n` | `ollama-desktop/laguna-xs-2.1` |
+| `2026-09-23T02:45:46` | `lfc-02-scryfall-headers` | `ollama-desktop/laguna-xs-2.1` |
+| `2026-09-23T02:54:45` | `kane-01-background-pair` | `ollama-desktop/nemotron-3.5-lightning` |
+| `2026-09-23T03:02:21` | `lfc-01-listing-status-guard` | `ollama-desktop/nemotron-3.5-lightning` |
+| `2026-09-23T03:42:23` | `kane-04-singleton-up-to-n` | `ollama-desktop/nemotron-3.5-lightning` |
+| `2026-09-23T05:27:38` | `kane-04-singleton-up-to-n` | `ollama-desktop/north-mini-code-1.0` |
+| `2026-09-23T06:15:51` | `kane-01-background-pair` | `ollama-desktop/qwen3.5:9b` |
+| `2026-09-23T06:26:28` | `lfc-01-listing-status-guard` | `ollama-desktop/qwen3.5:9b` |
+| `2026-09-23T06:37:54` | `kane-03-saga-chapter-triggers` | `ollama-desktop/qwen3.5:9b` |
+| `2026-09-23T06:39:34` | `kane-04-singleton-up-to-n` | `ollama-desktop/qwen3.5:9b` |
+| `2026-09-23T07:00:17` | `lfc-02-scryfall-headers` | `ollama-desktop/qwen3.5:9b` |
+| `2026-09-23T07:13:52` | `lfc-01-listing-status-guard` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-09-23T07:32:22` | `kane-04-singleton-up-to-n` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-09-23T08:09:24` | `lfc-02-scryfall-headers` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-09-23T08:32:30` | `kane-04-singleton-up-to-n` | `ollama-node3/ornith:9b` |
+
+Per-seat pass@1 over exit-0 rows — **graded-only ratios, which overstate:
+a timeout leaves no row, so the denominator is missing the runs that never
+finished. The per-attempt table (timeouts reconstructed from row gaps and the
+Ollama server log) lives in `docs/implementation-tasks.md` → "Gap-fill batch
+review", alongside a transcript audit finding all 17 gap-fill passes
+non-hollow** (see "Era confound" before comparing across rows of this table): `laguna-xs-2.1` 3/3, `qwen3.5:9b` 5/6,
+`nemotron-3.5-lightning` 3/4, `qwen3.6:35b-a3b-coding` 3/6,
+`north-mini-code-1.0` 1/2, `devstral-small-2:24b` 1/1, `ornith:9b` 1/6,
+`ollama-desktop/qwen3:14b` 2/19 (2/12 honest — see truncated rows),
+`ollama-desktop/qwen3:8b` 1/28, `ollama-node3/qwen3:8b` 1/6,
+`ministral-3:8b` 0/5, `lfm2.5:8b` 0/8, `devstral:24b` 0/1.
+
+## Era confound — read this before comparing seats
+
+The harness changed mid-corpus, so rows from different weeks were graded by
+different harnesses:
+
+- **INFRA-vs-liar split (~2026-09-21).** Non-zero `opencode run` exits used to
+  fall through to the writes gate; now they write no row. Pre-fix rows with
+  `opencodeExit != 0` are the six legacy node3 rows below.
+- **`qwen3:14b` `limit.output` 4096 → 8192 (~2026-09-21/22).** Pre-fix 14b rows
+  truncate inside the reasoning block (next section). **No post-fix truncation
+  has been observed.**
+- **`typecheck` boolean → tri-state (~2026-09-21/22).** See above.
+
+Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
+and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger
+comparison spans all three fixes. The challengers' lead is large enough to
+survive that caveat, but a same-harness rematch of the incumbents is still
+owed before any seat decision cites the gap.
+
+What the tasks measure: every manifest prompt names the file, the function,
+and the buggy line shape (`tests/tasks/manifest.json`). This is **guided
+repair** — "apply this precise fix plus a test that depends on it" — not
+autonomous debugging ("find the bug"). Pass@1 here does not transfer to
+unscoped work; it transfers to the work-order executor role in
+`docs/target-setup.md`.
 
 ## Not every row is a run
 
-**18 of the 43 rows measured nothing about a model.** They are kept as evidence,
-but they are not attempts and must not be counted as failures.
+**7 of the 102 rows measured nothing about a model** (6 legacy + 1
+hand-recorded). They are kept as evidence, but they are not attempts and must
+not be counted as failures. Truncated rows (below) are exit-0 attempts that
+never acted — exclude them from capability denominators too.
 
 ### Never reached the model — 6 rows
 
@@ -54,8 +115,8 @@ request.
 
 These six were originally read as "6/6 liar mode" — a capability finding about
 node3 that reached `docs/roadmap.md`, `CHANGELOG.md` and a config change before
-anyone re-read the transcripts. **node3's liar-mode denominator is 0.** It has no
-capability data yet, in either direction. See the corrected roadmap entry,
+anyone re-read the transcripts. **node3's liar-mode denominator from this
+batch is 0.** See the corrected roadmap entry,
 "Node3's `qwen3:8b` 'liar mode' was never liar mode".
 
 Watch for these tells, all present in the rows themselves:
@@ -74,7 +135,7 @@ now a FAILed run with an `_INFRA_`-tagged transcript and no summary row, and
 ### Truncated before acting — 7 rows
 
 `opencodeExit=0`, `writes=0`, transcript ends `step_finish` with
-`reason: "length"` and usage `output` of exactly **4096** — the configured
+`reason: "length"` and usage `output` of exactly **4096** — the old configured
 `limit.output`, hit with ~25k of the 32768 context window still unused. The
 reasoning block consumed the whole output budget before any edit call.
 
@@ -90,11 +151,22 @@ reasoning block consumed the whole output budget before any edit call.
 
 An eighth run, `2026-09-21T13:46:15` (`lfc-01`, same seat), also hit the cap but
 made 3 edits first, so it is gradable — the cap cost it the suite, not the
-attempt. Of 16 desktop-14b runs, 8 truncated.
+attempt.
 
-`ollama-desktop/qwen3:14b` `limit.output` is now 8192. **Runs from before that
-change cannot be compared against the 8b**, which carries the same cap and
-rarely reaches it.
+`ollama-desktop/qwen3:14b` `limit.output` is now 8192. **Pre-cap rows cannot
+be compared against seats that rarely reach the cap.** The honest 14b read is
+2 full passes in 12 real attempts (19 rows minus these 7).
+
+### Zero writes after the fix — genuine liar mode, not truncation
+
+Post-2026-09-22 exit-0 `writes=0` rows are real prose-only answers under the
+8192 cap, not budget artifacts. The extreme case is `ollama-node3/lfm2.5:8b`:
+**8/8 runs, zero writes, exit 0 every time** — it PASSes the `write_file`
+canary (`tests/test-toolcalls.ps1`) and then answers every task in prose.
+Probe PASS does not predict task-loop writing; `lfm2.5:8b` is the cleanest
+demonstration in this corpus. (`ornith:9b` shows the same shape 3×;
+`qwen3.5:9b`, `qwen3.6:35b-a3b-coding`, `nemotron-3.5-lightning` and
+`north-mini-code-1.0` each show it once.)
 
 ### No transcript kept — 4 rows
 
@@ -118,28 +190,63 @@ The VS Code Agent-mode cross-check, typed in by hand. Carries `n/a` and
 `NOT_RUN` values the harness cannot emit — **any parser over this TSV must
 tolerate them.**
 
+### Ungraded transcripts with no row — 30 `_INFRA_` files, plus reconstructed timeouts
+
+Non-zero `opencode run` exits since the INFRA fix: transcript kept, no TSV
+row, by design. 27 are node3-unreachable (`Cannot connect to API`,
+including the 09-21 mid-batch outage and the 09-22 sleep flap), 1 is the
+deliberate WRONGURL preflight check, and 2 are `kane-02` context overflow
+into OpenCode compaction on the desktop (2026-09-23, diagnosed in
+`docs/implementation-tasks.md` → "Gap-fill batch review": the model filled
+32k, then compaction failed — `north-mini-code-1.0` with `Tool call not
+allowed while generating summary: read`, `qwen3.5:9b` with an Ollama 500
+Jinja `No user query found in messages` inside `multi_step_tool`). Both
+reached the model (real `read` calls first) and both are infrastructure, not
+capability — and `-OnlyMissing` will retry them.
+
+**Timeout counts are reconstructed; timeout transcripts are lost.** No
+`_TIMEOUT_` transcript exists on disk: `Invoke-OpencodeRun` writes the job's
+output with `$events | Out-File` only after `opencode run` returns, so
+`Stop-Job` on timeout leaves nothing for the "partial transcript kept" branch
+to rescue (streaming the output inside the job is the recorded fix). Attempt
+counts were reconstructed from row gaps and the Ollama server log instead —
+per-seat timeouts in the "Gap-fill batch review" (laguna 5,
+devstral-small-2 7, north-mini 5, nemotron 4, qwen3.6 2, qwen3.5 1, ministral
+3). Timeouts are the largest failure class for the 18–25 GB offloading seats
+under the default 900 s cap: their true capability is unmeasured, not low.
+Treat every graded-only ratio above as conditional on finishing inside the
+run cap, and use the per-attempt table for selection.
+
 ## Gradable coverage
 
-25 of 43 rows. Against the N=10-per-cell policy (`docs/roadmap.md`):
+95 graded rows (exit 0, including the 7 truncated). Against the N=10-per-cell
+policy (`docs/roadmap.md`): every cell is under N, most at 1–2 — the policy is
+a target for the winners-first rematch, not a description of this corpus.
+Cells are `full-pass / graded-n`, grouped by `model` (legacy `modelLabel`
+variants — `qwen3-8b`, `qwen3-14b-rerun`, `desktop-qwen3-*` — are merged into
+their model; group by `model`, not `modelLabel`):
 
-| task | seat | gradable |
+| task | desktop seats (full/n) | node3 seats (full/n) |
 |---|---|---|
-| `kane-01-background-pair` | `ollama-desktop/qwen3:14b` | 2/10 |
-| `kane-01-background-pair` | `ollama-desktop/qwen3:8b` | 7/10 |
-| `lfc-01-listing-status-guard` | `ollama-desktop/qwen3:14b` | 7/10 |
-| `lfc-01-listing-status-guard` | `ollama-desktop/qwen3:8b` | 7/10 |
-| `lfc-01-listing-status-guard` | `qwen3-8b` (legacy label) | 1/10 |
-| `lfc-01-listing-status-guard` | `qwen3-14b-rerun` (legacy label) | 1/10 |
+| `kane-01-background-pair` | 14b 1/11, 8b 0/10, nemotron 1/1, qwen3.5 1/1, qwen3.6 0/1, devstral 0/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
+| `lfc-01-listing-status-guard` | 14b 1/8, 8b 0/8, laguna 1/1, nemotron 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
+| `kane-02-multiword-creature-type` | qwen3.6 0/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
+| `kane-03-saga-chapter-triggers` | 8b 0/2, qwen3.5 1/1, qwen3.6 0/1 | lfm2.5 0/1, ornith 0/1 |
+| `kane-04-singleton-up-to-n` | 8b 0/2, devstral-small-2 1/1, laguna 1/1, nemotron 1/1, north-mini 1/1, qwen3.5 1/1, qwen3.6 1/1 | node3-8b 1/1, lfm2.5 0/1, ornith 1/1 |
+| `asohav-01-library-write-reporting` | 8b 1/1, nemotron 0/1 | node3-8b 0/2, lfm2.5 0/1, ornith 0/1 |
+| `asohav-02-changelog-uuid-id` | 8b 0/3, north-mini 0/1, qwen3.5 0/1 | node3-8b 0/2, lfm2.5 0/1, ministral 0/1 |
+| `lfc-02-scryfall-headers` | 8b 0/2, laguna 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1 |
 
-**Two of the eight manifest tasks have any gradable data.** `kane-03`, `kane-04`,
-`asohav-01`, `asohav-02` and `lfc-02` have never been run; `kane-02`'s only three
-rows are all node3 connection failures. Between-task variance — the thing the
-2026-09-21 breadth pivot exists to measure — is still unmeasured.
+All eight manifest tasks have graded data now (previously two). `kane-04` is
+the easiest cell in the corpus (8/11 full-pass across seats); `kane-02` and
+`asohav-02` are the hardest (0 passes on 4 and 9 graded runs respectively).
 
 ## Re-deriving this
 
 Nothing here is hand-maintained state; the raw files are the source of truth.
 The classification is `opencodeExit != 0` → never reached the model,
-`reason:"length"` with `writes=0` → truncated, missing `.jsonl` → no transcript.
-Note that a `.jsonl` filename's timestamp can differ from its TSV row's by a
-second or two — match with a tolerance, not equality.
+`reason:"length"` with `writes=0` under the 4096 cap → truncated,
+missing `.jsonl` → no transcript, `writes=0` with exit 0 under the 8192 cap →
+genuine liar mode. Group seats by `model`, not `modelLabel`. Note that a
+`.jsonl` filename's timestamp can differ from its TSV row's by a second or
+two — match with a tolerance, not equality.
