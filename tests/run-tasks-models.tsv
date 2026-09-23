@@ -15,3 +15,11 @@ qwen3:14b	desktop	main seat; measured PASS on desktop (0.34.1); deliberately abs
 qwen3.5:9b	desktop	LM-Studio import, vision; measured PASS on desktop (0.34.1)
 qwen3-coder:30b-a3b	desktop	review-gate auditor seat; measured PASS on desktop (0.34.1)
 devstral:24b	desktop	edge fit, drives offload; measured PASS on desktop (0.34.1)
+devstral-small-2:24b	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+laguna-xs-2.1	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+nemotron-3.5-lightning	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+north-mini-code-1.0	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+qwen3.6:35b-a3b-coding	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+lfm2.5:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+ministral-3:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+ornith:9b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22

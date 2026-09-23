@@ -1,0 +1,22 @@
+﻿{
+    "timestamp":  "2026-09-23T07:16:20",
+    "taskId":  "asohav-02-changelog-uuid-id",
+    "taskTitle":  "ASoHaVCompanionApp: stop generating a non-UUID id for a column the database already defaults to a real UUID",
+    "model":  "ollama-node3/lfm2.5:8b",
+    "modelLabel":  "ollama-node3/lfm2.5:8b",
+    "baseCommit":  "d83381ad650b3474a50310e0dd3441a03cd89706",
+    "promptSha256":  "15771B923DC9",
+    "opencodeExit":  0,
+    "writes":  0,
+    "gates":  {
+                  "scope":  "FAIL",
+                  "suite":  "PASS",
+                  "failsOnOld":  "FAIL"
+              },
+    "typecheck":  "SKIP",
+    "elapsedSec":  23.6,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.32",
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-asohav-02-changelog-uuid-id-ollama-node3_lfm2.5_8b_20260923-071620.jsonl"
+}
