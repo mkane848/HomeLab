@@ -22,3 +22,26 @@ timestamp	host	ollamaVersion	model	status	sec	detail
 2026-09-22T23:01:06	node3	0.34.2	ministral-3:8b	PASS	7.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
 2026-09-22T23:01:27	node3	0.34.2	ornith:9b	PASS	21.2	tool_calls -> write_file {"path":"a.txt","content":"hello"}
 2026-09-22T23:01:35	node3	0.34.2	qwen3:8b	PASS	8.1	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T14:55:57	desktop	0.34.3	deepseek-r1-0528:8b	FAIL	47.5	ignored the tool entirely -> [To write the text `'hello'` to a file named `a.txt`, you can use Python's built-in file handling. Here's the c...]
+2026-09-23T14:57:28	desktop	0.34.3	deepseek-r1-16k	FAIL	90.9	ignored the tool entirely -> [To write the text 'hello' to a file named a.txt using a command-line tool, follow these steps: 1. **Open the C...]
+2026-09-23T14:58:21	desktop	0.34.3	deepseek-r1-32k	FAIL	53.1	ignored the tool entirely -> [To write the text 'hello' to a file named a.txt using the command line, you can use the following command: ```...]
+2026-09-23T14:59:28	desktop	0.34.3	deepseek-r1:14b	FAIL	66.9	ignored the tool entirely -> [To write the text 'hello' to a file named `a.txt`, you can use various tools depending on your operating syste...]
+2026-09-23T15:00:30	desktop	0.34.3	devstral-small-2:24b	PASS	61.6	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:01:31	desktop	0.34.3	devstral:24b	PASS	61	tool_calls -> write_file {"content":"hello","path":"a.txt"}
+2026-09-23T15:03:22	desktop	0.34.3	laguna-xs-2.1	PASS	111.6	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:05:36	desktop	0.34.3	nemotron-3.5-lightning	PASS	133.9	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:07:21	desktop	0.34.3	north-mini-code-1.0	PASS	105	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:07:37	desktop	0.34.3	qwen2.5-coder-16k	FAIL	15.6	emitted the call as CHAT TEXT (parser saw no tool_call tags) -> [{"name": "write_file", "arguments": {"path": "a.txt", "content": "hello"}}]
+2026-09-23T15:08:06	desktop	0.34.3	qwen2.5-coder:14b	FAIL	29	emitted the call as CHAT TEXT (parser saw no tool_call tags) -> [{"name": "write_file", "arguments": {"path": "a.txt", "content": "hello"}}]
+2026-09-23T15:08:14	desktop	0.34.3	qwen2.5-coder:3b	FAIL	7.9	emitted the call as CHAT TEXT (parser saw no tool_call tags) -> [{"name": "write_file", "arguments": {"path": "a.txt", "content": {"type": "string", "content": "hello"}}}]
+2026-09-23T15:08:20	desktop	0.34.3	qwen2.5-coder:7b	FAIL	5.7	emitted the call as CHAT TEXT (parser saw no tool_call tags) -> [{"name": "write_file", "arguments": {"path": "a.txt", "content": "hello"}}]
+2026-09-23T15:09:58	desktop	0.34.3	qwen3-coder:30b-a3b	PASS	98.5	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:10:46	desktop	0.34.3	qwen3:14b	PASS	47.6	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:11:04	desktop	0.34.3	qwen3:8b	PASS	17.7	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:11:42	desktop	0.34.3	qwen3.5:9b	PASS	38.2	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:13:45	desktop	0.34.3	qwen3.6:35b-a3b-coding	PASS	123.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:13:51	node3	0.34.2	glm4:9b	FAIL	5.3	ignored the tool entirely -> [I can't execute code or interact with files directly, but I can provide you with a simple example of how you m...]
+2026-09-23T15:13:54	node3	0.34.2	lfm2.5:8b	PASS	3.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:14:01	node3	0.34.2	ministral-3:8b	PASS	7.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:14:07	node3	0.34.2	ornith:9b	PASS	5.5	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-09-23T15:14:15	node3	0.34.2	qwen3:8b	PASS	8	tool_calls -> write_file {"path":"a.txt","content":"hello"}
