@@ -7,7 +7,7 @@ a graded `.json`, the raw `.jsonl` opencode transcript, and one appended row in
 Everything here is committed **verbatim and ungraded** per `CONTRIBUTING.md` —
 grading happens separately, against the key, by someone who did not generate the
 runs. This file is that separate pass for the full corpus, re-inventoried
-2026-09-23 at 102 rows (was 43 rows / 1 pass).
+2026-09-23 at 107 rows (was 43 rows / 1 pass).
 
 ## What counts as a pass
 
@@ -25,8 +25,9 @@ nothing**, because the flag was initialised to true before the guard that runs
 model's test, and the suite must now go red. A test that stays green on broken
 code is the PR #82 trap (`docs/review-gate/testing.md`) and fails here.
 
-**In 102 recorded rows there are 21 genuine passes**, 17 of them from the
-2026-09-23 gap-fill batch (new executor candidates on the post-fix harness):
+**In 107 recorded rows there are 22 genuine passes**, 17 of them from the
+2026-09-23 gap-fill batch (new executor candidates on the post-fix harness) and
+1 from the 2026-09-23 evening rerun lane (`asohav-01`, `qwen3.6`):
 
 | timestamp | task | seat |
 |---|---|---|
@@ -51,6 +52,7 @@ code is the PR #82 trap (`docs/review-gate/testing.md`) and fails here.
 | `2026-09-23T07:32:22` | `kane-04-singleton-up-to-n` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
 | `2026-09-23T08:09:24` | `lfc-02-scryfall-headers` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
 | `2026-09-23T08:32:30` | `kane-04-singleton-up-to-n` | `ollama-node3/ornith:9b` |
+| `2026-09-23T18:39:02` | `asohav-01-library-write-reporting` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
 
 Per-seat pass@1 over exit-0 rows — **graded-only ratios, which overstate:
 a timeout leaves no row, so the denominator is missing the runs that never
@@ -58,11 +60,11 @@ finished. The per-attempt table (timeouts reconstructed from row gaps and the
 Ollama server log) lives in `docs/implementation-tasks.md` → "Gap-fill batch
 review", alongside a transcript audit finding all 17 gap-fill passes
 non-hollow** (see "Era confound" before comparing across rows of this table): `laguna-xs-2.1` 3/3, `qwen3.5:9b` 5/6,
-`nemotron-3.5-lightning` 3/4, `qwen3.6:35b-a3b-coding` 3/6,
-`north-mini-code-1.0` 1/2, `devstral-small-2:24b` 1/1, `ornith:9b` 1/6,
+`nemotron-3.5-lightning` 3/4, `qwen3.6:35b-a3b-coding` 4/8,
+`north-mini-code-1.0` 1/2, `devstral-small-2:24b` 1/1, `ornith:9b` 1/7,
 `ollama-desktop/qwen3:14b` 2/19 (2/12 honest — see truncated rows),
 `ollama-desktop/qwen3:8b` 1/28, `ollama-node3/qwen3:8b` 1/6,
-`ministral-3:8b` 0/5, `lfm2.5:8b` 0/8, `devstral:24b` 0/1.
+`ministral-3:8b` 0/7, `lfm2.5:8b` 0/8, `devstral:24b` 0/1.
 
 ## Era confound — read this before comparing seats
 
@@ -190,19 +192,25 @@ The VS Code Agent-mode cross-check, typed in by hand. Carries `n/a` and
 `NOT_RUN` values the harness cannot emit — **any parser over this TSV must
 tolerate them.**
 
-### Ungraded transcripts with no row — 30 `_INFRA_` files, plus reconstructed timeouts
+### Ungraded transcripts with no row — 31 `_INFRA_`/`_ABORTED_` files, plus reconstructed timeouts
 
 Non-zero `opencode run` exits since the INFRA fix: transcript kept, no TSV
 row, by design. 27 are node3-unreachable (`Cannot connect to API`,
 including the 09-21 mid-batch outage and the 09-22 sleep flap), 1 is the
-deliberate WRONGURL preflight check, and 2 are `kane-02` context overflow
+deliberate WRONGURL preflight check, 2 are `kane-02` context overflow
 into OpenCode compaction on the desktop (2026-09-23, diagnosed in
 `docs/implementation-tasks.md` → "Gap-fill batch review": the model filled
 32k, then compaction failed — `north-mini-code-1.0` with `Tool call not
 allowed while generating summary: read`, `qwen3.5:9b` with an Ollama 500
 Jinja `No user query found in messages` inside `multi_step_tool`). Both
 reached the model (real `read` calls first) and both are infrastructure, not
-capability — and `-OnlyMissing` will retry them.
+capability — and `-OnlyMissing` will retry them. The 31st is an
+`_ABORTED_` transcript (`lfc-02` × `ollama-node3/qwen3:8b`,
+2026-09-23 18:37): the lane was **killed by a human from another session**
+at ~25 min into its 30-min cap, so it is not a timeout and proves nothing
+about node3 — the exit `-1` is a kill, not a cap. It carries no row so the
+`asohav`-style cells are unaffected. Distinguish the tags: `_INFRA_` = the
+harness or host failed, `_ABORTED_` = a human stopped it.
 
 **Timeout counts are reconstructed; timeout transcripts are lost.** No
 `_TIMEOUT_` transcript exists on disk: `Invoke-OpencodeRun` writes the job's
@@ -228,18 +236,18 @@ their model; group by `model`, not `modelLabel`):
 
 | task | desktop seats (full/n) | node3 seats (full/n) |
 |---|---|---|
-| `kane-01-background-pair` | 14b 1/11, 8b 0/10, nemotron 1/1, qwen3.5 1/1, qwen3.6 0/1, devstral 0/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
-| `lfc-01-listing-status-guard` | 14b 1/8, 8b 0/8, laguna 1/1, nemotron 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
-| `kane-02-multiword-creature-type` | qwen3.6 0/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
-| `kane-03-saga-chapter-triggers` | 8b 0/2, qwen3.5 1/1, qwen3.6 0/1 | lfm2.5 0/1, ornith 0/1 |
-| `kane-04-singleton-up-to-n` | 8b 0/2, devstral-small-2 1/1, laguna 1/1, nemotron 1/1, north-mini 1/1, qwen3.5 1/1, qwen3.6 1/1 | node3-8b 1/1, lfm2.5 0/1, ornith 1/1 |
-| `asohav-01-library-write-reporting` | 8b 1/1, nemotron 0/1 | node3-8b 0/2, lfm2.5 0/1, ornith 0/1 |
-| `asohav-02-changelog-uuid-id` | 8b 0/3, north-mini 0/1, qwen3.5 0/1 | node3-8b 0/2, lfm2.5 0/1, ministral 0/1 |
-| `lfc-02-scryfall-headers` | 8b 0/2, laguna 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1 |
+| `kane-01-background-pair` | 14b 1/11, 8b 0/10, nemotron 1/1, qwen3.5 1/1, qwen3.6 0/1, devstral 0/1 | lfm2.5 0/1, ministral 0/1, node3-8b 0/2, ornith 0/1 |
+| `lfc-01-listing-status-guard` | 14b 1/8, 8b 0/8, laguna 1/1, nemotron 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1, node3-8b 0/1, ornith 0/1 |
+| `kane-02-multiword-creature-type` | qwen3.6 0/1 | lfm2.5 0/1, ministral 0/1, node3-8b 0/3, ornith 0/1 |
+| `kane-03-saga-chapter-triggers` | 8b 0/2, qwen3.5 1/1, qwen3.6 0/1 | lfm2.5 0/1, ministral 0/1, node3-8b 0/1, ornith 0/1 |
+| `kane-04-singleton-up-to-n` | 8b 0/2, devstral-small-2 1/1, laguna 1/1, nemotron 1/1, north-mini 1/1, qwen3.5 1/1, qwen3.6 1/1 | node3-8b 1/1, lfm2.5 0/1, ministral 0/1, ornith 1/1 |
+| `asohav-01-library-write-reporting` | 8b 1/1, nemotron 0/1, qwen3.6 1/1 | node3-8b 0/2, lfm2.5 0/1, ornith 0/1 |
+| `asohav-02-changelog-uuid-id` | 8b 0/3, north-mini 0/1, qwen3.5 0/1, qwen3.6 0/1 | node3-8b 0/2, lfm2.5 0/1, ministral 0/1 |
+| `lfc-02-scryfall-headers` | 8b 0/2, laguna 1/1, qwen3.5 1/1, qwen3.6 1/1 | lfm2.5 0/1, ministral 0/1, ornith 0/1 |
 
 All eight manifest tasks have graded data now (previously two). `kane-04` is
-the easiest cell in the corpus (8/11 full-pass across seats); `kane-02` and
-`asohav-02` are the hardest (0 passes on 4 and 9 graded runs respectively).
+the easiest cell in the corpus (9/15 full-pass across seats); `kane-02` and
+`asohav-02` are the hardest (0 passes on 6 and 10 graded runs respectively).
 
 ## Re-deriving this
 

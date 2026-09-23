@@ -605,6 +605,29 @@ Pass by task, across all seats:
   evidence) and PR #46 (`config/starting-build-seats`: cap + lineup doc).
   Merge results first, then config.
 
+## Rerun lanes (evening, 1800 s cap) — 1 unknown resolved, 1 aborted, 1 open
+
+- **T1 desktop, `qwen3.6 × asohav-01` — PASS.** First pass on this cell
+  (13 writes, 1620.3 s, suite 48 green, all three gates). This was the
+  `qwen3.6` seat's second-longest run; it cleared the cap but at 27 min is
+  hovering against it, worth remembering for `asohav-02`-sized workloads.
+- **T1 desktop, `qwen3.6 × asohav-02` — FAIL, liar mode** (exit 0, 0 writes,
+  458.3 s). The `asohav-02` cell stays at 0 passes across 10 graded runs —
+  now also including the seat that just passed `asohav-01`. `qwen3.6` does
+  **not** hit the seat-finding branch of "times out again at 1800": it
+  finished both lanes, one clean pass and one plain fail.
+- **T2 node3, `qwen3:8b × lfc-02` — ABORTED, not a timeout.** The run was
+  killed by a human from another session at ~25 min into the 30-min cap
+  (exit `-1`: a kill, not a cap), so the closeout's "if node3 `qwen3:8b`
+  hangs again it is a host finding" branch **is not met** — a process stopped
+  by the operator proves nothing about the host. **Not a host finding.**
+  Transcript preserved as `tasks-…-ABORTED_20260923-183729.jsonl` (renamed
+  from the misleading `_TIMEOUT_` tag the harness applied to the non-zero
+  exit). It shows the model mid-edit on `src/services/scryfall.ts` when
+  killed — slow but working, not wedged. No row; the cell stays open.
+- Corpus 105 → 107 (still 8 tasks); passes 21 → 22. Seats unchanged:
+  `qwen3.6` 4/8, node3 seats untouched by these lanes.
+
 ## New open follow-ups
 
 - [ ] **`test-tasks.ps1` stamps the local desktop Ollama version onto
@@ -623,29 +646,39 @@ Pass by task, across all seats:
       the `_TIMEOUT_` transcript the docs already promise. Until then a
       timeout is a pure unknown — slow-but-working and wedged look
       identical afterward.
+- [ ] **A human-killed lane gets tagged `_TIMEOUT_` by the harness.** The
+      nightly `lfc-02 × node3` lane was stopped from another session (exit
+      `-1`, a kill) and the batch labelled its transcript `_TIMEOUT_`.
+      Renamed by hand to `_ABORTED_` for truthfulness — the harness should
+      tag on `Stopped`/`Stop` vs cap, or at least not claim a timeout it
+      did not measure. Related to the item above: both are "the tail of a
+      run is evidence, and the label must be honest."
 
 ## Next steps (ordered)
 
-1. Merge #45, then #46; pull main; delete branches.
-2. Fresh session: close all `opencode` instances (this session's harness
-   PID included — it holds the pre-sync config), new terminal, source
-   `dev-desktop-only`, verify both base URLs + MANAPOOL unset. The
-   staged live config already carries the 8192 cap, so new sessions get
-   it automatically.
-3. Rerun the 3 timeout unknowns with headroom (PR #43's passthrough;
-   `-OnlyMissing` re-targets exactly these — timeouts left no rows —
-   and the sets are disjoint):
+1. ✅ #45 merged, #46 merged; pull main; branches deleted.
+2. ✅ Fresh session: closed all `opencode` instances (harness PID included
+   — it held the pre-sync config), new terminal, sourced `dev-desktop-only`,
+   verified both base URLs + MANAPOOL unset. 8192 cap carried by the staged
+   config.
+3. ✅ Reran the timeout unknowns with headroom (PR #43's passthrough;
+   `-OnlyMissing` re-targets exactly these — timeouts left no rows — and
+   the sets are disjoint):
    - T1 desktop: `.\tests\run-tasks-batch.ps1 -Mode Tasks -Reps 1
      -OnlyMissing -RunTimeout 1800` → model `qwen3.6`, tasks
-     `asohav-01, asohav-02`.
+     `asohav-01, asohav-02`. **Result: PASS (`asohav-01`) + FAIL liar
+     (`asohav-02`).** The "times out again at 1800 = seat finding" branch
+     is resolved negative — the seat finishes, it just fails on
+     `asohav-02`.
    - T2 node3: same command → model node3 `qwen3:8b`, task `lfc-02`.
-   - If `qwen3.6` times out again at 1800 it is a seat finding, not a
-     cap finding; if node3 `qwen3:8b` hangs again on a task its desktop
-     twin handles, it is a host finding.
-4. Draft the `qwen3.6` planner prompt (read-only explore + interview +
-   work orders with planner-written acceptance tests); keep first plans
-   small and benchmark-shaped; planner test must fail on current code
-   before the order queues.
+     **Result: human-aborted at ~25 min, not a fatal timeout.** The "hangs
+     again = host finding" branch is **not** met — operator kill, not a
+     hang; cell stays open, next attempt resumes on node3.
+4. ✅ Drafted the `qwen3.6` planner prompt (read-only explore + interview +
+   work orders with planner-written acceptance tests; draft at
+   `docs/agent-notes/planner-prompt-qwen3.6.md`). Keep first plans small
+   and benchmark-shaped; planner test must fail on current code before the
+   order queues. Not yet deployed to a live session.
 5. Blind trial per the 2026-09-23 protocol (branch per order, 2–3 file /
    ~300-line cap, abort on 3 consecutive gate failures). The `lfm2.5`
    version-rematch (drop `-OnlyMissing` deliberately) stays deferred

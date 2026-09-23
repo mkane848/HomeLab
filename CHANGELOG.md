@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Rerun the 3 open timeout unknowns at a 1800 s cap (2026-09-23 evening,
+  `-OnlyMissing` re-targeted the row-less cells): `qwen3.6 x asohav-01` PASS
+  (13 writes, 1620.3 s, suite 48 green - the seat's first pass on the cell),
+  `qwen3.6 x asohav-02` FAIL liar mode (exit 0, 0 writes); the "times out at
+  1800 = seat finding" branch resolves negative - the seat finishes, it just
+  fails the cell. `node3 qwen3:8b x lfc-02` was killed by a human from
+  another session at ~25 min (exit -1: a kill, not a cap), so the
+  closeout's "hangs again = host finding" branch is NOT met and the cell
+  stays open; the harness-tagged `_TIMEOUT_` transcript was renamed by hand
+  to `_ABORTED_` for truthfulness (new open follow-up: the harness cannot
+  distinguish a kill from a cap). Corpus 102 -> 107, passes 21 -> 22;
+  `tests/results/README.md` re-inventoried to 107 (absorbing PR #45's 3
+  graded rows that the 102-row pass had missed). Details in
+  `docs/implementation-tasks.md` -> "Rerun lanes".
+- Draft the `qwen3.6` planner prompt in
+  `docs/agent-notes/planner-prompt-qwen3.6.md`: read-only explore first,
+  one numbered-list interview, work orders shaped to fit the benchmark
+  (bench branch, 2-3-file scope, testCmd), planner-written acceptance tests
+  that must fail on current code before the order queues. DRAFT - not yet
+  run in a live session.
+
 - Agree the Stage 1 starting build (2026-09-23, server down): planner
   `qwen3.6:35b-a3b-coding` (fully local loop, first plans small and
   benchmark-shaped), executor attempt 1 `qwen3.5:9b` Q8 as measured (5/6),
