@@ -1,0 +1,22 @@
+﻿{
+    "timestamp":  "2026-09-23T07:13:52",
+    "taskId":  "lfc-01-listing-status-guard",
+    "taskTitle":  "lfc-bot: guard fulfill/delete from re-acting on a non-active listing",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "4906dc2881d362bda2006d3407e0ba63e005b91b",
+    "promptSha256":  "2040D996958B",
+    "opencodeExit":  0,
+    "writes":  3,
+    "gates":  {
+                  "scope":  "PASS",
+                  "suite":  "PASS",
+                  "failsOnOld":  "PASS"
+              },
+    "typecheck":  "PASS",
+    "elapsedSec":  321.6,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.32",
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-lfc-01-listing-status-guard-ollama-desktop_qwen3.6_35b-a3b-coding_20260923-071352.jsonl"
+}
