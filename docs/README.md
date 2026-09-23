@@ -13,6 +13,9 @@ you're after.
   VS Code instead: BYOK setup for LM Studio and Ollama side by side. Its
   first half is the setup reference; the second half is the review-gate
   research built on top of it (see below).
+- **[target-setup.md](target-setup.md)** — the planned end state once the
+  server is back: plan with a strong model, execute locally in parallel, gate
+  mechanically. Machine roles and ordered milestones.
 - **[profiles.md](profiles.md)** — how model-tier selection works: which
   profile turns which machines/models on, and why.
 
