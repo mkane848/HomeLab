@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Re-inventory `tests/results/README.md` for the 102-row corpus (was 43 rows /
+  1 pass): 21 genuine passes listed, an era-confound box (no desktop qwen3 row
+  exists post-09-22, so incumbent-vs-challenger comparisons span three harness
+  fixes), guided-repair labeling for what the tasks measure, a task × model
+  coverage grid, the `lfm2.5:8b` 8/8 zero-write finding, and reconstructed
+  timeout counts with the lost-transcript caveat. Defers per-attempt rates to
+  `docs/implementation-tasks.md` → "Gap-fill batch review" instead of
+  duplicating them.
 - Grade the 2026-09-23 gap-fill batch (`docs/implementation-tasks.md` →
   "Gap-fill batch review"). Rates are now per attempt, because timeouts
   leave no row and graded-only ratios overstate: `qwen3.5:9b` 5/8,
