@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Task-veracity benchmark: gap-fill batch 2026-09-23, 41 graded runs (22
+  desktop + 19 node3) across the new executor candidates, evidence committed
+  verbatim (per-run `.json` + `.jsonl`; 2 extra `_INFRA_` transcripts with no
+  row, by design). Desktop candidates land guided-repair passes where
+  `qwen3:8b` mostly didn't — `laguna-xs-2.1` 3/3, `qwen3.5:9b` 5/6,
+  `nemotron-3.5-lightning` 3/4, `qwen3.6:35b-a3b-coding` 3/6,
+  `north-mini-code-1.0` 1/2, `devstral-small-2:24b` 1/1. Node3 small
+  candidates mostly miss — `lfm2.5:8b` 0/8, `ministral-3:8b` 0/5, `ornith:9b`
+  1/6 — consistent with `docs/hardware.md`'s "likely too weak to write fixes"
+  note on `lfm2.5:8b`. Includes the 18-row 0.34.3/0.34.2 toolcall probe log
+  behind the 8 new `run-tasks-models.tsv` seats.
 - `tests/run-tasks-batch.ps1`: add `Probe` and `Both` modes on top of the
   data-driven pickers. Probe runs `test-toolcalls.ps1` on every host that
   answers. `Both` then batches every seat whose probe PASSes on its host's
