@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record the aborted 2026-09-23 2-lane executor launch in
+  `docs/implementation-tasks.md` (open follow-ups): Lane 1 control and Lane 2
+  node3 gap fill both picked `kane-02` within 18 seconds — `-OnlyMissing`
+  correctly ignored the legacy exit-1 rows while control legitimately re-ran
+  the task, and no guard covers worktree contention. Zero corpus impact (102
+  rows, clean tree). Adjustments before relaunch: static task partition per
+  lane, driver-stop-plus-process-check stop procedure (a stopped driver
+  orphans its `opencode run` child), and the two voided `kane-02` cells stay
+  open.
 - `tests/run-tasks-batch.ps1`: add `-RunTimeout`/`-CommandTimeout`, forwarded
   to every `test-tasks.ps1` invocation (0 = its 900/300 defaults). The
   18–25 GB offloading seats need 1800 or they die at the default cap with no

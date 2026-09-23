@@ -538,3 +538,41 @@ Pass by task, across all seats:
       (task, seat) pair rather than per task, which is the real trade-off to
       weigh. Not attempted here: it changes install-marker semantics and disk
       cost, and wants a desktop run to validate.
+- [ ] **Aborted 2-lane executor launch, 2026-09-23 ~13:00: `kane-02` worktree
+      collision (analysis; zero corpus impact).** Lane 1 (control rematch,
+      desktop `qwen3:14b` ×8, no `-OnlyMissing`) and Lane 2 (node3 gap fill,
+      `-OnlyMissing`) launched a minute apart and both picked
+      `kane-02-multiword-creature-type` within 18 seconds of each other (PIDs
+      43240 desktop/14b at 12:59:47, 52384 node3/8b at 13:00:05 — read off the
+      `opencode run --dir/--model` command lines in a process audit). The
+      node3 run was killed as the later starter; then both drivers were
+      stopped; the desktop run survived its driver's death as an orphan and
+      was killed directly. Verified after: TSV still 102 rows, tree clean,
+      zero batch processes — the collided cells left no trace, which is the
+      correct epitaph for voided cells (the orphan's partial transcript sits
+      unarchived in `%TEMP%` with no harness left to collect it).
+      - **Root cause, not bad luck.** `-OnlyMissing` correctly ignored node3's
+        three legacy exit-1 `kane-02` rows (not data), so the task looked
+        unrun exactly when control legitimately re-ran it. The launch plan's
+        "lanes rarely reach the same task together" assumption failed on the
+        first task. The structural cause is the task-id-keyed worktree above;
+        the batch preflight guards host liveness, not worktree contention, so
+        no guard fired — nothing was misconfigured, the rule was just
+        unenforced.
+      - **Stopping a driver orphans its run.** `Invoke-OpencodeRun` spawns
+        `opencode run` under `Start-Job`; Ctrl+C on the batch driver leaves
+        the child working with nobody watching. The stop procedure is driver
+        stop **plus** a process check for `opencode *run*`, not the driver
+        stop alone. (Had Lane 2's driver lived to process the kill, its
+        INFRA-path `git reset --hard` would have wiped Lane 1's in-progress
+        edits in the shared worktree — a second, unrealised collision from
+        the same root cause.)
+      - **Before relaunch:** partition lanes by task id statically up front
+        (disjoint task sets per lane in the launch plan, verified against
+        each lane's `-Tasks` list before starting — no "rarely collide"
+        reasoning); keep the (task, model-label) keying fix above as the
+        structural answer. Voided cells stay open and are covered by the
+        replan: `kane-02`/desktop-14b gets one clean single-cell re-run at
+        the end of Lane 1 (even a PASS from the collided run would be
+        suspect), `kane-02`/node3-8b is re-picked by Lane 2's `-OnlyMissing`
+        on its own.
