@@ -292,13 +292,15 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         // Imported from LM Studio, 2026-09-18 (no re-download): ollama create
         // FROM the local GGUF. A3B MoE coder, same weights as the LM Studio
         // seat. Probed 2026-09-18: tool_calls PASS in 24.8s - but 17.35 GB of
         // weights on a ~14.8 GB usable card mean it partially offloads and runs
-        // slow, just like in LM Studio. Context 16384 only.
+        // slow, just like in LM Studio. Context 32768 since 2026-09-22 (baked by
+        // startup.ps1). At 16384 the ~14.4k preamble plus the 4096 output
+        // reserve did not fit.
         "qwen3-coder:30b-a3b": {
           "name": "Qwen3 Coder 30B A3B (Desktop, imported, offloads)",
           "attachment": true,
@@ -306,7 +308,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). Probed 2026-09-18:
         // tool_calls PASS in 14.1s. Same Qwen3.5 family as the A3B coder above
@@ -318,7 +320,7 @@
           "tool_call": true,
           "modalities": { "input": ["image", "text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). R1-style hybrid. Probed
         // 2026-09-18: tool_calls FAIL (ignores tools, answers in prose) - a
@@ -331,6 +333,58 @@
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 8192 }
+        },
+        // Executor candidates, 2026-09-22 Ollama library scan (docs/hardware.md
+        // -> "Candidate executor models"). Registered AHEAD of the tool-call probe
+        // so run-tasks-batch.ps1 -Mode Both can batch whichever pass in one run;
+        // the script drops any seat whose current-version probe is not PASS, so
+        // tool_call here is a claim to be confirmed. Flip a FAIL to false
+        // (see tests/results/toolcalls-summary.tsv). reasoning/modalities follow
+        // /api/show capabilities. Context 32768 is baked by startup.ps1.
+        "devstral-small-2:24b": {
+          "name": "Devstral Small 2 24B (Desktop, candidate, dense, offloads)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["image", "text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "north-mini-code-1.0": {
+          "name": "North Mini Code 1.0 30B-A3B (Desktop, candidate, offloads)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "laguna-xs-2.1": {
+          "name": "Laguna XS 2.1 33B-A3B (Desktop, candidate, offloads)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "qwen3.6:35b-a3b-coding": {
+          "name": "Qwen3.6 35B-A3B Coding (Desktop, candidate, offloads)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["image", "text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "nemotron-3.5-lightning": {
+          "name": "Nemotron 3.5 Lightning 30B-A3B (Desktop, candidate, offloads)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
         }
       },
       "options": {
@@ -385,6 +439,40 @@
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
+        },
+        // Executor candidates, 2026-09-22 Ollama library scan (docs/hardware.md
+        // -> "Candidate executor models"). Registered AHEAD of the tool-call probe
+        // so run-tasks-batch.ps1 -Mode Both can batch whichever pass in one run;
+        // the script drops any seat whose current-version probe is not PASS, so
+        // tool_call here is a claim to be confirmed. Flip a FAIL to false
+        // (see tests/results/toolcalls-summary.tsv). reasoning/modalities follow
+        // /api/show capabilities. Context 32768 = node3's OLLAMA_CONTEXT_LENGTH (no baking step there).
+        "ornith:9b": {
+          "name": "Ornith 9B (Node3, candidate)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "ministral-3:8b": {
+          "name": "Ministral 3 8B (Node3, candidate)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": true,
+          "modalities": { "input": ["image", "text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "lfm2.5:8b": {
+          "name": "LFM2.5 8B-A1B (Node3, candidate)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
         }
       },
       "options": {

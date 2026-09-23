@@ -11,4 +11,12 @@ gpt-oss:20b	13.3	edge	16384	general	server,desktop	MoE general (edge fit)
 qwq:32b	19.9	offload	16384	reasoner	server,desktop	32B reasoner - CPU offload via RAM
 nomic-embed-text	0.27	fit	8192	embed	all	Embeddings (semantic / MTG card search)
 mxbai-embed-large	0.67	fit	512	embed	all	High quality embeddings
-devstral:24b	14.0	edge	16384	coder	server,desktop	Agentic coding, native tool use - WILL partially offload on 16GB
+devstral:24b	14.0	edge	32768	coder	server,desktop	Agentic coding, native tool use - WILL partially offload on 16GB
+devstral-small-2:24b	15.2	edge	32768	coder	desktop,server	Executor candidate (Mistral 2512): agentic coder, dense 24B - any spill is slow
+north-mini-code-1.0	18.6	offload	32768	coder	desktop,server	Executor candidate (Cohere): 30B MoE, 3.2B active, agentic coder
+laguna-xs-2.1	20.3	offload	32768	coder	desktop,server	Executor candidate: 33B MoE, 3B active, agentic coder
+qwen3.6:35b-a3b-coding	23.0	offload	32768	coder	desktop,server	Executor candidate: Qwen3.6 35B MoE, 3B active, coding variant
+nemotron-3.5-lightning	25.0	offload	32768	general	desktop,server	Executor candidate (NVIDIA): 30B MoE, 3B active, agent-general
+ornith:9b	5.6	fit	32768	coder	node3	Executor candidate: 9B, RL-trained for agentic coding
+ministral-3:8b	6.0	fit	32768	general	node3	Executor candidate (Mistral): 8B, tools + vision
+lfm2.5:8b	5.2	fit	32768	general	node3	Executor candidate: 8B MoE, ~1B active, tool-calling focus

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `tests/run-tasks-batch.ps1`: add `Probe` and `Both` modes on top of the
+  data-driven pickers. Probe runs `test-toolcalls.ps1` on every host that
+  answers. `Both` then batches every seat whose probe PASSes on its host's
+  current Ollama version. `-OnlyMissing` runs only task × model pairs with no
+  graded row. `-Mode/-Tasks/-Models/-Reps/-Yes` make the whole thing
+  non-interactive. Seats the live opencode config doesn't know are dropped
+  before they can become `_INFRA_` runs. Also fixes the seat picker from #36,
+  which offered every seat as one joined option: `return ,@(...)` wrapped in
+  `@()` nests the array.
+- `tests/test-toolcalls.ps1`: log every result to
+  `tests/results/toolcalls-summary.tsv` with host label and Ollama version.
+  Results were previously recorded by hand, and a probe only holds for the
+  version it ran on. Accepts a `/v1` base URL. Fixes the usage comment's
+  nonexistent `-Host` flag.
+- Serve and register every desktop tool-capable seat at 32768 context:
+  `qwen3.5:9b`, `qwen3-coder:30b-a3b` and `devstral:24b` were 16384. At 16k,
+  OpenCode's ~14.4k-token standing preamble plus the 4096 output reserve does
+  not fit, so those seats lost their system prompt before seeing a task. Baked
+  by `startup.ps1` (`$contextModels`), with `limit.context` to match.
+- Register the 2026-09-22 executor candidates in `opencode.jsonc` and
+  `models/catalog.tsv`: on the desktop, `devstral-small-2:24b`,
+  `north-mini-code-1.0`, `laguna-xs-2.1`, `qwen3.6:35b-a3b-coding` and
+  `nemotron-3.5-lightning`; on node3, `ornith:9b`, `ministral-3:8b` and
+  `lfm2.5:8b`. They are registered ahead of the probe with `tool_call: true`
+  so one `-Mode Both` run can batch whichever pass. The script drops non-PASS
+  seats, and a FAIL gets flipped to false afterwards.
+- Desktop Ollama 0.34.1 → 0.34.3 (manual install; the `pin-ollama-desktop.ps1`
+  firewall rule stays, so the tray app still cannot self-update). Desktop
+  models moved from `C:\Users\<you>\.ollama\models` to `M:\ollama\models`
+  (User-level `OLLAMA_MODELS`).
 - Add `docs/target-setup.md`: the planned fleet end state once the server is
   back, derived from the owner's stated workflow (interactive planning only;
   unattended, slow implementation is fine; TypeScript first; offload to local
