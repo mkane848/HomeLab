@@ -1,0 +1,22 @@
+﻿{
+    "timestamp":  "2026-09-23T16:01:22",
+    "taskId":  "lfc-02-scryfall-headers",
+    "taskTitle":  "lfc-bot: every outbound Scryfall request must send the Accept header and a name/version User-Agent Scryfall requires",
+    "model":  "ollama-node3/ornith:9b",
+    "modelLabel":  "ollama-node3/ornith:9b",
+    "baseCommit":  "170b395baf8ad4205f6fb6d409b29c25635e7363",
+    "promptSha256":  "0CDC9E50C546",
+    "opencodeExit":  0,
+    "writes":  0,
+    "gates":  {
+                  "scope":  "FAIL",
+                  "suite":  "PASS",
+                  "failsOnOld":  "FAIL"
+              },
+    "typecheck":  "SKIP",
+    "elapsedSec":  85.2,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.32",
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-lfc-02-scryfall-headers-ollama-node3_ornith_9b_20260923-160122.jsonl"
+}
