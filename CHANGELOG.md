@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Decide the scaffold-from-scratch benchmark shape (roadmap.md): plan **B,
+  decomposed slices** for the React 9 + TS webapp-from-plain-English case.
+  Feature slices fit the existing four gates untouched (benchBaseCommit =
+  previous slice's head; failsOnOld reverts the slice's source); the slice-0
+  skeleton is a planning-time artifact because the scope gate requires a
+  revertable source file, and a greenfield reverting-scaffold task-kind is
+  explicitly deferred. The translator seat is the planner — decomposing the
+  English prompt into ordered, benchmark-shaped slices is its existing
+  contract. First instance queued behind the blind-trial lanes
+  (implementation-tasks.md → "New open follow-ups").
 - Rerun the 3 open timeout unknowns at a 1800 s cap (2026-09-23 evening,
   `-OnlyMissing` re-targeted the row-less cells): `qwen3.6 x asohav-01` PASS
   (13 writes, 1620.3 s, suite 48 green - the seat's first pass on the cell),
