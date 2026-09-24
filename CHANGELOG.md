@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Expand `docs/implementation-tasks.md` → "Next steps" into the ordered
+  2026-09-24 plan (steps 5–9, each with a definition of done): blind trial
+  first (recover `ses_f2ef…` with the mission line, small target,
+  failing-first acceptance), then control rematch + 1800 s offloader reruns
+  on disjoint task sets, `qwen3.5:9b` to N=3 + node3 Q4 probe-then-batch,
+  harness honesty fixes before the next results PR (streamed `_TIMEOUT_`,
+  kill-vs-cap tags, per-host version stamp), greenfield slice chain last.
+  Items 1–4 kept as completed record.
+
 - Bind the `qwen3.6` planner prompt (`docs/agent-notes/planner-prompt-qwen3.6.md`)
   to a mandatory mission line after its first live run stalled (blind-trial
   data point 1, recorded in `docs/implementation-tasks.md`): launched with no
