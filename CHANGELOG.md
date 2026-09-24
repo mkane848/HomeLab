@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record blind-trial data point 2 (`docs/implementation-tasks.md` → "New open
+  follow-ups"): the first mission-line `qwen3.6` run held scope (LFCbot, sound
+  plan) but broke role separation — edited the live LFCbot checkout (reverted,
+  baseline re-verified 21/21), skipped the interview, never emitted
+  `## Work orders`, never verified failing-first. Enforcement is now
+  mechanical: planner sessions launch in Plan mode (Step 0 in
+  `docs/agent-notes/planner-prompt-qwen3.6.md`, whose status graduates from
+  DRAFT), with the read-only prose kept as backup.
+
 - Expand `docs/implementation-tasks.md` → "Next steps" into the ordered
   2026-09-24 plan (steps 5–9, each with a definition of done): blind trial
   first (recover `ses_f2ef…` with the mission line, small target,
