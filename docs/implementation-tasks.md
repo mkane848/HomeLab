@@ -630,6 +630,35 @@ Pass by task, across all seats:
 
 ## New open follow-ups
 
+- [ ] **Blind-trial data point 1: the qwen3.6 planner stalled without a
+      mission line** (2026-09-23, session `ses_f2efe83bdffexOK6vf23Yf0F4J`).
+      The draft prompt says "Explore the target repo" but never names it.
+      Launched from `M:\Projects\dev-docs`, qwen3.6 read that as *this*
+      workflow repo and spent ~28 min / 23 messages / 4 compactions looping:
+      re-reading `target-setup.md` + `manifest.json` + `implementation-tasks.md`
+      3-4x each (each compaction discards the earlier tool results, forcing the
+      reload — which is also what filled 32768 in under a half hour), rebuilding
+      the same "Objective / Work State / Next Move" summary each turn, and
+      asking "Which would you like to prioritize?" — never the numbered
+      scope interview the contract requires. **It never produced a work
+      order and never touched `M:\Projects\LFCbot`.**
+      - The final stop-and-ask was contract-correct (the draft says
+        "stop and ask instead of guessing"); the miss is that it read and
+        planned the wrong repo because the referent was unbound. The launch
+        directory is scaffolding; with no mission line there was no target to
+        interview about.
+      - Fix (in `docs/agent-notes/planner-prompt-qwen3.6.md`): the build must
+        open with a `Target repo:` / `Target:` mission line, the explore step
+        is bound to that repo only, re-reads are banned, and status replies are
+        short lines instead of full-session summaries. The live session is
+        recoverable without a restart — reply to it with the mission line and
+        it proceeds to the LFCbot interview.
+      - Second finding: after the first compactions qwen3.6 began echoing the
+        opencode session-summary format as its normal reply style instead of
+        the terminal `## Work orders` contract. The compacted session
+        summaries in its own context became its template — worth watching in
+        the next run whether the "short status lines" rule holds it off.
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the

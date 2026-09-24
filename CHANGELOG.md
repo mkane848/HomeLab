@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bind the `qwen3.6` planner prompt (`docs/agent-notes/planner-prompt-qwen3.6.md`)
+  to a mandatory mission line after its first live run stalled (blind-trial
+  data point 1, recorded in `docs/implementation-tasks.md`): launched with no
+  `Target repo:`/`Target:` line, the session treated the workflow repo itself
+  as the target — 23 messages, 4 compactions, zero work orders, LFCbot never
+  read. The build must now open with a two-part mission line; the explore step
+  is bound to that repo only; re-reading a file already in context is banned
+  (the 32k filled in <30 min largely on 3-4x re-reads of three docs); status
+  replies are short lines, not full-session summaries (the model started
+  echoing the compaction summary format after the first compaction). The live
+  session is recoverable without a restart — reply to it with the mission line.
 - Decide the scaffold-from-scratch benchmark shape (roadmap.md): plan **B,
   decomposed slices** for the React 9 + TS webapp-from-plain-English case.
   Feature slices fit the existing four gates untouched (benchBaseCommit =
