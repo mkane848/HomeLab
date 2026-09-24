@@ -698,7 +698,9 @@ Pass by task, across all seats:
       did not measure. Related to the item above: both are "the tail of a
       run is evidence, and the label must be honest."
 
-## Next steps (ordered)
+## Next steps (ordered, as of 2026-09-24)
+
+Completed 2026-09-23 (kept as record):
 
 1. ✅ #45 merged, #46 merged; pull main; branches deleted.
 2. ✅ Fresh session: closed all `opencode` instances (harness PID included
@@ -722,8 +724,66 @@ Pass by task, across all seats:
    work orders with planner-written acceptance tests; draft at
    `docs/agent-notes/planner-prompt-qwen3.6.md`). Keep first plans small
    and benchmark-shaped; planner test must fail on current code before the
-   order queues. Not yet deployed to a live session.
-5. Blind trial per the 2026-09-23 protocol (branch per order, 2–3 file /
-   ~300-line cap, abort on 3 consecutive gate failures). The `lfm2.5`
-   version-rematch (drop `-OnlyMissing` deliberately) stays deferred
-   until the lanes clear.
+   order queues. Bound to a mandatory mission line after blind-trial data
+   point 1 (PR #50).
+
+Open, in order — each gates the next:
+
+5. **Blind trial — first real work orders.** Recover the live session
+   `ses_f2efe83bdffexOK6vf23Yf0F4J` by replying with the mission line
+   (do not restart — a restart loses the data point):
+   `Target repo: M:/Projects/LFCbot` + `Target: <one small defect/feature>`.
+   Protocol per 2026-09-23: branch per order (`order/<n>-<slug>` off `main`),
+   2–3 files / ~300-line cap, planner-written acceptance test that FAILS on
+   current code before the order queues, abort on 3 consecutive gate
+   failures. Keep the target small — `qwen3.6` is the slowest seat (123 s
+   probe, 1620 s `asohav-01` PASS against the 1800 cap). Definition of done:
+   ≥1 work order (repo + branch + allowFiles + testCmd + acceptance +
+   prompt), acceptance verified failing-first, ≥1 executor attempt graded
+   through the untouched four gates. Zero work orders = the mission-line
+   fix didn't hold; record and stop, no more compute.
+6. **Close the measurement confound — control rematch + raised-cap reruns.**
+   Lane A (control, desktop): `qwen3:14b` + `qwen3:8b` across all 8 tasks on
+   Ollama 0.34.3 — owed before any seat decision cites the challenger gap.
+   Lane B (desktop, `-RunTimeout 1800 -OnlyMissing`): the row-less timeout
+   cells (`laguna-xs-2.1`, `nemotron-3.5-lightning`, `qwen3.6`,
+   `north-mini-code-1.0`, `devstral-small-2:24b`) plus unfinished
+   `qwen3-coder:30b-a3b` ×8. Partition lanes by task id statically up front
+   (disjoint sets, verified against each lane's `-Tasks` list — the 09-23
+   `kane-02` collision is the reason); stop procedure is driver-stop plus a
+   `Get-Process opencode` check (Ctrl+C orphans the `opencode run` child);
+   never the same task id in two terminals (worktree `:448` + install
+   marker `:205` are task-id-keyed). Definition of done: control cells have
+   same-harness rows; every offloader timeout cell has a graded row or a
+   `_TIMEOUT_` transcript; per-attempt table updated.
+7. **`qwen3.5:9b` to N=3 + node3 Q4 copy.** Desktop: N=3 on every task, Q8 as
+   measured (the 5/6 record was earned on Q8 — Q4 is a separate experiment).
+   Node3: pull Q4 (only strong seat small enough for 10 GB), probe first
+   (`test-toolcalls.ps1 -Model qwen3.5:9b -OllamaHost http://NODE3_IP:11434`),
+   then batch. Confirm node3 sleep disabled and `MANAPOOL_API_KEY` unset
+   for `lfc-02`. Definition of done: N=3 graded rows per `qwen3.5` cell;
+   node3 Q4 has probe + task rows or a recorded FAIL with shape.
+   `ministral` (0/7), `lfm2.5` (0/8), `ornith` (1/7) stay out as executors.
+8. **Harness honesty fixes, before the next results PR**
+   (`tests/test-tasks.ps1` + `run-tasks-batch.ps1`): (a) stream timeout
+   output inside the job (`Tee-Object`) so a timeout keeps a `_TIMEOUT_`
+   transcript — at minimum stop printing "Summary appended" when nothing
+   was appended; (b) tag kills vs caps (exit `-1` is `_ABORTED_`, not
+   `_TIMEOUT_`); (c) stamp the target host's `/api/version`, not
+   localhost's (node3 runs 0.34.2, its 09-23 files all say 0.34.3).
+   Definition of done: a deliberate timeout leaves a transcript and no row;
+   a killed lane tags `_ABORTED_`; a node3 run stamps 0.34.2;
+   `test-profiles.ps1` still 100 PASS / 0 FAIL / 1 WARN / 2 SKIP.
+9. **Greenfield trial — slice-0 skeleton + first slice chain** (gated behind
+   steps 5–6, no compute until blind-trial lanes clear). Slice-0 skeleton
+   is a planning-time artifact (owner or hand-verified planner output,
+   committed on `main` of a new benchmark repo: React 9 + TS + Vitest,
+   blank app, one trivial passing test — grading starts at slice 1).
+   Planner decomposes the owner's webapp prompt into ordered slices, each a
+   full `manifest.json` entry (`benchBaseCommit` = previous slice's head,
+   `allowFiles` = source + test, acceptance failing on the previous slice
+   before queueing). Executors run the chain in order through the untouched
+   gates; a slice that can't pass goes back to the planner. Definition of
+   done: all slices pass in order with you only in planning + merge
+   (milestone 5, greenfield). The `lfm2.5` version-rematch (drop
+   `-OnlyMissing` deliberately) stays deferred until the lanes clear.
