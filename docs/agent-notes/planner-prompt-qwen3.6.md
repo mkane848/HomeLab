@@ -1,15 +1,28 @@
-# Planner prompt draft — qwen3.6 (2026-09-23)
+# Planner prompt — qwen3.6 (2026-09-23, revised 2026-09-24)
 
-**Status: DRAFT. Not deployed.** Target seat `ollama-desktop/qwen3.6:35b-a3b-coding`
-(Starting-build planner, `docs/target-setup.md`). Review before first use, then
-run a blind trial per the 2026-09-23 protocol (branch per order, 2–3 file /
-~300-line cap, abort on 3 consecutive gate failures).
+**Status: TRIALED — data point 2 (2026-09-24).** First mission-line run
+(session `ses_f2bba6de5ffeLs2OcFGUB5rTmt`, transcript `session-ses_f2bb.md`)
+held scope (right repo, sound plan) but broke role separation: edited the
+live checkout, skipped the interview, never emitted `## Work orders`, never
+verified failing-first. Prompt prose did not enforce read-only — so Step 0
+below (Plan mode) is the enforcement and the prose is backup. Target seat
+`ollama-desktop/qwen3.6:35b-a3b-coding` (Starting-build planner,
+`docs/target-setup.md`). Blind-trial protocol still applies (branch per
+order, 2–3 file / ~300-line cap, abort on 3 consecutive gate failures).
 
 This is the literal prompt to paste into a fresh qwen3.6 session for planning
 work. It produces work orders, never prose plans — the executor seats are weak
 (see "What the data says local models can do" in `docs/target-setup.md`): give
 them a small, precisely scoped change with the acceptance test already written,
 and grade them mechanically.
+
+## Step 0 — launch in Plan mode (owner action, not pasted)
+
+Flip the bottom-left toggle to **Plan** before sending the first message.
+Plan mode removes edit/write tools at the permission level, so the seat
+cannot implement whatever it decides — data point 2 proved prose alone does
+not hold (read-only contract, live checkout edited anyway). If the session
+can edit files, stop: the toggle is off and nothing below is enforced.
 
 ---
 

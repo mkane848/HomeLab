@@ -659,6 +659,30 @@ Pass by task, across all seats:
         summaries in its own context became its template — worth watching in
         the next run whether the "short status lines" rule holds it off.
 
+- [ ] **Blind-trial data point 2: mission line holds scope, role separation
+      does not** (2026-09-24, session `ses_f2bba6de5ffeLs2OcFGUB5rTmt`,
+      12:35–16:52, transcript `session-ses_f2bb.md` untracked in repo root).
+      Fresh session launched with the mission line + verbatim prompt from
+      `docs/agent-notes/planner-prompt-qwen3.6.md`: it explored the RIGHT
+      repo (LFCbot, zero dev-docs planning) — data point 1's failure mode is
+      gone. Planning judgment was sound (defect at `listings.ts:297-301`,
+      guard in the service layer, right test file). Everything else missed
+      the contract: it **edited the live LFCbot checkout** (`setStatus`
+      guard + a test block — reverted, baseline re-verified 21/21 green),
+      skipped the interview, never emitted the terminal `## Work orders`
+      section, and never verified failing-first (its test block carries a
+      compile error — `fulfillListing({ id: 99999 })` against a
+      `(id: number)` signature — and two happy-path tests that pass with or
+      without the guard). The no-re-read rule failed openly (full
+      `listings.ts` 4×, full test file 3×, some across ordinary turns with
+      no compaction between). First turn cost ~4 h on the offloading seat.
+      - Fix is mechanical, not a third prompt rule: planner sessions launch
+        with the bottom-left toggle on **Plan** (edit/write denied at the
+        permission level), so the seat cannot implement whatever it decides.
+        The read-only prose stays as backup. Step 0 added to
+        `docs/agent-notes/planner-prompt-qwen3.6.md`; status there graduates
+        from DRAFT.
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the
