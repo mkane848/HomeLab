@@ -504,22 +504,72 @@ measure. TanStack Start's source lives in the `TanStack/router` monorepo
 (github.com/TanStack/router) alongside TanStack Router, not a separate repo
 — pointer for whoever picks this up.
 
-Three candidate shapes, captured side by side, no pick made yet:
+Three candidate shapes, captured side by side. **Decision 2026-09-23: B
+(decomposed slices), for the "React 9 + TypeScript webapp from a plain-English
+prompt" case** — the other two stay parked:
 
 - **A — CLI/data-transform scaffold.** Fixed input fixture, exact expected
   output to diff against. Fully mechanical, closest in rigor to Tasks 1-2,
   but the weakest fit to the actual (web-app) workflow this is meant to
-  test.
+  test. Parked.
 - **B — Decomposed slices.** Break the Start Prompt into narrow,
   individually-gradable mini-tasks (one route + loader, one server-function
   boundary check, etc.) instead of one monolithic build. Keeps the real
   workflow shape while restoring the narrow-root-cause property that made
-  Task 1/2 gradable.
+  Task 1/2 gradable. **The pick, spec'd concretely below.**
 - **C — Full prompt, staged grading.** Keep the whole prompt as the eventual
   target; build mechanical checks incrementally (build succeeds → route
   tree resolves → loader fires → server function absent from client
   bundle); explicitly punt the judgment-heavy parts (SSR-mode choice,
   deploy targeting) rather than force a fake-mechanical answer for them.
+  Parked — it is what mode-B planning against a pre-seeded skeleton happens
+  to produce autowired in an owner-visible form, so it becomes the objective
+  if/when B proves out.
+
+**Why B fits the harness as it exists.** The four gates (scope/suite/
+failsOnOld/typecheck) never needed a *pre-existing bug* — they need a source
+file to revert (`srcRevertFiles`) and a test that fails when that source is
+reverted. A greenfield feature slice is the same shape with "not yet
+implemented" in place of "bug": slice N's branch commits off the previous
+slice's head (`benchBaseCommit` = slice N-1's commit), the acceptance test
+targets only slice N's source file, and `failsOnOld` means "revert slice N's
+source → slice N's test fails". The existing `-SetupOnly` branch table already
+chains commits this way. **No harness change is required for feature slices.**
+
+**The one genuine gap: slice 0, the skeleton.** A scaffold task (init repo,
+package.json, tsconfig, vitest wiring, one trivial passing test) has nothing to
+revert — the `scope` gate requires touching a `srcRevertFiles` entry, so no
+greenfield task can pass it. **Decision: the skeleton is a planning-time
+artifact, not an executor task.** For the first trial the owner (or the planner
+seat, hand-verified) authors the slice-0 skeleton, exactly as Tasks 1/2's repos
+already exist as skeletons the fleet never scaffolded. Grading starts at slice
+1. A future follow-up *could* add a `greenfield` task kind whose failsOnOld
+reverts the scaffold files to test "removing the skeleton breaks the suite" —
+but that is a new gate and a new judgment (is a ``tsconfig.json`` diff a real
+change?), deferred until the translated slices prove they hold mechanically.
+
+**The translator seat is the planner.** Producing ordered, benchmark-shaped
+slices from the English prompt — each slice one source file + its test, 2-3
+files / ~300-line cap, acceptance test failing on the *previous* slice — is the
+same contract the `qwen3.6` planner prompt (docs/agent-notes/
+planner-prompt-qwen3.6.md) already enforces for defect orders; only the
+"defect" becomes "missing feature". The plain-English → technical-prompt step
+the user's ideal setup wants is exactly this seat's output. First instance:
+the owner's "React 9 + TS webapp with …features" prompt, decomposed by the
+planner into a slice chain.
+
+**Slice-chain mechanics (as specified for the first trial):**
+1. Slice-0 skeleton authored + committed by the owner (or planner output hand-verified) on `main` of a new benchmark repo: React 9 + TS + Vitest, blank app, trivial passing test — the same baseline assumption Tasks 1/2 start from.
+2. Planner decomposes the English prompt into ordered slices; each slice written as a full `manifest.json` entry with `benchBaseCommit` = the previous slice's committed head, `allowFiles` = source + test only, `testCmd` = `npx vitest run <test>`, acceptance test verified to fail on the previous slice's committed state *before* the order queues (same failing-first discipline as defect orders).
+3. Executors run each slice through the untouched gates, in order, one slice per attempt; attempt 2 / parallel node3 seat as in the starting build. A slice that can't pass means its acceptance test did not match the previous state — the slice goes back to the planner, never silently dropped.
+4. Pass@N over the whole chain measures the *translation* (did the seat decompose into gradable slices?) separately from per-slice executor passes (did the executor implement it?).
+
+Success for the first trial: all slices pass in order with the runner only
+in the planning and merge steps — the same definition as Step 5 (first real
+use) but greenfield. Until the server is back, the planner seat does the
+decomposition locally (it is slow, but the slice chain is exactly the
+"handled by decomposition, not a bigger context" principle applied to
+"build a whole app").
 
 Purely additive — does not change the status of Tasks 1/2, the harness, or
 the "hold config changes until ~3 graded runs across ≥2 tasks" gate.

@@ -630,6 +630,21 @@ Pass by task, across all seats:
 
 ## New open follow-ups
 
+- [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
+      scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
+      scratch": plan shape B, decomposed slices; the translator seat is the
+      planner). The step that makes it runnable for the next round of tests:
+      author the slice-0 skeleton (React 9 + TS + Vitest, blank app, trivial
+      passing test — a planning-time artifact, not an executor task), then
+      have the qwen3.6 planner decompose the owner's plain-English webapp
+      prompt into a slice chain of full manifest entries (`benchBaseCommit` =
+      previous slice's head, `allowFiles` = source + test, accepts failing
+      on previous slice before queueing). Executors run the chain through the
+      untouched four gates in order. Do NOT spend compute on this until the
+      blind-trial lanes clear — same gate as step 5. Decision detail: slice-0
+      can't pass the `scope` gate (nothing to revert), so grading starts at
+      slice 1; a greenfield task-kind (revert-scaffold) is explicitly deferred.
+
 - [ ] **`test-tasks.ps1` stamps the local desktop Ollama version onto
       remote-host runs.** Node3 is live on 0.34.2 (verified) but every
       node3 evidence `.json` from this session reads `"ollamaVersion":
