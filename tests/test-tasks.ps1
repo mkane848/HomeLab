@@ -71,6 +71,11 @@
 #   -SkipInstall        skip pnpm install/setup even if the marker is missing.
 #   -DryRun             create/reset the worktree, install, run the baseline, then stop before the model run.
 #   -Cleanup            remove the task worktree after grading.
+#   -EditFormat write|edit  append a prompt directive forcing whole-file writes
+#                       (write) or substring search-replace edits (edit). The
+#                       directive is part of the hashed prompt, so each arm
+#                       records a distinct sha. Used for the edit-format A/B
+#                       (methodology-research.md Accelerator B).
 #
 # Exit code: 0 if no FAIL grade across all runs, 1 otherwise.
 # Results: tests/results/tasks-<taskId>-<label>_<timestamp>.json AND the
@@ -87,7 +92,9 @@ param(
     [switch]$NoReset,
     [switch]$SkipInstall,
     [switch]$DryRun,
-    [switch]$Cleanup
+    [switch]$Cleanup,
+    [ValidateSet("write", "edit", "")]
+    [string]$EditFormat = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -493,6 +500,11 @@ foreach ($tk in $tasksToRun) {
     }
 
     $prompt = $tk.prompt
+    if ($EditFormat -eq "write") {
+        $prompt += "`n`nMake all your source changes with whole-file writes to the target files (the write tool), not substring search-replace edits."
+    } elseif ($EditFormat -eq "edit") {
+        $prompt += "`n`nMake all your source changes with targeted substring search-replace edits (the edit tool), not whole-file rewrites."
+    }
     if (-not $promptHashes.ContainsKey($tk.id)) {
         # SHA256.HashData / Convert.ToHexString are .NET 5+ only - not present under
         # Windows PowerShell 5.1 (.NET Framework). Create()+ComputeHash()+BitConverter

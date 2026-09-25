@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `-EditFormat write|edit` to `tests/test-tasks.ps1`: appends a whole-file-
+  write vs substring-search-replace directive to the task prompt (part of the
+  hashed prompt, so each arm records a distinct sha). Implements the
+  edit-format A/B accelerator (`docs/methodology-research.md`); the first A/B
+  executor attempt on `lfc-03-status-transition-guard` is docketed.
 - Record blind-trial data point 3 (`docs/implementation-tasks.md` → "New open
   follow-ups"): Plan mode killed the live-checkout violation but stalled the
   seat — contract step 4 needs a write (the only one in the whole prompt), Plan
