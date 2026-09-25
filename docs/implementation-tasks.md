@@ -683,6 +683,46 @@ Pass by task, across all seats:
         `docs/agent-notes/planner-prompt-qwen3.6.md`; status there graduates
         from DRAFT.
 
+- [ ] **Blind-trial data point 3: Plan mode fixes the live-checkout violation
+      but stalls the seat entirely** (2026-09-24, session
+      `ses_f299504bcffefA9CLk3kZq8dPl`, transcript `session-ses_f299.md`
+      untracked in repo root, 17 user turns, 5 compactions, ~4h). Launched
+      with the DP2 fix (Plan-mode toggle) + verbatim prompt + mission line
+      for the same defect. The live-editing problem is GONE — nothing was
+      written to either repo. But the seat never emitted `## Work orders`:
+      5 compactions, each re-emitting the forbidden "Objective / Work State /
+      Next Move" summary template as its reply, re-reading the same five
+      files (full `listings.ts` 4×, full test file 4×), and answering the
+      interview against instructions instead of asking the owner — it read
+      the A/B/C "refine to three" prompt as directives and turned them into
+      self-chosen assertions (only `active` may transition; fulfilled →
+      deleted cleanup legal; throws per `createListing`). Its final stall
+      question ("should setStatus verify ownership?") is answered by the
+      code: `setStatus(id: number, …)` takes no user param — ownership lives
+      in the command layer. Root cause is structural, not prompted: contract
+      step 4 requires verifying a failing-first test in a throwaway worktree,
+      which requires a write, which Plan mode denies — the seat physically
+      cannot complete its own mandate and resolves the contradiction by
+      asking new questions / compacting instead of terminating. That bind is
+      exactly what the external order-drafting path (below) bypasses.
+      - Test-cluster result (same transcript) worth keeping: the seat poked
+        at a wrong `expired → 'deleted'` transition possibility, and the
+        correct reading of the schema (no reactivation path exists;
+        `setStatus` callers are `commands/user/fulfill.ts:23`,
+        `commands/user/delete.ts:23`, `commands/user/mylistings.ts`,
+        `commands/admin/remove.ts:25`) is what settled answers A/B/C.
+      - Resolution decision (2026-09-24, owner): the interview answers from
+        this session become the NEW contract, superseding the silent-no-op
+        contract that `lfc-01-listing-status-guard` (manifest) encodes —
+        they are not compatible (lfc-01 blocks `fulfilled → deleted` and
+        never throws). So the work order is docketed as a new manifest task
+        `lfc-03-status-transition-guard` (older `lfc-01` entry stays intact
+        with its own history). Acceptance tests are authored + verified
+        outside the seat on bench branch `bench/status-guard-throw`: 5/5
+        forbidden-transition tests FAIL on unguarded `main` (24/29, baseline
+        21 passing kept), 29/29 PASS with a candidate guard, full suite
+        343/343, scoped tsc clean.
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the
@@ -754,14 +794,20 @@ Completed 2026-09-23 (kept as record):
 Open, in order — each gates the next:
 
 5. **Blind trial v2 — first real work orders (protocol rewritten 2026-09-24
-   after DP2).** Data point 1 and data point 2 are consumed; the old "recover
-   session `ses_f2ef…` by replying with the mission line" is void. The DP1
-   session's mission-line fix held, and DP2 (fresh session, `ses_f2bb…`)
-   proved prose read-only is not enforcement — so the launch is:
+   after DP2).** Data points 1 and 2 are consumed; the old "recover session
+   `ses_f2ef…` by replying with the mission line" is void. DP3
+   (`ses_f299…`, 2026-09-24) is consumed too: Plan mode killed the live-checkout
+   violation but stalled the seat (contract step 4 needs a write → 5-compaction
+   question loop, no `## Work orders`). The protocol holds; the order is now
+   drafted **outside the seat** — see the DP3 record above. Live state:
    - **Plan mode first (Step 0 in `docs/agent-notes/planner-prompt-qwen3.6.md`,
      owner action):** flip the bottom-left toggle to Plan before the first
      message so the seat physically cannot edit. If the session can edit files,
-     stop — nothing in the contract is enforced.
+     stop — nothing in the contract is enforced. **DP3 caveat: Plan mode also
+     denies the planner's own step-4 worktree verification** — a planner session
+     can plan the order but not prove it failing-first. Both jobs now happen
+     outside the seat: the planner proposes, the order is docketed by hand
+     against the bench branch, the executor implements.
    - **Mission line:** `Target repo: M:/Projects/LFCbot` + `Target: <small
      defect/feature>`. **Target decision (owner, 2026-09-24): reuse DP2's own
      finding** — the `setStatus` guard at `listings.ts:297-301` (updates by id
@@ -783,13 +829,21 @@ Open, in order — each gates the next:
      supplied-test run also measures the format question (write is 8/8 vs
      `edit` 11% in the corpus; `docs/methodology-research.md` → "Edit
      reliability"). One variable; keep it out of step 7's N=3 backfill.
-   - Definition of done: ≥1 work order (repo + branch + allowFiles + testCmd +
-     acceptance + prompt), acceptance verified failing-first, ≥1 executor
-     attempt graded through the untouched four gates. Zero work orders = the
-     protocol still does not hold; record and stop, no more compute.
-   - **The launch itself is interactive** (Plan mode + numbered interview) —
-     owner action; this doc's job is done when the order is a real
-     `manifest.json`-shaped entry the harness can run.
+- Definition of done: ≥1 work order (repo + branch + allowFiles + testCmd +
+      acceptance + prompt), acceptance verified failing-first, ≥1 executor
+      attempt graded through the untouched four gates. **Status 2026-09-25: the
+      work order is docketed** — `tests/tasks/manifest.json`
+      `lfc-03-status-transition-guard` (full matrix contract from the DP3
+      interview: `active`→fulfilled/deleted and fulfilled→deleted legal;
+      everything else throws), acceptance block = 8 tests authored + verified
+      failing-first by hand on bench branch `bench/status-guard-throw`
+      (24/29 on unguarded `main`, 29/29 with a candidate guard, 343/343 full
+      suite, scoped tsc clean). Remaining DoD: the first executor attempt
+      through the harness. Accelerators A and B apply to that attempt on the
+      docketed order, as decided.
+    - **The launch itself is interactive** (Plan mode + numbered interview) —
+      owner action; this doc's job is done when the order is a real
+      `manifest.json`-shaped entry the harness can run.
 6. **Close the measurement confound — control rematch + raised-cap reruns.**
    Lane A (control, desktop): `qwen3:14b` + `qwen3:8b` across all 8 tasks on
    Ollama 0.34.3 — owed before any seat decision cites the challenger gap.

@@ -7,14 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Record blind-trial data point 2 (`docs/implementation-tasks.md` → "New open
-  follow-ups"): the first mission-line `qwen3.6` run held scope (LFCbot, sound
-  plan) but broke role separation — edited the live LFCbot checkout (reverted,
-  baseline re-verified 21/21), skipped the interview, never emitted
-  `## Work orders`, never verified failing-first. Enforcement is now
-  mechanical: planner sessions launch in Plan mode (Step 0 in
-  `docs/agent-notes/planner-prompt-qwen3.6.md`, whose status graduates from
-  DRAFT), with the read-only prose kept as backup.
+- Record blind-trial data point 3 (`docs/implementation-tasks.md` → "New open
+  follow-ups"): Plan mode killed the live-checkout violation but stalled the
+  seat — contract step 4 needs a write (the only one in the whole prompt), Plan
+  mode denies it, and `qwen3.6` resolved the contradiction by compacting 5×
+  into the forbidden summary template and asking new questions instead of
+  emitting `## Work orders`. Resolved by drafting the order outside the seat:
+  the DP3 interview answers become the `lfc-03` contract, docketed below.
+- Docket the first real step-5 work order as a new task
+  `lfc-03-status-transition-guard` (`tests/tasks/manifest.json`): a
+  status-transition matrix for LFCbot `setStatus` that supersedes the
+  silent-no-op contract of `lfc-01` (only `active` may originate a terminal
+  transition, `fulfilled → deleted` stays legal, everything else throws per
+  `createListing`'s convention). Acceptance block authored + verified
+  failing-first outside the seat on LFCbot bench branch
+  `bench/status-guard-throw` (`fcf9d1a`): 24/29 on unguarded `main` (baseline
+  21 kept green), 29/29 with a candidate guard, full suite 343/343, scoped
+  tsc clean. `lfc-01` keeps its older contract and history.
 - Add `docs/references.md` (catalog of every external source cited in the docs
   + the citation convention) and `docs/methodology-research.md` (2026-09-24
   sanity-check writeup: methodology verdict, two accelerators — spend the
