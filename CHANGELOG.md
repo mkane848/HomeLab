@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mechanical: planner sessions launch in Plan mode (Step 0 in
   `docs/agent-notes/planner-prompt-qwen3.6.md`, whose status graduates from
   DRAFT), with the read-only prose kept as backup.
+- Add `docs/references.md` (catalog of every external source cited in the docs
+  + the citation convention) and `docs/methodology-research.md` (2026-09-24
+  sanity-check writeup: methodology verdict, two accelerators — spend the
+  hosted-calibration key and run the edit-format A/B — and community resources
+  mapped to the measured gaps: SWE-Edit, aider edit-format analysis, the QCoda
+  engine-model bake-off, terminal-agent context management). `AGENTS.md` now
+  requires inline citations for externally-grounded claims and a
+  `docs/references.md` row in the same change; `docs/README.md` indexes both
+  new pages.
 
 - Expand `docs/implementation-tasks.md` → "Next steps" into the ordered
   2026-09-24 plan (steps 5–9, each with a definition of done): blind trial

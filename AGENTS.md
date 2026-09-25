@@ -141,6 +141,15 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
 - PRs: title `type: description` (`docs: …`, `tests: …`, `fix: …`), fill the
   Verification section with commands run (not assertions), add a `[Unreleased]`
   `CHANGELOG.md` entry. Template: `.github/PULL_REQUEST_TEMPLATE.md`; rules: `CONTRIBUTING.md`.
+- **Cite external sources in docs.** Any claim grounded in a paper, leaderboard,
+  benchmark, blog, or tool docs gets an inline link on first mention with
+  descriptive link text — never a bare URL, never a guessed URL (`webfetch` any
+  URL before you cite it, and swap to the fetched link if the two differ). New
+  sources are added to `docs/references.md` (short name, title, author/lab,
+  date, URL) in the same change that first cites them. **Re-verify stale-able
+  claims when editing a doc that carries them** — leaderboard ranks, "best
+  model", and version facts move weekly; if you cannot re-verify, keep the
+  claim but date-stamp it. Convention + catalog: `docs/references.md`.
 
 ## Gotchas
 

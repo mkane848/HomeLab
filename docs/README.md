@@ -58,6 +58,15 @@ as a regression gate on the one plan it was written for. Results:
 - **[roadmap.md](roadmap.md)** — ordered backlog: what's landed, what's next,
   and open fleet decisions.
 
+## Research & references
+
+- **[methodology-research.md](methodology-research.md)** — the 2026-09-24
+  sanity-check writeup: where the methodology stands, the two accelerators for
+  first real use, and community resources mapped to the measured gaps.
+- **[references.md](references.md)** — catalog of every external source cited
+  in these docs, plus the citation convention. Add a row here whenever a doc
+  gains a new citation.
+
 ## Other
 
 - **[implementation-tasks.md](implementation-tasks.md)** — not a doc to read
