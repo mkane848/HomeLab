@@ -39,7 +39,8 @@
 # seat change until ~3 graded runs across >=2 tasks (the agreed gate).
 #
 # Reproducibility, and its current limit: every run records `ollamaVersion`/
-# `opencodeVersion` (from `ollama --version` / `opencode --version`) and the
+# `opencodeVersion` (the serving host's /api/version - "n/a" for a hosted
+# provider - and `opencode --version`) and the
 # raw JSONL transcript is now KEPT (moved into tests/results/, not deleted) -
 # see `samplingControl` in each result JSON. What this harness does NOT do is
 # pin a seed or temperature: `opencode run` has no known per-invocation flag
@@ -475,11 +476,37 @@ Write-Host "tasks manifest: $manifestPath" -ForegroundColor DarkGray
 Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor DarkGray
 
 # Captured once per script run, not per task - neither changes mid-run.
-# Tolerant of either command being absent/erroring: Run-Native never throws,
-# so a missing/unexpected --version flag degrades to a labeled "unknown"
-# rather than aborting the whole benchmark.
-$ovOllama = Run-Native "ollama" @("--version")
-$ollamaVersion = if ($ovOllama.ExitCode -eq 0 -and $ovOllama.Output) { ($ovOllama.Output -join ' ').Trim() } else { "unknown (ollama --version exit $($ovOllama.ExitCode))" }
+# Tolerant of either being absent/erroring: a failed probe degrades to a
+# labeled "unknown" rather than aborting the whole benchmark.
+#
+# The Ollama version is the one serving -Model, not the local binary's: the
+# model id's provider picks the host (ollama-desktop/-server/-node3 -> that
+# provider's *_BASE_URL) and its /api/version is asked. Stamping
+# `ollama --version` put the desktop's 0.34.3 on every node3 run (node3 was
+# 0.34.2) and would put it on hosted-provider runs that touch no Ollama at all.
+# The "ollama version is X" shape is kept so existing result files compare.
+$providerId = ($Model -split '/', 2)[0]
+$ollamaBaseVar = switch ($providerId) {
+    "ollama-desktop" { "OLLAMA_DESKTOP_BASE_URL" }
+    "ollama-server"  { "OLLAMA_SERVER_BASE_URL" }
+    "ollama-node3"   { "OLLAMA_NODE3_BASE_URL" }
+    default          { $null }
+}
+if (-not $ollamaBaseVar) {
+    $ollamaVersion = "n/a ($providerId is not an Ollama provider)"
+} else {
+    $ollamaBase = [Environment]::GetEnvironmentVariable($ollamaBaseVar)
+    if (-not $ollamaBase) {
+        $ollamaVersion = "unknown ($ollamaBaseVar is unset)"
+    } else {
+        $ollamaRoot = $ollamaBase.TrimEnd('/') -replace '/v1$', ''
+        try {
+            $ollamaVersion = "ollama version is $((Invoke-RestMethod -Uri "$ollamaRoot/api/version" -TimeoutSec 10).version)"
+        } catch {
+            $ollamaVersion = "unknown ($ollamaRoot/api/version unreachable)"
+        }
+    }
+}
 $ovOpencode = Run-Native "opencode" @("--version")
 $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
 Write-Host ("ollama: {0} | opencode: {1}" -f $ollamaVersion, $opencodeVersion) -ForegroundColor DarkGray
