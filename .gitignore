@@ -23,3 +23,7 @@ Thumbs.db
 
 # Task-benchmark throwaway worktrees (tests/test-tasks.ps1)
 tests/.worktrees/
+
+# Session transcripts (blind-trial evidence; kept untracked by convention —
+# cited by name in docs/implementation-tasks.md DP records)
+session-*.md

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record blind-trial data point 4 (`docs/implementation-tasks.md` → "New open
+  follow-ups"): the first `lfc-03` executor attempt through the harness.
+  Accelerator B delivered as `-EditFormat write|edit` on `test-tasks.ps1`.
+  Both A/B arms on `ollama-desktop/qwen3:14b` FAILed: arm A (write) made the
+  guard change (scope/suite green, one whole-file `write`) but never authored
+  acceptance tests — **fails-on-old FAIL**, the exact trap DP4 documents; arm
+  B (edit) timed out at 1800 s and its transcript was again unarchived (the
+  "Summary appended but appends nothing" gap). Corpus: two result files +
+  one `tasks-summary.tsv` entry archived. Step-5 DoD met on execution but NOT
+  on grade — Accelerator A (the `opencode-go/qwen3.8-max` oracle run of the
+  exact order) is queued with owner approval 2026-09-25.
 - Add `-EditFormat write|edit` to `tests/test-tasks.ps1`: appends a whole-file-
   write vs substring-search-replace directive to the task prompt (part of the
   hashed prompt, so each arm records a distinct sha). Implements the

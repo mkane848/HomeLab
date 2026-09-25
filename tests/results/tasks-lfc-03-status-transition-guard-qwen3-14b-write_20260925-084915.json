@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-09-25T08:49:16",
+  "taskId": "lfc-03-status-transition-guard",
+  "taskTitle": "lfc-bot: enforce a status-transition matrix in setStatus - throw on every forbidden transition, allow fulfilled-to-deleted cleanup",
+  "model": "ollama-desktop/qwen3:14b",
+  "modelLabel": "qwen3-14b-write",
+  "baseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
+  "promptSha256": "4A1266C4478E",
+  "opencodeExit": 0,
+  "writes": 1,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "WARN",
+  "elapsedSec": 627.3,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-03-status-transition-guard-qwen3-14b-write_20260925-084915.jsonl"
+}

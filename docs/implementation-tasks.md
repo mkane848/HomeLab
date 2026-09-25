@@ -723,6 +723,46 @@ Pass by task, across all seats:
         21 passing kept), 29/29 PASS with a candidate guard, full suite
         343/343, scoped tsc clean.
 
+- [ ] **Blind-trial data point 4: the first executor attempt ran and both A/B
+      arms graded FAIL on `lfc-03-status-transition-guard` — the gates caught
+      what they exist for** (2026-09-25, seat `ollama-desktop/qwen3:14b`, Ollama
+      0.34.3, opencode 1.18.32, on `4906dc2`). Accelerator B was packaged as a
+      new `-EditFormat write|edit` flag on `test-tasks.ps1` (prompt directive
+      appended to the hashed prompt, so each arm records a distinct sha) and both
+      arms were run through the untouched four gates:
+      - **Arm A (`-EditFormat write`)** — opencode exit 0, ONE `write` tool call
+        replacing the whole `listings.ts` with a correct matrix implementation
+        (`validTransitions = { active: ['fulfilled','deleted'], fulfilled:
+        ['deleted'] }` + throw on anything else). **Scope PASS, suite PASS
+        (21/21), fails-on-old FAIL** ("the test file was never modified - the
+        pre-existing tests are green on the buggy source"). The transcript shows
+        the exact failure shape: after the write it hit `step_finish
+        reason:length`, compacted, ran the suite via bash, saw the pre-existing
+        21 tests green, then emitted prose ("The tests for the status transition
+        logic in `set…") and stopped — it implemented the fix but never wrote
+        acceptance tests, so nothing proved the new forbidden transitions throw.
+        Its guard also carries the TS7053 unchecked-index WARN (the `as keyof`
+        fix is in the bench-branch candidate, `bench/status-guard-throw`). Result
+        files: `tests/results/tasks-lfc-03-status-transition-guard-qwen3-14b-
+        write_20260925-084915.{json,jsonl}` + one TSV row.
+      - **Arm B (`-EditFormat edit`)** — timed out at 1800 s. Correctly
+        produced **no summary row** and the worktree was reset clean, but its
+        transcript was again **not archived** (the known "Summary appended but
+        appends nothing" gap below — the raw `opencode run` JSONL was never
+        flushed before the kill, so a timeout remains a pure unknown). Prompt sha
+        recorded: `1E977C9B5E0D`.
+      - Verdict: 0 graded runs passed — same shape as the historical 0/7 for
+        kane-01/lfc-01, so the harness is behaving, not malfunctioning. Three
+        concrete learnings: (1) **scope+suite green is not enough — fails-on-old
+        is the load-bearing gate**, and it FAILed on a model that fixed the code
+        but never proved it; (2) a mid-context `reason:length` cap can evict the
+        step where the model would have written its tests; (3) the timeout
+        black-hole fired again and still costs an unknown. Accelerator A (the
+        `qwen3.8-max` oracle run of the same order) is queued with owner
+        approval (2026-09-25) — target lower than the local seat's ceiling,
+        calibration key spend confirms what a ✓ PASS on the exact order looks
+        like before any local re-seat.
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the
@@ -824,11 +864,12 @@ Open, in order — each gates the next:
      produced order once it exists — oracle on the *exact* order (task-design
      de-risk + first genuine successful trajectory = the Unsloth fine-tune
      gate). Cost cents; decision made 2026-09-24, action waits for the order.
-   - **Accelerator B (edit-format A/B):** package whole-file-write vs
-     search-replace as the **first executor attempt** on that order, so the
-     supplied-test run also measures the format question (write is 8/8 vs
-     `edit` 11% in the corpus; `docs/methodology-research.md` → "Edit
-     reliability"). One variable; keep it out of step 7's N=3 backfill.
+- **Accelerator B (edit-format A/B):** package whole-file-write vs
+      search-replace as the **first executor attempt** on that order, so the
+      supplied-test run also measures the format question (write is 8/8 vs
+      `edit` 11% in the corpus; `docs/methodology-research.md` → "Edit
+      reliability"). One variable; keep it out of step 7's N=3 backfill.
+      **Consumed 2026-09-25 — both arms FAILed (see DP4 record above).**
 - Definition of done: ≥1 work order (repo + branch + allowFiles + testCmd +
       acceptance + prompt), acceptance verified failing-first, ≥1 executor
       attempt graded through the untouched four gates. **Status 2026-09-25: the
@@ -838,9 +879,13 @@ Open, in order — each gates the next:
       everything else throws), acceptance block = 8 tests authored + verified
       failing-first by hand on bench branch `bench/status-guard-throw`
       (24/29 on unguarded `main`, 29/29 with a candidate guard, 343/343 full
-      suite, scoped tsc clean). Remaining DoD: the first executor attempt
-      through the harness. Accelerators A and B apply to that attempt on the
-      docketed order, as decided.
+      suite, scoped tsc clean). **Status 2026-09-25: first executor attempt
+      RUN — `qwen3:14b` scored 0 for 2 on Accelerator B's A/B (write arm: scope/
+      suite green, fails-on-old FAIL because it never wrote acceptance tests;
+      edit arm: 1800-s timeout, ungraded). DoD is NOT met.** Accelerator A
+      (the `qwen3.8-max` oracle run of the exact order) is queued with owner
+      approval 2026-09-25; a ✓ there defines what a PASS looks like through
+      the same four gates before any local re-seat.
     - **The launch itself is interactive** (Plan mode + numbered interview) —
       owner action; this doc's job is done when the order is a real
       `manifest.json`-shaped entry the harness can run.
