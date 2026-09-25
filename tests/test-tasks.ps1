@@ -400,12 +400,16 @@ function Invoke-OpencodeRun {
         # The canary pattern: run through the real opencode tool layer, JSONL
         # events on stdout, and let the (inherited) process env resolve the
         # provider baseURLs from the sourced profile.
+        # Each event is appended to $Out as it arrives, not buffered until exit:
+        # a run killed at the timeout used to leave no transcript at all (the
+        # whole stream sat in a variable), so a timeout was a pure unknown.
         $prev = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
             $msg = Get-Content -LiteralPath $PromptFile -Raw
-            $events = & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null
-            $events | Out-File -LiteralPath $Out -Encoding utf8
+            $enc = New-Object System.Text.UTF8Encoding($false)
+            & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null |
+                ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
         } finally {
             $ErrorActionPreference = $prev
         }
@@ -416,6 +420,19 @@ function Invoke-OpencodeRun {
     if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
         Stop-Job $job -ErrorAction SilentlyContinue
         Remove-Job $job -Force -ErrorAction SilentlyContinue
+        # Stop-Job does not take the native `opencode run` child with it - it
+        # orphans and keeps driving the model (and, on a hosted provider,
+        # spending the key). Kill every opencode process pointed at this
+        # worktree, whole tree, so the run really ends and the transcript
+        # file is released for archiving.
+        $orphans = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'opencode%'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -and $_.CommandLine.Contains($WtPath) })
+        foreach ($o in $orphans) {
+            Run-Native "taskkill" @("/PID", "$($o.ProcessId)", "/T", "/F") | Out-Null
+        }
+        if ($orphans.Count -gt 0) {
+            Write-Host "    killed $($orphans.Count) orphaned opencode process(es) still running against $WtPath" -ForegroundColor Yellow
+        }
         Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
         # $out is NOT deleted here - whatever the model did before being killed
         # is evidence, not noise. The caller rescues it into tests/results/.
@@ -727,14 +744,22 @@ foreach ($tk in $tasksToRun) {
 }
 
 $summaryHeader = @("timestamp", "taskId", "model", "modelLabel", "baseCommit", "opencodeExit", "writes", "scope", "suite", "failsOnOld", "typecheck", "elapsedSec") -join "`t"
-$summaryLines = @()
-if (-not (Test-Path -LiteralPath $summaryTsv)) { $summaryLines += $summaryHeader }
-$summaryLines += $summaryRows
-Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
+if ($summaryRows.Count -gt 0) {
+    $summaryLines = @()
+    if (-not (Test-Path -LiteralPath $summaryTsv)) { $summaryLines += $summaryHeader }
+    $summaryLines += $summaryRows
+    Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
+}
 
 Write-Host ""
 Write-Host ("Results: {0} PASS, {1} FAIL, {2} WARN, {3} SKIP" -f $statusCounts.PASS, $statusCounts.FAIL, $statusCounts.WARN, $statusCounts.SKIP) -ForegroundColor Cyan
-Write-Host "Summary appended to $summaryTsv" -ForegroundColor DarkGray
+# Only claim an append that happened - timeouts, infra failures, dry runs and
+# red baselines produce no graded row, and this line used to say otherwise.
+if ($summaryRows.Count -gt 0) {
+    Write-Host "Summary: $($summaryRows.Count) row(s) appended to $summaryTsv" -ForegroundColor DarkGray
+} else {
+    Write-Host "Summary: no graded runs - nothing appended to $summaryTsv" -ForegroundColor DarkGray
+}
 
 if ($overallPass) { exit 0 }
 exit 1
