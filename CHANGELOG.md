@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requires inline citations for externally-grounded claims and a
   `docs/references.md` row in the same change; `docs/README.md` indexes both
   new pages.
+- Rewrite `docs/implementation-tasks.md` step 5 as "blind trial v2"
+  (2026-09-24): data points 1+2 consumed, the `ses_f2ef…` recovery thread is
+  void, and the launch is Plan-mode-first (Step 0 — the DP2 mechanical fix).
+  Owner locked three decisions: target = DP2's own finding (the `setStatus`
+  guard at `listings.ts:297-301`), calibration key spent on the produced order
+  once it exists (accelerator A), and the edit-format A/B packaged as the
+  first executor attempt (accelerator B).
 
 - Expand `docs/implementation-tasks.md` → "Next steps" into the ordered
   2026-09-24 plan (steps 5–9, each with a definition of done): blind trial

@@ -753,19 +753,43 @@ Completed 2026-09-23 (kept as record):
 
 Open, in order — each gates the next:
 
-5. **Blind trial — first real work orders.** Recover the live session
-   `ses_f2efe83bdffexOK6vf23Yf0F4J` by replying with the mission line
-   (do not restart — a restart loses the data point):
-   `Target repo: M:/Projects/LFCbot` + `Target: <one small defect/feature>`.
-   Protocol per 2026-09-23: branch per order (`order/<n>-<slug>` off `main`),
-   2–3 files / ~300-line cap, planner-written acceptance test that FAILS on
-   current code before the order queues, abort on 3 consecutive gate
-   failures. Keep the target small — `qwen3.6` is the slowest seat (123 s
-   probe, 1620 s `asohav-01` PASS against the 1800 cap). Definition of done:
-   ≥1 work order (repo + branch + allowFiles + testCmd + acceptance +
-   prompt), acceptance verified failing-first, ≥1 executor attempt graded
-   through the untouched four gates. Zero work orders = the mission-line
-   fix didn't hold; record and stop, no more compute.
+5. **Blind trial v2 — first real work orders (protocol rewritten 2026-09-24
+   after DP2).** Data point 1 and data point 2 are consumed; the old "recover
+   session `ses_f2ef…` by replying with the mission line" is void. The DP1
+   session's mission-line fix held, and DP2 (fresh session, `ses_f2bb…`)
+   proved prose read-only is not enforcement — so the launch is:
+   - **Plan mode first (Step 0 in `docs/agent-notes/planner-prompt-qwen3.6.md`,
+     owner action):** flip the bottom-left toggle to Plan before the first
+     message so the seat physically cannot edit. If the session can edit files,
+     stop — nothing in the contract is enforced.
+   - **Mission line:** `Target repo: M:/Projects/LFCbot` + `Target: <small
+     defect/feature>`. **Target decision (owner, 2026-09-24): reuse DP2's own
+     finding** — the `setStatus` guard at `listings.ts:297-301` (updates by id
+     with no current-status guard; re-activating an already
+     fulfilled/deleted/expired listing). DP2 already scoped it soundly (guard
+     in the service layer, right test file); it is benchmark-shaped.
+   - Protocol unchanged: branch per order (`order/<n>-<slug>` off `main`),
+     2–3 files / ~300-line cap, planner-written acceptance test that FAILS on
+     current code before the order queues, abort on 3 consecutive gate
+     failures. Keep the target small — `qwen3.6` is the slowest seat (123 s
+     probe, 1620 s `asohav-01` PASS against the 1800 cap, and DP2's first turn
+     cost ~4 h).
+   - **Accelerator A (calibration key):** spend the OpenCode Go key on the
+     produced order once it exists — oracle on the *exact* order (task-design
+     de-risk + first genuine successful trajectory = the Unsloth fine-tune
+     gate). Cost cents; decision made 2026-09-24, action waits for the order.
+   - **Accelerator B (edit-format A/B):** package whole-file-write vs
+     search-replace as the **first executor attempt** on that order, so the
+     supplied-test run also measures the format question (write is 8/8 vs
+     `edit` 11% in the corpus; `docs/methodology-research.md` → "Edit
+     reliability"). One variable; keep it out of step 7's N=3 backfill.
+   - Definition of done: ≥1 work order (repo + branch + allowFiles + testCmd +
+     acceptance + prompt), acceptance verified failing-first, ≥1 executor
+     attempt graded through the untouched four gates. Zero work orders = the
+     protocol still does not hold; record and stop, no more compute.
+   - **The launch itself is interactive** (Plan mode + numbered interview) —
+     owner action; this doc's job is done when the order is a real
+     `manifest.json`-shaped entry the harness can run.
 6. **Close the measurement confound — control rematch + raised-cap reruns.**
    Lane A (control, desktop): `qwen3:14b` + `qwen3:8b` across all 8 tasks on
    Ollama 0.34.3 — owed before any seat decision cites the challenger gap.
