@@ -107,3 +107,4 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-23T18:39:02	asohav-01-library-write-reporting	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	13	PASS	PASS	PASS	SKIP	1620.3
 2026-09-23T18:46:47	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d83381ad650b3474a50310e0dd3441a03cd89706	0	0	FAIL	PASS	FAIL	SKIP	458.3
 2026-09-25T08:49:16	lfc-03-status-transition-guard	ollama-desktop/qwen3:14b	qwen3-14b-write	4906dc2881d362bda2006d3407e0ba63e005b91b	0	1	PASS	PASS	FAIL	WARN	627.3
+2026-09-25T14:27:06	lfc-03-status-transition-guard	opencode-go/qwen3.8-max	qwen3-8-max-oracle	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	PASS	PASS	PASS	320.2

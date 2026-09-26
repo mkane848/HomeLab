@@ -21,6 +21,13 @@
 #                PASS/WARN only when the task defines a `typecheck` block;
 #                SKIP when it does not, because a task that compiled nothing
 #                must not read as one that compiled cleanly.
+#   acceptance - informational, never a gate: when the task defines an
+#                `acceptance` block ({ ref, files }), the owner's test files at
+#                that local branch are swapped in over the model's, testCmd runs
+#                against the model's source, and the model's files are restored.
+#                Recorded in the per-run JSON only (PASS/FAIL/ERROR/SKIP + the
+#                exact commit used); the TSV schema is unchanged. Under -DryRun
+#                the same tests run on the untouched base and must FAIL.
 #
 # What is NOT graded, and why that distinction is load-bearing: a run only
 # reaches those gates if `opencode run` exited 0. opencode exits 0 even when
@@ -39,7 +46,8 @@
 # seat change until ~3 graded runs across >=2 tasks (the agreed gate).
 #
 # Reproducibility, and its current limit: every run records `ollamaVersion`/
-# `opencodeVersion` (from `ollama --version` / `opencode --version`) and the
+# `opencodeVersion` (the serving host's /api/version - "n/a" for a hosted
+# provider - and `opencode --version`) and the
 # raw JSONL transcript is now KEPT (moved into tests/results/, not deleted) -
 # see `samplingControl` in each result JSON. What this harness does NOT do is
 # pin a seed or temperature: `opencode run` has no known per-invocation flag
@@ -368,6 +376,72 @@ function Move-Transcript {
     }
 }
 
+# Owner-authored acceptance tests, run against whatever source is in the
+# worktree. Informational only - never a gate: the four gates ask "did the
+# model prove its own fix", this asks "does the result meet the owner's
+# contract", and folding the second into the first would change the protocol
+# mid-trial. The task's `acceptance.files` are checked out from `acceptance.ref`
+# (a local branch in the task repo) over the worktree's copies, `testCmd` runs,
+# and the worktree's own copies - the model's tests - are put back byte for byte.
+# Status: PASS/FAIL = the owner's tests passed/failed; ERROR = could not run or
+# could not restore (the worktree then needs inspecting).
+function Invoke-Acceptance {
+    param($Task, [string]$WtPath)
+
+    $acc = $Task.acceptance
+    $sha = Get-HeadCommit $Task.repo $acc.ref
+    if (-not $sha) {
+        return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Detail = "cannot resolve refs/heads/$($acc.ref) in $($Task.repo)" }
+    }
+    $files = @($acc.files)
+    $saved = @{}
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        $saved[$f] = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
+    }
+    $statusBefore = (Get-TreeChanges $WtPath) -join "|"
+
+    $result = $null
+    $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files)
+    if ($co.ExitCode -ne 0) {
+        $result = [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $sha; Detail = "git checkout of acceptance files failed: $($co.Output -join ' ')" }
+    } else {
+        $t = Invoke-Test $Task $WtPath
+        $summary = ($t.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
+        $summaryText = if ($summary) { $summary.Line.Trim() } else { "no test summary line" }
+        if ($t.ExitCode -eq 0) {
+            $result = [pscustomobject]@{ Status = "PASS"; Ref = $acc.ref; Commit = $sha; Detail = $summaryText }
+        } else {
+            $failed = Get-FailedTestNames -Output $t.Output
+            $result = [pscustomobject]@{ Status = "FAIL"; Ref = $acc.ref; Commit = $sha; Detail = "$summaryText - $($failed -join '; ')" }
+        }
+    }
+
+    # Restore: unstage (checkout <sha> -- stages the files), then put the saved
+    # bytes back, or remove a file the worktree did not have before.
+    Run-Native "git" (@("-C", $WtPath, "reset", "-q", "--") + $files) | Out-Null
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        if ($null -eq $saved[$f]) {
+            Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+        } else {
+            [System.IO.File]::WriteAllBytes($full, $saved[$f])
+        }
+    }
+    $restored = ((Get-TreeChanges $WtPath) -join "|") -eq $statusBefore
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        $now = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
+        if (($null -eq $now) -ne ($null -eq $saved[$f])) { $restored = $false }
+        elseif ($null -ne $now -and [Convert]::ToBase64String($now) -ne [Convert]::ToBase64String($saved[$f])) { $restored = $false }
+    }
+    if (-not $restored) {
+        $result.Status = "ERROR"
+        $result.Detail = "worktree NOT restored after the acceptance run - inspect $WtPath before trusting it ($($result.Detail))"
+    }
+    return $result
+}
+
 function Get-FirstTranscriptError {
     # opencode writes a JSONL event stream; a provider-level failure shows up as
     # a single {"type":"error",...} line and nothing else (the six node3 runs of
@@ -400,12 +474,16 @@ function Invoke-OpencodeRun {
         # The canary pattern: run through the real opencode tool layer, JSONL
         # events on stdout, and let the (inherited) process env resolve the
         # provider baseURLs from the sourced profile.
+        # Each event is appended to $Out as it arrives, not buffered until exit:
+        # a run killed at the timeout used to leave no transcript at all (the
+        # whole stream sat in a variable), so a timeout was a pure unknown.
         $prev = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
             $msg = Get-Content -LiteralPath $PromptFile -Raw
-            $events = & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null
-            $events | Out-File -LiteralPath $Out -Encoding utf8
+            $enc = New-Object System.Text.UTF8Encoding($false)
+            & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null |
+                ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
         } finally {
             $ErrorActionPreference = $prev
         }
@@ -416,6 +494,19 @@ function Invoke-OpencodeRun {
     if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
         Stop-Job $job -ErrorAction SilentlyContinue
         Remove-Job $job -Force -ErrorAction SilentlyContinue
+        # Stop-Job does not take the native `opencode run` child with it - it
+        # orphans and keeps driving the model (and, on a hosted provider,
+        # spending the key). Kill every opencode process pointed at this
+        # worktree, whole tree, so the run really ends and the transcript
+        # file is released for archiving.
+        $orphans = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'opencode%'" -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -and $_.CommandLine.Contains($WtPath) })
+        foreach ($o in $orphans) {
+            Run-Native "taskkill" @("/PID", "$($o.ProcessId)", "/T", "/F") | Out-Null
+        }
+        if ($orphans.Count -gt 0) {
+            Write-Host "    killed $($orphans.Count) orphaned opencode process(es) still running against $WtPath" -ForegroundColor Yellow
+        }
         Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
         # $out is NOT deleted here - whatever the model did before being killed
         # is evidence, not noise. The caller rescues it into tests/results/.
@@ -458,11 +549,37 @@ Write-Host "tasks manifest: $manifestPath" -ForegroundColor DarkGray
 Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor DarkGray
 
 # Captured once per script run, not per task - neither changes mid-run.
-# Tolerant of either command being absent/erroring: Run-Native never throws,
-# so a missing/unexpected --version flag degrades to a labeled "unknown"
-# rather than aborting the whole benchmark.
-$ovOllama = Run-Native "ollama" @("--version")
-$ollamaVersion = if ($ovOllama.ExitCode -eq 0 -and $ovOllama.Output) { ($ovOllama.Output -join ' ').Trim() } else { "unknown (ollama --version exit $($ovOllama.ExitCode))" }
+# Tolerant of either being absent/erroring: a failed probe degrades to a
+# labeled "unknown" rather than aborting the whole benchmark.
+#
+# The Ollama version is the one serving -Model, not the local binary's: the
+# model id's provider picks the host (ollama-desktop/-server/-node3 -> that
+# provider's *_BASE_URL) and its /api/version is asked. Stamping
+# `ollama --version` put the desktop's 0.34.3 on every node3 run (node3 was
+# 0.34.2) and would put it on hosted-provider runs that touch no Ollama at all.
+# The "ollama version is X" shape is kept so existing result files compare.
+$providerId = ($Model -split '/', 2)[0]
+$ollamaBaseVar = switch ($providerId) {
+    "ollama-desktop" { "OLLAMA_DESKTOP_BASE_URL" }
+    "ollama-server"  { "OLLAMA_SERVER_BASE_URL" }
+    "ollama-node3"   { "OLLAMA_NODE3_BASE_URL" }
+    default          { $null }
+}
+if (-not $ollamaBaseVar) {
+    $ollamaVersion = "n/a ($providerId is not an Ollama provider)"
+} else {
+    $ollamaBase = [Environment]::GetEnvironmentVariable($ollamaBaseVar)
+    if (-not $ollamaBase) {
+        $ollamaVersion = "unknown ($ollamaBaseVar is unset)"
+    } else {
+        $ollamaRoot = $ollamaBase.TrimEnd('/') -replace '/v1$', ''
+        try {
+            $ollamaVersion = "ollama version is $((Invoke-RestMethod -Uri "$ollamaRoot/api/version" -TimeoutSec 10).version)"
+        } catch {
+            $ollamaVersion = "unknown ($ollamaRoot/api/version unreachable)"
+        }
+    }
+}
 $ovOpencode = Run-Native "opencode" @("--version")
 $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
 Write-Host ("ollama: {0} | opencode: {1}" -f $ollamaVersion, $opencodeVersion) -ForegroundColor DarkGray
@@ -520,6 +637,17 @@ foreach ($tk in $tasksToRun) {
     Write-Host ("  prompt: {0} chars (sha256 {1})" -f $prompt.Length, $promptHashes[$tk.id]) -ForegroundColor DarkGray
 
     if ($DryRun) {
+        # The owner's acceptance tests must FAIL on the untouched base - the
+        # failing-first property the order was docketed on, re-checked here
+        # instead of by hand.
+        if ($tk.acceptance) {
+            $acc = Invoke-Acceptance $tk $wt.Wt
+            switch ($acc.Status) {
+                "FAIL"  { Write-Result $tk.id "acceptance (fails on base)" "PASS" "owner tests @ $($acc.Ref) $($acc.Commit.Substring(0,7)) fail on the untouched source: $($acc.Detail)" }
+                "PASS"  { Write-Result $tk.id "acceptance (fails on base)" "WARN" "owner tests @ $($acc.Ref) PASS on the untouched source - they do not exercise the defect: $($acc.Detail)" }
+                default { Write-Result $tk.id "acceptance (fails on base)" "WARN" $acc.Detail }
+            }
+        }
         Write-Result $tk.id "dry-run" "PASS" "worktree + install + baseline validated; model run skipped (add -DryRun removed)"
         continue
     }
@@ -667,6 +795,23 @@ foreach ($tk in $tasksToRun) {
         }
     }
 
+    # --- informational: owner acceptance tests ---------------------------------
+    # Never a gate (see Invoke-Acceptance). Recorded in the per-run JSON only;
+    # the summary TSV keeps its 12 columns.
+    $acceptanceRecord = [pscustomobject]@{ status = "SKIP"; ref = $null; commit = $null; detail = "task defines no acceptance block" }
+    if (-not $tk.acceptance) {
+        Write-Result $tk.id "acceptance (informational)" "SKIP" "task defines no acceptance block"
+    } else {
+        $acc = Invoke-Acceptance $tk $wt.Wt
+        $acceptanceRecord = [pscustomobject]@{ status = $acc.Status; ref = $acc.Ref; commit = $acc.Commit; detail = $acc.Detail }
+        $shortSha = if ($acc.Commit) { $acc.Commit.Substring(0, 7) } else { "?" }
+        if ($acc.Status -eq "PASS") {
+            Write-Result $tk.id "acceptance (informational)" "PASS" "owner tests @ $($acc.Ref) $shortSha pass on the model's source: $($acc.Detail)"
+        } else {
+            Write-Result $tk.id "acceptance (informational)" "WARN" "$($acc.Status): owner tests @ $($acc.Ref) $shortSha - $($acc.Detail)"
+        }
+    }
+
     # --- record ----------------------------------------------------------------
     $scopeOk = ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
     $suiteOk = $suite.ExitCode -eq 0
@@ -705,6 +850,7 @@ foreach ($tk in $tasksToRun) {
         writes          = $run.Writes
         gates           = $gateSummary
         typecheck       = $typecheckStatus
+        acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
         ollamaVersion   = $ollamaVersion
         opencodeVersion = $opencodeVersion
@@ -727,14 +873,22 @@ foreach ($tk in $tasksToRun) {
 }
 
 $summaryHeader = @("timestamp", "taskId", "model", "modelLabel", "baseCommit", "opencodeExit", "writes", "scope", "suite", "failsOnOld", "typecheck", "elapsedSec") -join "`t"
-$summaryLines = @()
-if (-not (Test-Path -LiteralPath $summaryTsv)) { $summaryLines += $summaryHeader }
-$summaryLines += $summaryRows
-Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
+if ($summaryRows.Count -gt 0) {
+    $summaryLines = @()
+    if (-not (Test-Path -LiteralPath $summaryTsv)) { $summaryLines += $summaryHeader }
+    $summaryLines += $summaryRows
+    Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
+}
 
 Write-Host ""
 Write-Host ("Results: {0} PASS, {1} FAIL, {2} WARN, {3} SKIP" -f $statusCounts.PASS, $statusCounts.FAIL, $statusCounts.WARN, $statusCounts.SKIP) -ForegroundColor Cyan
-Write-Host "Summary appended to $summaryTsv" -ForegroundColor DarkGray
+# Only claim an append that happened - timeouts, infra failures, dry runs and
+# red baselines produce no graded row, and this line used to say otherwise.
+if ($summaryRows.Count -gt 0) {
+    Write-Host "Summary: $($summaryRows.Count) row(s) appended to $summaryTsv" -ForegroundColor DarkGray
+} else {
+    Write-Host "Summary: no graded runs - nothing appended to $summaryTsv" -ForegroundColor DarkGray
+}
 
 if ($overallPass) { exit 0 }
 exit 1

@@ -763,6 +763,43 @@ Pass by task, across all seats:
         calibration key spend confirms what a ✓ PASS on the exact order looks
         like before any local re-seat.
 
+- [x] **Blind-trial data point 5: Accelerator A — the `qwen3.8-max` oracle
+      PASSes `lfc-03` through the untouched four gates** (2026-09-25, seat
+      `opencode-go/qwen3.8-max`, opencode 1.18.32, on `4906dc2`, `-EditFormat
+      write`, prompt sha `4A1266C4478E` — identical to DP4's write arm, so the
+      model is the only variable). 320 s, 3 write calls, **scope PASS (both
+      files), suite PASS (30/30), fails-on-old PASS (all 5 forbidden-transition
+      tests fail with the source reverted), scoped typecheck PASS** (no TS7053:
+      the transition table is typed `Record<ListingStatus, readonly
+      ListingStatus[]>`). Result files: `tests/results/tasks-lfc-03-status-
+      transition-guard-qwen3-8-max-oracle_20260925-142706.{json,jsonl}` + one
+      TSV row.
+      - The fix: a per-status allow-list (`active → fulfilled/deleted`,
+        `fulfilled → deleted`, nothing out of `deleted`/`expired`), a
+        current-row read in `setStatus`, and ``throw new Error(`Listing ${id}
+        cannot transition from '${current}' to '${status}'.`)``; an unknown id
+        still returns `undefined`, as before.
+      - **Owner acceptance tests, checked separately: 29/29 on the oracle's
+        source.** That exposed a test-design flaw: the 5 throw-assertions
+        matched `/cannot .* from .*<status>/`, stricter than the prompt (which
+        requires the message to name id + current + requested status and gives
+        "cannot transition from" only as an example). The oracle passed because
+        it echoed the example; an alt-wording guard meeting the spec failed all
+        5. Loosened on `bench/status-guard-throw` @ `3215aaf` to assert exactly
+        the contract; re-verified 5 fail / 24 pass on unguarded `4906dc2`,
+        29/29 with the oracle guard and with the alt-wording guard, full suite
+        343/343, scoped tsc clean.
+      - Harness follow-through (same session): `test-tasks.ps1` now runs a
+        task's `acceptance` block (owner tests from a local ref, swapped in over
+        the model's and restored byte for byte) as an **informational** check
+        recorded in the per-run JSON — never a gate, TSV unchanged — and under
+        `-DryRun` asserts those tests fail on base. `lfc-03` carries the block.
+      - Verdict: the order is passable as written and the four gates grade a
+        genuine fix correctly. The difference from DP4 is exactly the gate that
+        failed there — the oracle wrote tests that prove its own fix. This is
+        the first genuine successful trajectory on a real order (the Unsloth
+        fine-tune gate in Accelerator A).
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the
@@ -778,22 +815,32 @@ Pass by task, across all seats:
       can't pass the `scope` gate (nothing to revert), so grading starts at
       slice 1; a greenfield task-kind (revert-scaffold) is explicitly deferred.
 
-- [ ] **`test-tasks.ps1` stamps the local desktop Ollama version onto
+- [x] **`test-tasks.ps1` stamps the local desktop Ollama version onto
       remote-host runs.** Node3 is live on 0.34.2 (verified) but every
       node3 evidence `.json` from this session reads `"ollamaVersion":
       "ollama version is 0.34.3"`. Fix: query the target host's
       `/api/version` instead of localhost. Contained: the TSV has no
       version column, so corpus analysis is safe — only per-run files
       misstate it. Fix before the next results PR so new files stamp
-      correctly.
-- [ ] **Timeout runs print "Summary appended" but append nothing.** The 3
+      correctly. **Fixed 2026-09-25 (`7820266`):** the model id's provider
+      picks the host's `*_BASE_URL`; non-Ollama providers stamp `n/a (…)`.
+      Verified on desktop (0.34.3) and opencode-go (DP5 JSON reads `n/a`);
+      a node3 run has not yet been stamped with the new code.
+- [x] **Timeout runs print "Summary appended" but append nothing.** The 3
       timeouts above printed `Summary appended to tasks-summary.tsv`,
       added no row, and wrote no `_TIMEOUT_` transcript (repo-wide search:
       none exist from 2026-09-23). Extends the streaming item under
       "Next" above: at minimum make the message honest; the real fix is
       the `_TIMEOUT_` transcript the docs already promise. Until then a
       timeout is a pure unknown — slow-but-working and wedged look
-      identical afterward.
+      identical afterward. **Fixed 2026-09-25 (`bbf06db`):** events are
+      appended to the transcript as they arrive, so the existing `_TIMEOUT_`
+      rescue has content; the closing line reports the real row count; on
+      timeout any `opencode` process whose command line names the worktree is
+      tree-killed. Verified: a forced 180-s timeout on `qwen3:14b` kept a
+      61 KB `_TIMEOUT_` transcript, wrote no row, left no process. The kill
+      branch matched the real command line but was not needed that time (the
+      child had already exited).
 - [ ] **A human-killed lane gets tagged `_TIMEOUT_` by the harness.** The
       nightly `lfc-02 × node3` lane was stopped from another session (exit
       `-1`, a kill) and the batch labelled its transcript `_TIMEOUT_`.
@@ -864,6 +911,8 @@ Open, in order — each gates the next:
      produced order once it exists — oracle on the *exact* order (task-design
      de-risk + first genuine successful trajectory = the Unsloth fine-tune
      gate). Cost cents; decision made 2026-09-24, action waits for the order.
+     **Consumed 2026-09-25 — PASS on all four gates + 29/29 owner acceptance
+     (see DP5 record above).**
 - **Accelerator B (edit-format A/B):** package whole-file-write vs
       search-replace as the **first executor attempt** on that order, so the
       supplied-test run also measures the format question (write is 8/8 vs
@@ -885,7 +934,10 @@ Open, in order — each gates the next:
       edit arm: 1800-s timeout, ungraded). DoD is NOT met.** Accelerator A
       (the `qwen3.8-max` oracle run of the exact order) is queued with owner
       approval 2026-09-25; a ✓ there defines what a PASS looks like through
-      the same four gates before any local re-seat.
+      the same four gates before any local re-seat. **Status 2026-09-25:
+      Accelerator A RUN — the oracle PASSed all four gates and the owner
+      acceptance tests (DP5). DoD met.** A local-seat PASS on the same order
+      is still open.
     - **The launch itself is interactive** (Plan mode + numbered interview) —
       owner action; this doc's job is done when the order is a real
       `manifest.json`-shaped entry the harness can run.
@@ -921,6 +973,11 @@ Open, in order — each gates the next:
    Definition of done: a deliberate timeout leaves a transcript and no row;
    a killed lane tags `_ABORTED_`; a node3 run stamps 0.34.2;
    `test-profiles.ps1` still 100 PASS / 0 FAIL / 1 WARN / 2 SKIP.
+   **Status 2026-09-25: (a) done (`bbf06db` — streamed transcript, honest
+   summary line, orphan kill; the deliberate-timeout check passed on
+   desktop) and (c) done (`7820266`), both in `test-tasks.ps1` only. Open:
+   (b) kill-vs-cap tagging, the node3 0.34.2 stamp confirmation (needs node3
+   up), and the `test-profiles.ps1` regression run.**
 9. **Greenfield trial — slice-0 skeleton + first slice chain** (gated behind
    steps 5–6, no compute until blind-trial lanes clear). Slice-0 skeleton
    is a planning-time artifact (owner or hand-verified planner output,
