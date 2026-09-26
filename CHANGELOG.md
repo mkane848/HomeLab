@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record blind-trial data point 5 (`docs/implementation-tasks.md`): Accelerator
+  A — `opencode-go/qwen3.8-max` on `lfc-03-status-transition-guard`, same
+  prompt sha as DP4's write arm (`4A1266C4478E`) — **PASSes all four gates**
+  (3 writes, 320 s, suite 30/30, fails-on-old catches all 5 forbidden
+  transitions, typecheck clean) and 29/29 on the owner's acceptance tests.
+  Step 5's DoD is met. Result files + one `tasks-summary.tsv` row archived.
+- Owner acceptance tests for `lfc-03` (`LFCbot` `bench/status-guard-throw` @
+  `3215aaf`, local branch) assert the prompt's error contract — id, current
+  and requested status in the message — instead of a `/cannot .* from/`
+  phrasing that failed a spec-compliant guard with other wording.
+- `test-tasks.ps1`: informational owner-acceptance check. A task's
+  `acceptance { ref, files }` block is swapped in over the model's tests after
+  the four gates and the model's files are restored byte for byte; the result
+  (status, ref, exact commit) lands in the per-run JSON only — never a gate,
+  TSV schema unchanged. Under `-DryRun` those tests must fail on the untouched
+  base. `lfc-03` carries the block.
+- `test-tasks.ps1` harness honesty (step 8a/8c): transcripts stream to disk as
+  events arrive, so a timeout keeps a `_TIMEOUT_` transcript; orphaned
+  `opencode` children are tree-killed on timeout; the closing line reports the
+  real appended-row count instead of always claiming "Summary appended"; the
+  `ollamaVersion` field is the serving host's `/api/version` (`n/a` for hosted
+  providers) instead of the local binary.
+- `tests/tasks/manifest.json`: drop a trailing comma after `lfc-03`'s prompt
+  that strict JSON parsers rejected (PowerShell 7 tolerated it).
+
 - Record blind-trial data point 4 (`docs/implementation-tasks.md` → "New open
   follow-ups"): the first `lfc-03` executor attempt through the harness.
   Accelerator B delivered as `-EditFormat write|edit` on `test-tasks.ps1`.
