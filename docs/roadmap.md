@@ -281,7 +281,8 @@ documented false-positive above and the pre-existing server outage.
 
 Unsloth was installed on the node3 machine 2026-09-20, ahead of the node
 being fully onboarded above. Recorded here so the intent isn't lost, but
-explicitly **not started** — it's gated on something that doesn't exist yet.
+explicitly **not started** — the training data now exists (see below); what
+it still waits on is a held-out evaluation split.
 
 - **Hardware fit:** Unsloth's 4-bit QLoRA is memory-efficient enough that
   `qwen3:8b` fine-tunes comfortably inside 10 GB. `qwen3:14b` is a real
@@ -293,18 +294,23 @@ explicitly **not started** — it's gated on something that doesn't exist yet.
   Default node3 to inference duty (the onboarding above) and treat
   fine-tuning as a scheduled, exclusive-use activity, not a background job
   competing with benchmark runs.
-- **The actual gate: there is no training data yet.** Fine-tuning "on our
-  failures" doesn't make sense as a first move — imitation learning needs
-  examples of the *correct* behavior, and the task-veracity benchmark has
-  produced **zero successful trajectories** across both tasks so far (0/7
-  graded local runs, per "external research pass" above). The realistic
-  path in: if the hosted-calibration arm (OpenCode Go's Qwen3.8-Max/DeepSeek
-  V4, or an Anthropic-credit run) actually lands a genuine PASS on kane-01 or
-  lfc-01, *that* transcript is real distillation data — fine-tune local
-  `qwen3:8b` on the stronger model's successful trajectory, then re-run it
-  through the unmodified harness to see whether the fine-tune moved the
-  needle. Until a first successful trajectory exists from somewhere, there
-  is nothing correct to fine-tune toward.
+- **The data gate is now open (2026-09-26).** Fine-tuning "on our
+  failures" doesn't make sense — imitation learning needs examples of the
+  *correct* behavior. When this was written the benchmark had 0/7 graded
+  local PASSes on its two tasks; that went stale as the task set grew (22 /
+  104 local PASSes across 9 tasks by 2026-09-26). The hosted-calibration arm
+  then landed a genuine PASS on **all 9 tasks** (`opencode-go/qwen3.8-max`,
+  blind-trial DP5 + DP6 in `docs/implementation-tasks.md`), each with its raw
+  transcript in `tests/results/`. That is distillation data: fine-tune local
+  `qwen3:8b` on the stronger model's successful trajectories, then re-run it
+  through the unmodified harness.
+- **The new gate: held-out evaluation.** The 9 oracle trajectories are the 9
+  benchmark tasks. Training on them and re-running the same 9 measures
+  recall of the answers, not capability. Before any training run, decide
+  the split — hold tasks out of training and grade only on those, or author
+  fresh tasks for evaluation — and record it here. Nine examples is also a
+  small set; the local PASSes (22) are candidate data too, but they are
+  weaker-model trajectories and need the same audit the oracle's got.
 
 ## GTX 1070 (retired from server)
 

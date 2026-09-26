@@ -800,6 +800,43 @@ Pass by task, across all seats:
         the first genuine successful trajectory on a real order (the Unsloth
         fine-tune gate in Accelerator A).
 
+- [x] **Data point 6: oracle sweep — `qwen3.8-max` PASSes all 8 remaining
+      manifest tasks; 9/9 with DP5** (2026-09-26, `opencode-go/qwen3.8-max`,
+      opencode 1.18.32, plain prompts — no `-EditFormat`, so every prompt sha
+      matches the local runs it is compared with). One invocation, 50 PASS /
+      0 FAIL / 14 SKIP (typecheck/acceptance blocks absent), 8 rows. Oracle vs
+      the local corpus (graded runs on the current prompt sha; kane-02's 4
+      runs on the pre-`2e6841e` prompt excluded):
+
+      | task | local PASS / graded | oracle writes, s |
+      |---|---|---|
+      | kane-01-background-pair | 3 / 31 | 4, 358 |
+      | lfc-01-listing-status-guard | 5 / 24 | 3, 157 |
+      | kane-02-multiword-creature-type | **0 / 3** | 2, 610 |
+      | kane-03-saga-chapter-triggers | 1 / 8 | 7, 633 |
+      | kane-04-singleton-up-to-n | 8 / 12 | 3, 191 |
+      | asohav-01-library-write-reporting | 2 / 7 | 12, 543 |
+      | asohav-02-changelog-uuid-id | **0 / 10** | 6, 495 |
+      | lfc-02-scryfall-headers | 3 / 8 | 5, 499 |
+      | lfc-03-status-transition-guard (DP5) | **0 / 1** | 3, 320 |
+
+      - **Every task is passable as written.** No task-design defect found;
+        the local failure record (22 PASS / 104 graded) is a model finding,
+        not a harness or task finding. kane-02, asohav-02 and lfc-03 have no
+        local PASS yet — they are the frontier.
+      - **Audit beyond the gates** (green is necessary, not sufficient): the
+        test-file diffs were checked for removed assertions before any reset.
+        Only kane-01 removed test lines, and it is a strengthening — the old
+        test was the PR #82 trap itself (the Background was never in the named
+        unit, so it was green on broken code); the oracle put the Background
+        into both the decklist and the commanders argument and added names /
+        eligible / colour-identity assertions. The other removals are import
+        lines. asohav-01 (12 writes) and kane-03 (7) tripped the
+        repeated-call note but graded clean.
+      - Result files: `tests/results/tasks-*-qwen3-8-max-oracle_20260926-*.{json,jsonl}`
+        (16 files) + 8 TSV rows.
+
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record data point 6 (`docs/implementation-tasks.md`): oracle sweep —
+  `opencode-go/qwen3.8-max` PASSes all 8 remaining manifest tasks on the same
+  prompt shas as the local corpus (9/9 with DP5). Every task is passable as
+  written; kane-02, asohav-02 and lfc-03 still have no local PASS. Test diffs
+  audited beyond the gates (kane-01's removed lines strengthen the PR #82-trap
+  test). 16 result files + 8 `tasks-summary.tsv` rows archived.
+- `docs/roadmap.md` → fine-tuning: replace the stale "zero successful
+  trajectories" gate with the current state (9 oracle trajectories, 22 local
+  PASSes) and the next gate — a held-out split, since training on the 9
+  benchmark tasks and grading on them would measure recall, not capability.
+
 - Record blind-trial data point 5 (`docs/implementation-tasks.md`): Accelerator
   A — `opencode-go/qwen3.8-max` on `lfc-03-status-transition-guard`, same
   prompt sha as DP4's write arm (`4A1266C4478E`) — **PASSes all four gates**
