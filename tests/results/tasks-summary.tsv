@@ -108,3 +108,11 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-23T18:46:47	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d83381ad650b3474a50310e0dd3441a03cd89706	0	0	FAIL	PASS	FAIL	SKIP	458.3
 2026-09-25T08:49:16	lfc-03-status-transition-guard	ollama-desktop/qwen3:14b	qwen3-14b-write	4906dc2881d362bda2006d3407e0ba63e005b91b	0	1	PASS	PASS	FAIL	WARN	627.3
 2026-09-25T14:27:06	lfc-03-status-transition-guard	opencode-go/qwen3.8-max	qwen3-8-max-oracle	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	PASS	PASS	PASS	320.2
+2026-09-26T12:37:00	kane-01-background-pair	opencode-go/qwen3.8-max	qwen3-8-max-oracle	92a8ed0df10262cc878d4d214d0a312d542375ec	0	4	PASS	PASS	PASS	PASS	357.9
+2026-09-26T12:39:43	lfc-01-listing-status-guard	opencode-go/qwen3.8-max	qwen3-8-max-oracle	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	PASS	PASS	PASS	156.9
+2026-09-26T12:49:56	kane-02-multiword-creature-type	opencode-go/qwen3.8-max	qwen3-8-max-oracle	0e9b703047d37e31abbccbda2c9de175ae3e33cb	0	2	PASS	PASS	PASS	SKIP	609.5
+2026-09-26T13:00:34	kane-03-saga-chapter-triggers	opencode-go/qwen3.8-max	qwen3-8-max-oracle	4029a94a8bd5a22df1f3dcf819719c0e448270b4	0	7	PASS	PASS	PASS	SKIP	633.1
+2026-09-26T13:03:48	kane-04-singleton-up-to-n	opencode-go/qwen3.8-max	qwen3-8-max-oracle	420372615ef8b95566dc8ab24039c1532830fdbf	0	3	PASS	PASS	PASS	SKIP	191.1
+2026-09-26T13:12:57	asohav-01-library-write-reporting	opencode-go/qwen3.8-max	qwen3-8-max-oracle	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	12	PASS	PASS	PASS	SKIP	542.6
+2026-09-26T13:21:19	asohav-02-changelog-uuid-id	opencode-go/qwen3.8-max	qwen3-8-max-oracle	d83381ad650b3474a50310e0dd3441a03cd89706	0	6	PASS	PASS	PASS	SKIP	495.1
+2026-09-26T13:29:52	lfc-02-scryfall-headers	opencode-go/qwen3.8-max	qwen3-8-max-oracle	170b395baf8ad4205f6fb6d409b29c25635e7363	0	5	PASS	PASS	PASS	SKIP	499.2
