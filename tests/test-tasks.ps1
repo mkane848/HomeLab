@@ -21,6 +21,13 @@
 #                PASS/WARN only when the task defines a `typecheck` block;
 #                SKIP when it does not, because a task that compiled nothing
 #                must not read as one that compiled cleanly.
+#   acceptance - informational, never a gate: when the task defines an
+#                `acceptance` block ({ ref, files }), the owner's test files at
+#                that local branch are swapped in over the model's, testCmd runs
+#                against the model's source, and the model's files are restored.
+#                Recorded in the per-run JSON only (PASS/FAIL/ERROR/SKIP + the
+#                exact commit used); the TSV schema is unchanged. Under -DryRun
+#                the same tests run on the untouched base and must FAIL.
 #
 # What is NOT graded, and why that distinction is load-bearing: a run only
 # reaches those gates if `opencode run` exited 0. opencode exits 0 even when
@@ -369,6 +376,72 @@ function Move-Transcript {
     }
 }
 
+# Owner-authored acceptance tests, run against whatever source is in the
+# worktree. Informational only - never a gate: the four gates ask "did the
+# model prove its own fix", this asks "does the result meet the owner's
+# contract", and folding the second into the first would change the protocol
+# mid-trial. The task's `acceptance.files` are checked out from `acceptance.ref`
+# (a local branch in the task repo) over the worktree's copies, `testCmd` runs,
+# and the worktree's own copies - the model's tests - are put back byte for byte.
+# Status: PASS/FAIL = the owner's tests passed/failed; ERROR = could not run or
+# could not restore (the worktree then needs inspecting).
+function Invoke-Acceptance {
+    param($Task, [string]$WtPath)
+
+    $acc = $Task.acceptance
+    $sha = Get-HeadCommit $Task.repo $acc.ref
+    if (-not $sha) {
+        return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Detail = "cannot resolve refs/heads/$($acc.ref) in $($Task.repo)" }
+    }
+    $files = @($acc.files)
+    $saved = @{}
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        $saved[$f] = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
+    }
+    $statusBefore = (Get-TreeChanges $WtPath) -join "|"
+
+    $result = $null
+    $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files)
+    if ($co.ExitCode -ne 0) {
+        $result = [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $sha; Detail = "git checkout of acceptance files failed: $($co.Output -join ' ')" }
+    } else {
+        $t = Invoke-Test $Task $WtPath
+        $summary = ($t.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
+        $summaryText = if ($summary) { $summary.Line.Trim() } else { "no test summary line" }
+        if ($t.ExitCode -eq 0) {
+            $result = [pscustomobject]@{ Status = "PASS"; Ref = $acc.ref; Commit = $sha; Detail = $summaryText }
+        } else {
+            $failed = Get-FailedTestNames -Output $t.Output
+            $result = [pscustomobject]@{ Status = "FAIL"; Ref = $acc.ref; Commit = $sha; Detail = "$summaryText - $($failed -join '; ')" }
+        }
+    }
+
+    # Restore: unstage (checkout <sha> -- stages the files), then put the saved
+    # bytes back, or remove a file the worktree did not have before.
+    Run-Native "git" (@("-C", $WtPath, "reset", "-q", "--") + $files) | Out-Null
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        if ($null -eq $saved[$f]) {
+            Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+        } else {
+            [System.IO.File]::WriteAllBytes($full, $saved[$f])
+        }
+    }
+    $restored = ((Get-TreeChanges $WtPath) -join "|") -eq $statusBefore
+    foreach ($f in $files) {
+        $full = Join-Path $WtPath $f
+        $now = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
+        if (($null -eq $now) -ne ($null -eq $saved[$f])) { $restored = $false }
+        elseif ($null -ne $now -and [Convert]::ToBase64String($now) -ne [Convert]::ToBase64String($saved[$f])) { $restored = $false }
+    }
+    if (-not $restored) {
+        $result.Status = "ERROR"
+        $result.Detail = "worktree NOT restored after the acceptance run - inspect $WtPath before trusting it ($($result.Detail))"
+    }
+    return $result
+}
+
 function Get-FirstTranscriptError {
     # opencode writes a JSONL event stream; a provider-level failure shows up as
     # a single {"type":"error",...} line and nothing else (the six node3 runs of
@@ -564,6 +637,17 @@ foreach ($tk in $tasksToRun) {
     Write-Host ("  prompt: {0} chars (sha256 {1})" -f $prompt.Length, $promptHashes[$tk.id]) -ForegroundColor DarkGray
 
     if ($DryRun) {
+        # The owner's acceptance tests must FAIL on the untouched base - the
+        # failing-first property the order was docketed on, re-checked here
+        # instead of by hand.
+        if ($tk.acceptance) {
+            $acc = Invoke-Acceptance $tk $wt.Wt
+            switch ($acc.Status) {
+                "FAIL"  { Write-Result $tk.id "acceptance (fails on base)" "PASS" "owner tests @ $($acc.Ref) $($acc.Commit.Substring(0,7)) fail on the untouched source: $($acc.Detail)" }
+                "PASS"  { Write-Result $tk.id "acceptance (fails on base)" "WARN" "owner tests @ $($acc.Ref) PASS on the untouched source - they do not exercise the defect: $($acc.Detail)" }
+                default { Write-Result $tk.id "acceptance (fails on base)" "WARN" $acc.Detail }
+            }
+        }
         Write-Result $tk.id "dry-run" "PASS" "worktree + install + baseline validated; model run skipped (add -DryRun removed)"
         continue
     }
@@ -711,6 +795,23 @@ foreach ($tk in $tasksToRun) {
         }
     }
 
+    # --- informational: owner acceptance tests ---------------------------------
+    # Never a gate (see Invoke-Acceptance). Recorded in the per-run JSON only;
+    # the summary TSV keeps its 12 columns.
+    $acceptanceRecord = [pscustomobject]@{ status = "SKIP"; ref = $null; commit = $null; detail = "task defines no acceptance block" }
+    if (-not $tk.acceptance) {
+        Write-Result $tk.id "acceptance (informational)" "SKIP" "task defines no acceptance block"
+    } else {
+        $acc = Invoke-Acceptance $tk $wt.Wt
+        $acceptanceRecord = [pscustomobject]@{ status = $acc.Status; ref = $acc.Ref; commit = $acc.Commit; detail = $acc.Detail }
+        $shortSha = if ($acc.Commit) { $acc.Commit.Substring(0, 7) } else { "?" }
+        if ($acc.Status -eq "PASS") {
+            Write-Result $tk.id "acceptance (informational)" "PASS" "owner tests @ $($acc.Ref) $shortSha pass on the model's source: $($acc.Detail)"
+        } else {
+            Write-Result $tk.id "acceptance (informational)" "WARN" "$($acc.Status): owner tests @ $($acc.Ref) $shortSha - $($acc.Detail)"
+        }
+    }
+
     # --- record ----------------------------------------------------------------
     $scopeOk = ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
     $suiteOk = $suite.ExitCode -eq 0
@@ -749,6 +850,7 @@ foreach ($tk in $tasksToRun) {
         writes          = $run.Writes
         gates           = $gateSummary
         typecheck       = $typecheckStatus
+        acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
         ollamaVersion   = $ollamaVersion
         opencodeVersion = $opencodeVersion
