@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- 64k context trial: `qwen3.5:9b`, `qwen3-coder:30b-a3b`, `north-mini-code-1.0`,
+  `laguna-xs-2.1`, `qwen3.6:35b-a3b-coding` and `nemotron-3.5-lightning` go to
+  65536 in `startup.ps1` `$contextModels`, `opencode.jsonc` `limit.context`
+  and `models/catalog.tsv`. The devstral pair and the qwen3 dense pair stay at
+  32768. Acceptance rule in `docs/roadmap.md` → "Context budget".
+- `test-tasks.ps1`: stamp `numCtx` (the served model's baked `num_ctx`, from
+  `/api/show`) into every result JSON and the header line, so runs at
+  different context sizes can be told apart.
+
 - Record data point 7 (`docs/implementation-tasks.md`): step 6's frontier
   slice — lfc-03, kane-02 and asohav-02 × the desktop seats. First local
   passes: lfc-03 2/8 (`laguna-xs-2.1`, `qwen3.6:35b-a3b-coding`, both 29/29

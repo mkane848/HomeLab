@@ -99,14 +99,22 @@ $contextModels = @(
     # reserve does not fit, and the model loses its system prompt before it
     # sees the task. Tags without a version get ":latest" spelled out, because
     # the /api/tags existence check above compares the full name.
-    @{ Base = "qwen3.5:9b";                     Ctx = 32768; Aliases = @() }
-    @{ Base = "qwen3-coder:30b-a3b";            Ctx = 32768; Aliases = @() }
+    #
+    # 64k TRIAL (2026-09-27, docs/roadmap.md -> "Context budget: 32k vs 64k"):
+    # the hybrid/SWA/MoE seats whose KV is small enough that doubling it costs
+    # well under 2 GB, measured. At 32k they had room for about one large
+    # source file before OpenCode compacted, and compaction is where DP7's four
+    # context-overflow runs died. The dense devstral pair stays 32k (64k pushes
+    # 5 more layers to CPU, ~30% slower). Each Ctx here is one half of a
+    # contract: opencode.jsonc limit.context for the same seat must match.
+    @{ Base = "qwen3.5:9b";                     Ctx = 65536; Aliases = @() }
+    @{ Base = "qwen3-coder:30b-a3b";            Ctx = 65536; Aliases = @() }
     @{ Base = "devstral:24b";                   Ctx = 32768; Aliases = @() }
     @{ Base = "devstral-small-2:24b";           Ctx = 32768; Aliases = @() }
-    @{ Base = "north-mini-code-1.0:latest";     Ctx = 32768; Aliases = @() }
-    @{ Base = "laguna-xs-2.1:latest";           Ctx = 32768; Aliases = @() }
-    @{ Base = "qwen3.6:35b-a3b-coding";         Ctx = 32768; Aliases = @() }
-    @{ Base = "nemotron-3.5-lightning:latest";  Ctx = 32768; Aliases = @() }
+    @{ Base = "north-mini-code-1.0:latest";     Ctx = 65536; Aliases = @() }
+    @{ Base = "laguna-xs-2.1:latest";           Ctx = 65536; Aliases = @() }
+    @{ Base = "qwen3.6:35b-a3b-coding";         Ctx = 65536; Aliases = @() }
+    @{ Base = "nemotron-3.5-lightning:latest";  Ctx = 65536; Aliases = @() }
 )
 
 $ctxOverride = $PSBoundParameters.ContainsKey('ContextLength')

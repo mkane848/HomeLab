@@ -175,6 +175,19 @@ DP7's four context-overflow cells plus the three frontier tasks for the raised
 seats, and compare timeouts and pass rate against DP7 — a bigger window that
 converts overflow into timeouts is not a win.
 
+**Trial configured 2026-09-27 (branch `feat/context-64k-trial`):** 65536 for
+`qwen3.5:9b`, `qwen3-coder:30b-a3b`, `north-mini`, `laguna`, `qwen3.6` and
+`nemotron` in both `startup.ps1` `$contextModels` and `opencode.jsonc`
+`limit.context`; catalog `ctx` updated. `qwen3-coder` is included so the trial
+measures its ~11% speed cost instead of guessing at it. **The qwen3 dense pair
+stays at 32k for now**, a deviation from the proposal above: none of DP7's
+overflow deaths were theirs, 40k buys only ~8k tokens, and `qwen3:14b` is the
+daily main seat whose co-residency with the 3b (13.29 → ~13.96 of ~14.8 GB)
+and profile docs would all move with it — its own change, if ever. Every run
+now stamps `numCtx` (the served `num_ctx`, from `/api/show`) into its result
+JSON, because context size is not part of the prompt sha and a 64k row is
+otherwise indistinguishable from a 32k one. Revert = restore the 32768s.
+
 ### Review-gate: settled
 
 Closed 2026-09-19, recorded so it is not reopened by accident.

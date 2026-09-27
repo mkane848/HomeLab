@@ -567,7 +567,13 @@ Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor Da
 # `ollama --version` put the desktop's 0.34.3 on every node3 run (node3 was
 # 0.34.2) and would put it on hosted-provider runs that touch no Ollama at all.
 # The "ollama version is X" shape is kept so existing result files compare.
+#
+# numCtx is the context window baked into the served model (/api/show
+# parameters). It is not part of the prompt hash, so without this stamp a
+# 32k run and a 64k run of the same task are indistinguishable afterwards
+# (the 64k context trial, docs/roadmap.md -> "Context budget").
 $providerId = ($Model -split '/', 2)[0]
+$numCtx = $null
 $ollamaBaseVar = switch ($providerId) {
     "ollama-desktop" { "OLLAMA_DESKTOP_BASE_URL" }
     "ollama-server"  { "OLLAMA_SERVER_BASE_URL" }
@@ -587,11 +593,19 @@ if (-not $ollamaBaseVar) {
         } catch {
             $ollamaVersion = "unknown ($ollamaRoot/api/version unreachable)"
         }
+        try {
+            $showBody = @{ model = ($Model -split '/', 2)[1] } | ConvertTo-Json
+            $show = Invoke-RestMethod -Uri "$ollamaRoot/api/show" -Method Post -ContentType "application/json" -Body $showBody -TimeoutSec 10
+            $ctxLine = @($show.parameters -split "`n" | Where-Object { $_ -match '^\s*num_ctx\s+(\d+)' })
+            $numCtx = if ($ctxLine.Count -gt 0 -and $ctxLine[0] -match '(\d+)\s*$') { [int]$Matches[1] } else { "unset (server default)" }
+        } catch {
+            $numCtx = "unknown (/api/show failed)"
+        }
     }
 }
 $ovOpencode = Run-Native "opencode" @("--version")
 $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
-Write-Host ("ollama: {0} | opencode: {1}" -f $ollamaVersion, $opencodeVersion) -ForegroundColor DarkGray
+Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
@@ -863,6 +877,7 @@ foreach ($tk in $tasksToRun) {
         elapsedSec      = $run.ElapsedSec
         ollamaVersion   = $ollamaVersion
         opencodeVersion = $opencodeVersion
+        numCtx          = $numCtx
         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
         transcriptFile  = $transcriptFileField
     }
