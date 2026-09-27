@@ -299,13 +299,12 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 4096 }
         },
-        // Imported from LM Studio, 2026-09-18 (no re-download): ollama create
-        // FROM the local GGUF. A3B MoE coder, same weights as the LM Studio
-        // seat. Probed 2026-09-18: tool_calls PASS in 24.8s - but 17.35 GB of
+        // Imported from a local GGUF, 2026-09-18 (no re-download): ollama create
+        // FROM the file. A3B MoE coder. Probed 2026-09-18: tool_calls PASS in 24.8s - but 17.35 GB of
         // weights on a ~14.8 GB usable card mean it partially offloads and runs
-        // slow, just like in LM Studio. Context 32768 since 2026-09-22 (baked by
+        // slow. Context 32768 since 2026-09-22 (baked by
         // startup.ps1; at 16384 the ~14.4k preamble plus the 4096 output
-        // reserve did not fit), 65536 in the 2026-09-27 trial.
+        // reserve did not fit), 65536 since the 2026-09-27 trial (DP8).
         "qwen3-coder:30b-a3b": {
           "name": "Qwen3 Coder 30B A3B (Desktop, imported, offloads)",
           "attachment": true,
@@ -315,7 +314,7 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 65536, "output": 4096 }
         },
-        // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). Probed 2026-09-18:
+        // Imported from a local Q8_0 GGUF, 2026-09-18. Probed 2026-09-18:
         // tool_calls PASS in 14.1s. Same Qwen3.5 family as the A3B coder above
         // plus a vision projector (mmproj). Images ride in via /v1 chat.
         "qwen3.5:9b": {
@@ -327,7 +326,7 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 65536, "output": 4096 }
         },
-        // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). R1-style hybrid. Probed
+        // Imported from a local Q8_0 GGUF, 2026-09-18. R1-style hybrid. Probed
         // 2026-09-18: tool_calls FAIL (ignores tools, answers in prose) - a
         // no-tools reviewer/explainer seat, like the other R1.
         "deepseek-r1-0528:8b": {
