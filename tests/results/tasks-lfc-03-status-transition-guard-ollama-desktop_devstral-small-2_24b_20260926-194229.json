@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-26T19:42:29",
+  "taskId": "lfc-03-status-transition-guard",
+  "taskTitle": "lfc-bot: enforce a status-transition matrix in setStatus - throw on every forbidden transition, allow fulfilled-to-deleted cleanup",
+  "model": "ollama-desktop/devstral-small-2:24b",
+  "modelLabel": "ollama-desktop/devstral-small-2:24b",
+  "baseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
+  "promptSha256": "833A03061C7F",
+  "opencodeExit": 0,
+  "writes": 4,
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "WARN",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "bench/status-guard-throw",
+    "commit": "3215aafde5f8eb6278d662af24cb01a6fab10eb0",
+    "detail": "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m29 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m"
+  },
+  "elapsedSec": 1110.6,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-03-status-transition-guard-ollama-desktop_devstral-small-2_24b_20260926-194229.jsonl"
+}

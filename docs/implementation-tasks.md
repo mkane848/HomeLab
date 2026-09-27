@@ -836,6 +836,76 @@ Pass by task, across all seats:
       - Result files: `tests/results/tasks-*-qwen3-8-max-oracle_20260926-*.{json,jsonl}`
         (16 files) + 8 TSV rows.
 
+- [x] **Data point 7: step 6, frontier tasks — the three oracle-only tasks ×
+      the desktop seats** (2026-09-26/27, desktop Ollama 0.34.3, opencode
+      1.18.32, plain prompts, `-RunTimeout 1800`, 3 groups + 1 rerun group).
+      Local record on the current prompt shas, before → after:
+
+      | task | local PASS / graded | new passes |
+      |---|---|---|
+      | lfc-03-status-transition-guard (`833A03061C7F`) | 0 / 0 → **2 / 8** | `laguna-xs-2.1` (8 writes, 1630 s), `qwen3.6:35b-a3b-coding` (7, 525 s) — both 29/29 owner acceptance, typecheck PASS |
+      | kane-02-multiword-creature-type (`2C70ABFF8F8A`) | 0 / 3 → **1 / 9** | `laguna-xs-2.1` (2 writes, 850 s) |
+      | asohav-02-changelog-uuid-id (`15771B923DC9`) | 0 / 10 → **0 / 14** | none |
+
+      - **Right fix, wrong tests (lfc-03).** `devstral-small-2:24b`,
+        `qwen3.5:9b` and `north-mini-code-1.0` score **29/29 on the owner
+        acceptance tests** but fail a gate on their own tests (suite FAIL ×2,
+        fails-on-old FAIL ×1 — north-mini wrote 1 file, no catching test).
+        The informational acceptance check is what separates them from
+        `qwen3-coder:30b-a3b` (27/29 — still allows fulfilled→fulfilled and
+        deleted→deleted) and `qwen3:14b` (test file does not load). Grading is
+        unchanged; they are FAIL rows.
+      - **Audit beyond the gates:** every edit in the three passing
+        transcripts was diffed against the base test file. laguna (lfc-03)
+        only removed lines it had itself added earlier in the run; laguna
+        (kane-02) added a Time Lord test and removed only two source comments;
+        qwen3.6 (lfc-03) made the shared `seedServer()` helper idempotent
+        (`onConflictDoNothing`) — no assertion removed anywhere. Note on
+        laguna's kane-02 fix: first-match over the catalog, not longest-match —
+        correct for the real catalog (no single-word type is a prefix of a
+        multi-word one), fragile if one is ever added.
+      - **Context overflow, not infrastructure (4 ungraded runs).** OpenCode
+        compacts the session when it nears `limit.context − limit.output`
+        (32768 − 4096); the model answers the summary request with a tool call
+        and the run dies with exit ≠ 0 — `Tool call not allowed while
+        generating summary` (north-mini kane-02, laguna asohav-02) or a
+        template crash on the compacted history (`qwen3.5:9b`: `Cannot have 2
+        or more assistant messages…` on lfc-03, `No user query found in
+        messages` on kane-02). laguna's asohav-02 transcript shows the budget:
+        14.8k-token first request (preamble + prompt), one `repo.ts` read
+        (38 KB) → 27.6k, 29.1k after four tool calls. The harness files these
+        as `_INFRA_` with no row, which hides a capability limit (the seat
+        cannot hold the repo) as an infra fault. Proposed: a `_CONTEXT_`
+        class, still no row, counted separately. Raising `limit.context` is
+        the other lever — see the roadmap note on 64k.
+      - **Memory-pressure contamination (group 1, ~16:00–17:54 on 09-26).**
+        Firefox held system RAM while partially offloaded seats paged: prompt
+        chunks went 3 s → 61–87 s, Ollama cancelled no-output requests at 5 min
+        (HTTP 500), and SWA seats (`north-mini`) re-prefilled from zero each
+        retry. The `devstral-small-2`, `north-mini`, `nemotron` and
+        `qwen3-coder` lfc-03 timeouts from that window are superseded by the
+        rerun group; laguna's lfc-03 PASS stands (the result, not its 1630 s).
+        Rule: close memory-heavy apps before a batch; check free RAM first.
+      - **Timeouts that stand:** `nemotron-3.5-lightning` lfc-03 again in the
+        rerun (21 shell commands, 4 edits, never finished — memory was fine);
+        `qwen3:8b` lfc-03 (43 edit calls, all `Could not find oldString`);
+        `devstral-small-2` on kane-02 and asohav-02 and `qwen3-coder` on
+        kane-02 and asohav-02 (still exploring at the cap).
+      - **Liar mode, unchanged:** `devstral:24b` (0 writes on all three),
+        `nemotron` (0 on kane-02 and asohav-02), `qwen3:8b` and `qwen3.6`
+        (0 on kane-02).
+      - **Harness fixes found by this run** (branch
+        `fix/harness-empty-transcript`): the transcript file is created before
+        the job starts, so a zero-event timeout leaves an empty `_TIMEOUT_`
+        file instead of nothing (north-mini's first lfc-03 run vanished); and
+        the job sets `[Console]::OutputEncoding` to UTF-8, since opencode's
+        stdout was decoded with the OEM codepage and every non-ASCII character
+        in a transcript was mojibake (`—` → `ΓÇö`). Transcripts from before
+        this fix carry the mojibake; the worktrees were not affected.
+      - Result files: `tests/results/tasks-{lfc-03,kane-02,asohav-02}-*-ollama-desktop_*_2026092{6,7}-*`
+        from 15:00 on 09-26 — 18 graded runs (`.json` + `.jsonl`) + 18 TSV
+        rows, 13 `_TIMEOUT_`/`_INFRA_` transcripts.
+
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
@@ -992,6 +1062,12 @@ Open, in order — each gates the next:
    marker `:205` are task-id-keyed). Definition of done: control cells have
    same-harness rows; every offloader timeout cell has a graded row or a
    `_TIMEOUT_` transcript; per-attempt table updated.
+   **Status 2026-09-27: frontier slice done (DP7)** — lfc-03, kane-02 and
+   asohav-02 × the 10 desktop seats (7 on asohav-02), every cell a graded row
+   or a `_TIMEOUT_`/`_INFRA_` transcript. Open: the other 6 tasks (control
+   lane `qwen3:14b` + `qwen3:8b`, and the offloader cells), and a decision on
+   the 4 context-overflow runs — they re-run meaningfully only after the
+   64k-context question (roadmap) is settled.
 7. **`qwen3.5:9b` to N=3 + node3 Q4 copy.** Desktop: N=3 on every task, Q8 as
    measured (the 5/6 record was earned on Q8 — Q4 is a separate experiment).
    Node3: pull Q4 (only strong seat small enough for 10 GB), probe first
@@ -1014,7 +1090,11 @@ Open, in order — each gates the next:
    summary line, orphan kill; the deliberate-timeout check passed on
    desktop) and (c) done (`7820266`), both in `test-tasks.ps1` only. Open:
    (b) kill-vs-cap tagging, the node3 0.34.2 stamp confirmation (needs node3
-   up), and the `test-profiles.ps1` regression run.**
+   up), and the `test-profiles.ps1` regression run.** 2026-09-27: two
+   follow-ups to (a) landed — empty transcript created up front (a
+   zero-event timeout still leaves a file) and UTF-8 decoding of opencode's
+   stdout (DP7). New (d): tag compaction deaths (`generating summary`, and
+   template crashes on a compacted history) `_CONTEXT_` instead of `_INFRA_`.
 9. **Greenfield trial — slice-0 skeleton + first slice chain** (gated behind
    steps 5–6, no compute until blind-trial lanes clear). Slice-0 skeleton
    is a planning-time artifact (owner or hand-verified planner output,

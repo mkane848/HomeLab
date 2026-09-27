@@ -468,6 +468,11 @@ function Invoke-OpencodeRun {
     $promptFile = Join-Path $env:TEMP ("task-prompt-{0}.md" -f ([guid]::NewGuid().ToString("N")))
     [System.IO.File]::WriteAllText($promptFile, $Prompt, (New-Object System.Text.UTF8Encoding($false)))
     $out = Join-Path $env:TEMP ("task-run-{0}.jsonl" -f ([guid]::NewGuid().ToString("N")))
+    # Create the transcript up front: the job only appends per event, so a run
+    # that emits nothing before the timeout (north-mini on 2026-09-26, stuck
+    # re-prefilling) otherwise leaves no file and vanishes without a trace. An
+    # empty _TIMEOUT_ transcript is the evidence that it never got a step out.
+    [System.IO.File]::WriteAllText($out, "")
 
     $job = Start-Job -ScriptBlock {
         param($Dir, $ModelId, $PromptFile, $Out)
@@ -482,6 +487,10 @@ function Invoke-OpencodeRun {
         try {
             $msg = Get-Content -LiteralPath $PromptFile -Raw
             $enc = New-Object System.Text.UTF8Encoding($false)
+            # opencode writes UTF-8; without this the job decodes its stdout
+            # with the OEM codepage and every non-ASCII char in the transcript
+            # is mojibake (an em dash became "ΓÇö" in the 2026-09-26 runs).
+            [Console]::OutputEncoding = $enc
             & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null |
                 ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
         } finally {

@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-26T22:02:32",
+  "taskId": "kane-02-multiword-creature-type",
+  "taskTitle": "KaneEnabler: recognize multi-word creature types (e.g. 'Time Lord') instead of silently dropping them",
+  "model": "ollama-desktop/devstral:24b",
+  "modelLabel": "ollama-desktop/devstral:24b",
+  "baseCommit": "0e9b703047d37e31abbccbda2c9de175ae3e33cb",
+  "promptSha256": "2C70ABFF8F8A",
+  "opencodeExit": 0,
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 156.8,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-02-multiword-creature-type-ollama-desktop_devstral_24b_20260926-220232.jsonl"
+}

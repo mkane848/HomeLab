@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-09-27T09:23:55",
+  "taskId": "asohav-02-changelog-uuid-id",
+  "taskTitle": "ASoHaVCompanionApp: stop generating a non-UUID id for a column the database already defaults to a real UUID",
+  "model": "ollama-desktop/nemotron-3.5-lightning",
+  "modelLabel": "ollama-desktop/nemotron-3.5-lightning",
+  "baseCommit": "d83381ad650b3474a50310e0dd3441a03cd89706",
+  "promptSha256": "15771B923DC9",
+  "opencodeExit": 0,
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 468.5,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_nemotron-3.5-lightning_20260927-092355.jsonl"
+}
