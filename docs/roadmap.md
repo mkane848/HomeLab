@@ -119,6 +119,62 @@ these docs with two different values:
   intent. Do not pull either model onto node3 to silence the WARN in the
   meantime.
 
+### Context budget: 32k vs 64k per seat (measured 2026-09-27, not yet decided)
+
+Why it came up: DP7's four context-overflow deaths (`docs/implementation-tasks.md`).
+With a ~14.8k-token first request and `limit.output` 4096 reserved, a 32k seat
+has room for roughly one large source file before OpenCode compacts, and the
+compaction step is where those runs died. Owner is interested in 64k; this is
+the measurement to decide it on, per seat.
+
+Method: desktop, Ollama 0.34.3, Vulkan, flash attention + q8_0 KV; each model
+loaded alone on an empty GPU via `/api/generate` with `options.num_ctx` =
+32768 then 65536, a ~1.2k-token prompt, 64 output tokens; sizes from
+`/api/ps`, allocations from the Ollama server log. **Generation speed is one
+short sample per cell** — treat differences under ~15% as noise.
+
+| seat | trained ctx | KV @32k → @64k | on CPU @32k → @64k | gen tok/s @32k → @64k | verdict |
+|---|---|---|---|---|---|
+| `qwen3:8b` | 40,960 | 2.4 → 3.1 GB (capped at 40k) | 0 → 0 | 86 → 85 | **cannot reach 64k** |
+| `qwen3:14b` | 40,960 | 2.7 → 3.4 GB (capped at 40k) | 0 → 0 | 51 → 51 | **cannot reach 64k** |
+| `qwen3.5:9b` | 262,144 | 0.5 → 1.1 GB | 0 → 0 | 56 → 59 | free |
+| `qwen3.6:35b-a3b-coding` | 262,144 | 0.4 → 0.7 GB | 8.2 → 8.6 GB | 67 → 68 | free |
+| `north-mini-code-1.0` | 500,000 | 0.6 → 1.1 GB (SWA) | 4.1 → 4.5 GB | 47 → 48 | free |
+| `nemotron-3.5-lightning` | 1,048,576 | 0.1 → 0.3 GB (7 attention layers) | 11.4 → 11.5 GB | 41 → 36 | ~free |
+| `laguna-xs-2.1` | 393,216 | 0.7 → 1.4 GB | 5.9 → 6.5 GB | 50 → 41 | small cost |
+| `qwen3-coder:30b-a3b` | 262,144 | 1.6 → 3.3 GB | 5.1 → 6.8 GB | 40 → 36 | moderate cost |
+| `devstral-small-2:24b` | 131,072 | 2.7 → 5.4 GB (1.4 of it on CPU) | 3.9 → 6.6 GB; 36 → 31 of 41 layers on GPU | 13.5 → 9.6 | **expensive** |
+| `devstral:24b` | 131,072 | 2.7 → 5.4 GB | 2.4 → 4.9 GB | 16.4 → 10.4 | **expensive** |
+
+Reading it:
+
+- **Hybrid/SWA/MoE seats barely notice.** Few full-attention layers (qwen3.5/3.6
+  every 4th, nemotron 7 of 53, north-mini/laguna sliding-window) means small KV.
+  Doubling it costs well under 1 GB, taken from GPU weight space, not added RAM.
+- **Dense 24B seats pay twice.** Every layer carries KV, so +2.7 GB, which
+  pushes 5 more layers onto the CPU: ~30–37% slower generation and ~2.7 GB
+  more system RAM — the resource that ran out under Firefox on 2026-09-26.
+- **`qwen3:8b`/`qwen3:14b` top out at 40,960.** Ollama logs `requested
+  context size too large for model` and silently loads 40k. 40k is cheap
+  (+0.6 GB, fully on GPU); 64k would need RoPE/YaRN scaling in a derived
+  model — an untested change to the default seat, not a config bump.
+- **Not measured here — time.** A bigger window means later turns carry more
+  prompt. The offloaders prefilled at ~150–350 tok/s on this short prompt; a
+  50k-token re-prefill at that rate is roughly Ollama's 5-minute no-output
+  cancel, and the SWA seats (north-mini, laguna) re-prefill from zero on any
+  cache miss (the 2026-09-26 retry loop). An estimate, not a measurement: the
+  real test is the rerun below.
+- **Two halves of one contract.** A change is `startup.ps1` `$contextModels`
+  (the baked `num_ctx`) *and* `opencode.jsonc` `limit.context` for the same
+  seat, confirmed with `opencode debug config` (see AGENTS.md → Gotchas).
+
+Proposed trial (not adopted): 64k for `qwen3.5:9b`, `qwen3.6`, `north-mini`,
+`nemotron`, `laguna` (and `qwen3-coder` if its speed cost is acceptable);
+40k for `qwen3:8b`/`qwen3:14b`; `devstral` pair stays 32k. Acceptance: rerun
+DP7's four context-overflow cells plus the three frontier tasks for the raised
+seats, and compare timeouts and pass rate against DP7 — a bigger window that
+converts overflow into timeouts is not a win.
+
 ### Review-gate: settled
 
 Closed 2026-09-19, recorded so it is not reopened by accident.

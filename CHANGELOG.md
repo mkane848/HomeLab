@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timeout with zero events leaves an empty `_TIMEOUT_` transcript instead of
   nothing; decode opencode's stdout as UTF-8 inside the job (non-ASCII text
   in transcripts was OEM-codepage mojibake).
+- `docs/roadmap.md` → "Context budget: 32k vs 64k per seat": measured KV,
+  CPU offload and generation speed at both sizes for the 10 desktop seats.
+  Hybrid/SWA/MoE seats cost under 1 GB; the dense `devstral` pair loses ~30%
+  generation speed; `qwen3:8b`/`qwen3:14b` are capped at 40,960 by their
+  training context. Trial proposed, not adopted.
 
 - Record data point 6 (`docs/implementation-tasks.md`): oracle sweep —
   `opencode-go/qwen3.8-max` PASSes all 8 remaining manifest tasks on the same
