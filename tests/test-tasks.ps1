@@ -487,6 +487,10 @@ function Invoke-OpencodeRun {
         try {
             $msg = Get-Content -LiteralPath $PromptFile -Raw
             $enc = New-Object System.Text.UTF8Encoding($false)
+            # opencode writes UTF-8; without this the job decodes its stdout
+            # with the OEM codepage and every non-ASCII char in the transcript
+            # is mojibake (an em dash became "ΓÇö" in the 2026-09-26 runs).
+            [Console]::OutputEncoding = $enc
             & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null |
                 ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
         } finally {
