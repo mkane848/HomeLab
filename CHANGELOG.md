@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Retire LM Studio. VS Code's BYOK registry now has one provider, desktop
+  Ollama, with every desktop seat (the 10 tool-capable seats + the
+  `deepseek-r1:14b` reviewer), budgets mirrored from `opencode.jsonc`
+  (`maxInputTokens` + `maxOutputTokens` = served `num_ctx`; the old
+  entries declared the whole window as input). `docs/lmstudio-vscode.md` is
+  now `docs/vscode.md`, rewritten Ollama-only; links and current docs
+  updated; dated 2026-09-18/19 run records still say what they ran on.
+
 - 64k context trial: `qwen3.5:9b`, `qwen3-coder:30b-a3b`, `north-mini-code-1.0`,
   `laguna-xs-2.1`, `qwen3.6:35b-a3b-coding` and `nemotron-3.5-lightning` go to
   65536 in `startup.ps1` `$contextModels`, `opencode.jsonc` `limit.context`

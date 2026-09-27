@@ -120,7 +120,7 @@ real classic bar cleared here is 3/4.
 - **Sample sizes.** `deepseek-r1:14b` n=1. `qwen3:14b` n=1. `qwen3.5:9b` n=6
   attempts / 5 usable, across two prompt versions. `devstral:24b` and
   `qwen2.5-coder:14b` were **never run** — so "survey of four candidates
-  exhausted" (`lmstudio-vscode.md`) overstates what was measured.
+  exhausted" (`vscode.md`) overstates what was measured.
 - **No sampling parameters were recorded** for any run — no temperature, top_p
   or seed anywhere in this corpus. Independence of the three draws is inferred
   from divergent `eval_count` (1205 / 1759 / 5334) against an identical

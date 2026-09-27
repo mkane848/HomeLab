@@ -12,7 +12,7 @@ Scripts and configs for the personal desktop machine — the native-Vulkan Ollam
 
 - **Qwen3 14B / 8B** — the tool-capable agent seats (baked 32k ctx), driven via OpenCode
 - **Qwen 2.5 Coder 3B/7B/14B, DeepSeek-R1 14B** — no-tools models for code text, explanation and review (derived `-16k`/`-32k` bakes, `num_ctx` baked in)
-- **Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B** — LM-Studio imports (not in `models/catalog.tsv`)
+- **Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B** — imported from local GGUF files (not in `models/catalog.tsv`)
 - **Ollama** — host for desktop-side model serving (native install, Vulkan backend)
 
 ## Quick Start

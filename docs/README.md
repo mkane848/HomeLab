@@ -9,8 +9,8 @@ you're after.
 
 - **[start-here.md](start-here.md)** — the one page that takes you from a
   cold machine to a working agent via OpenCode, with verification at each step.
-- **[lmstudio-vscode.md](lmstudio-vscode.md)** — the same fleet, driven from
-  VS Code instead: BYOK setup for LM Studio and Ollama side by side. Its
+- **[vscode.md](vscode.md)** — the same fleet, driven from
+  VS Code instead: BYOK setup against the same desktop Ollama. Its
   first half is the setup reference; the second half is the review-gate
   research built on top of it (see below).
 - **[target-setup.md](target-setup.md)** — the planned end state once the

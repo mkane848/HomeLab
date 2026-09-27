@@ -76,7 +76,7 @@ never a task list.
 # Review-gate on LFCbot - approved and executed (2026-09-18)
 
 Scope: dependency hygiene of `M:\Projects\LFCbot` (v1.6.0), running the
-review-gate methodology documented in `docs/lmstudio-vscode.md` end to end:
+review-gate methodology documented in `docs/vscode.md` end to end:
 auditor -> reviewer -> human approval -> implementer.
 
 ## What happened
@@ -107,12 +107,14 @@ auditor -> reviewer -> human approval -> implementer.
   implementer (e.g. `qwen3:14b`), not the auditor seat. On the executed run the
   implementer produced a clean tree and a green toolchain, confirming the model
   choice and handoff shape.
-- The workflow lives in **VS Code + LM Studio** (BYOK), not OpenCode. Prompt
+- The workflow lives in **VS Code** (BYOK), not OpenCode. (This run served
+  the auditor from LM Studio; since 2026-09-27 every seat is on desktop
+  Ollama and LM Studio is retired.) Prompt
   templates for both seats live at `docs/review-gate/auditor.md` and
   `docs/review-gate/reviewer.md`; the flow is: Auditor (Agent mode,
-  `qwen/qwen3-coder-30b`) -> Reviewer (Ask mode, `deepseek-r1:14b`) -> human
+  `qwen3-coder:30b-a3b`) -> Reviewer (Ask mode, `deepseek-r1:14b`) -> human
   approves -> tool-capable implementer (`qwen3:14b`) runs the approved steps.
-  Full protocol in `docs/lmstudio-vscode.md`.
+  Full protocol in `docs/vscode.md`.
 
 ## Open follow-up
 
@@ -130,7 +132,7 @@ on the same branch before any merge. Verdict on the submitted validator: **good
 scaffolding, needs a fix-and-reverify pass before merge** — the PR review
 found a silent Background-pairing bug despite a green suite (lint, `tsc`, 404
 passed / 14 skipped / 0 failed). Full context:
-`docs/lmstudio-vscode.md` → "The PR review that caught the silent bug" and
+`docs/vscode.md` → "The PR review that caught the silent bug" and
 `docs/review-gate/testing.md`.
 
 Tasks are ordered; **each fix must ship a test that fails on the old code**.

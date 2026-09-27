@@ -17,13 +17,13 @@ the reviewer to transcribe every test's arguments before judging raised its
 output length exactly as intended and changed almost nothing. One run
 transcribed the decisive argument correctly and passed the broken plan anyway.
 The bottleneck is verification reasoning, not prompt shape. See
-[docs/lmstudio-vscode.md](../lmstudio-vscode.md) for the full write-up and the
+[docs/vscode.md](../vscode.md) for the full write-up and the
 [roadmap](../roadmap.md) for where this is headed next.
 
 ## How it's organized
 
-- **[lmstudio-vscode.md](../lmstudio-vscode.md)** — the narrative: how the
-  method works (auditor → reviewer → arbiter), the VS Code / LM Studio BYOK
+- **[vscode.md](../vscode.md)** — the narrative: how the
+  method works (auditor → reviewer → arbiter), the VS Code BYOK
   setup, and the two full case studies (a real dependency audit, then the
   KaneEnabler deck-validity PR).
 - **[testing.md](testing.md)** — the test-veracity rule this method exists to
@@ -45,5 +45,5 @@ The bottleneck is verification reasoning, not prompt shape. See
   and two instrument defects it exposed). Raw runs in `raw/r3/`.
 - **[raw/](raw/)** — the actual per-run transcripts, comparisons, and
   remeasure inputs/outputs that back the claims above. Supporting evidence,
-  not required reading — start with `lmstudio-vscode.md` and dip into a raw
+  not required reading — start with `vscode.md` and dip into a raw
   run file only if you want to check a specific claim against the source.
