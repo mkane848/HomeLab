@@ -906,6 +906,81 @@ Pass by task, across all seats:
         from 15:00 on 09-26 — 18 graded runs (`.json` + `.jsonl`) + 18 TSV
         rows, 13 `_TIMEOUT_`/`_INFRA_` transcripts.
 
+- [x] **Data point 8: 64k context trial — DP7's frontier tasks × the six
+      raised seats** (2026-09-27 11:00–15:51, branch `feat/context-64k-trial`,
+      desktop Ollama 0.34.3, opencode 1.18.32, same prompt shas as DP7,
+      `-RunTimeout 1800`, `-Reps 1`, 3 groups). Every graded JSON stamps
+      `numCtx: 65536` (served, from `/api/show`). Seats: `qwen3.5:9b`,
+      `qwen3-coder:30b-a3b`, `north-mini-code-1.0`, `laguna-xs-2.1`,
+      `qwen3.6:35b-a3b-coding`, `nemotron-3.5-lightning`.
+
+      | task | 32k (DP7, same seats) | 64k | passes (writes, seconds, peak context) |
+      |---|---|---|---|
+      | lfc-03 | 2 PASS / 6 attempts | **4 / 6** | nemotron (4, 372 s, 31.2k), qwen3.6 (3, 223 s, 27.3k), laguna (3, 325 s, 26.8k), qwen3-coder (8, 1625 s, 49.5k) — all 29/29 owner acceptance |
+      | kane-02 | 1 / 6 | **3 / 6** | qwen3-coder (5, 1553 s, 46.2k), qwen3.5 (12, 544 s, 51.4k), qwen3.6 (2, 369 s, 36.9k) |
+      | asohav-02 | 0 / 3 | **2 / 6** | laguna (5, 1418 s, 62.2k), qwen3.5 (13, 637 s, 61.5k) — first local passes on this task |
+      | **total** | **3 / 15 (20%)** | **9 / 18 (50%)** | |
+
+      DP7's same-seat attempts include its graded rows and its ungraded
+      transcripts; superseded memory-pressure runs are excluded, and
+      asohav-02 had only 3 of these seats in DP7.
+      - **Acceptance criterion (roadmap) met.** Ungraded runs fell from 6 of
+        15 to 2 of 18. Timeouts fell 3 → 1: laguna on kane-02 compacted
+        cleanly (61.4k → 14.4k) and was still working at the cap. Context
+        deaths fell 3 → 1: `qwen3.5:9b` on lfc-03, a template crash (`Cannot
+        have 2 or more assistant messages`) at 59.4k. **7 of the 9 passes
+        peaked above ~28.7k**, the point where a 32k seat compacts. Two of
+        them compacted near 62k and still passed (laguna and qwen3.5 on
+        asohav-02, `compaction_continue` in the transcript). So qwen3.5
+        survives some compactions and crashes on others.
+      - **Audit beyond the gates.** Every edit in all 9 passing transcripts
+        was replayed onto the base files and diffed:
+        - lfc-03: the four passes are purely additive to
+          `tests/services/listings.test.ts` (0 base lines changed, +8 to +16
+          `expect`s).
+        - kane-02: qwen3-coder changed 1 base line (added Time Lord to the
+          `CREATURE_TYPES` set in the test). qwen3.6 moved one closing `});`
+          to append its tests. qwen3.5 changed nothing. No assertion was
+          removed.
+        - asohav-02: both passes make exactly the upstream fix (delete
+          `const id = newId('log')` and `id,`), and each adds a new
+          `repo.changelog.test.ts` asserting the insert payload has no `id`.
+      - **Typecheck WARNs (lfc-03), reproduced** by replaying each run into
+        the task worktree and running the harness's scoped `tsc`. The base
+        and the qwen3.6/nemotron runs compile clean.
+        - laguna has a **real source error**: `listings.ts:313` indexes the
+          transition table (`Record<status, …>`) with a plain `string`
+          (TS7053, TS7006). It runs correctly but loses the type safety the
+          guard exists for.
+        - qwen3-coder's errors are test-only: 4× TS18048 `'fulfilled' is
+          possibly 'undefined'`.
+        - Informational; no grade changes.
+      - **Failures:**
+        - north-mini, 0/3:
+          - 0 writes on lfc-03 and kane-02.
+          - On asohav-02, all 3 edits errored on a mangled path
+            (`/workspace/M:Projects/dev-docs/…`), so it never changed a
+            file.
+        - nemotron: 0 writes on kane-02, as at 32k. On asohav-02 it edited
+          `apps/server/.env` and `vitest.config.ts` to get its test to load
+          (scope FAIL).
+        - qwen3-coder and qwen3.6 on asohav-02: correct source fix, but a
+          test file that doesn't load (suite FAIL).
+          - qwen3-coder then reported every requirement met.
+          - qwen3.6 stopped mid-iteration, blaming "rate limits", which a
+            local model doesn't have.
+      - **No 5-minute no-output cancels.** The Ollama log for 11:00–16:00 has
+        517 × 200 and 7 × 500:
+        - six sub-second 500s at 11:51, the qwen3.5 template crash retrying;
+        - one at 13:35, the request cancelled when laguna's run hit the cap.
+      - **Verdict:** keep 64k for these six seats, and merge this branch to
+        adopt it. It's N=1 per cell, but the direction held on all three
+        tasks. The qwen3 dense pair (40,960 trained cap) and the devstral
+        pair (expensive, see roadmap) stay at 32k.
+      - Result files: `tests/results/tasks-{lfc-03,kane-02,asohav-02}-*-ollama-desktop_*_20260927-1{1,2,3,4,5}*`
+        — 16 graded runs (`.json` + `.jsonl`) + 16 TSV rows, 1 `_INFRA_` and
+        1 `_TIMEOUT_` transcript.
+
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
@@ -1067,7 +1142,11 @@ Open, in order — each gates the next:
    or a `_TIMEOUT_`/`_INFRA_` transcript. Open: the other 6 tasks (control
    lane `qwen3:14b` + `qwen3:8b`, and the offloader cells), and a decision on
    the 4 context-overflow runs — they re-run meaningfully only after the
-   64k-context question (roadmap) is settled.
+   64k-context question (roadmap) is settled. **2026-09-27: settled by DP8.**
+   The six MoE/hybrid seats run at 64k, and the three frontier tasks were
+   re-run on them: 9/18 PASS, versus 3/15 at 32k. The remaining 6 tasks
+   should be run at 64k for these seats. Results from before the trial are
+   32k rows, and `numCtx` in the JSON tells them apart.
 7. **`qwen3.5:9b` to N=3 + node3 Q4 copy.** Desktop: N=3 on every task, Q8 as
    measured (the 5/6 record was earned on Q8 — Q4 is a separate experiment).
    Node3: pull Q4 (only strong seat small enough for 10 GB), probe first

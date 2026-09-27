@@ -119,7 +119,7 @@ these docs with two different values:
   intent. Do not pull either model onto node3 to silence the WARN in the
   meantime.
 
-### Context budget: 32k vs 64k per seat (measured 2026-09-27, not yet decided)
+### Context budget: 32k vs 64k per seat (measured and trialled 2026-09-27; adopted for six seats by merging the trial PR)
 
 Why it came up: DP7's four context-overflow deaths (`docs/implementation-tasks.md`).
 With a ~14.8k-token first request and `limit.output` 4096 reserved, a 32k seat
@@ -174,6 +174,49 @@ Proposed trial (not adopted): 64k for `qwen3.5:9b`, `qwen3.6`, `north-mini`,
 DP7's four context-overflow cells plus the three frontier tasks for the raised
 seats, and compare timeouts and pass rate against DP7 — a bigger window that
 converts overflow into timeouts is not a win.
+
+**Trial configured 2026-09-27 (branch `feat/context-64k-trial`):** 65536 for
+`qwen3.5:9b`, `qwen3-coder:30b-a3b`, `north-mini`, `laguna`, `qwen3.6` and
+`nemotron` in both `startup.ps1` `$contextModels` and `opencode.jsonc`
+`limit.context`; catalog `ctx` updated. `qwen3-coder` is included so the trial
+measures its ~11% speed cost instead of guessing at it. **The qwen3 dense pair
+stays at 32k for now**, a deviation from the proposal above: none of DP7's
+overflow deaths were theirs, 40k buys only ~8k tokens, and `qwen3:14b` is the
+daily main seat whose co-residency with the 3b (13.29 → ~13.96 of ~14.8 GB)
+and profile docs would all move with it — its own change, if ever. Every run
+now stamps `numCtx` (the served `num_ctx`, from `/api/show`) into its result
+JSON, because context size is not part of the prompt sha and a 64k row is
+otherwise indistinguishable from a 32k one. Revert = restore the 32768s.
+
+**Trial result 2026-09-27 (DP8 in `docs/implementation-tasks.md`): the
+acceptance criterion is met.** Same six seats, same three tasks, same prompt
+shas, one run per cell, 32k (DP7) → 64k:
+
+| | 32k (DP7) | 64k (DP8) |
+|---|---|---|
+| attempts | 15 | 18 |
+| PASS | 3 (20%) | **9 (50%)** |
+| timeouts | 3 | 1 |
+| context deaths (`_INFRA_`) | 3 | 1 |
+
+- **Overflow did not turn into timeouts** — timeouts went down too. The
+  one 64k timeout (laguna, kane-02) compacted cleanly at 61.4k and was
+  still working at the cap.
+- **The extra room is what the passes used.** 7 of the 9 passes peaked above
+  ~28.7k tokens (where a 32k seat compacts); two of them (laguna and qwen3.5
+  on asohav-02) compacted once near 62k and still passed.
+- **Not fixed by 64k:** `qwen3.5:9b`'s chat template crashes on some compacted
+  histories (lfc-03, at 59.4k) — the bug moves later, it does not go away.
+  `north-mini` is 0/3 at 64k for other reasons (no-write, and a mangled
+  `/workspace/M:Projects/…` edit path). `nemotron` still writes nothing on
+  kane-02.
+- **Cost as measured above:** no seat went from fitting to not fitting;
+  laguna and qwen3-coder are ~10–20% slower to generate. No run in the trial
+  hit Ollama's 5-minute no-output cancel.
+
+N=1 per cell, so per-seat rankings can still move; the direction held on all
+three tasks. Decision: keep 64k for the six seats (merging the trial PR
+adopts it). The qwen3 dense pair and the devstral pair stay at 32k.
 
 ### Review-gate: settled
 

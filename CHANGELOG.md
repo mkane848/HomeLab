@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- 64k context trial: `qwen3.5:9b`, `qwen3-coder:30b-a3b`, `north-mini-code-1.0`,
+  `laguna-xs-2.1`, `qwen3.6:35b-a3b-coding` and `nemotron-3.5-lightning` go to
+  65536 in `startup.ps1` `$contextModels`, `opencode.jsonc` `limit.context`
+  and `models/catalog.tsv`. The devstral pair and the qwen3 dense pair stay at
+  32768. Acceptance rule in `docs/roadmap.md` → "Context budget".
+- `test-tasks.ps1`: stamp `numCtx` (the served model's baked `num_ctx`, from
+  `/api/show`) into every result JSON and the header line, so runs at
+  different context sizes can be told apart.
+- Record data point 8 (`docs/implementation-tasks.md`): the 64k trial re-ran
+  lfc-03, kane-02 and asohav-02 on the six raised seats — **9/18 PASS vs 3/15
+  at 32k** for the same seats; timeouts 3 → 1, context deaths 3 → 1. First
+  local asohav-02 passes (`laguna-xs-2.1`, `qwen3.5:9b`). All 9 passes
+  audited beyond the gates (no assertion removed); lfc-03's two typecheck
+  WARNs reproduced (laguna: a real `string`-index error in source;
+  qwen3-coder: test-only). Roadmap acceptance criterion met; 64k adopted for
+  the six seats. 34 result files + 16 `tasks-summary.tsv` rows archived.
+
 - Record data point 7 (`docs/implementation-tasks.md`): step 6's frontier
   slice — lfc-03, kane-02 and asohav-02 × the desktop seats. First local
   passes: lfc-03 2/8 (`laguna-xs-2.1`, `qwen3.6:35b-a3b-coding`, both 29/29

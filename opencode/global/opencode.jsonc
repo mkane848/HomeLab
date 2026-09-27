@@ -282,6 +282,11 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 8192 }
         },
+        // 64k (trialled + adopted 2026-09-27, DP8): qwen3-coder, qwen3.5, north-mini, laguna, qwen3.6
+        // and nemotron carry limit.context 65536, matching the num_ctx baked by
+        // startup.ps1 ($contextModels). The devstral pair and the qwen3 dense
+        // pair stay 32768. Measurements + acceptance rule: docs/roadmap.md ->
+        // "Context budget: 32k vs 64k per seat".
         // Agentic coding specialist (Mistral). 14 GB of weights on a ~14.8 GB
         // usable card, so it WILL partially offload to system RAM and run
         // slow. Registered for evaluation, not as a default seat.
@@ -299,8 +304,8 @@
         // seat. Probed 2026-09-18: tool_calls PASS in 24.8s - but 17.35 GB of
         // weights on a ~14.8 GB usable card mean it partially offloads and runs
         // slow, just like in LM Studio. Context 32768 since 2026-09-22 (baked by
-        // startup.ps1). At 16384 the ~14.4k preamble plus the 4096 output
-        // reserve did not fit.
+        // startup.ps1; at 16384 the ~14.4k preamble plus the 4096 output
+        // reserve did not fit), 65536 in the 2026-09-27 trial.
         "qwen3-coder:30b-a3b": {
           "name": "Qwen3 Coder 30B A3B (Desktop, imported, offloads)",
           "attachment": true,
@@ -308,7 +313,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 65536, "output": 4096 }
         },
         // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). Probed 2026-09-18:
         // tool_calls PASS in 14.1s. Same Qwen3.5 family as the A3B coder above
@@ -320,7 +325,7 @@
           "tool_call": true,
           "modalities": { "input": ["image", "text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 65536, "output": 4096 }
         },
         // Imported from LM Studio 2026-09-18 (Q8_0 GGUF). R1-style hybrid. Probed
         // 2026-09-18: tool_calls FAIL (ignores tools, answers in prose) - a
@@ -340,7 +345,8 @@
         // the script drops any seat whose current-version probe is not PASS, so
         // tool_call here is a claim to be confirmed. Flip a FAIL to false
         // (see tests/results/toolcalls-summary.tsv). reasoning/modalities follow
-        // /api/show capabilities. Context 32768 is baked by startup.ps1.
+        // /api/show capabilities. Context is baked by startup.ps1: 32768 for the
+        // dense devstral-small-2, 65536 for the MoE seats (2026-09-27 trial).
         "devstral-small-2:24b": {
           "name": "Devstral Small 2 24B (Desktop, candidate, dense, offloads)",
           "attachment": true,
@@ -357,7 +363,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 65536, "output": 4096 }
         },
         "laguna-xs-2.1": {
           "name": "Laguna XS 2.1 33B-A3B (Desktop, candidate, offloads)",
@@ -366,7 +372,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 65536, "output": 4096 }
         },
         // Starting-build planner seat (agreed 2026-09-23): a plan carries
         // multi-order work orders plus acceptance tests, which does not fit
@@ -378,7 +384,7 @@
           "tool_call": true,
           "modalities": { "input": ["image", "text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 8192 }
+          "limit": { "context": 65536, "output": 8192 }
         },
         "nemotron-3.5-lightning": {
           "name": "Nemotron 3.5 Lightning 30B-A3B (Desktop, candidate, offloads)",
@@ -387,7 +393,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 32768, "output": 4096 }
+          "limit": { "context": 65536, "output": 4096 }
         }
       },
       "options": {
