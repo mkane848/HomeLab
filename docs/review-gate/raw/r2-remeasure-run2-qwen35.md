@@ -46,4 +46,4 @@ Raw outputs: `C:\Users\<username>\AppData\Local\Temp\opencode\r2-rem\`
    reviewer *plus* a scripted checklist robot; human reconciles. Local LLMs
    get a seat only for prose/draft, never the verdict.
 4. Stop the local-seat hunt (three failed candidates), route the review gate
-   to the strongest hosted model and re-pin (`lmstudio-vscode.md` seats table).
+   to the strongest hosted model and re-pin (`vscode.md` seats table).

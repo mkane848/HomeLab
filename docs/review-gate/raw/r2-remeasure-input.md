@@ -2,7 +2,7 @@
 
 **Do not** paste `r2-remeasure-key.md` anywhere in this session — it is the
 grader's answer sheet. This file is the fixed input for the re-measure of the
-reviewer seat (lmstudio-vscode.md → "Next steps" #2): same material as run 2's
+reviewer seat (vscode.md → "Next steps" #2): same material as run 2's
 PR #82, improved prompt. Everything below mirrors the placeholders in
 `docs/review-gate/reviewer.md` (evidence + citations, implementation contract,
 and the plan's test changes).

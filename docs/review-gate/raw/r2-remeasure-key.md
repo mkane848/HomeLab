@@ -5,7 +5,7 @@ at these findings **de novo** from the evidence + contract + test inventory in
 the input file. Pasting any of this invalidates the metric.
 
 ## Known seams (ground truth, from the arbiter's corrections + the 2026-09-19
-PR review — documented in `docs/lmstudio-vscode.md` and `docs/review-gate/testing.md`)
+PR review — documented in `docs/vscode.md` and `docs/review-gate/testing.md`)
 
 | # | Seam | Where it bites | Status in the PR (ground truth) | What a passing review says |
 |---|---|---|---|---|

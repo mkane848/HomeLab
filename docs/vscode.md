@@ -1,34 +1,33 @@
 # VS Code + local models: BYOK setup, and the review-gate methodology built on it
 
-> Setup and method as of **2026-09-18**, measured on this desktop (RX 6800 XT,
-> VS Code 1.138.0). The purpose is twofold: (1) a **reproducible reference** for
-> running local models in VS Code via LM Studio *and* the desktop Ollama daemon
-> side by side, and (2) the **review-gate methodology** — a two/three-seat split
-> that caught a destructive command a single-model run would have shipped.
-> Everything here is recorded from observed output, not theory.
+> Setup current as of **2026-09-27** (desktop, RX 6800 XT, Ollama 0.34.3). The
+> review-gate method and its case studies are from **2026-09-18/19**. This doc
+> is two things: (1) a **reproducible reference** for driving the desktop
+> Ollama daemon from VS Code's native chat, and (2) the **review-gate
+> methodology**, a two/three-seat split that caught a destructive command a
+> single-model run would have shipped. Everything here is recorded from
+> observed output, not theory.
 
-This setup is deliberately a **peer** to the OpenCode fleet (see
+This setup is a **peer** to the OpenCode fleet (see
 [model-architecture.md](model-architecture.md) and [start-here.md](start-here.md)),
-not a replacement. LM Studio and Ollama are interchangeable inference backends:
-both run GGUF weights on the GPU and expose an OpenAI-compatible HTTP API. VS
-Code's BYOK (bring-your-own-key) model mechanism treats each as just an
-endpoint, so both can be registered simultaneously and the model picker becomes
-the "profile" selector. This is the opencode north star (loose prompt, whichever
-hardware answers) exercised inside VS Code.
+not a replacement. VS Code's BYOK (bring-your-own-key) model mechanism treats
+Ollama's OpenAI-compatible endpoint (`http://127.0.0.1:11434/v1`) as just
+another endpoint. Each registered model becomes a picker entry, so the picker
+plays the role that OpenCode's profiles play in the terminal. It's the same
+north star (loose prompt, whichever hardware answers), exercised inside VS
+Code.
 
-| Backend | Port | API | What it does differently |
-|---|---|---|---|
-| LM Studio | `127.0.0.1:1234` | `/v1` | GUI + model store; **tool-call stitching middleware** (can make models emit tool calls even when their raw template doesn't); one large model resident at a time |
-| Ollama (desktop) | `127.0.0.1:11434` | `/v1` | Headless native daemon, per-model baked `num_ctx` via `startup.ps1`; only emits tool calls the model template genuinely produces |
+**Ollama is the only backend.** The 2026-09-18 review-gate runs below used
+LM Studio for the auditor seat. It was retired on 2026-09-27, and every seat
+is now served by the same Ollama daemon, with the same baked `num_ctx`, that
+OpenCode and the task benchmark use. That's what makes a VS Code run
+comparable to an OpenCode one.
 
-Neither wraps the other, and neither is "smarter". VS Code does not care who is
-answering which port.
-
-**In this doc:** "Setup" through "Gotchas" is the standalone reference — read
+**In this doc:** "Setup" through "Gotchas" is the standalone reference. Read
 that and stop if you just want VS Code talking to your local models day to
 day, the way OpenCode already does from the terminal. Everything from "The
-review-gate methodology" on is a specific research thread built on top of
-that setup, not a prerequisite for using it.
+review-gate methodology" on is a research thread built on top of that setup,
+not a prerequisite for using it.
 
 ---
 
@@ -49,27 +48,15 @@ Needed since VS Code ≥1.132. A regression (microsoft/vscode#329545) hid all
 BYOK custom-endpoint models from the agent picker unless this undocumented flag
 was set. Without it the chat picker looks empty regardless of config.
 
-### 2. `chatLanguageModels.json` — the registry (exact current file)
+### 2. `chatLanguageModels.json` — the registry
+
+One provider, every desktop seat. The list mirrors the `ollama-desktop` block
+of `opencode/global/opencode.jsonc`: the tool-capable seats from
+`tests/run-tasks-models.tsv`, plus the no-tools reviewer. Current file,
+abridged to two entries (the rest follow the same shape):
 
 ```json
 [
-	{
-		"name": "LM Studio",
-		"vendor": "customendpoint",
-		"apiKey": "lm-studio",
-		"apiType": "chat-completions",
-		"models": [
-			{
-				"id": "qwen/qwen3-coder-30b",
-				"name": "qwen/qwen3-coder-30b",
-				"url": "http://127.0.0.1:1234/v1",
-				"toolCalling": true,
-				"vision": false,
-				"maxInputTokens": 32768,
-				"maxOutputTokens": 8192
-			}
-		]
-	},
 	{
 		"name": "Ollama Desktop",
 		"vendor": "customendpoint",
@@ -77,21 +64,21 @@ was set. Without it the chat picker looks empty regardless of config.
 		"apiType": "chat-completions",
 		"models": [
 			{
-				"id": "deepseek-r1:14b",
-				"name": "DeepSeek R1 14B (Review)",
-				"url": "http://127.0.0.1:11434/v1",
-				"toolCalling": false,
-				"vision": false,
-				"maxInputTokens": 16384,
-				"maxOutputTokens": 8192
-			},
-			{
 				"id": "qwen3:14b",
-				"name": "Qwen3 14B (Reasoning)",
+				"name": "Qwen3 14B (main seat)",
 				"url": "http://127.0.0.1:11434/v1",
 				"toolCalling": true,
 				"vision": false,
-				"maxInputTokens": 32768,
+				"maxInputTokens": 24576,
+				"maxOutputTokens": 8192
+			},
+			{
+				"id": "qwen3.6:35b-a3b-coding",
+				"name": "Qwen3.6 35B-A3B coding",
+				"url": "http://127.0.0.1:11434/v1",
+				"toolCalling": true,
+				"vision": false,
+				"maxInputTokens": 57344,
 				"maxOutputTokens": 8192
 			}
 		]
@@ -99,20 +86,44 @@ was set. Without it the chat picker looks empty regardless of config.
 ]
 ```
 
+**The budget rule:** `maxInputTokens` + `maxOutputTokens` = the `num_ctx`
+Ollama serves (baked by `startup.ps1` `$contextModels`), and
+`maxOutputTokens` = that seat's `limit.output` in `opencode.jsonc`. Declaring
+the full `num_ctx` as input, as the old file did, lets VS Code send a prompt
+that plus the reply overruns the window, and Ollama truncates the front of the
+prompt. This is the same failure as OpenCode's missing `limit` (AGENTS.md →
+Gotchas). The file is the third place a context change has to land, after
+`$contextModels` and `limit.context`.
+
+| id | `num_ctx` | maxInput / maxOutput | toolCalling |
+|---|---|---|---|
+| `qwen3:14b` | 32768 | 24576 / 8192 | true |
+| `qwen3:8b` | 32768 | 28672 / 4096 | true |
+| `qwen3.6:35b-a3b-coding` | 65536 | 57344 / 8192 | true |
+| `qwen3.5:9b`, `qwen3-coder:30b-a3b`, `laguna-xs-2.1`, `nemotron-3.5-lightning`, `north-mini-code-1.0` | 65536 | 61440 / 4096 | true |
+| `devstral:24b`, `devstral-small-2:24b` | 32768 | 28672 / 4096 | true |
+| `deepseek-r1:14b` | 16384 | 12288 / 4096 | false (reviewer) |
+
+**VS Code's preamble is not trimmable.** Agent mode ships its own system
+prompt and tool schemas, tens of thousands of tokens that the global
+OpenCode config cannot shrink the way it shrank OpenCode's (AGENTS.md →
+"Preamble budget"). A 32k seat has noticeably less working room in VS Code
+than in OpenCode, so prefer the 64k seats for agent work here.
+
 ### 3. The seats and why they exist
 
-| Seat | Model | Backend | toolCalling | Job |
-|---|---|---|---|---|
-| **Auditor** | `qwen3-coder-30b-A3B` (Q4_K_M, 30B MoE) | LM Studio | `true` | the researcher: reads files, runs commands, produces the audit `file:line`-cited |
-| **Reviewer** | `deepseek-r1:14b` | desktop Ollama | `false` | second opinion over a plan handed to it as **text**; deliberately no tools |
-| **Executor / tiebreak** | `qwen3:14b` | desktop Ollama | `true` | tool-capable seat that can act, and a tiebreaker when Reviewer and Auditor disagree |
+| Seat | Model | toolCalling | Job |
+|---|---|---|---|
+| **Auditor** | `qwen3-coder:30b-a3b` (30B MoE) | `true` | the researcher: reads files, runs commands, produces the audit `file:line`-cited |
+| **Reviewer** | `deepseek-r1:14b` | `false` | second opinion over a plan handed to it as **text**; deliberately no tools |
+| **Executor / tiebreak** | `qwen3:14b` | `true` | tool-capable seat that can act, and a tiebreaker when Reviewer and Auditor disagree |
 
 Model-choice rationale, in order of importance:
 
-- **The auditor must be tool-capable.** Only the qwen3 family (and `devstral`)
-  emit parseable tool calls on Ollama (measured, see [start-here.md](start-here.md));
-  on LM Studio the qwen3-coder was reliable because of LM Studio's tool-call
-  stitching. `qwen2.5-coder:14b` writes excellent code but cannot touch a file.
+- **The auditor must be tool-capable.** Only probe-PASS seats emit parseable
+  tool calls on Ollama (measured, see [start-here.md](start-here.md) and
+  `tests/run-tasks-models.tsv`). `qwen2.5-coder:14b` writes excellent code but
+  cannot touch a file.
 - **The reviewer must be from a *different* trained family.** DeepSeek-R1 shares
   almost nothing with Qwen3-Coder's training distribution, so it does not share
   its blind spots. It wins the seat over `qwen3:14b` precisely because qwen3 is
@@ -123,17 +134,17 @@ Model-choice rationale, in order of importance:
 
 ### 4. VRAM reality
 
-All three seats want the same ~16 GB and do not co-reside:
+The three seats want the same ~16 GB and do not co-reside:
 
-| Seat | VRAM when resident |
+| Seat | Resident footprint |
 |---|---|
-| qwen3-coder-30B (LM Studio) | ~14 GB (measured via llama-server) — **overshoots the card**, so it partially spills to system RAM; see [Performance baseline](#performance-baseline-measured-2026-09-18) |
-| deepseek-r1:14b (Ollama) | ~9 GB |
-| qwen3:14b (Ollama) | ~9 GB |
+| `qwen3-coder:30b-a3b` @64k | partially offloaded: ~6.8 GB of it on CPU (measured 2026-09-27, [roadmap.md](roadmap.md) → "Context budget") |
+| `deepseek-r1:14b` @16k | ~9–10.5 GB (the docs disagree; see [roadmap.md](roadmap.md)) |
+| `qwen3:14b` @32k | 11.03 GB (+ `qwen2.5-coder:3b` companion = 12.34 GB) |
 
-Flow cheat-sheet: audit with the 30B → review with R1 (unload the 30B in LM
-Studio first for a fast pass, or accept a CPU spill — review is text-only, so
-slow is fine) → execute fixes with `qwen3:14b` (or return to the 30B).
+Flow cheat-sheet: audit with the 30B → review with R1 (Ollama evicts the 30B
+to load it; review is text-only, so slow is fine) → execute fixes with
+`qwen3:14b` (or return to the 30B).
 
 ---
 
@@ -142,10 +153,7 @@ slow is fine) → execute fixes with `qwen3:14b` (or return to the 30B).
 Before any run, confirm every registered `id` actually resolves:
 
 ```powershell
-# LM Studio — ids must match the BYOK "LM Studio" entries exactly
-curl.exe -s http://127.0.0.1:1234/v1/models
-
-# Ollama — ids must match the "Ollama Desktop" entries exactly
+# ids must match the "Ollama Desktop" entries exactly
 curl.exe -s http://127.0.0.1:11434/v1/models
 
 # What Ollama actually has in VRAM right now
@@ -169,66 +177,33 @@ Measured result on 2026-09-18:
 `content` is empty and `finish_reason` is `"length"` — the model spent the whole
 token budget on its `reasoning` block. This is the identical trap documented in
 the fleet (AGENTS.md → "Reasoning models + small max_tokens return empty
-content"). The R1 BYOK entry therefore declares `maxOutputTokens: 8192`, and
-reviews must never be run through a railed-off output cap.
+content"). The R1 BYOK entry therefore declares a 4096-token `maxOutputTokens`,
+and reviews must never be run through a railed-off output cap.
 
 ---
 
-## Performance baseline (measured 2026-09-18)
+## Performance
 
-Taken from `~/.lmstudio/server-logs/2026-09/2026-09-18.1.log`
-(`slot print_timing`) and `%APPDATA%\LM Studio\logs\main.log` on the qwen3-coder
-30B at its current config (GPU offload `max`, VMEM cap OFF, KV cache offload ON,
-KV quant OFF, ctx 32768). **Re-measure after any setting change** — these are a
-snapshot, not a guarantee.
-
-| Measurement | Value | Assessment |
-|---|---|---|
-| Short-prompt decode (3 samples) | 39.6 / 44.6 / 50.2 tok/s | **ok** — gives a 30B MoE partially offloaded |
-| Long-prompt prefill @2k ctx | 102.2 tok/s | good — starts fast |
-| Long-prompt prefill @8k ctx | 82.3 tok/s | degrading |
-| Long-prompt prefill @14.3k ctx | 57.1 tok/s | **red flag — flat prefill is expected** |
-
-**What the curve means.** Prefill that *drops* from 102 → 57 tok/s as the prompt
-grows is not batching behaviour — it is the engine paging weights/KV to system
-RAM mid-request. LM Studio's own load estimates said the config needed **19.8 –
-26.0 GB** against the card's ~14.8 GB usable (the 26.0 GB estimate is the
-262144-ctx attempt that OOM'd). With "GPU offload: max" and the VRAM cap OFF,
-LM Studio force-crams the 17.4 GB model and 32k KV into VRAM and the overflow
-spills to the host, so every KV-write in a long prompt crosses a bottleneck. On
-this card a 30B MoE should hold **~70–110 tok/s decode with flat prefill** once
-it fits.
-
-**Loads observed this day:** ctx 8192 → OK (before the context was set);
-ctx 262144 → `fail on allocate buffer for kv cache` (model_load_failed,
-llama-server exits); ctx 32768 → OK and stays resident.
-
-**Why it matters for the review-gate run.** VS Code's Agent mode ships a large
-system+preamble+tool-schema prompt (tens of k tokens — VS Code's side cannot be
-trimmed the way the OpenCode global config can). First request therefore pays a
-**multi-minute prefill at the degrading rate above**. Follow-up turns reuse the
-KV slot and are far cheaper. Budget ~6–8 min prefill for the auditor's first
-request at the current config.
-
-**Levers (LM Studio model card for qwen3-coder-30b):** (1) enable the **Strict
-GPU VRAM cap** or set GPU Offload to ~12.7–13.5 GB so llama-server budgets KV
-instead of paging; (2) enable **KV cache quantization (Q8)** if available;
-(3) simplest — drop context to **16384** (the config's `maxInputTokens` is
-32768, but 16k fits the weight+KV budget far more comfortably and prefill time
-halves).
+Per-seat speed and offload on this card are measured in
+[roadmap.md](roadmap.md) → "Context budget: 32k vs 64k per seat". For example,
+`qwen3-coder:30b-a3b` generates ~36 tok/s at 64k with ~6.8 GB on CPU. VS Code
+adds one cost the terminal doesn't have: its large first request (see "VS
+Code's preamble" above) pays a full prefill before the first reply, so budget
+minutes, not seconds, for an offloaded seat's first turn. Follow-up turns reuse
+the KV cache and are much cheaper.
 
 ---
 
-## Gotchas (all observed here on 2026-09-18)
+## Gotchas
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| LM Studio model answers with tiny context / repeats | LM Studio's context default is **4096** and must be set *before* the model loads | Set Context Length (32768 for the coder) in the model card, then load; a first load at 262144 OOM-failed, reload at 32768 succeeded |
-| Chat fails "cannot be parsed as a URL" | `url` missing the `/v1` suffix | `http://127.0.0.1:1234/v1` and not `…:1234` |
+| Chat fails "cannot be parsed as a URL" | `url` missing the `/v1` suffix | `http://127.0.0.1:11434/v1`, not `…:11434` |
 | Model never appears in the picker | (a) the `chat.agentHost.byokModels.enabled` flag missing, or (b) VS Code needs a full reload, or (c) `toolCalling: false` models hidden in some builds (microsoft/vscode#318968) | Set flag → **reload window** (not just the picker) → if still absent, flip `toolCalling` to `true` (harmless for Ask-mode-only review) |
-| `apiKey` is a real secret | It is not | Any literal placeholder works (`"lm-studio"`, `"ollama"`); BYOK customendpoint doesn't authenticate |
-| Model id doesn't resolve | `id` must equal the backend's exact listing | `qwen/qwen3-coder-30b` (LM Studio) vs `qwen3-coder-30b` (would be wrong); check `/v1/models` |
-| Reviewer returns empty content | `max_tokens` too small for a reasoning model | Keep output budget ≥256; we use 8192 |
+| `apiKey` is a real secret | It is not | Any literal placeholder works (`"ollama"`); BYOK customendpoint doesn't authenticate |
+| Model id doesn't resolve | `id` must equal Ollama's listing | Check `/v1/models`; `:latest` tags resolve without the suffix (`laguna-xs-2.1`) |
+| Long sessions lose their start | `maxInputTokens` declared as the full `num_ctx` | Apply the budget rule in §2 |
+| Reviewer returns empty content | `max_tokens` too small for a reasoning model | Keep output budget ≥256; we use 4096 |
 
 ---
 
@@ -260,8 +235,8 @@ the executor**: a second, deliberately different model that only critiques text.
 
 ### The run protocol
 
-**Step 1 — Auditor.** VS Code Chat, **Agent mode**, seat `qwen/qwen3-coder-30b`
-(LM Studio). Prompt:
+**Step 1 — Auditor.** VS Code Chat, **Agent mode**, seat `qwen3-coder:30b-a3b`
+(the 2026-09-18 runs used LM Studio's copy of the same weights). Prompt:
 
 ```
 You are auditing dependency hygiene of the repo at M:\Projects\LFCbot.
@@ -395,9 +370,9 @@ The case-study grading table (single-model vs review-gate):
 
 ### Re-test checklist
 
-1. Confirm both backends (`curl …/v1/models` on 1234 and 11434) and reload VS Code.
+1. Confirm the backend (`curl …/v1/models` on 11434) and reload VS Code.
 2. Re-verify seat ids against the registry.
-3. Run the auditor prompt (Agent mode, LM Studio seat) on any task repo.
+3. Run the auditor prompt (Agent mode, auditor seat) on any task repo.
 4. Paste sections 1+2 to the reviewer (Ask mode, R1 seat).
 5. Grade on the four axes above; expect the reviewer to catch artifact-touching
    steps the auditor ships unprompted.
@@ -618,7 +593,7 @@ its keep. Canonical worked example + merge DoD in
   `http://SERVER_IP:11434/v1` for the same setup — the fleet's "server owns
   the heavyweight nodes" split, in VS Code.
 - The method's caveat: nothing here re-proves a tool-capability claim on a
-  different Ollama version or a different LM Studio version. Re-probe before
+  different Ollama version. Re-probe before
   trusting a seat (see AGENTS.md → "Passing the probe is necessary, not
   sufficient").
 
@@ -631,14 +606,14 @@ but cannot hold any current gate seat cleanly:
 
 | Seat | Requirement | Model & resident VRAM | Fits where |
 |---|---|---|---|
-| Auditor | tool-capable, heavyweight | `qwen3-coder-30b-A3B` — ~14 GB spilled past the desktop's ~14.8 usable (measured, §Performance baseline) | **Server 16 GB alone** (CUDA + 32 GB RAM, room to breathe). On the desktop it runs only partially offloaded and pays a degrading prefill |
+| Auditor | tool-capable, heavyweight | `qwen3-coder:30b-a3b` — partially offloaded on the desktop (~6.8 GB on CPU at 64k, §Performance) | **Server 16 GB alone** (CUDA + 32 GB RAM, room to breathe). On the desktop it runs only partially offloaded and pays a degrading prefill |
 | Reviewer | **different family**, no tools | `deepseek-r1:14b` — ~10.5 GB @16k | Desktop or server (not node3: borderline offload). **Never co-resident with the implementer** on the desktop at these footprints |
 | Implementer | tool-capable, mid-weight | `qwen3:14b` @32k — 11.03 GB (+ `qwen2.5-coder:3b` companion = 12.34 GB, measured) | **Desktop, with the existing co-resident pair** (§VRAM reality / hardware.md) |
 
 Two hard facts drive the assignment:
 
 1. **The auditor wants the server.** The 30B MoE overshoots even a 16 GB card
-   alone (the desktop measurement spilled ~2 GB and prefill fell 102 → 57 tok/s
+   alone (the 2026-09-18 desktop measurement spilled ~2 GB and prefill fell 102 → 57 tok/s
    as KV paged). On the server it sits alongside 32 GB system RAM instead of the
    desktop's smaller pool — the same spill, but a slower decay and CUDA-optimal
    compute. This is why the run today stays desktop-resident only because the

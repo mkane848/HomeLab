@@ -1,11 +1,12 @@
 # Auditor prompt — review-gate Step 1
 
-**Seat:** `qwen/qwen3-coder-30b` (LM Studio BYOK, port 1234, `toolCalling: true`)
+**Seat:** `qwen3-coder:30b-a3b` (VS Code BYOK "Ollama Desktop", port 11434, `toolCalling: true`)
 **Mode:** VS Code Chat **Agent** mode (it may read files / run read-only commands).
-**Use** `docs/lmstudio-vscode.md` for the full protocol.
+**Use** `docs/vscode.md` for the full protocol.
 
-> Set the model card's **Context Length to 16384** in LM Studio *before*
-> loading it, or the 4096 default truncates long evidence blocks.
+> Context comes from Ollama's baked `num_ctx` (65536 for this seat) and the
+> registry's `maxInputTokens`; see `docs/vscode.md` → "The budget rule".
+> (The 2026-09-18/19 runs used LM Studio's copy of the same weights at 16384.)
 
 Paste the following, replacing `<SCOPE>` with the repo path you are auditing:
 

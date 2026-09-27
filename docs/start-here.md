@@ -1,7 +1,7 @@
 # Start Here
 
 The one page to read when you sit down with OpenCode. (Prefer VS Code? Same
-fleet, different door — see [lmstudio-vscode.md](lmstudio-vscode.md)
+fleet, different door — see [vscode.md](vscode.md)
 instead.) Every command below has been run on this desktop and the output is
 what you should actually see.
 
@@ -432,6 +432,6 @@ install to silence it) and the 2 SKIP taps are the dead server. Then, by symptom
 | check VRAM and GPU facts | [hardware.md](hardware.md) |
 | add or change a model | [AGENTS.md](../AGENTS.md) → "Model catalog" |
 | fix the server | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) |
-| use VS Code instead of the terminal | [lmstudio-vscode.md](lmstudio-vscode.md) |
-| review-gate a plan with a second model | [lmstudio-vscode.md](lmstudio-vscode.md) → "The review-gate methodology" |
+| use VS Code instead of the terminal | [vscode.md](vscode.md) |
+| review-gate a plan with a second model | [vscode.md](vscode.md) → "The review-gate methodology" |
 | see what's still open | [roadmap.md](roadmap.md) |

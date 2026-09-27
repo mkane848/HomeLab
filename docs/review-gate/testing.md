@@ -1,7 +1,7 @@
 # Verifying model-written changes: test veracity and the fix-and-reverify pass
 
 > Companion to the review-gate methodology in
-> [docs/lmstudio-vscode.md](../lmstudio-vscode.md). Written after the review of
+> [docs/vscode.md](../vscode.md). Written after the review of
 > KaneEnabler PR #82 (2026-09-19): the deck-validity PR came in with a green
 > suite (lint clean, `tsc` clean, 404 passed / 14 skipped / 0 failed) and a
 > silent correctness bug a human PR review caught before any merge. This doc
