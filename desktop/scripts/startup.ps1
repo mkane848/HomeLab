@@ -100,7 +100,8 @@ $contextModels = @(
     # sees the task. Tags without a version get ":latest" spelled out, because
     # the /api/tags existence check above compares the full name.
     #
-    # 64k TRIAL (2026-09-27, docs/roadmap.md -> "Context budget: 32k vs 64k"):
+    # 64k (trialled + adopted 2026-09-27, DP8: 9/18 PASS vs 3/15 at 32k;
+    # docs/roadmap.md -> "Context budget: 32k vs 64k"):
     # the hybrid/SWA/MoE seats whose KV is small enough that doubling it costs
     # well under 2 GB, measured. At 32k they had room for about one large
     # source file before OpenCode compacted, and compaction is where DP7's four

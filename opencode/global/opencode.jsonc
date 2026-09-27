@@ -282,7 +282,7 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 8192 }
         },
-        // 64k TRIAL (2026-09-27): qwen3-coder, qwen3.5, north-mini, laguna, qwen3.6
+        // 64k (trialled + adopted 2026-09-27, DP8): qwen3-coder, qwen3.5, north-mini, laguna, qwen3.6
         // and nemotron carry limit.context 65536, matching the num_ctx baked by
         // startup.ps1 ($contextModels). The devstral pair and the qwen3 dense
         // pair stay 32768. Measurements + acceptance rule: docs/roadmap.md ->
