@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record data point 7 (`docs/implementation-tasks.md`): step 6's frontier
+  slice — lfc-03, kane-02 and asohav-02 × the desktop seats. First local
+  passes: lfc-03 2/8 (`laguna-xs-2.1`, `qwen3.6:35b-a3b-coding`, both 29/29
+  owner acceptance), kane-02 1/9 (`laguna-xs-2.1`); asohav-02 stays 0/14.
+  Three more lfc-03 seats wrote an acceptance-correct fix but failed a gate on
+  their own tests. Four ungraded runs were context overflow (OpenCode
+  compaction), not infrastructure. Memory-pressure-contaminated timeouts are
+  marked superseded. 36 result files, 13 timeout/infra transcripts, 18
+  `tasks-summary.tsv` rows archived.
+- `test-tasks.ps1`: create the transcript file before the run starts, so a
+  timeout with zero events leaves an empty `_TIMEOUT_` transcript instead of
+  nothing; decode opencode's stdout as UTF-8 inside the job (non-ASCII text
+  in transcripts was OEM-codepage mojibake).
+
 - Record data point 6 (`docs/implementation-tasks.md`): oracle sweep —
   `opencode-go/qwen3.8-max` PASSes all 8 remaining manifest tasks on the same
   prompt shas as the local corpus (9/9 with DP5). Every task is passable as
