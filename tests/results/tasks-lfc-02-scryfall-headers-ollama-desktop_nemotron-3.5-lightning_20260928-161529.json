@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-09-28T16:15:29",
+  "taskId": "lfc-02-scryfall-headers",
+  "taskTitle": "lfc-bot: every outbound Scryfall request must send the Accept header and a name/version User-Agent Scryfall requires",
+  "model": "ollama-desktop/nemotron-3.5-lightning",
+  "modelLabel": "ollama-desktop/nemotron-3.5-lightning",
+  "baseCommit": "170b395baf8ad4205f6fb6d409b29c25635e7363",
+  "promptSha256": "0CDC9E50C546",
+  "opencodeExit": 0,
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 374.5,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "numCtx": 65536,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-02-scryfall-headers-ollama-desktop_nemotron-3.5-lightning_20260928-161529.jsonl"
+}
