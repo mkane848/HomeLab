@@ -249,6 +249,19 @@ All eight manifest tasks have graded data now (previously two). `kane-04` is
 the easiest cell in the corpus (9/15 full-pass across seats); `kane-02` and
 `asohav-02` are the hardest (0 passes on 6 and 10 graded runs respectively).
 
+## Decision-test files (2026-09-29, DP10)
+
+- **`north-mini-code-1.0-32k` rows** are north-mini on its own weights with
+  `num_ctx 32768`. The tag was a temporary derived model, registered for that
+  run through `OPENCODE_CONFIG_CONTENT` and removed afterward, so it is in
+  neither `opencode.jsonc` nor `run-tasks-models.tsv`. Group these rows with
+  `north-mini-code-1.0` and split by `numCtx`, not by model id.
+- **`reliability-summary.tsv`** holds write-discipline canary results: the
+  prompt and pass rule of `test-profiles.ps1 -Reliability`, run from a scratch
+  script on seats no live profile seats yet. PASS is `writes = 1` and
+  `fileOk = True`. `sec` is wall clock per `opencode run`, including any
+  model load.
+
 ## Re-deriving this
 
 Nothing here is hand-maintained state; the raw files are the source of truth.

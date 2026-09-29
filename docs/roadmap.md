@@ -243,10 +243,17 @@ What this means for the north star:
   - `qwen3.5` runs entirely on the GPU at 64k (1.1 GB of KV).
   - `qwen3.6` offloads about 8.6 GB to system RAM, but was the fastest seat
     in wall-clock time.
+  - `qwen3.6` also waits about 2 minutes before its first reply in every new
+    session (1m55s per first request in DP10, model already loaded).
+    `qwen3.5` paid that cost once. For an interactive main seat this weighs
+    against its one-task lead.
 - **The case for re-seating is strong, but it isn't a config bump.** Before
   `OPENCODE_MODEL` moves:
   1. The candidate passes `test-profiles.ps1 -Reliability`, the
-     repeated-writes canary that once unseated `qwen3:14b`.
+     repeated-writes canary that once unseated `qwen3:14b`. **Met
+     2026-09-29 (DP10):** both 3/3 on the same prompt and rule, run outside
+     `test-profiles.ps1` because neither is seated yet. `qwen3:14b` went 2/3
+     in the same session.
   2. It survives a real-use trial on plain-language prompts. The benchmark
      prompts spell out the bug, the files and the test requirements; the
      north star is a prompt written the way the owner talks.
@@ -261,7 +268,9 @@ What this means for the north star:
 
 Proposed next, owner decision:
 
-- Run the `-Reliability` canary on `qwen3.6` and `qwen3.5`.
+- ~~Run the `-Reliability` canary on `qwen3.6` and `qwen3.5`.~~ Done, DP10.
+- Drop north-mini as an executor. DP10 found it fails lfc-01 at 32k too, so
+  context isn't the fix. That also retires its VS Code path check.
 - Do the VS Code cross-checks: north-mini's path, qwen3:8b's edit format,
   nemotron's zero-write runs, and a plain-language kane-03 prompt on
   `qwen3.6`.

@@ -193,3 +193,6 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-28T22:03:48	asohav-01-library-write-reporting	ollama-desktop/nemotron-3.5-lightning	ollama-desktop/nemotron-3.5-lightning	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	10	PASS	PASS	PASS	SKIP	829.8
 2026-09-28T22:09:39	asohav-01-library-write-reporting	ollama-desktop/qwen3:8b	ollama-desktop/qwen3:8b	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	21	PASS	PASS	FAIL	SKIP	344.4
 2026-09-28T22:22:39	asohav-01-library-write-reporting	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	12	PASS	PASS	PASS	SKIP	773.2
+2026-09-29T09:00:36	lfc-01-listing-status-guard	ollama-desktop/north-mini-code-1.0-32k	ollama-desktop/north-mini-code-1.0-32k	4906dc2881d362bda2006d3407e0ba63e005b91b	0	3	PASS	FAIL	PASS	WARN	392.3
+2026-09-29T09:07:03	lfc-01-listing-status-guard	ollama-desktop/north-mini-code-1.0	ollama-desktop/north-mini-code-1.0	4906dc2881d362bda2006d3407e0ba63e005b91b	0	1	PASS	PASS	FAIL	PASS	381.3
+2026-09-29T09:32:48	lfc-01-listing-status-guard	ollama-desktop/north-mini-code-1.0	ollama-desktop/north-mini-code-1.0	4906dc2881d362bda2006d3407e0ba63e005b91b	0	5	PASS	FAIL	PASS	WARN	627.6
