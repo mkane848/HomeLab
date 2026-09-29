@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Adversarial review of the testing methodology
+  (`docs/adversarial-review-2026-09-29.md`): what each harness measures,
+  N=1 / era-confound / guided-repair limits, plus the N>1 protocol
+  (frontier tasks × top-2 challengers + control, 2 fresh reps each,
+  per-attempt reporting, no seat decisions until it reports).
 - Record data point 10 (`docs/implementation-tasks.md`), two decision tests
   for open seat questions.
   - north-mini, 32k vs 64k on lfc-01: 0/4 PASS, and no `/workspace` at
