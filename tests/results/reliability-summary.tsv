@@ -1,0 +1,10 @@
+date	host	ollamaVersion	opencodeVersion	model	rep	exit	writes	fileOk	sec
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.6:35b-a3b-coding	1	0	1	True	122
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.6:35b-a3b-coding	2	0	1	True	122
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.6:35b-a3b-coding	3	0	1	True	121
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.5:9b	1	0	1	True	59
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.5:9b	2	0	1	True	7
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3.5:9b	3	0	1	True	6
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3:14b	1	0	1	True	184
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3:14b	2	0	1	True	17
+2026-09-29	desktop	0.34.3	1.18.32	ollama-desktop/qwen3:14b	3	0	2	True	36

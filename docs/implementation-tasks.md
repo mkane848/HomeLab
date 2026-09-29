@@ -1051,12 +1051,14 @@ Pass by task, across all seats:
           asohav-01), the final files in the worktree or the model's own
           per-route tests passing were used to confirm the result.
       - **Failure modes, by seat:**
-        - **north-mini invents a `/workspace/<task>` repo root** (lfc-01,
-          plus lfc-03 and asohav-02 in DP8) and keeps returning to it after
-          `pwd` shows the real path. It also printed tool calls as text in its
-          own `<|END_ACTION|>` format (kane-04). It used `/workspace` in 3 of
-          5 runs at 64k and in 0 of 5 at 32k: same opencode version, same
-          prompts, a small sample. A 32k-vs-64k check is open.
+        - **north-mini invents a `/workspace/<task>` repo root** (lfc-01 and
+          asohav-01, plus lfc-03 and asohav-02 in DP8) and keeps returning to
+          it after `pwd` shows the real path. It also printed tool calls as
+          text in its own `<|END_ACTION|>` format (kane-04). It used
+          `/workspace` in 4 of 9 runs at 64k and in 0 of 5 transcripts at 32k
+          (3 graded, 2 `_INFRA_`), mostly on different tasks. (Corrected
+          2026-09-29: this said 3 of 5 at 64k, which missed asohav-01.) The
+          32k-vs-64k check is DP10.
         - **nemotron writes nothing on some tasks** (kane-02, kane-03,
           lfc-02). It explains the fix and exits 0.
         - **qwen3:8b writes edits from the prompt, not the file.** On lfc-01,
@@ -1130,6 +1132,56 @@ Pass by task, across all seats:
         rows, and 5 ungraded transcripts: `_TIMEOUT_` ×4 (qwen3:14b and
         qwen3:8b on lfc-01, laguna on kane-03 and asohav-01) and `_INFRA_` ×1
         (qwen3-coder on lfc-02).
+
+- [x] **Data point 10: two decision tests for open seat questions (2026-09-29)**
+      Run from a one-off launcher in its own window, on opencode 1.18.32 and
+      Ollama 0.34.3.
+      - **north-mini, 32k vs 64k on lfc-01.** The question was whether 64k
+        causes its invented `/workspace` root (DP9 failure modes). Same task,
+        runs alternated 32k, 64k, 32k, 64k. The 32k copy was a temporary
+        derived tag, `north-mini-code-1.0-32k` (`FROM north-mini-code-1.0`,
+        `num_ctx 32768`, same weights). It was registered for the run only,
+        through `OPENCODE_CONFIG_CONTENT`, and removed afterward.
+
+        | ctx | run 1 | run 2 |
+        |---|---|---|
+        | 32k | FAIL: suite (3 writes) | `_TIMEOUT_` at 900 s |
+        | 64k | FAIL: failsOnOld (1 write) | FAIL: suite (5 writes) |
+
+        - None of the 4 used `/workspace`, including both 64k runs. The one
+          earlier 64k run on lfc-01 (09-27) used it 13 times.
+        - Across every north-mini transcript it is now 4 of 11 at 64k and 0
+          of 7 at 32k. That is lopsided, but mostly on different tasks, and
+          the same-task check did not reproduce it at either size. Whether
+          64k raises the rate is unresolved.
+        - It doesn't change the decision. north-mini failed lfc-01 at both
+          sizes, and its record is 1 pass in 7 attempts at 32k and 1 in 11 at
+          64k. Returning it to 32k is not a fix.
+      - **Write-discipline canary on the re-seat candidates.** Same prompt and
+        pass rule as `test-profiles.ps1 -Reliability` (`Test-ReliableWrite`):
+        one `opencode run` asking for `docs/_scratch.md` containing
+        `it works`. PASS is exactly one write/edit call and the right content.
+        It ran from a scratch script, not `test-profiles.ps1`, because
+        `-Reliability` only tests the main seats of live profiles, and neither
+        candidate is seated. 3 reps each:
+
+        | seat | PASS | wall clock per rep |
+        |---|---|---|
+        | `qwen3.6:35b-a3b-coding` | 3/3 | 122, 122, 121 s |
+        | `qwen3.5:9b` | 3/3 | 59, 7, 6 s |
+        | `qwen3:14b` (current main seat) | 2/3 | 184, 17, 36 s; rep 3 made 2 write calls |
+
+        - **qwen3.6 pays about 2 minutes at the start of every session.** In
+          the Ollama log, the first request of each of its three runs took
+          1m55s with the model already loaded; its later requests took 1–7 s.
+          That fits a prompt cache that isn't reused between sessions. The
+          cause isn't diagnosed. qwen3.5 paid its first-session cost once.
+        - The current main seat repeated a write on 1 of 3 reps, the
+          regression that once unseated it.
+      - Result files: three graded lfc-01 runs
+        (`tasks-lfc-01-listing-status-guard-ollama-desktop_north-mini-code-1.0{,-32k}_20260929-*`),
+        one `_TIMEOUT_` transcript, 3 TSV rows, and
+        `tests/results/reliability-summary.tsv` (9 canary rows).
 
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The

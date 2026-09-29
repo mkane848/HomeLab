@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record data point 10 (`docs/implementation-tasks.md`), two decision tests
+  for open seat questions.
+  - north-mini, 32k vs 64k on lfc-01: 0/4 PASS, and no `/workspace` at
+    either size. Context size isn't the fix.
+  - Write-discipline canary: `qwen3.6` and `qwen3.5` 3/3, `qwen3:14b` 2/3
+    (one double write). `qwen3.6` waits about 2 minutes before the first
+    reply of every session.
+  - Corrects DP9's north-mini count: `/workspace` in 4 of 9 runs at 64k, not
+    3 of 5.
+  - New `tests/results/reliability-summary.tsv`, plus 3 graded runs, 1
+    timeout transcript and 3 `tasks-summary.tsv` rows. The temporary
+    `north-mini-code-1.0-32k` tag is removed.
+
 - Record data point 9 (`docs/implementation-tasks.md`): step 6's other 6
   tasks × 8 desktop seats (six at 64k, the qwen3 control pair at 32k).
   **26/48 PASS**; 64k seats 24/36, 32k seats 2/12. Across all 9 tasks:
