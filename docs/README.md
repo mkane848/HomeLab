@@ -63,6 +63,10 @@ as a regression gate on the one plan it was written for. Results:
 - **[methodology-research.md](methodology-research.md)** — the 2026-09-24
   sanity-check writeup: where the methodology stands, the two accelerators for
   first real use, and community resources mapped to the measured gaps.
+- **[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md)** —
+  adversarial review of the testing methodology: what each harness actually
+  measures, where N=1 / era confounds / guided-repair limits bite, and the
+  N>1 protocol (no seat decisions until it reports).
 - **[references.md](references.md)** — catalog of every external source cited
   in these docs, plus the citation convention. Add a row here whenever a doc
   gains a new citation.
