@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-09-28T20:56:42",
+  "taskId": "asohav-01-library-write-reporting",
+  "taskTitle": "ASoHaVCompanionApp: a committed library write must never be reported as a failure because the audit log append threw",
+  "model": "ollama-desktop/north-mini-code-1.0",
+  "modelLabel": "ollama-desktop/north-mini-code-1.0",
+  "baseCommit": "c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5",
+  "promptSha256": "7ACA562BCD15",
+  "opencodeExit": 0,
+  "writes": 0,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 428.9,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "numCtx": 65536,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-01-library-write-reporting-ollama-desktop_north-mini-code-1.0_20260928-205642.jsonl"
+}

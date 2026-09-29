@@ -218,6 +218,56 @@ N=1 per cell, so per-seat rankings can still move; the direction held on all
 three tasks. Decision: keep 64k for the six seats (merging the trial PR
 adopts it). The qwen3 dense pair and the devstral pair stay at 32k.
 
+### Executor standings after step 6 (2026-09-29, not yet acted on)
+
+Step 6's 8-seat plan is done: 9 tasks × 8 desktop seats, one graded run or
+ungraded transcript per cell (DP7–DP9 in `docs/implementation-tasks.md`). Per
+seat, across all 9 tasks:
+
+| seat | ctx | PASS | how it misses |
+|---|---|---|---|
+| `qwen3.6:35b-a3b-coding` | 64k | **8/9** | one broken test file (asohav-02) |
+| `qwen3.5:9b` | 64k | **7/9** | a template crash after compaction; one out-of-scope run |
+| `laguna-xs-2.1` | 64k | 6/9 | all three misses are 30-minute timeouts on long tasks |
+| `qwen3-coder:30b-a3b` | 64k | 6/9 | broken test files; one output-cap crash |
+| `nemotron-3.5-lightning` | 64k | 5/9 | writes nothing on three tasks; edited `.env` and `vitest.config.ts` once |
+| `qwen3:14b` | 32k | 2/9 | runs out of 32k (compaction), edits out of scope |
+| `north-mini-code-1.0` | 64k | 1/9 | invents a `/workspace` repo root; prints tool calls as text |
+| `qwen3:8b` | 32k | 0/9 | edits against text it guessed, not the file |
+
+What this means for the north star:
+
+- **The default main seat is near the bottom.** AGENTS.md seats `qwen3:14b`
+  ("qwen3 is the boss"), and on real repo tasks it passes 2 of 9. `qwen3.6`
+  and `qwen3.5` pass 8 and 7.
+  - `qwen3.5` runs entirely on the GPU at 64k (1.1 GB of KV).
+  - `qwen3.6` offloads about 8.6 GB to system RAM, but was the fastest seat
+    in wall-clock time.
+- **The case for re-seating is strong, but it isn't a config bump.** Before
+  `OPENCODE_MODEL` moves:
+  1. The candidate passes `test-profiles.ps1 -Reliability`, the
+     repeated-writes canary that once unseated `qwen3:14b`.
+  2. It survives a real-use trial on plain-language prompts. The benchmark
+     prompts spell out the bug, the files and the test requirements; the
+     north star is a prompt written the way the owner talks.
+  3. The profile's co-resident small model is re-measured against the new
+     seat's footprint.
+- **Caveats:**
+  - N=1 per cell.
+  - The 32k seats are also the dense qwen3 pair, so seat and context are
+    confounded in this table. DP8 is the clean context comparison.
+  - The gates overstate test quality slightly: 3 of the 26 step-6 passes met
+    the fails-on-old gate while covering less than the prompt required (DP9).
+
+Proposed next, owner decision:
+
+- Run the `-Reliability` canary on `qwen3.6` and `qwen3.5`.
+- Do the VS Code cross-checks: north-mini's path, qwen3:8b's edit format,
+  nemotron's zero-write runs, and a plain-language kane-03 prompt on
+  `qwen3.6`.
+- Raise qwen3-coder's `limit.output` to 8192.
+- Settle the devstral pair.
+
 ### Review-gate: settled
 
 Closed 2026-09-19, recorded so it is not reopened by accident.

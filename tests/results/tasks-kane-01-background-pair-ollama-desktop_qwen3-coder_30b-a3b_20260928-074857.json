@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-09-28T07:48:57",
+  "taskId": "kane-01-background-pair",
+  "taskTitle": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
+  "model": "ollama-desktop/qwen3-coder:30b-a3b",
+  "modelLabel": "ollama-desktop/qwen3-coder:30b-a3b",
+  "baseCommit": "92a8ed0df10262cc878d4d214d0a312d542375ec",
+  "promptSha256": "EFEF5E6EF63E",
+  "opencodeExit": 0,
+  "writes": 2,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "PASS",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 380.3,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.32",
+  "numCtx": 65536,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-01-background-pair-ollama-desktop_qwen3-coder_30b-a3b_20260928-074857.jsonl"
+}

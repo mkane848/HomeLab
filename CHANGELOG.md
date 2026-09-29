@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record data point 9 (`docs/implementation-tasks.md`): step 6's other 6
+  tasks × 8 desktop seats (six at 64k, the qwen3 control pair at 32k).
+  **26/48 PASS**; 64k seats 24/36, 32k seats 2/12. Across all 9 tasks:
+  `qwen3.6` 8/9, `qwen3.5` 7/9, `qwen3:14b` (the default main seat) 2/9.
+  - All 26 passes were audited beyond the gates. No test was removed, and 3
+    passes met the gates while covering less than the prompt asked.
+  - New ungraded shape: an output-cap truncation that ends in the Qwen
+    template 400 without any compaction.
+  - 64k passes ran a median 37% faster than matching 32k passes.
+  - 86 result files, 5 timeout/infra transcripts and 43
+    `tasks-summary.tsv` rows are archived.
+  - `docs/roadmap.md` gains "Executor standings after step 6", with the
+    re-seating case and its preconditions. Nothing is re-seated yet.
+
 - Retire LM Studio. VS Code's BYOK registry now has one provider, desktop
   Ollama, with every desktop seat (the 10 tool-capable seats + the
   `deepseek-r1:14b` reviewer), budgets mirrored from `opencode.jsonc`

@@ -983,6 +983,154 @@ Pass by task, across all seats:
         — 16 graded runs (`.json` + `.jsonl`) + 16 TSV rows, 1 `_INFRA_` and
         1 `_TIMEOUT_` transcript.
 
+- [x] **Data point 9: step 6, the other 6 tasks × 8 desktop seats**
+      (2026-09-27 16:50 to 09-28 22:22, desktop Ollama 0.34.3, opencode
+      1.18.32, plain prompts, `-RunTimeout 1800`, `-Reps 1`, 9 batches of
+      about an hour each). The six MoE/hybrid seats ran at 64k and the qwen3
+      dense pair at 32k; every JSON stamps `numCtx`. The devstral pair was not
+      run (see "Not run" below).
+
+      | seat | ctx | kane-04 | lfc-01 | kane-01 | kane-03 | lfc-02 | asohav-01 | pass |
+      |---|---|---|---|---|---|---|---|---|
+      | `qwen3.6:35b-a3b-coding` | 64k | PASS | PASS | PASS | PASS | PASS | PASS | **6/6** |
+      | `qwen3.5:9b` | 64k | PASS | PASS | PASS | PASS | scope, suite | PASS | 5/6 |
+      | `laguna-xs-2.1` | 64k | PASS | PASS | PASS | TIMEOUT | PASS | TIMEOUT | 4/6 |
+      | `qwen3-coder:30b-a3b` | 64k | PASS | PASS | PASS | PASS | INFRA | suite | 4/6 |
+      | `nemotron-3.5-lightning` | 64k | PASS | PASS | PASS | 0 writes | 0 writes | PASS | 4/6 |
+      | `north-mini-code-1.0` | 64k | fOO | 0 writes | PASS | suite, fOO | suite, fOO | 0 writes | 1/6 |
+      | `qwen3:14b` | 32k | PASS | TIMEOUT | PASS | scope, suite | fOO | fOO | 2/6 |
+      | `qwen3:8b` | 32k | suite, fOO | TIMEOUT | fOO | scope, fOO | scope, fOO | fOO | 0/6 |
+      | **per task** | | 6/8 | 5/8 | 7/8 | 3/8 | 2/8 | 3/8 | **26/48** |
+
+      (fOO = fails-on-old.) By context size: **64k 24/36 attempts PASS, 32k
+      2/12**. The 32k row is the qwen3 dense pair only, so this is a seat
+      comparison as much as a context one; the context comparison is DP8.
+      Across all 9 tasks, including DP8's frontier runs:
+
+      | seat | 9-task record |
+      |---|---|
+      | `qwen3.6` | 8/9 |
+      | `qwen3.5` | 7/9 |
+      | `laguna`, `qwen3-coder` | 6/9 each |
+      | `nemotron` | 5/9 |
+      | `qwen3:14b` (the default main seat) | 2/9 |
+      | `north-mini` | 1/9 |
+      | `qwen3:8b` | 0/9 |
+
+      - **Audit beyond the gates.** All 26 passes were replayed onto the base
+        files and diffed. No existing test was removed or weakened, and every
+        base test name survives in every pass. Details worth keeping:
+        - **Gate-green, spec-short (3 passes).** The gates grade whether the
+          test fails on the old source, not whether it covers what the prompt
+          asked for.
+          - kane-01, nemotron and qwen3:14b: both changed only the
+            `commanders` argument (`[chooser]` → `[chooser, background]`).
+            The prompt asks for the Background "in the submitted deck AND in
+            the commanders argument", and their decks still have none.
+            laguna, north-mini, qwen3.6, qwen3.5 and qwen3-coder did both.
+          - asohav-01, nemotron: all seven routes are fixed, but its tests
+            cover only create and update, where the prompt asks for all
+            seven. qwen3.6 (an `it.each` over all seven, plus no-warning
+            cases) and qwen3.5 (one test per route) meet it.
+        - **Fixture noise.** On kane-01, qwen3.5 marked the chooser as a
+          Background (`is_background: 1`), which no real chooser is.
+          Re-running its fix with the original fixture: 10/10, and the
+          realistic test still fails on the old source. So the pass stands.
+          One qwen3.5 kane-03 test "moves down" from 0 to 0; its
+          down-then-up test covers that requirement properly.
+        - **Contract change.** On lfc-01, qwen3-coder returns `undefined` for
+          an existing non-active listing, which previously meant "not found".
+          No caller reads the return value today. nemotron and laguna did the
+          same fix as a single conditional `UPDATE ... WHERE status =
+          'active'`, which keeps the return contract.
+        - **Typecheck WARN (kane-01, qwen3.5):** an unused helper
+          (`ineligibleBackgroundCommander`, TS6133). Lint, not a bug.
+        - **Audit method caveat.** OpenCode's edit tool falls back to looser
+          matching when `oldString` is not found verbatim, and the replay does
+          not. Where the replay missed an edit (qwen3.5 and qwen3.6 on
+          asohav-01), the final files in the worktree or the model's own
+          per-route tests passing were used to confirm the result.
+      - **Failure modes, by seat:**
+        - **north-mini invents a `/workspace/<task>` repo root** (lfc-01,
+          plus lfc-03 and asohav-02 in DP8) and keeps returning to it after
+          `pwd` shows the real path. It also printed tool calls as text in its
+          own `<|END_ACTION|>` format (kane-04). It used `/workspace` in 3 of
+          5 runs at 64k and in 0 of 5 at 32k: same opencode version, same
+          prompts, a small sample. A 32k-vs-64k check is open.
+        - **nemotron writes nothing on some tasks** (kane-02, kane-03,
+          lfc-02). It explains the fix and exits 0.
+        - **qwen3:8b writes edits from the prompt, not the file.** On lfc-01,
+          all 48 edits missed: it looked for `Date.now()` where the file has
+          `now()`, as the prompt describes it. It also claimed "All tests
+          passed" on kane-04 when the suite failed.
+        - **qwen3:14b runs out of 32k.** On lfc-01, OpenCode compacted the
+          session twice (18:30, 18:41), and after each compaction its edits
+          stopped matching the file. That is the DP7 overflow pattern, on the
+          control seat. It also edited `src/utils/counters.ts` on kane-03,
+          outside scope.
+        - **qwen3.5 and scope.** On lfc-02 it edited three files outside
+          scope, including removing `runMigrations()` from the shared test
+          helper `tests/helpers/db.ts`.
+        - **laguna timeouts are long tasks, not wedges.** On asohav-01 it
+          made 17 successful edits and compacted once at 61.4k, and was still
+          working at the cap. Its three timeouts (kane-02, kane-03, asohav-01)
+          are all on long tasks.
+      - **New INFRA shape: the output cap, not the context window.**
+        qwen3-coder on lfc-02 peaked at 23.6k tokens with no compaction.
+        - Two consecutive steps each ran exactly 4m12s and ended with finish
+          reason `unknown`, 0 counted output tokens, and only a preamble
+          sentence of text. That is consistent with a large tool call cut off
+          at `limit.output` 4096.
+        - OpenCode then sent two trailing assistant messages. The Qwen
+          template rejected them: `400 Cannot have 2 or more assistant
+          messages at the end of the list`, the same error qwen3.5 hit after
+          compaction on lfc-03.
+        - So step 8(d)'s `_CONTEXT_` tag should cover output-cap truncation
+          too. Raising qwen3-coder's `limit.output` to 8192 (qwen3.6 already
+          has it) is the likely fix, held until after step 6 so the batch ran
+          on one config.
+      - **Wall-clock at 64k.** 14 of DP9's 64k passes have a 32k pass on the
+        same task, seat and prompt sha. Those 32k passes are from 09-23; the
+        seats had been baked at 32768 since `e37f102` on 09-22.
+        - 12 of the 14 finished faster at 64k, with a median change of
+          **−37%** (for example, qwen3.6 on asohav-01: 1620 s → 773 s).
+        - The two exceptions are both qwen3.5: kane-04 went from 97 s to
+          444 s, and kane-01 from 326 s to 479 s.
+        - These are different days and N=1 per pair. Fewer compactions and
+          re-prefills would explain the gain, but it isn't isolated.
+      - **Run environment.** No memory-pressure contamination. Across the
+        whole window, the Ollama log has exactly five non-200 responses, each
+        tied to a known event:
+        - three 500s where the harness cancelled a run at the cap (09-27
+          19:17; 09-28 13:00 and 20:49);
+        - one 499 when the killed background batch dropped its request
+          (15:52);
+        - one 400, the output-cap template error (16:47).
+
+        There were no 5-minute no-output cancels. The two batches launched
+        from the Claude Code session started with about 23 GB of RAM free.
+        - A lfc-02 batch launched as a background shell from a Claude Code
+          session was killed by Claude Code's memory-pressure reaper when
+          nemotron loaded, before its first run was graded. Nothing was
+          recorded from it.
+        - Re-launched in its own window, outside the session, lfc-02 and
+          asohav-01 ran to completion. Batches belong in a separate terminal
+          (or a session started with
+          `CLAUDE_CODE_DISABLE_BG_SHELL_PRESSURE_REAP=1`).
+      - **Not run:**
+        - `devstral:24b`: 0 writes on all 4 tasks it has tried (kane-01 in
+          2026-09-19, and the three frontier tasks in DP7). Proposed: drop it
+          as an executor seat.
+        - `devstral-small-2:24b`: one row on these 6 tasks (kane-04 PASS,
+          09-23). Covering the other 5 is roughly 2.5–3 hours at 32k, a
+          candidate for one overnight batch or a recorded drop. Owner
+          decision.
+      - Result files: `tests/results/tasks-{kane-04,lfc-01,kane-01,kane-03,lfc-02,asohav-01}-*-ollama-desktop_*_2026092{7,8}-*`
+        from 16:50 on 09-27. 43 graded runs (`.json` + `.jsonl`), 43 TSV
+        rows, and 5 ungraded transcripts: `_TIMEOUT_` ×4 (qwen3:14b and
+        qwen3:8b on lfc-01, laguna on kane-03 and asohav-01) and `_INFRA_` ×1
+        (qwen3-coder on lfc-02).
+
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
@@ -1149,6 +1297,12 @@ Open, in order — each gates the next:
    re-run on them: 9/18 PASS, versus 3/15 at 32k. The remaining 6 tasks
    should be run at 64k for these seats. Results from before the trial are
    32k rows, and `numCtx` in the JSON tells them apart.
+   **2026-09-29: 8-seat plan done (DP9).** All 6 remaining tasks × the six
+   64k seats and the qwen3 control pair: every cell has a graded row or a
+   `_TIMEOUT_`/`_INFRA_` transcript. The control lane's DoD is met. Still
+   open against the original Lane B list: `devstral-small-2:24b` on 5 tasks
+   (run overnight, or drop with a recorded reason). `devstral:24b` is
+   proposed for a drop.
 7. **`qwen3.5:9b` to N=3 + node3 Q4 copy.** Desktop: N=3 on every task, Q8 as
    measured (the 5/6 record was earned on Q8 — Q4 is a separate experiment).
    Node3: pull Q4 (only strong seat small enough for 10 GB), probe first
@@ -1176,6 +1330,14 @@ Open, in order — each gates the next:
    zero-event timeout still leaves a file) and UTF-8 decoding of opencode's
    stdout (DP7). New (d): tag compaction deaths (`generating summary`, and
    template crashes on a compacted history) `_CONTEXT_` instead of `_INFRA_`.
+   DP9 widens (d): an output-cap truncation ends in the same template 400
+   (`Cannot have 2 or more assistant messages`) with no compaction, so the
+   tag should key on the error, not on a compaction having happened. New
+   (e), found in DP9: the gates cannot see a test that fails on the old
+   source but covers less than the prompt asks, which happened on 3 of 26
+   passes. Candidate: an optional per-task `testMustCover` list (e.g.
+   kane-01: the Background in the submitted deck; asohav-01: all seven
+   routes), checked informationally like `acceptance`.
 9. **Greenfield trial — slice-0 skeleton + first slice chain** (gated behind
    steps 5–6, no compute until blind-trial lanes clear). Slice-0 skeleton
    is a planning-time artifact (owner or hand-verified planner output,
