@@ -1259,6 +1259,51 @@ Pass by task, across all seats:
       - Result files: PRs #62–#64, 44 files (21 `.json`, 21 `.jsonl`, plus the
         `_TIMEOUT_` and `_ABORTED_` transcripts) + 21 `tasks-summary.tsv` rows.
 
+- [x] **Data point 12: replay audit of the 12 unaudited N>1 passes
+      (2026-09-30).** Closes DP11's caveat. Method: transcript replay — each
+      run's `write`/`edit` tool calls applied in order onto the pinned base
+      files (`git show <benchBaseCommit>:<path>`), diffed vs base; removed
+      lines checked for assertions, added tests checked against the prompt's
+      required cases. Scratch script (not committed). Same audit-method caveat
+      as DP9, met twice: OpenCode's loose-match fallback applies edits a
+      verbatim replay misses (kane-04 rep 1's warn-capture helper), so the
+      transcript's `newString`s are the source of truth where the two differ;
+      and the script itself hit the DP7 mojibake trap (`git show` decoded with
+      the OEM codepage — fixed with UTF-8 output encoding).
+      - **10 genuine and spec-complete.** kane-04 × `qwen3.5` ×2 (digit 7/13
+        plus unparseable→1 with the warning asserted — rep 1 via a warn
+        tracker including no-warn-on-valid, rep 2 via a `console.warn` spy;
+        removed lines are comments only). kane-02 × `qwen3.5` ×2 and ×
+        `qwen3.6` ×2 (bigram-match-with-skip fix; all three required cases;
+        removed lines are the buggy source line and a test-set extension).
+        asohav-02 × `qwen3.6` ×2 (exactly the upstream fix — drop `id` from
+        the insert; new file covers no-`id`, the exact 8-column snake_case
+        set — rep 2 asserts key-set equality — and rejection propagation).
+        lfc-03 × `qwen3.6` ×2 (transition matrix, throw naming id + current
+        + requested status, full legal/forbidden coverage including a
+        message-content test; owner acceptance PASS and scoped typecheck PASS
+        on both).
+      - **2 qualified — grades stand, footnoted.** lfc-02 × `qwen3.5` rep 1
+        (`...165209`): the User-Agent version is hardcoded `0.0.0` —
+        `new URL('../package.json', import.meta.url)` resolves to
+        `src/package.json`, which does not exist, so the catch fallback fires
+        in every environment; the real version is 1.5.0. The prompt's
+        anti-drift requirement is unmet and its own test (a version-pattern
+        regex `0.0.0` satisfies) cannot see it. lfc-02 × `qwen3.5` rep 2
+        (`...165420`): the fix itself is correct (`../../package.json` → the
+        real 1.5.0) but the run deleted the used
+        `import type { CardFinish, CardVariant, ResolvedCard }` line, shipping
+        a TS error no gate sees (typecheck is SKIP for lfc-02 by design;
+        vitest strips types without checking).
+      - **Net effect on the standings: nothing hollow, nothing overturned.**
+        No pass among the 12 removed or weakened an assertion (contrast DP9's
+        3/26 spec-short). `qwen3.5`'s lfc-02 cell (3/4) contains one spec-short
+        pass; `qwen3.6`'s 6/6 are all clean. The lead is strengthened, not
+        revised.
+      - Cosmetic, both kane-04 reps: `Nazgûl` reached the test file as U+FFFD
+        (read→edit round-trip through the loose matcher; arbitrary fixture
+        strings, suite unaffected).
+
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
       scratch": plan shape B, decomposed slices; the translator seat is the
