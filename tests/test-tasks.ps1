@@ -188,6 +188,45 @@ function Get-HeadCommit {
     return ($r.Output | Where-Object { $_ } | Select-Object -First 1).Trim()
 }
 
+function Resolve-TaskBase {
+    # The commit a task runs from. A task with `benchBaseCommit` is PINNED: the
+    # worktree is made from that exact SHA, never from whatever a branch points at
+    # today. lfc-01 and lfc-03 used to run from the tip of the local `main` and
+    # kane-01 from a work branch, so one merge or rebase would have changed the
+    # base under a corpus of rows meant to be comparable (every recorded row so
+    # far did share one commit per task, which is what the pins now record). With a
+    # pin the branch is only a label; a local branch of that name sitting
+    # elsewhere is reported, not followed. A task without a pin falls back to the
+    # branch tip, as before. Returns { Head; Ref; Source; Warning; Error }.
+    param($Task)
+
+    $tip = Get-HeadCommit $Task.repo $Task.branch
+    $pin = $Task.benchBaseCommit
+    if (-not $pin) {
+        if (-not $tip) {
+            return [pscustomobject]@{ Head = $null; Ref = $null; Source = "branch"; Warning = $null; Error = "cannot resolve refs/heads/$($Task.branch) in $($Task.repo)" }
+        }
+        return [pscustomobject]@{ Head = $tip; Ref = "refs/heads/$($Task.branch)"; Source = "branch"; Warning = $null; Error = $null }
+    }
+
+    $full = $null
+    foreach ($attempt in 1, 2) {
+        $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$pin^{commit}")
+        if ($r.ExitCode -eq 0) { $full = ($r.Output | Where-Object { $_ } | Select-Object -First 1).Trim(); break }
+        # A commit that is upstream but not yet local: one fetch, then look again.
+        if ($attempt -eq 1) { Run-Native "git" @("-C", $Task.repo, "fetch", "origin", "--quiet") | Out-Null }
+    }
+    if (-not $full) {
+        return [pscustomobject]@{ Head = $null; Ref = $null; Source = "pin"; Warning = $null
+            Error = "pinned base $pin is not in $($Task.repo), even after git fetch origin. If it only ever lived on a local branch it was never pushed: git -C `"$($Task.repo)`" push origin ${pin}:refs/heads/$($Task.branch)" }
+    }
+    $warning = $null
+    if ($tip -and $tip -ne $full) {
+        $warning = "local branch $($Task.branch) is at $($tip.Substring(0, 10)), not the pinned $($full.Substring(0, 10)); running the pin"
+    }
+    return [pscustomobject]@{ Head = $full; Ref = $full; Source = "pin"; Warning = $warning; Error = $null }
+}
+
 function Get-WorktreeState {
     param([string]$Repo, [string]$WtPath)
     $r = Run-Native "git" @("-C", $Repo, "worktree", "list", "--porcelain")
@@ -217,16 +256,17 @@ function Ensure-Worktree {
     param($Task, [string]$WtPath)
 
     $repo = $Task.repo
-    $branch = $Task.branch
     # Install state lives OUTSIDE the worktree: an in-tree marker file shows up
     # in `git status --porcelain`, gets deleted by `git clean -fd` (forcing a
     # reinstall every other run), and is visible to the model while it works.
     $marker = Join-Path $wtRoot ("." + $Task.id + ".installed")
-    $head = Get-HeadCommit $repo $branch
-    if (-not $head) {
-        Write-Result $Task.id "worktree" "FAIL" "cannot resolve refs/heads/$branch in $repo"
+    $base = Resolve-TaskBase $Task
+    if (-not $base.Head) {
+        Write-Result $Task.id "worktree" "FAIL" $base.Error
         return $null
     }
+    if ($base.Warning) { Write-Result $Task.id "base" "WARN" $base.Warning }
+    $head = $base.Head
     $registered = Get-WorktreeState $repo $WtPath
 
     if (-not (Test-Path -LiteralPath $WtPath) -or -not $registered) {
@@ -241,7 +281,7 @@ function Ensure-Worktree {
             Run-Native "git" @("-C", $repo, "worktree", "prune") | Out-Null
         }
         Write-Host "    adding throwaway worktree at $head (detached)..." -ForegroundColor DarkGray
-        $r = Run-Native "git" @("-C", $repo, "worktree", "add", "--detach", $WtPath, "refs/heads/$branch")
+        $r = Run-Native "git" @("-C", $repo, "worktree", "add", "--detach", $WtPath, $base.Ref)
         if ($r.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $WtPath)) {
             Write-Result $Task.id "worktree" "FAIL" "git worktree add failed: $($r.Output -join ' ')"
             return $null
