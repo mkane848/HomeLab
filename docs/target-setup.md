@@ -138,7 +138,8 @@ winners-first off the 105-row corpus (`tests/results/README.md`):
 | Dispatcher | manual (owner runs the batch per order) | Until milestone 4 sets N from data |
 
 Out as executors: `ministral-3:8b` (0/7), `lfm2.5:8b` (0/8, all
-zero-write), `ornith:9b` (1/7, liar mode 2026-09-23). Planner discipline (from
+zero-write), `ornith:9b` (1/7; three of its four zero-write runs were
+output-cap hits, not liar mode, 2026-09-23). Planner discipline (from
 the data): the planner writes the acceptance test, the test must fail on
 current code before the order queues, one file per order — the loop in "The
 shape" is unchanged, only the planner's name is filled in.
