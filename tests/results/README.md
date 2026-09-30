@@ -89,8 +89,13 @@ different harnesses:
 - **opencode version (added 2026-09-30).** The result JSONs stamp it:
   1.18.31 on 54 (with Ollama 0.34.1), 1.18.32 on 138 (including the 9
   hosted-oracle runs), 1.18.33 on 21 (all 2026-09-29), none on 5. The N>1
-  protocol's "same config" key (prompt sha, `numCtx`, Ollama version) does not
-  include it, so replicates within one cell can straddle 1.18.32 and 1.18.33.
+  protocol's "same config" key (prompt sha, `numCtx`, Ollama version) did not
+  include it, so replicates within one cell straddle 1.18.32 and 1.18.33; since
+  2026-09-30 the key is prompt sha, `numCtx`, Ollama version **and** opencode
+  version (`docs/adversarial-review-2026-09-29.md` §7), and rows before that are
+  re-cut by the stamped version. opencode installs patch releases by itself when
+  a TUI starts (never from `opencode run`), which fits the version taking three
+  values in ten days; the config template now sets `autoupdate` to `"notify"`.
 
 Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
 and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger

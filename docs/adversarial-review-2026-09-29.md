@@ -135,7 +135,8 @@ never evidence against the lineup.
 
 **Rule.** No re-seat, drop, or context change cites a gap smaller than
 what N≥3 per cell on the same prompt sha, same `numCtx`, same Ollama
-version can support. Timeouts and `_INFRA_`/`_CONTEXT_`/`_ABORTED_`
+version **and same opencode version** (added 2026-09-30, see the addendum)
+can support. Timeouts and `_INFRA_`/`_CONTEXT_`/`_ABORTED_`
 transcripts count as attempts — report per-attempt, never graded-only.
 
 **Minimal viable batch (overnight, desktop only).** Frontier tasks where
@@ -153,6 +154,10 @@ top of the 1 DP8/DP9 row per cell:
 Preconditions (from DP7/DP9 lessons): close memory-heavy apps, check free
 RAM, record `ollama --version` + `/api/version` + `opencode --version`
 from the batch header, confirm `numCtx` stamps 65536 / 32768 as designed.
+Pin opencode first (`"autoupdate": "notify"` in the config, or
+`OPENCODE_DISABLE_AUTOUPDATE=1`; the batch preflight reports it, and the batch
+stops if `opencode --version` changes). Reps run rep-outer (the default since
+2026-09-30), so a cell's replicates are a whole pass apart, not adjacent.
 
 Suggested invocation (interactive picker still asks; prefer explicit
 params + `-Yes` for a clean log):
@@ -195,9 +200,23 @@ five statements in this review need correcting; the rest stands.
 - **§3(b), N=1 on noise**: confirmed, and stronger than stated. `qwen3.5:9b`'s
   step-6 7/9 was regression to the mean: at N≥3 on the same config it is 13/21
   over all tasks against `qwen3.6`'s 14/15 (Fisher p = 0.051).
-- **§7, the protocol itself**: the "same config" key omits the opencode version,
-  and replicates in every cell straddle 1.18.32 and 1.18.33. Replicates run
-  back-to-back agreed in 11 of 11 pairs; the same cells across batches disagreed
-  in 8 of 21 (p = 0.03), so back-to-back reps are not independent evidence.
-  Interleave reps across sessions and pin opencode. The control × `kane-02` cell
-  also has one attempt, not the required three.
+- **§7, the protocol itself**: the "same config" key omitted the opencode version,
+  and replicates in every cell straddle 1.18.32 (the DP8/DP9 attempt) and 1.18.33
+  (the two fresh reps, all run on 2026-09-29). Replicates run back-to-back agreed
+  in 11 of 11 pairs; the same cells across batches disagreed in 8 of 21
+  (p = 0.03), so back-to-back reps are not independent evidence. Split by how the
+  two attempts relate: 0 of 11 disagree when run back to back on one version, 0 of
+  2 when on one version but in different sessions, **8 of 19 when the versions
+  differ**. Every disagreement is a cross-version pair, and with this data version
+  cannot be told from session or from which cells were re-run (two same-version
+  pairs is too few). The control × `kane-02` cell also has one attempt, not the
+  required three.
+- **What was done about it (2026-09-30)**: §7's rule now includes the opencode
+  version; `run-tasks-batch.ps1` runs reps rep-outer, reads `opencode --version`
+  at the start and stops if it changes, and its preflight reports whether
+  autoupdate is pinned; the config template moves `autoupdate` from `true` to
+  `"notify"`. opencode installs patch releases by itself when a TUI starts and
+  never from `opencode run` ([source](https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/opencode/src/cli/upgrade.ts)),
+  which fits 1.18.31 → .32 → .33 in ten days. The version-split standings are in
+  `docs/roadmap.md` → "By opencode version": the seat order is the same on both
+  versions and no seat decision moves.
