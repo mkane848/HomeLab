@@ -1,7 +1,7 @@
 # run-tasks-batch.ps1 - one-stop entry point for the task-veracity benchmark:
 # (1) ensures every task's local `bench/*` branch exists in its repo (a label:
 #     test-tasks.ps1 runs each task's pinned `benchBaseCommit`) and warns when
-#     a pinned base or an acceptance branch is on no remote, then
+#     a pinned base or acceptance commit is not on origin, then
 # (2) interactively picks tasks + models + a repeat count and runs the batch
 # through test-tasks.ps1, one (task, model) pair per invocation.
 #
@@ -100,24 +100,44 @@ foreach ($t in $manifest.tasks) { $tasksById[$t.id] = $t }
 
 function Get-PublishState {
     # Whether anyone but this machine can get a commit:
-    #   "published"   - it is on a remote-tracking branch
-    #   "unpublished" - it is here but on no remote branch (a local-only branch or commit)
-    #   "unknown"     - it is here, not on a remote branch as far as this clone knows, and
-    #                   origin could not be reached to re-check a possibly stale view
+    #   "published"   - origin has it
+    #   "unpublished" - it is here and origin does not have it
+    #   "unknown"     - it is here, no remote-tracking branch of this clone contains it,
+    #                   and origin could not be reached to ask
     #   "missing"     - it is not in this clone at all
-    # "Not on a remote branch" is re-checked once after `git fetch origin`, so a
-    # push made from another clone is not reported as unpublished.
+    # Two questions, cheapest first. (1) Does a remote-tracking branch of this clone
+    # contain it? No network. (2) Otherwise ask origin itself, from an EMPTY scratch
+    # repo: `git fetch origin <sha>` inside a clone that already has the commit exits 0
+    # without asking anyone (checked), which would call every local-only commit
+    # published. (2) also finds a commit that only a pull-request ref reaches, which (1)
+    # cannot see: kane-01's base is both a branch tip and refs/pull/82/head. A
+    # single-branch clone shows (1) one branch only - that is how a published commit was
+    # once reported as local-only.
     param([string]$Repo, [string]$Commit)
 
     & git -C $Repo cat-file -e "$Commit^{commit}" *> $null
     if ($LASTEXITCODE -ne 0) { return "missing" }
     $on = @(& git -C $Repo branch -r --contains $Commit 2>$null | Where-Object { $_ -and $_ -notmatch '->' })
     if ($on.Count -gt 0) { return "published" }
-    & git -C $Repo fetch origin --quiet *> $null
-    if ($LASTEXITCODE -ne 0) { return "unknown" }
-    $on = @(& git -C $Repo branch -r --contains $Commit 2>$null | Where-Object { $_ -and $_ -notmatch '->' })
-    if ($on.Count -gt 0) { return "published" }
-    return "unpublished"
+
+    $url = (& git -C $Repo remote get-url origin 2>$null | Select-Object -First 1)
+    if (-not $url) { return "unpublished" }   # no origin at all: nowhere it could be published
+    if ($url -notmatch '^[A-Za-z][A-Za-z0-9+.-]*://|^git@|^[A-Za-z]:[\\/]|^/') {
+        $abs = Join-Path $Repo $url           # a relative path is relative to the repo, not to the scratch repo
+        if (Test-Path -LiteralPath $abs) { $url = (Resolve-Path -LiteralPath $abs).Path }
+    }
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("publish-check-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+    try {
+        & git init -q --bare $tmp *> $null
+        & git -C $tmp remote add o $url *> $null
+        & git -C $tmp fetch -q --depth=1 --filter=blob:none o $Commit *> $null
+        if ($LASTEXITCODE -eq 0) { return "published" }
+        & git -C $tmp ls-remote o HEAD *> $null
+        if ($LASTEXITCODE -ne 0) { return "unknown" }
+        return "unpublished"
+    } finally {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # --- 1. bench branches: task id -> (branch name, exact pre-fix commit) -----
@@ -167,21 +187,28 @@ if (-not $SkipSetup) {
             }
         }
 
-        # Is the pinned base something anyone else can get? A commit that exists
-        # only on this machine (kane-01's, 2026-09-30) cannot be reproduced.
+        # Can anyone else get the pinned base? A commit that exists only on this
+        # machine cannot be reproduced. (Today all nine can: eight are on main and
+        # kane-01's is a branch tip and refs/pull/82/head.)
         if ((Get-PublishState -Repo $repo -Commit $b.Commit) -eq "unpublished") {
-            Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is on no remote branch, so nobody else can reproduce this task." -ForegroundColor Yellow
+            Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is not on origin, so nobody else can reproduce this task." -ForegroundColor Yellow
             Write-Host "         Publish it: git -C `"$repo`" push origin $($b.Commit):refs/heads/$($b.Branch)" -ForegroundColor Yellow
         }
-        # Same question for the owner's acceptance tests (lfc-03): a local branch.
+        # Same question for the owner's acceptance tests (lfc-03), pinned by `acceptance.commit`
+        # (a task without the pin follows the local branch `acceptance.ref`).
         $accRef = if ($task.acceptance) { $task.acceptance.ref } else { $null }
         if ($accRef) {
-            $accSha = (& git -C $repo rev-parse --verify --quiet "refs/heads/$accRef" 2>$null | Select-Object -First 1)
+            $accSha = if ($task.acceptance.commit) { $task.acceptance.commit } else { (& git -C $repo rev-parse --verify --quiet "refs/heads/$accRef" 2>$null | Select-Object -First 1) }
             if (-not $accSha) {
                 Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow
-            } elseif ((Get-PublishState -Repo $repo -Commit $accSha) -eq "unpublished") {
-                Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef ($($accSha.Substring(0,10))) is on no remote branch, so nobody else can re-run the owner's tests." -ForegroundColor Yellow
-                Write-Host "         Publish it: git -C `"$repo`" push origin $accRef" -ForegroundColor Yellow
+            } else {
+                switch (Get-PublishState -Repo $repo -Commit $accSha) {
+                    "missing"     { Write-Host "  [WARN] $($b.TaskId): acceptance commit $($accSha.Substring(0,10)) is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow }
+                    "unpublished" {
+                        Write-Host "  [WARN] $($b.TaskId): acceptance commit $($accSha.Substring(0,10)) (branch $accRef) is not on origin, so nobody else can re-run the owner's tests." -ForegroundColor Yellow
+                        Write-Host "         Publish it: git -C `"$repo`" push origin ${accSha}:refs/heads/$accRef" -ForegroundColor Yellow
+                    }
+                }
             }
         }
     }

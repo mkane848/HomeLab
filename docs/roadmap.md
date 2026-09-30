@@ -998,7 +998,7 @@ git fetch origin
 git branch bench/multi-word-creature-types 0e9b703047d37e31abbccbda2c9de175ae3e33cb
 git branch bench/saga-chapter-triggers 4029a94a8bd5a22df1f3dcf819719c0e448270b4
 git branch bench/singleton-up-to-n 420372615ef8b95566dc8ab24039c1532830fdbf
-git branch bench/background-pair 92a8ed0df10262cc878d4d214d0a312d542375ec   # kane-01: local commit, see below
+git branch bench/background-pair 92a8ed0df10262cc878d4d214d0a312d542375ec   # kane-01: tip of review-gate/deck-validity (git fetch origin gets it)
 
 # M:\TTRPG\A Story of Heroes and Villains
 git fetch origin
@@ -1017,33 +1017,39 @@ git branch bench/status-transition-guard 4906dc2881d362bda2006d3407e0ba63e005b91
 `mkane848/lfc-bot`) — same repos, same commit hashes, independently
 verifiable by anyone with read access.
 
-> **Correction (2026-09-30).** Only the pinned parent commits are public. The
+> **Correction (2026-09-30).** Only the pinned parent commits are public; the
 > `bench/*` branches the harness resolved (`refs/heads/<branch>` in the local
-> checkout) existed only on the owner's machine: on 2026-09-29 none of the seven
-> was on `origin`, and `bench/status-guard-throw` @ `fcf9d1a` (lfc-03's
-> acceptance tests) is a commit no remote has. `kane-01` pinned the mutable
-> branch `review-gate/deck-validity` instead of a SHA, and `lfc-01`/`lfc-03` the
-> tip of the local `main`; every recorded row had in fact used one commit per
-> task (kane-01 `92a8ed0`, lfc-01/lfc-03 `4906dc2`).
+> checkout) existed only on the owner's machine (no `bench/*` head exists on
+> `kaneenabler`, `lfc-bot` or `asohavcompanionapp`). `kane-01` pinned the mutable
+> branch `review-gate/deck-validity` instead of a SHA, `lfc-01`/`lfc-03` the tip
+> of the local `main`, and lfc-03's acceptance tests were read from the local
+> branch `bench/status-guard-throw`. Every recorded row had in fact used one
+> commit per task (kane-01 `92a8ed0`, lfc-01/lfc-03 `4906dc2`), and all 18
+> acceptance runs one commit (`3215aaf`; the `fcf9d1a` quoted earlier was the
+> branch tip when the tests were authored).
 >
-> **Fixed the same day.** All nine tasks are now pinned by `benchBaseCommit`, the
-> harness runs the pin (a moved branch is a WARN, a pin missing from the repo is
-> an error), and `tests/test-task-pins.ps1` checks that every one of the 218
-> recorded rows ran from its task's pin. Checked against clones of the public
-> repos: eight of the nine pinned commits are on `origin/main`. **Two things
-> remain, and only the owner can do them** (`run-tasks-batch.ps1 -SetupOnly`
-> prints both while they are true): `kane-01`'s `92a8ed0` is on no remote (it is
-> the tip of the local `review-gate/deck-validity`), so the task with the most
-> rows in the corpus cannot be reproduced by anyone else, and lfc-03's
-> acceptance tests exist only on the local `bench/status-guard-throw`.
+> **Fixed the same day.** All nine tasks are pinned by `benchBaseCommit` and
+> lfc-03's acceptance tests by `acceptance.commit`; the harness runs the pins (a
+> moved branch is a WARN, a pin missing from the repo an error), and
+> `tests/test-task-pins.ps1` checks that all 218 rows and all 18 acceptance runs
+> used them.
+>
+> **What GitHub has** (`git ls-remote`, plus a fetch by SHA of each commit into
+> an empty repo, 2026-09-30): **all nine pinned bases.** Eight are on `main`;
+> `kane-01`'s `92a8ed0` is the tip of `review-gate/deck-validity` and the head of
+> PR #82 (`refs/pull/82/head`) on `mkane848/kaneenabler`. **Not on GitHub:
+> lfc-03's acceptance commit `3215aaf`** (the local `bench/status-guard-throw`;
+> the fetch is refused), so nobody but the owner can re-run those tests until it
+> is pushed:
 >
 > ```powershell
-> git -C C:/Projects/KaneEnabler push origin 92a8ed0df10262cc878d4d214d0a312d542375ec:refs/heads/bench/background-pair
-> git -C M:/Projects/LFCbot push origin bench/status-guard-throw
+> git -C M:/Projects/LFCbot push origin 3215aafde5f8eb6278d662af24cb01a6fab10eb0:refs/heads/bench/status-guard-throw
 > ```
 >
-> The first publishes `92a8ed0` and whatever review-gate history under it is not
-> yet upstream; look at `git log origin/main..92a8ed0` before pushing.
+> `run-tasks-batch.ps1 -SetupOnly` prints that command while it is true. (The
+> first version of this note said kane-01's base was on no remote. That was
+> wrong: the check ran in single-branch clones, which show `main` only.
+> `Get-PublishState` now asks the remote itself.)
 
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 

@@ -227,6 +227,36 @@ function Resolve-TaskBase {
     return [pscustomobject]@{ Head = $full; Ref = $full; Source = "pin"; Warning = $warning; Error = $null }
 }
 
+function Resolve-AcceptanceCommit {
+    # The commit the owner's acceptance tests are read from. `acceptance.commit` pins
+    # it, for the reason the base is pinned: `acceptance.ref` is a local branch, and a
+    # moved branch would change what "meets the owner's contract" means between runs
+    # (all 18 recorded lfc-03 runs used one commit, which is the pin). A local branch
+    # that has moved off the pin is reported, not followed; without a pin the branch
+    # tip is used, as before. Returns { Commit; Warning; Error }.
+    param($Task)
+
+    $acc = $Task.acceptance
+    $tip = Get-HeadCommit $Task.repo $acc.ref
+    if (-not $acc.commit) {
+        if (-not $tip) {
+            return [pscustomobject]@{ Commit = $null; Warning = $null; Error = "cannot resolve refs/heads/$($acc.ref) in $($Task.repo)" }
+        }
+        return [pscustomobject]@{ Commit = $tip; Warning = $null; Error = $null }
+    }
+    $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$($acc.commit)^{commit}")
+    if ($r.ExitCode -ne 0) {
+        return [pscustomobject]@{ Commit = $null; Warning = $null
+            Error = "pinned acceptance commit $($acc.commit) is not in $($Task.repo). It only ever lived on the local branch $($acc.ref); if that branch was deleted or rewritten, restore the commit or re-pin it" }
+    }
+    $full = ($r.Output | Where-Object { $_ } | Select-Object -First 1).Trim()
+    $warning = $null
+    if ($tip -and $tip -ne $full) {
+        $warning = "local branch $($acc.ref) is at $($tip.Substring(0, 10)), not the pinned acceptance commit $($full.Substring(0, 10)); running the pin"
+    }
+    return [pscustomobject]@{ Commit = $full; Warning = $warning; Error = $null }
+}
+
 function Get-WorktreeState {
     param([string]$Repo, [string]$WtPath)
     $r = Run-Native "git" @("-C", $Repo, "worktree", "list", "--porcelain")
@@ -433,10 +463,12 @@ function Invoke-Acceptance {
     param($Task, [string]$WtPath)
 
     $acc = $Task.acceptance
-    $sha = Get-HeadCommit $Task.repo $acc.ref
-    if (-not $sha) {
-        return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Detail = "cannot resolve refs/heads/$($acc.ref) in $($Task.repo)" }
+    $accBase = Resolve-AcceptanceCommit $Task
+    if (-not $accBase.Commit) {
+        return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Detail = $accBase.Error }
     }
+    if ($accBase.Warning) { Write-Host "    acceptance: $($accBase.Warning)" -ForegroundColor Yellow }
+    $sha = $accBase.Commit
     $files = @($acc.files)
     $saved = @{}
     foreach ($f in $files) {

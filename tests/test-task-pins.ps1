@@ -1,34 +1,40 @@
-# test-task-pins.ps1 - regression guard for how a benchmark task's base commit is chosen.
+# test-task-pins.ps1 - regression guard for how a benchmark task's base commit (and its
+# acceptance commit) is chosen and checked.
 #
 # Why this exists: three of the nine tasks (kane-01, lfc-01, lfc-03) ran from the TIP of a
 # local branch (a work branch, and `main`), and the harness resolved every task through
 # `refs/heads/<branch>` in the owner's own checkout. One merge or rebase would have moved
-# a task's base under a corpus of rows meant to be comparable, silently; and kane-01's
-# base commit is on no remote at all, so nobody else could reproduce the task with the
-# most rows in the corpus. Every recorded row did share one commit per task, which is
-# what the manifest now pins as `benchBaseCommit`, and test-tasks.ps1's Resolve-TaskBase
-# runs that exact commit (the branch is only a label; a moved branch is a WARN).
+# a task's base under a corpus of rows meant to be comparable, silently. Every recorded
+# row did share one commit per task, which is what the manifest now pins as
+# `benchBaseCommit` (and `acceptance.commit`, for lfc-03's owner tests); test-tasks.ps1's
+# Resolve-TaskBase / Resolve-AcceptanceCommit run those exact commits, and the branch is
+# only a label (a moved branch is a WARN).
 #
 # What it does:
-#   1. manifest: every task carries a full 40-hex `benchBaseCommit`.
-#   2. corpus:   every row in tests/results/tasks-summary.tsv ran from its task's pin, so
-#                pinning changed no comparison. (A future re-base must be a NEW task id, or
-#                this fails: two bases under one id make the rows incomparable.)
-#   3. Resolve-TaskBase, the REAL function from test-tasks.ps1, on throwaway git repos:
-#                pin followed over a moved branch, a label-only branch, a pin missing from
-#                the repo, and the unpinned fallback.
+#   1. manifest: every task carries a full 40-hex `benchBaseCommit`; a task with an
+#                `acceptance` block carries a full `acceptance.commit`.
+#   2. corpus:   every row in tests/results/tasks-summary.tsv ran from its task's pin, and
+#                every recorded acceptance run used the acceptance pin, so pinning changed
+#                no comparison. (A future re-base must be a NEW task id, or this fails:
+#                two bases under one id make the rows incomparable.)
+#   3. Resolve-TaskBase and Resolve-AcceptanceCommit, the REAL functions from test-tasks.ps1,
+#                on throwaway git repos.
 #   4. Get-PublishState, the REAL function from run-tasks-batch.ps1, against a throwaway
-#                bare origin: published / unpublished / unknown / missing.
-#   5. the real checkouts, when this machine has them: each pin must resolve in its repo.
+#                bare origin: published / unpublished / unknown / missing, including the
+#                two shapes that once produced a wrong answer - a commit only a pull-request
+#                ref reaches, and a single-branch clone that cannot see the branch holding it.
+#   5. the real checkouts, when this machine has them: each pin resolves in its repo.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-task-pins.ps1 [-ScriptPath <test-tasks.ps1>] [-BatchPath <run-tasks-batch.ps1>]
 #                                    [-ManifestPath <manifest.json>] [-SummaryPath <tasks-summary.tsv>]
+#                                    [-ResultsDir <tests/results>]
 param(
     [string]$ScriptPath   = (Join-Path $PSScriptRoot "test-tasks.ps1"),
     [string]$BatchPath    = (Join-Path $PSScriptRoot "run-tasks-batch.ps1"),
     [string]$ManifestPath = (Join-Path $PSScriptRoot "tasks/manifest.json"),
-    [string]$SummaryPath  = (Join-Path $PSScriptRoot "results/tasks-summary.tsv")
+    [string]$SummaryPath  = (Join-Path $PSScriptRoot "results/tasks-summary.tsv"),
+    [string]$ResultsDir   = (Join-Path $PSScriptRoot "results")
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,7 +51,7 @@ function Import-Functions([string]$Path, [string[]]$Names) {
         Invoke-Expression ($fn.Extent.Text -replace '^function\s+', 'function script:')
     }
 }
-Import-Functions $ScriptPath @("Run-Native", "Get-HeadCommit", "Resolve-TaskBase")
+Import-Functions $ScriptPath @("Run-Native", "Get-HeadCommit", "Resolve-TaskBase", "Resolve-AcceptanceCommit")
 Import-Functions $BatchPath @("Get-PublishState")
 
 $script:fail = 0
@@ -82,11 +88,13 @@ try {
     foreach ($t in $manifest.tasks) {
         $ok = [bool]($t.benchBaseCommit -match '^[0-9a-f]{40}$') -and [bool]$t.branch
         Check ("{0}: pinned to a full commit, with a branch label" -f $t.id) $ok $true
+        if ($t.acceptance) {
+            Check ("{0}: acceptance pinned to a full commit" -f $t.id) ([bool]($t.acceptance.commit -match '^[0-9a-f]{40}$')) $true
+        }
     }
 
     Write-Host "-- corpus (every recorded row ran from its task's pin)"
     $rows = @(Import-Csv -LiteralPath $SummaryPath -Delimiter "`t")
-    $unknownTasks = 0
     foreach ($t in $manifest.tasks) {
         $mine = @($rows | Where-Object { $_.taskId -eq $t.id })
         $off = @($mine | Where-Object { $_.baseCommit -ne $t.benchBaseCommit })
@@ -94,6 +102,15 @@ try {
     }
     $unknownTasks = @($rows | Where-Object { -not $byId.ContainsKey($_.taskId) }).Count
     if ($unknownTasks) { Write-Host "     note: $unknownTasks row(s) belong to a task id that is not in the manifest (not checked)" }
+    foreach ($t in @($manifest.tasks | Where-Object { $_.acceptance })) {
+        $used = @()
+        foreach ($f in Get-ChildItem -LiteralPath $ResultsDir -Filter "tasks-$($t.id)-*.json") {
+            $j = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
+            if ($j.acceptance -and $j.acceptance.commit) { $used += $j.acceptance.commit }
+        }
+        $off = @($used | Where-Object { $_ -ne $t.acceptance.commit })
+        Check ("{0}: {1} recorded acceptance run(s), {2} from another commit" -f $t.id, $used.Count, $off.Count) ($off.Count -eq 0) $true
+    }
 
     Write-Host "-- Resolve-TaskBase (real function, throwaway repos)"
     $repo = New-Repo
@@ -121,6 +138,23 @@ try {
     $legacyMissing = Resolve-TaskBase ([pscustomobject]@{ id = "t"; repo = $repo; branch = "bench/none" })
     Check "no pin and no branch: cannot resolve"                       ([bool](-not $legacyMissing.Head -and $legacyMissing.Error -match "cannot resolve refs/heads/bench/none")) $true
 
+    Write-Host "-- Resolve-AcceptanceCommit (real function, throwaway repos)"
+    git -C $repo branch bench/acc $c1
+    $acc = { param($ref, $commit) [pscustomobject]@{ id = "t"; repo = $repo; acceptance = [pscustomobject]@{ ref = $ref; commit = $commit; files = @("f.txt") } } }
+    $a = Resolve-AcceptanceCommit (& $acc "bench/acc" $c1)
+    Check "a pin equal to the branch tip: that commit, no warning"     ($a.Commit -eq $c1 -and -not $a.Warning -and -not $a.Error) $true
+    git -C $repo branch -f bench/acc $c2
+    $a = Resolve-AcceptanceCommit (& $acc "bench/acc" $c1)
+    Check "the branch moved on: the pin is run, and the move is a warning" ($a.Commit -eq $c1 -and [bool]($a.Warning -match "bench/acc is at .* not the pinned")) $true
+    $a = Resolve-AcceptanceCommit (& $acc "bench/deleted" $c1)
+    Check "the branch is gone: the pin still resolves"                 ($a.Commit -eq $c1 -and -not $a.Error) $true
+    $a = Resolve-AcceptanceCommit (& $acc "bench/acc" $gone)
+    Check "a pin missing from the repo is an error"                    ([bool](-not $a.Commit -and $a.Error -match "pinned acceptance commit $gone is not in")) $true
+    $a = Resolve-AcceptanceCommit (& $acc "bench/acc" $null)
+    Check "no pin: the branch tip, as before"                          ($a.Commit -eq $c2 -and -not $a.Error) $true
+    $a = Resolve-AcceptanceCommit (& $acc "bench/deleted" $null)
+    Check "no pin and no branch: cannot resolve"                       ([bool](-not $a.Commit -and $a.Error -match "cannot resolve refs/heads/bench/deleted")) $true
+
     Write-Host "-- Get-PublishState (real function, throwaway bare origin)"
     $origin = Join-Path $tmpRoot "origin.git"
     git init -q --bare $origin
@@ -130,12 +164,32 @@ try {
     git -C $work push -q origin main 2>$null
     $p2 = New-Commit $work "local only"
     Check "a commit that was pushed"                                   (Get-PublishState -Repo $work -Commit $p1) "published"
-    Check "a commit only on a local branch"                            (Get-PublishState -Repo $work -Commit $p2) "unpublished"
+    # p2 is in this clone. `git fetch origin <p2>` HERE would exit 0 without asking origin,
+    # so the answer must come from asking origin from an empty repo.
+    Check "a commit only in this clone (not fooled by having it)"      (Get-PublishState -Repo $work -Commit $p2) "unpublished"
     Check "a commit that is not in the clone"                          (Get-PublishState -Repo $work -Commit $gone) "missing"
+
+    git -C $work checkout -q -b topic
+    $t1 = New-Commit $work "only a pull-request ref reaches this"
+    git -C $work push -q origin topic:refs/pull/1/head 2>$null
+    Check "reachable only via refs/pull/1/head (kane-01's shape)"      (Get-PublishState -Repo $work -Commit $t1) "published"
+
+    git -C $work checkout -q main
+    git -C $work checkout -q -b feature
+    $f1 = New-Commit $work "on a branch a single-branch clone cannot see"
+    git -C $work push -q origin feature 2>$null
+    $single = Join-Path $tmpRoot "single"
+    git clone -q --single-branch --branch main $origin $single
+    git -C $single fetch -q origin $f1                       # the commit is here, but no remote-tracking branch shows it
+    Check "a single-branch clone that holds a commit from another branch" (Get-PublishState -Repo $single -Commit $f1) "published"
+
     $lone = New-Repo
-    $l1 = New-Commit $lone "no remote"
+    $l1 = New-Commit $lone "no reachable remote"
     git -C $lone remote add origin (Join-Path $tmpRoot "does-not-exist.git")
     Check "origin unreachable: unknown, not a false alarm"             (Get-PublishState -Repo $lone -Commit $l1) "unknown"
+    $nor = New-Repo
+    $n1 = New-Commit $nor "no origin at all"
+    Check "no origin remote: nowhere it could be published"            (Get-PublishState -Repo $nor -Commit $n1) "unpublished"
     git -C $work push -q origin main 2>$null
     Check "after it is pushed, the same commit reads as published"     (Get-PublishState -Repo $work -Commit $p2) "published"
 

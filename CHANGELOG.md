@@ -17,13 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     pin missing from the repo is an error naming the `git push` that fixes it; a
     task without a pin still uses the branch tip.
   - `run-tasks-batch.ps1 -SetupOnly` warns when a pinned base or lfc-03's
-    acceptance branch is on no remote (`Get-PublishState`), with the push
-    command. Checked against clones of the public repos: eight of the nine pins
-    are on `origin/main`. **Two are still local-only and need the owner:**
-    `kane-01`'s `92a8ed0` (the task with the most rows) and
-    `bench/status-guard-throw` (lfc-03's acceptance tests).
-  - New `tests/test-task-pins.ps1`: manifest pins, all 218 recorded rows ran from
-    their task's pin, and the two functions on throwaway repos; it fails on nine
+    acceptance commit is not on origin (`Get-PublishState`), with the push
+    command. `git ls-remote` and a by-SHA fetch into an empty repo show **all
+    nine pinned bases are on GitHub**: eight on `main`, `kane-01`'s `92a8ed0` as
+    `review-gate/deck-validity` and PR #82's head. **One thing is local-only and
+    needs the owner:** lfc-03's acceptance commit `3215aaf`
+    (`bench/status-guard-throw`).
+  - lfc-03's acceptance tests are pinned by `acceptance.commit`
+    (`Resolve-AcceptanceCommit`): all 18 recorded acceptance runs used
+    `3215aaf`, and a branch that has moved is a WARN, not followed.
+  - The first version of this entry said `kane-01`'s base was local-only. That
+    was wrong: the check ran in single-branch clones, which show `main` only.
+    `Get-PublishState` now asks origin itself from an empty scratch repo,
+    because `git fetch origin <sha>` inside a clone that already has the commit
+    exits 0 without asking anyone; it also finds a commit only a pull-request
+    ref reaches.
+  - New `tests/test-task-pins.ps1` (42 checks): manifest pins, all 218 rows and
+    all 18 acceptance runs used them, and the three functions on throwaway repos
+    (including the two shapes that fooled the first version); it fails on 14
     mutants. `AGENTS.md` and `docs/roadmap.md` (the 2026-09-30 correction, the
     setup section) updated.
 - Hold benchmark replicates to one opencode version and spread them across time.
