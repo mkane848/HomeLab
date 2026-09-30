@@ -283,6 +283,47 @@ Proposed next, owner decision:
 - Raise qwen3-coder's `limit.output` to 8192.
 - Settle the devstral pair.
 
+### Executor standings after the N>1 protocol (2026-09-30)
+
+DP11 (`docs/implementation-tasks.md`) ran the adversarial review's N>1 protocol
+on `qwen3.6`, `qwen3.5` and `qwen3:14b`. Counted on the same config: same
+prompt sha, the seat's designed `numCtx`, Ollama 0.34.3; timeouts and infra
+crashes count as attempts. Wilson 95% intervals in brackets. The step-6 table
+above is unchanged for the other five seats (N=1).
+
+| seat | ctx | all 9 tasks | frontier cells (lfc-03, kane-02, asohav-02) |
+|---|---|---|---|
+| `qwen3.6:35b-a3b-coding` | 64k | **14/15** (0.70–0.99) | 8/9 |
+| `qwen3.5:9b` | 64k | 13/21 (0.41–0.79) | 4/9 |
+| `qwen3:14b` (default main seat) | 32k | 2/13 (0.04–0.42) | 0/7 |
+
+- **The `qwen3.6` lead now holds up.** Against `qwen3.5`: Fisher p = 0.051 over
+  all tasks, 0.13 on the frontier cells alone. Against `qwen3:14b`: p = 0.0001
+  and 0.0014. The step-6 table's 8/9 against 7/9 could not separate the top two;
+  `qwen3.5`'s 7/9 was optimistic (13/21 at N≥3 on the same config, after two
+  cells it had passed once failed twice).
+- **`qwen3.5` misses by breaking the build or by writing a test that passes on
+  broken code, not by writing nothing.** Its 8 same-config misses are seven
+  graded rows with edits and one infra crash (a template error after
+  compaction at 59.4k).
+- **The default main seat is 2/13 on the same config** (0/7 on the frontier
+  cells). The step-6 case for re-seating stands and is firmer. Its
+  preconditions are unchanged: a plain-language trial, and the co-resident
+  small model re-measured. `qwen3.6`'s two-minute first-request wait (DP10)
+  still counts against it for an interactive seat.
+- **What this does not settle.** Five seats are still N=1. The dense pair's 32k
+  against the others' 64k is still confounded with seat (nothing tests 40k for
+  the qwen3 pair). Replicates straddle opencode 1.18.32 and 1.18.33, and
+  back-to-back replicates agree far more often than the same cells across
+  batches (DP11), so they are not independent evidence. `kane-01`, `kane-03`
+  and `lfc-01` are still one attempt per seat, and `qwen3:14b` × kane-02 has
+  one.
+- **The suite now saturates at the top.** `qwen3.6` passes 14 of 15 attempts,
+  8 of 9 on the cells that were the hardest. New or differently shaped tasks are
+  what keep separating the top seats.
+
+Nothing here re-seats a profile or changes a config.
+
 ### Review-gate: settled
 
 Closed 2026-09-19, recorded so it is not reopened by accident.

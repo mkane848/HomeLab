@@ -39,6 +39,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     statements against the raw rows (control rematch had run, task difficulty
     figures were the 09-23 inventory, liar-mode list, N=1 confirmed,
     protocol config key).
+- Record data point 11 (`docs/implementation-tasks.md`) and the same-config
+  executor standings (`docs/roadmap.md`): the adversarial review's N>1
+  protocol on the frontier cells (PRs #61–#64, desktop Ollama 0.34.3). Counted
+  on one config (prompt sha, designed `numCtx`, timeouts as attempts),
+  `qwen3.6` passes 14/15 attempts, `qwen3.5` 13/21, `qwen3:14b` (the default
+  main seat) 2/13; `qwen3.6` against `qwen3.5` is Fisher p = 0.051, against
+  `qwen3:14b` p = 0.0001.
+  - None of the 9 graded FAIL rows is a zero-write. Of the 18 lfc-03 runs with
+    an owner acceptance result, 12 pass it and 8 pass every gate.
+  - Replicates are not independent evidence: back-to-back pairs agreed 11 of
+    11, pairs from different batches disagreed 8 of 21 (p = 0.03), and every
+    mixed cell straddles opencode 1.18.32 and 1.18.33.
+  - The replay audit of the 12 new passes was not done. No seat or config
+    changes.
 - Adversarial review of the testing methodology
   (`docs/adversarial-review-2026-09-29.md`): what each harness measures,
   N=1 / era-confound / guided-repair limits, plus the N>1 protocol
