@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `run-tasks-batch.ps1`: reps run rep-outer within each model (`-BackToBack`
     for the old order); the batch reads `opencode --version` at the start and
     stops if it changes; the preflight reports whether autoupdate is pinned.
-    New `tests/test-batch-plan.ps1` (29 checks; fails on seven mutants).
+    New `tests/test-batch-plan.ps1` (27 checks; fails on seven mutants).
   - `opencode/global/opencode.jsonc`: `autoupdate` `true` → `"notify"`. **The one
     behavior change:** OpenCode no longer upgrades itself; run `opencode upgrade`
     on purpose, between batches. Revert that line to keep autoupdate on; the
