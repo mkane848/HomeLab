@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-09-29T18:26:50",
+  "taskId": "lfc-03-status-transition-guard",
+  "taskTitle": "lfc-bot: enforce a status-transition matrix in setStatus - throw on every forbidden transition, allow fulfilled-to-deleted cleanup",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
+  "promptSha256": "833A03061C7F",
+  "opencodeExit": 0,
+  "writes": 5,
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "WARN",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "bench/status-guard-throw",
+    "commit": "3215aafde5f8eb6278d662af24cb01a6fab10eb0",
+    "detail": "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m4 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m25 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m - \u001b[22mthrows when deleting an already-deleted listing and leaves it deleted; \u001b[22mthrows when fulfilling a deleted listing (deleted is terminal); \u001b[22mthrows when fulfilling an expired listing and leaves it expired; \u001b[22mthrows when deleting an expired listing and leaves it expired"
+  },
+  "elapsedSec": 310.0,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "opencodeVersion": "1.18.33",
+  "numCtx": 65536,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3.5_9b_20260929-182650.jsonl"
+}
