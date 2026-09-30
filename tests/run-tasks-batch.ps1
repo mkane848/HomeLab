@@ -1,5 +1,7 @@
 # run-tasks-batch.ps1 - one-stop entry point for the task-veracity benchmark:
-# (1) ensures every task's local `bench/*` branch exists in its repo, then
+# (1) ensures every task's local `bench/*` branch exists in its repo (a label:
+#     test-tasks.ps1 runs each task's pinned `benchBaseCommit`) and warns when
+#     a pinned base or an acceptance branch is on no remote, then
 # (2) interactively picks tasks + models + a repeat count and runs the batch
 # through test-tasks.ps1, one (task, model) pair per invocation.
 #
@@ -96,13 +98,38 @@ $manifest  = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $tasksById = @{}
 foreach ($t in $manifest.tasks) { $tasksById[$t.id] = $t }
 
+function Get-PublishState {
+    # Whether anyone but this machine can get a commit:
+    #   "published"   - it is on a remote-tracking branch
+    #   "unpublished" - it is here but on no remote branch (a local-only branch or commit)
+    #   "unknown"     - it is here, not on a remote branch as far as this clone knows, and
+    #                   origin could not be reached to re-check a possibly stale view
+    #   "missing"     - it is not in this clone at all
+    # "Not on a remote branch" is re-checked once after `git fetch origin`, so a
+    # push made from another clone is not reported as unpublished.
+    param([string]$Repo, [string]$Commit)
+
+    & git -C $Repo cat-file -e "$Commit^{commit}" *> $null
+    if ($LASTEXITCODE -ne 0) { return "missing" }
+    $on = @(& git -C $Repo branch -r --contains $Commit 2>$null | Where-Object { $_ -and $_ -notmatch '->' })
+    if ($on.Count -gt 0) { return "published" }
+    & git -C $Repo fetch origin --quiet *> $null
+    if ($LASTEXITCODE -ne 0) { return "unknown" }
+    $on = @(& git -C $Repo branch -r --contains $Commit 2>$null | Where-Object { $_ -and $_ -notmatch '->' })
+    if ($on.Count -gt 0) { return "published" }
+    return "unpublished"
+}
+
 # --- 1. bench branches: task id -> (branch name, exact pre-fix commit) -----
-# Driven by the manifest, not a hardcoded table: each task that needs a bench
-# branch carries `branch` and `benchBaseCommit`; tasks without one (kane-01,
-# lfc-01) are simply skipped. Mirrors docs/roadmap.md exactly - each commit is
-# the one immediately BEFORE the real merged fix that task grades,
-# independently verified (baseline green, failsOnOld red) when the task was
-# authored.
+# Driven by the manifest, not a hardcoded table: every task carries `branch` and
+# `benchBaseCommit`. Since 2026-09-30 test-tasks.ps1 runs the PINNED commit
+# itself (Resolve-TaskBase), so these local branches are labels and no longer
+# something a run depends on; this step still creates them, and now also says
+# whether each pinned commit (and lfc-03's acceptance branch) is on a remote -
+# a commit only this machine has cannot be reproduced by anyone else. Mirrors
+# docs/roadmap.md: each commit is the one immediately BEFORE the real merged
+# fix that task grades, independently verified (baseline green, failsOnOld red)
+# when the task was authored.
 $benchBranches = @($manifest.tasks | Where-Object { $_.benchBaseCommit } | ForEach-Object {
     [pscustomobject]@{ TaskId = $_.id; Branch = $_.branch; Commit = $_.benchBaseCommit }
 })
@@ -124,20 +151,38 @@ if (-not $SkipSetup) {
         & git -C $repo rev-parse --verify --quiet "refs/heads/$($b.Branch)" *> $null
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  [OK]   $($b.Branch) already exists in $repo" -ForegroundColor DarkGray
-            continue
-        }
-
-        & git -C $repo cat-file -e "$($b.Commit)^{commit}" *> $null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  fetching $repo ..." -ForegroundColor DarkGray
-            & git -C $repo fetch origin --quiet *> $null
-        }
-
-        & git -C $repo branch $b.Branch $b.Commit *> $null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  [PASS] created $($b.Branch) @ $($b.Commit.Substring(0,10)) in $repo" -ForegroundColor Green
         } else {
-            Write-Host "  [FAIL] could not create $($b.Branch) in $repo - commit not reachable even after fetch. Run 'git -C `"$repo`" fetch origin' by hand and re-run this script." -ForegroundColor Red
+            & git -C $repo cat-file -e "$($b.Commit)^{commit}" *> $null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "  fetching $repo ..." -ForegroundColor DarkGray
+                & git -C $repo fetch origin --quiet *> $null
+            }
+
+            & git -C $repo branch $b.Branch $b.Commit *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  [PASS] created $($b.Branch) @ $($b.Commit.Substring(0,10)) in $repo" -ForegroundColor Green
+            } else {
+                Write-Host "  [FAIL] could not create $($b.Branch) in $repo - commit not reachable even after fetch. Run 'git -C `"$repo`" fetch origin' by hand and re-run this script." -ForegroundColor Red
+                continue
+            }
+        }
+
+        # Is the pinned base something anyone else can get? A commit that exists
+        # only on this machine (kane-01's, 2026-09-30) cannot be reproduced.
+        if ((Get-PublishState -Repo $repo -Commit $b.Commit) -eq "unpublished") {
+            Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is on no remote branch, so nobody else can reproduce this task." -ForegroundColor Yellow
+            Write-Host "         Publish it: git -C `"$repo`" push origin $($b.Commit):refs/heads/$($b.Branch)" -ForegroundColor Yellow
+        }
+        # Same question for the owner's acceptance tests (lfc-03): a local branch.
+        $accRef = if ($task.acceptance) { $task.acceptance.ref } else { $null }
+        if ($accRef) {
+            $accSha = (& git -C $repo rev-parse --verify --quiet "refs/heads/$accRef" 2>$null | Select-Object -First 1)
+            if (-not $accSha) {
+                Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow
+            } elseif ((Get-PublishState -Repo $repo -Commit $accSha) -eq "unpublished") {
+                Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef ($($accSha.Substring(0,10))) is on no remote branch, so nobody else can re-run the owner's tests." -ForegroundColor Yellow
+                Write-Host "         Publish it: git -C `"$repo`" push origin $accRef" -ForegroundColor Yellow
+            }
         }
     }
     Write-Host ""

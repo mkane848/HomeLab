@@ -5,7 +5,9 @@
       "title": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
       "source": "docs/implementation-tasks.md tasks 1-2 (KaneEnabler PR #82 fix-and-reverify)",
       "repo": "C:/Projects/KaneEnabler",
-      "branch": "review-gate/deck-validity",
+      "branch": "bench/background-pair",
+      "benchBaseCommit": "92a8ed0df10262cc878d4d214d0a312d542375ec",
+      "baseNote": "Pinned 2026-09-30. This task used to run from the tip of the local branch review-gate/deck-validity; all 40 recorded rows (2026-09-19 to 2026-09-28) used this commit. It is on no remote: publish it with `git push origin 92a8ed0df10262cc878d4d214d0a312d542375ec:refs/heads/bench/background-pair` (run-tasks-batch.ps1 -SetupOnly prints this while it is unpublished).",
       "baselineExpect": {
         "testsTotal": 10,
         "testsPass": 10
@@ -42,9 +44,11 @@
     {
       "id": "lfc-01-listing-status-guard",
       "title": "lfc-bot: guard fulfill/delete from re-acting on a non-active listing",
+      "baseNote": "Pinned 2026-09-30. This task used to run from the tip of the local main; all 34 recorded rows (2026-09-19 to 2026-09-29) used this commit, which is on lfc-bot origin/main ('chore: sync package-lock version to 1.6.0').",
       "source": "Identified via codebase survey (2026-09-20), independently verified by reading src/services/listings.ts, its three call sites (src/commands/user/fulfill.ts, src/commands/user/delete.ts, src/commands/admin/remove.ts), the schema (status: active/fulfilled/deleted/expired, see src/services/listing-expiry.ts), and existing test coverage (tests/services/listings.test.ts, tests/commands/user/fulfill.test.ts, tests/commands/user/delete.test.ts - all only ever seed status:'active'). Deliberately a missing-validation bug, not another eligibility/conditional-logic bug like kane-01.",
       "repo": "M:/Projects/LFCbot",
-      "branch": "main",
+      "branch": "bench/listing-status-guard",
+      "benchBaseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
       "packageManager": "npm",
       "baselineExpect": {
         "testsTotal": 21,
@@ -74,9 +78,11 @@
     {
       "id": "lfc-03-status-transition-guard",
       "title": "lfc-bot: enforce a status-transition matrix in setStatus - throw on every forbidden transition, allow fulfilled-to-deleted cleanup",
+      "baseNote": "Pinned 2026-09-30. This task used to run from the tip of the local main; all 20 recorded rows (2026-09-25 to 2026-09-29) used this commit, which is on lfc-bot origin/main ('chore: sync package-lock version to 1.6.0'). Its acceptance tests live on the local branch bench/status-guard-throw, which is on no remote (run-tasks-batch.ps1 -SetupOnly prints the push command while that is so).",
       "source": "Supersedes lfc-01's contract (which required a silent no-op on any non-'active' transition - blocked fulfilled->deleted too). New contract is the blind-trial interview resolution (step 5, data point 3, session ses_f299504bcffefA9CLk3kZq8dPl, 2026-09-24): only 'active' originates a terminal transition, 'fulfilled' -> 'deleted' stays legal as cleanup (answer B), and every forbidden transition throws following createListing's /posting too quickly/ throw convention (answer C). Acceptance tests were authored and verified outside the executor seat: bench branch bench/status-guard-throw @ fcf9d1a (parent 4906dc2, which IS lfc-bot main today) carries only the acceptance test block (8 tests); 5/5 forbidden-transition tests FAIL on the unguarded source (24/29, baseline 21 passing intact) and 29/29 PASS with a candidate guard, full suite 343/343, scoped tsc clean. lfc-01 keeps its own (older, no-op) contract and history - this is a different behavioural spec for the same two files, not a rewrite of lfc-01.",
       "repo": "M:/Projects/LFCbot",
-      "branch": "main",
+      "branch": "bench/status-transition-guard",
+      "benchBaseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
       "packageManager": "npm",
       "baselineExpect": {
         "testsTotal": 21,
