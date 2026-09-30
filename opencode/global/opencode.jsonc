@@ -5,7 +5,15 @@
   "model": "{env:OPENCODE_MODEL}",
   "small_model": "{env:OPENCODE_SMALL_MODEL}",
 
-  "autoupdate": true,
+  // "notify", not true. With true opencode installs PATCH releases by itself
+  // whenever a TUI starts (never from `opencode run`), so the binary can change
+  // under a running benchmark batch: the results corpus spans opencode 1.18.31,
+  // .32 and .33 in ten days, and a cell's replicates straddled two versions.
+  // "notify" still says when an update exists. Upgrade on purpose with
+  // `opencode upgrade` between batches and treat the new version as a new era
+  // in tests/results/. OPENCODE_DISABLE_AUTOUPDATE=1 pins it too. Only the
+  // GLOBAL config is read for this. Source: docs/references.md (opencode-upgrade).
+  "autoupdate": "notify",
 
   "shell": "pwsh",
 
