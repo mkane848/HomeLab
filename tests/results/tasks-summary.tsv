@@ -211,3 +211,9 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-09-29T20:27:58	asohav-02-changelog-uuid-id	ollama-desktop/qwen3:14b	ollama-desktop/qwen3:14b	d83381ad650b3474a50310e0dd3441a03cd89706	0	7	FAIL	FAIL	FAIL	SKIP	392.7
 2026-09-29T20:43:56	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d83381ad650b3474a50310e0dd3441a03cd89706	0	22	PASS	FAIL	PASS	SKIP	950.8
 2026-09-29T20:55:50	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d83381ad650b3474a50310e0dd3441a03cd89706	0	11	PASS	PASS	FAIL	SKIP	706.3
+2026-09-29T22:00:20	kane-02-multiword-creature-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	0e9b703047d37e31abbccbda2c9de175ae3e33cb	0	4	PASS	PASS	PASS	SKIP	1269
+2026-09-29T22:08:20	kane-02-multiword-creature-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	0e9b703047d37e31abbccbda2c9de175ae3e33cb	0	3	PASS	PASS	PASS	SKIP	475.7
+2026-09-29T22:18:25	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d83381ad650b3474a50310e0dd3441a03cd89706	0	2	PASS	PASS	PASS	SKIP	597.5
+2026-09-29T22:30:27	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d83381ad650b3474a50310e0dd3441a03cd89706	0	3	PASS	PASS	PASS	SKIP	714.3
+2026-09-29T22:39:28	lfc-03-status-transition-guard	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	4906dc2881d362bda2006d3407e0ba63e005b91b	0	8	PASS	PASS	PASS	PASS	532.3
+2026-09-29T22:46:11	lfc-03-status-transition-guard	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	4906dc2881d362bda2006d3407e0ba63e005b91b	0	4	PASS	PASS	PASS	PASS	394.1
