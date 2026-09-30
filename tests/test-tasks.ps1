@@ -756,7 +756,10 @@ foreach ($tk in $tasksToRun) {
         $overallPass = $false
     } else {
         $failsOnOldOk = $false
-        $r = Run-Native "git" @("-C", $wt.Wt, "stash", "push", "--", @($tk.srcRevertFiles))
+        # Concatenate, never nest: a nested @($tk.srcRevertFiles) reaches Run-Native's
+        # [string[]] parameter as ONE space-joined element ("a.ts b.ts"), which git
+        # rejects as a pathspec, so any task listing 2+ files could not be graded.
+        $r = Run-Native "git" (@("-C", $wt.Wt, "stash", "push", "--") + @($tk.srcRevertFiles))
         if ($r.ExitCode -ne 0) {
             Write-Result $tk.id "fails-on-old" "FAIL" "git stash push failed - cannot grade"
             $overallPass = $false

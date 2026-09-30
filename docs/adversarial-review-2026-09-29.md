@@ -171,3 +171,33 @@ graded-only ratio; `tasks-summary.tsv` rows + transcripts committed
 verbatim per `CONTRIBUTING.md`; standings in `docs/roadmap.md` not edited
 until the table lands. `devstral-small-2:24b` ×5 and the node3 Q4
 `qwen3.5:9b` trial stay queued behind this batch.
+
+## Addendum (2026-09-30): what the N>1 data and a recheck change
+
+The §7 protocol ran (PRs #62–#64; per-attempt tables in
+`docs/implementation-tasks.md` → "Data point 11"). Checked against the raw rows,
+five statements in this review need correcting; the rest stands.
+
+- **§3(c), "control rematch owed"**: it had already run. DP7 and DP9 cover every
+  `qwen3:14b` and `qwen3:8b` × task cell on Ollama 0.34.3 (DP9: "the control
+  lane's DoD is met"). What is still confounded is 32k vs 64k, and now opencode
+  1.18.32 vs 1.18.33.
+- **§3(f), "`kane-04` ~9/15, `kane-02`/`asohav-02` ~0; 2 easy + 2
+  near-impossible"**: those figures are the 2026-09-23 inventory in
+  `tests/results/README.md`. In the step-6 window (8 desktop seats) `kane-01` is
+  7/8, `kane-04` 6/8, `lfc-01` 5/8, `kane-02` 4/8 and `asohav-02` 2/8, and at
+  N=3 `qwen3.6` passes `kane-02` 3/3 and `asohav-02` 2/3. Difficulty moved with
+  the seat set and the config; the suite now saturates at the top, not at the
+  bottom.
+- **§1, the liar-mode list** (`ornith:9b`, `nemotron-3.5-lightning`, …, citing
+  `tests/results/README.md:162-171`): most of `ornith`'s and `nemotron`'s
+  zero-write rows are output-cap hits, not liar mode (correction in that README).
+- **§3(b), N=1 on noise**: confirmed, and stronger than stated. `qwen3.5:9b`'s
+  step-6 7/9 was regression to the mean: at N≥3 on the same config it is 13/21
+  over all tasks against `qwen3.6`'s 14/15 (Fisher p = 0.051).
+- **§7, the protocol itself**: the "same config" key omits the opencode version,
+  and replicates in every cell straddle 1.18.32 and 1.18.33. Replicates run
+  back-to-back agreed in 11 of 11 pairs; the same cells across batches disagreed
+  in 8 of 21 (p = 0.03), so back-to-back reps are not independent evidence.
+  Interleave reps across sessions and pin opencode. The control × `kane-02` cell
+  also has one attempt, not the required three.

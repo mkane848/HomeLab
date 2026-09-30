@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: grade tasks that list two or more `srcRevertFiles`. The
+  failsOnOld revert built its `git stash push` arguments with the file list
+  nested inside the array; `Run-Native`'s `[string[]]` parameter joined it into
+  one argument (`a.ts b.ts`), git rejected the pathspec, and every model would
+  have got "git stash push failed - cannot grade" on such a task. All nine
+  current tasks list one file, so it never fired. New
+  `tests/test-stash-args.ps1` runs the real line against a throwaway repo (one
+  file, two files, bare string); it fails on the old code and passes now.
+- Correct claims the data no longer supports (docs and comments only, no
+  behavior change), from a recheck against `tests/results/`:
+  - "Only the qwen3 family can call tools / 5 of 13 pass" (`AGENTS.md`,
+    `README.md`, `docs/start-here.md`, `docs/troubleshooting.md`,
+    `docs/profiles.md`, `docs/model-architecture.md`, two profile comments, two
+    test-script comments): 13 of 22 probed models pass (Ollama 0.34.2/0.34.3), and a
+    probe PASS is necessary, not sufficient (`lfm2.5:8b` passes, then makes zero
+    writes on 8 of 8 tasks). `AGENTS.md` also says the configured main seat is
+    not the best-measured one.
+  - Stale `num_ctx` figures in `AGENTS.md` and `README.md` now match
+    `startup.ps1` `$contextModels` (65536 for six seats, 32768 for the qwen3
+    pair and devstral pair).
+  - `tests/results/README.md`: update banner (218 rows, 81 passes), an
+    opencode-version era axis, a correction that the control rematch ran, and a
+    correction that 8 of the 31 zero-write rows since 2026-09-22 are output-cap
+    hits (`nemotron` 4/6, `ornith` 3/4, `qwen3:8b` 1/1), not liar mode.
+    `AGENTS.md` Gotchas gains the same warning.
+  - `docs/roadmap.md`: the source repos are public (not "private"); the
+    `bench/*` branches are local-only (not "verifiable by anyone"); a status
+    note on the 2026-09-23 "Next up" list.
+  - `docs/adversarial-review-2026-09-29.md`: dated addendum correcting five
+    statements against the raw rows (control rematch had run, task difficulty
+    figures were the 09-23 inventory, liar-mode list, N=1 confirmed,
+    protocol config key).
+- Record data point 11 (`docs/implementation-tasks.md`) and the same-config
+  executor standings (`docs/roadmap.md`): the adversarial review's N>1
+  protocol on the frontier cells (PRs #61–#64, desktop Ollama 0.34.3). Counted
+  on one config (prompt sha, designed `numCtx`, timeouts as attempts),
+  `qwen3.6` passes 14/15 attempts, `qwen3.5` 13/21, `qwen3:14b` (the default
+  main seat) 2/13; `qwen3.6` against `qwen3.5` is Fisher p = 0.051, against
+  `qwen3:14b` p = 0.0001.
+  - None of the 9 graded FAIL rows is a zero-write. Of the 18 lfc-03 runs with
+    an owner acceptance result, 12 pass it and 8 pass every gate.
+  - Replicates are not independent evidence: back-to-back pairs agreed 11 of
+    11, pairs from different batches disagreed 8 of 21 (p = 0.03), and every
+    mixed cell straddles opencode 1.18.32 and 1.18.33.
+  - The replay audit of the 12 new passes was not done. No seat or config
+    changes.
 - Adversarial review of the testing methodology
   (`docs/adversarial-review-2026-09-29.md`): what each harness measures,
   N=1 / era-confound / guided-repair limits, plus the N>1 protocol

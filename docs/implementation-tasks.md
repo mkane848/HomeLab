@@ -1183,6 +1183,77 @@ Pass by task, across all seats:
         one `_TIMEOUT_` transcript, 3 TSV rows, and
         `tests/results/reliability-summary.tsv` (9 canary rows).
 
+- [x] **Data point 11: the N>1 protocol on the frontier cells (2026-09-29,
+      PRs #61–#64).** The protocol in `docs/adversarial-review-2026-09-29.md`
+      §7, run on desktop Ollama 0.34.3, opencode 1.18.33, `-RunTimeout 1800`,
+      plain prompts, no `-OnlyMissing`; 64k for `qwen3.6` and `qwen3.5`, 32k for
+      `qwen3:14b` (the control). 21 graded rows, one `_TIMEOUT_` (`qwen3:14b` ×
+      lfc-03) and one `_ABORTED_` (a human-stopped `qwen3:14b` × lfc-03 run: 2
+      reads, 0 edits, worktree clean; not an attempt). Graded by the gates and,
+      for lfc-03, the owner acceptance block. **The replay audit of the passes
+      that DP8 and DP9 did was not done for these 12.** Writes and seconds per
+      attempt are in the PR bodies (#62–#64).
+
+      Same-config attempts per cell: same prompt sha, the seat's designed
+      `numCtx`, Ollama 0.34.3. Timeouts and infra crashes count; aborts do not.
+      P pass, f fail, T timeout, I infra crash; oldest first.
+
+      | task | `qwen3.6` (64k) | `qwen3.5` (64k) | `qwen3:14b` (32k) |
+      |---|---|---|---|
+      | kane-01 | P 1/1 | P 1/1 | P 1/1 |
+      | kane-02 (frontier) | PPP 3/3 | PPP 3/3 | f 0/1 |
+      | kane-03 | P 1/1 | P 1/1 | f 0/1 |
+      | kane-04 | P 1/1 | PPP 3/3 | P 1/1 |
+      | lfc-01 | P 1/1 | P 1/1 | T 0/1 |
+      | lfc-02 | P 1/1 | fPP 2/3 | f 0/1 |
+      | lfc-03 (frontier) | PPP 3/3 | Iff 0/3 | ffT 0/3 |
+      | asohav-01 | P 1/1 | Pff 1/3 | f 0/1 |
+      | asohav-02 (frontier) | fPP 2/3 | Pff 1/3 | fff 0/3 |
+      | **all 9 tasks** | **14/15** | **13/21** | **2/13** |
+      | Wilson 95% | 0.70–0.99 | 0.41–0.79 | 0.04–0.42 |
+      | frontier cells only | 8/9 | 4/9 | 0/7 |
+
+      Fisher exact, two-sided. All tasks: `qwen3.6` vs `qwen3.5` p = 0.051,
+      `qwen3.6` vs `qwen3:14b` p = 0.0001, `qwen3.5` vs `qwen3:14b` p = 0.013.
+      Frontier cells only: 0.13, 0.0014, 0.088. The cells with one attempt are
+      the DP9 rows; the other five seats are unchanged from DP9 (N=1).
+
+      - **None of the 9 graded FAIL rows is a zero-write; all made edits.**
+        Tests green on broken code (failsOnOld only): `qwen3.5` on
+        asohav-01 (rep 1), lfc-03 (rep 2) and asohav-02 (rep 2), and
+        `qwen3:14b` on lfc-03 (rep 1). Suite broken: `qwen3.5` on asohav-01
+        (rep 2), lfc-03 (rep 1) and asohav-02 (rep 1). Out of scope, twice:
+        `qwen3:14b` on asohav-02 (4 and 7 writes, never inside `allowFiles`).
+        There are no zero-write rows among the 21.
+      - **lfc-03 owner acceptance, 5 graded rows.** `qwen3.6` 2/2 PASS;
+        `qwen3.5` rep 2 PASS (right source, hollow test: the gates failed it) and
+        rep 1 FAIL; `qwen3:14b` FAIL. Across all 18 lfc-03 runs with an
+        acceptance result, 12 pass the owner tests and 8 pass every gate; none
+        of the 8 has wrong source.
+      - **Replicates are not independent evidence.** Over the same-config rows
+        in the whole corpus, pairs run back-to-back (same opencode version, same
+        day, under 4 h apart) agreed in 11 of 11; pairs from different batches
+        disagreed in 8 of 21 (Fisher p = 0.03). Every mixed cell has its first
+        row on opencode 1.18.32 and its later rows on 1.18.33
+        (`qwen3.5`: asohav-01, asohav-02, lfc-02; `qwen3.6`: asohav-02), so
+        version drift, session effects and regression to the mean cannot be
+        separated here. `qwen3.5`'s DP9 "7/9" was optimistic: asohav-01 and
+        asohav-02 passed once and then failed twice, lfc-02 failed once and then
+        passed twice.
+      - **Where the protocol's definition of done falls short.** The control ×
+        kane-02 cell has one attempt, not three (`qwen3:14b` was not re-run
+        there). The replicates in every cell straddle opencode 1.18.32 and
+        1.18.33, which the "same config" key (prompt sha, `numCtx`, Ollama
+        version) does not include. The PR bodies' tallies also pool rows from
+        other configs (kane-04 4/4 and lfc-02 3/4 count a 2026-09-23 32k-era
+        row; `qwen3.6`'s kane-02 3/5 and asohav-02 2/4 count 32k rows and, for
+        kane-02, an older prompt).
+      - **Cap.** `qwen3.6` kane-02 rep 1 ended on a `finish=length` step at
+        exactly its 8192 `limit.output`, after its edits, so the gates still
+        passed (1269 s against 476 s for rep 2). The top seat also reaches its
+        cap.
+      - Result files: PRs #62–#64, 44 files (21 `.json`, 21 `.jsonl`, plus the
+        `_TIMEOUT_` and `_ABORTED_` transcripts) + 21 `tasks-summary.tsv` rows.
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-

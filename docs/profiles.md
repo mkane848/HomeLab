@@ -97,8 +97,10 @@ Ollama. The other two do not.
 
 > **Changed 2026-09-17 (twice, final state):** `dev-workflow-quality`'s main
 > seat moved `qwen2.5-coder:14b` → `qwen3:8b` → **`qwen3:14b`**. The coder
-> cannot call tools — only the qwen3 family (8b/14b) and `devstral:24b` pass
-> `tests/test-toolcalls.ps1`, verified on this exact stack. A coder or reasoner
+> cannot call tools — only the qwen3 family (8b/14b) and `devstral:24b` passed
+> `tests/test-toolcalls.ps1` that day, verified on this exact stack (13 of 22
+> probed models pass now: desktop on Ollama 0.34.3, node3 on 0.34.2; see
+> AGENTS.md Gotchas). A coder or reasoner
 > in an agent seat reports edits it never made; the 14B coder stays registered
 > as a deliberate no-tools model. `/implement` and its coder subagent were
 > removed for the same reason.

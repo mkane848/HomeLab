@@ -186,7 +186,7 @@ often *describe* the call in prose instead, and then claim it worked.
 
 Measured on this desktop 2026-09-17 on Ollama 0.34.0, and re-measured
 2026-09-19 on **0.34.1** after the desktop auto-updated — **5 of 13 installed
-models pass**. Every previously-measured model reproduced its earlier result,
+models passed** (superseded by the 2026-09-22/23 re-probe below the table). Every previously-measured model reproduced its earlier result,
 including the *mode* of each failure, so the two versions behave identically
 here. Raw output: [`tests/results/toolcalls-0.34.1.txt`](../tests/results/toolcalls-0.34.1.txt).
 
@@ -203,6 +203,19 @@ here. Raw output: [`tests/results/toolcalls-0.34.1.txt`](../tests/results/toolca
 
 The count moved 3/10 → 5/13 only because three models were installed after the
 first baseline; two of them pass. No model changed its result.
+
+**Re-probed 2026-09-22/23 across 22 models (desktop on Ollama 0.34.3, node3 on
+0.34.2): 13 pass.** The five
+above plus `devstral-small-2:24b`, `laguna-xs-2.1`, `nemotron-3.5-lightning`,
+`north-mini-code-1.0` and `qwen3.6:35b-a3b-coding` on the desktop, and
+`lfm2.5:8b`, `ministral-3:8b` and `ornith:9b` on node3. The failing set is the
+same shape as above (`qwen2.5-coder`, `deepseek-r1`, `glm4:9b`), so "only
+`qwen3` can call tools" was a property of the first batch, not of the world.
+Raw rows: [`tests/results/toolcalls-summary.tsv`](../tests/results/toolcalls-summary.tsv).
+**A probe PASS does not make a seat an executor**: `lfm2.5:8b` passes in
+seconds and then makes zero writes on 8 of 8 real tasks. The probe is one call to one
+tool; the task benchmark is what says whether a seat lands edits
+([`docs/roadmap.md`](roadmap.md) → Executor standings).
 
 **Role tells you nothing about this.** `qwen3:14b` is classed `reasoner` in the
 catalog and calls tools fine. `qwen2.5-coder:14b` is classed `coder` and cannot

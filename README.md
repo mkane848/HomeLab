@@ -94,9 +94,16 @@ source profiles/dev-workflow-quality.sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Only the `qwen3` family and `devstral:24b` emit parseable tool calls (5 of 13
-installed pass the probe, measured on Ollama 0.34.1). Everything else is a chat
-box that will describe edits it never made.
+Tool-calling is decided by the chat template and weights, not the model family:
+13 of 22 probed models (Ollama 0.34.2/0.34.3) emit parseable tool calls (the
+`qwen3` family, both `devstral`s, `laguna`, `nemotron`, `north-mini` and node3's
+`lfm2.5`/`ministral`/`ornith`; the whole `qwen2.5-coder` and `deepseek-r1`
+families and `glm4:9b` fail —
+[tests/results/toolcalls-summary.tsv](tests/results/toolcalls-summary.tsv)). A
+model that can't is a chat box that will describe edits it never made. A probe
+PASS is necessary, not sufficient: which seat actually lands edits on real repo
+tasks is a separate measurement, in [docs/roadmap.md](docs/roadmap.md) →
+Executor standings.
 Probe any model with `.\tests\test-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
 
 See [docs/model-architecture.md](docs/model-architecture.md) and
@@ -122,7 +129,7 @@ See [docs/model-architecture.md](docs/model-architecture.md) and
 3. Install Docker + nvidia-container-toolkit on the server (RTX 4070 Ti Super, CUDA)
 4. Install Ollama on the desktop (Vulkan backend - ROCm is unavailable on gfx1030, see docs/hardware.md) and, later, on the third node
 5. Source a profile and install: `install-model.sh --profile` / `.\desktop\scripts\models.ps1 -Profile`
-6. `desktop/scripts/startup.ps1` bakes a per-model `num_ctx` into each tag it manages (32768 for the 14b coder and `deepseek-r1-32k`, 16384 for the rest). This gives per-model context control that the single global `OLLAMA_CONTEXT_LENGTH` cannot
+6. `desktop/scripts/startup.ps1` bakes a per-model `num_ctx` into each tag it manages (65536 for the six MoE/hybrid executor seats, 32768 for `qwen3:14b`, `qwen3:8b`, `qwen2.5-coder:14b` and the devstral pair, 16384 for the rest — see `$contextModels`). This gives per-model context control that the single global `OLLAMA_CONTEXT_LENGTH` cannot
 7. Set firewall rules per [docs/network-topology.md](docs/network-topology.md)
 8. **After copying the repo to the server** (e.g. via scp), mark scripts executable:
    ```bash

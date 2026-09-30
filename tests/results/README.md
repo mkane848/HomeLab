@@ -9,6 +9,14 @@ grading happens separately, against the key, by someone who did not generate the
 runs. This file is that separate pass for the full corpus, re-inventoried
 2026-09-23 at 107 rows (was 43 rows / 1 pass).
 
+> **Update 2026-09-30.** Everything below is the 2026-09-23 inventory (107
+> rows, 22 passes), kept as that day's record. Three of its statements no
+> longer hold and are corrected inline (search "Correction (2026-09-30)"). The
+> corpus is now 218 `tasks-summary.tsv` rows, each with a result JSON, 81 of
+> which pass scope + suite + failsOnOld. The current per-seat picture is
+> `docs/roadmap.md` → "Executor standings"; per-attempt tables for the N>1
+> protocol are in `docs/implementation-tasks.md` → "Data point 11".
+
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.
@@ -78,12 +86,24 @@ different harnesses:
   truncate inside the reasoning block (next section). **No post-fix truncation
   has been observed.**
 - **`typecheck` boolean → tri-state (~2026-09-21/22).** See above.
+- **opencode version (added 2026-09-30).** The result JSONs stamp it:
+  1.18.31 on 54 (with Ollama 0.34.1), 1.18.32 on 138 (including the 9
+  hosted-oracle runs), 1.18.33 on 21 (all 2026-09-29), none on 5. The N>1
+  protocol's "same config" key (prompt sha, `numCtx`, Ollama version) does not
+  include it, so replicates within one cell can straddle 1.18.32 and 1.18.33.
 
 Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
 and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger
 comparison spans all three fixes. The challengers' lead is large enough to
 survive that caveat, but a same-harness rematch of the incumbents is still
 owed before any seat decision cites the gap.
+
+> **Correction (2026-09-30).** The rematch has run. Every `qwen3:14b` and
+> `qwen3:8b` × task cell has a graded row or a `_TIMEOUT_` transcript from
+> 2026-09-26/28 (DP7, DP9), plus `qwen3:14b` on the frontier cells on
+> 2026-09-29 (DP11), on Ollama 0.34.3 with the current harness. What is still
+> confounded is context (the dense pair is at 32k, the six challengers at 64k)
+> and, since 2026-09-29, opencode 1.18.32 vs 1.18.33.
 
 What the tasks measure: every manifest prompt names the file, the function,
 and the buggy line shape (`tests/tasks/manifest.json`). This is **guided
@@ -169,6 +189,21 @@ Probe PASS does not predict task-loop writing; `lfm2.5:8b` is the cleanest
 demonstration in this corpus. (`ornith:9b` shows the same shape 3×;
 `qwen3.5:9b`, `qwen3.6:35b-a3b-coding`, `nemotron-3.5-lightning` and
 `north-mini-code-1.0` each show it once.)
+
+> **Correction (2026-09-30).** The heading does not hold for every seat here.
+> Classify by the transcript, not by `writes=0`: of the 31 exit-0 zero-write
+> rows since 2026-09-22, **8 end in an empty step cut off by the output cap**
+> (the last `step_finish` has `reason: "length"`, `output` exactly the seat's
+> configured `limit.output` and `reasoning: 0`, with no text or tool event in
+> that step). By seat: `nemotron-3.5-lightning` 4 of 6, `ornith:9b` 3 of 4
+> (all three of its "same shape" rows), `qwen3:8b` 1 of 1. The other 23 end in
+> `stop` and are genuine prose-only answers: `lfm2.5:8b` 8 of 8,
+> `north-mini-code-1.0` 5 of 5, `devstral:24b` 3 of 3, `qwen3.6` 3 of 3,
+> `qwen3.5:9b` 1 of 1. "Under the 8192 cap" holds only for `qwen3:14b` and
+> `qwen3.6`; every other tool-capable seat is at 4096. Those 8 rows are cap
+> artifacts of the configuration, not evidence about the seat, and the
+> harness's writes gate (`test-tasks.ps1`, "the model described the change
+> instead of making it") mislabels them.
 
 ### No transcript kept — 4 rows
 
@@ -268,6 +303,9 @@ Nothing here is hand-maintained state; the raw files are the source of truth.
 The classification is `opencodeExit != 0` → never reached the model,
 `reason:"length"` with `writes=0` under the 4096 cap → truncated,
 missing `.jsonl` → no transcript, `writes=0` with exit 0 under the 8192 cap →
-genuine liar mode. Group seats by `model`, not `modelLabel`. Note that a
+genuine liar mode. (Corrected 2026-09-30: apply that per seat, not per era. A
+seat still at 4096 gets the "truncated" reading whenever its last `step_finish`
+is an empty `length` step at the cap; only a `stop` finish is liar mode.)
+Group seats by `model`, not `modelLabel`. Note that a
 `.jsonl` filename's timestamp can differ from its TSV row's by a second or
 two — match with a tolerance, not equality.

@@ -19,10 +19,13 @@ export DEV_DESKTOP_MODELS="qwen2.5-coder:7b deepseek-r1:14b qwen3:8b"
 export OLLAMA_DESKTOP_URL="http://localhost:11434"
 export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:11434/v1}"
 
-# MAIN SEAT = qwen3:8b - only the qwen3 family (8b/14b) emits a parseable tool
-# call (probe: tests/test-toolcalls.ps1). A qwen2.5-coder or deepseek-r1 tag
-# here makes the agent chat-only: it describes edits it never made. Those tags
-# stay installed and registered for deliberate no-tools use.
+# MAIN SEAT = qwen3:8b - it emits a parseable tool call (probe:
+# tests/test-toolcalls.ps1). A qwen2.5-coder or deepseek-r1 tag here makes the
+# agent chat-only: it describes edits it never made. Those tags stay installed
+# and registered for deliberate no-tools use. (Other families pass the probe
+# too, 13 of 22 probed (Ollama 0.34.2/0.34.3; AGENTS.md Gotchas) - and qwen3:8b is last of
+# the 8 desktop seats on the real-repo task benchmark, 0/9: docs/roadmap.md ->
+# Executor standings. Re-seating is an owner decision.)
 export OPENCODE_MODEL="ollama-desktop/qwen3:8b"
 export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:7b"
 

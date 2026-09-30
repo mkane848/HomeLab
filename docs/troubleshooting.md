@@ -286,9 +286,14 @@ bake** — a freshly pulled, unbaked `qwen2.5-coder:3b` behaves identically.
 not that the *weights* reliably use them.
 
 **Consequence:** a `qwen2.5-coder` or `deepseek-r1` model in a seat that has to
-read, edit, or run anything is a chat box, not an agent. Only the qwen3 family
-(`qwen3:8b`, `qwen3:14b` — `devstral:24b` too, but it partially offloads) can
-hold the main seat or a tool-driving subagent. `profiles/dev-workflow-resident.sh`
+read, edit, or run anything is a chat box, not an agent. Only a model that
+passes `tests/test-toolcalls.ps1` can hold the main seat or a tool-driving
+subagent. That was first measured as "the qwen3 family" (plus `devstral:24b`,
+which partially offloads), but that batch was mostly `qwen2.5-coder` and
+`deepseek-r1` models; on 0.34.2/0.34.3, 13 of 22 probed models pass (also `laguna`,
+`nemotron`, `north-mini`, `qwen3.6` and node3's `lfm2.5`/`ministral`/`ornith`),
+and a probe PASS still does not guarantee the seat writes anything (`lfm2.5:8b`
+made zero writes on 8 of 8 tasks). `profiles/dev-workflow-resident.sh`
 already said so from experience — this is the measurement behind it.
 
 ### OpenCode request hangs ~5 minutes then 500s / model "ignores" its system prompt
