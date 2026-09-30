@@ -195,15 +195,19 @@ demonstration in this corpus. (`ornith:9b` shows the same shape 3×;
 > rows since 2026-09-22, **8 end in an empty step cut off by the output cap**
 > (the last `step_finish` has `reason: "length"`, `output` exactly the seat's
 > configured `limit.output` and `reasoning: 0`, with no text or tool event in
-> that step). By seat: `nemotron-3.5-lightning` 4 of 6, `ornith:9b` 3 of 4
+> that step; a run JSON written after the 2026-09-30 harness change records
+> `outputCapHit`, and older ones are classified from the transcript as here).
+> By seat: `nemotron-3.5-lightning` 4 of 6, `ornith:9b` 3 of 4
 > (all three of its "same shape" rows), `qwen3:8b` 1 of 1. The other 23 end in
 > `stop` and are genuine prose-only answers: `lfm2.5:8b` 8 of 8,
 > `north-mini-code-1.0` 5 of 5, `devstral:24b` 3 of 3, `qwen3.6` 3 of 3,
 > `qwen3.5:9b` 1 of 1. "Under the 8192 cap" holds only for `qwen3:14b` and
 > `qwen3.6`; every other tool-capable seat is at 4096. Those 8 rows are cap
-> artifacts of the configuration, not evidence about the seat, and the
-> harness's writes gate (`test-tasks.ps1`, "the model described the change
-> instead of making it") mislabels them.
+> artifacts of the configuration, not evidence about the seat. The harness's
+> writes gate (`test-tasks.ps1`, "the model described the change instead of
+> making it") mislabeled them until 2026-09-30; it now reports a cap hit
+> separately (`tests/test-cap-hit.ps1`). Rows are unchanged: the graded row and
+> its FAIL stand, and only the reading of `writes = 0` differs.
 
 ### No transcript kept — 4 rows
 
@@ -305,7 +309,10 @@ The classification is `opencodeExit != 0` → never reached the model,
 missing `.jsonl` → no transcript, `writes=0` with exit 0 under the 8192 cap →
 genuine liar mode. (Corrected 2026-09-30: apply that per seat, not per era. A
 seat still at 4096 gets the "truncated" reading whenever its last `step_finish`
-is an empty `length` step at the cap; only a `stop` finish is liar mode.)
+is an empty `length` step at the cap; only a `stop` finish is liar mode. A run
+JSON written after the 2026-09-30 harness change carries `outputCapHit`,
+`finishReason`, `lastStepOutput` and `outputLimit`, so newer rows need no
+re-derivation.)
 Group seats by `model`, not `modelLabel`. Note that a
 `.jsonl` filename's timestamp can differ from its TSV row's by a second or
 two — match with a tolerance, not equality.

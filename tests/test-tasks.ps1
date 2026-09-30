@@ -32,7 +32,11 @@
 # What is NOT graded, and why that distinction is load-bearing: a run only
 # reaches those gates if `opencode run` exited 0. opencode exits 0 even when
 # the model answers in prose and writes nothing, so `writes = 0` on an exit-0
-# run means liar mode and nothing else. ANY non-zero exit is infrastructure -
+# run is liar mode - unless the last step ended on the output cap (finish reason
+# "length" at limit.output, no text or tool call in that step). That seat ran
+# out of room to act and never answered at all; the writes gate says so and the
+# run JSON records `outputCapHit`. Both are FAILs, but they are not the same
+# finding. ANY non-zero exit is infrastructure -
 # unreachable provider, bad model id, crash - and is reported as a FAILed run
 # with an `_INFRA_`/`_TIMEOUT_` transcript and NO summary row, because it
 # measured nothing about the model. This used to fall through to the writes
@@ -462,6 +466,66 @@ function Get-FirstTranscriptError {
     return $null
 }
 
+function Get-TranscriptEnding {
+    # How the run's LAST step ended, from the raw opencode JSONL: the finish
+    # reason and output-token count of the final step_finish, and whether that
+    # step put any text or tool call in the transcript. Everything resets at each
+    # step_start, so an earlier step that hit the cap and was followed by a
+    # normal one does not count.
+    param([string]$Path)
+
+    $end = [pscustomobject]@{ FinishReason = $null; OutputTokens = $null; LastStepHadContent = $false }
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $end }
+    foreach ($line in [System.IO.File]::ReadLines($Path)) {
+        if (-not $line.Trim()) { continue }
+        try { $e = $line | ConvertFrom-Json } catch { continue }
+        if ($e.type -eq "step_start") {
+            $end.FinishReason = $null; $end.OutputTokens = $null; $end.LastStepHadContent = $false
+        } elseif ($e.type -eq "text" -or $e.type -eq "tool_use") {
+            $end.LastStepHadContent = $true
+        } elseif ($e.type -eq "step_finish") {
+            $end.FinishReason = $e.part.reason
+            $end.OutputTokens = $e.part.tokens.output
+        }
+    }
+    return $end
+}
+
+function Test-OutputCapHit {
+    # True when the last step was cut off by the output cap: reason "length" with
+    # output tokens at limit.output and no text or tool call in that step (the
+    # whole budget went to reasoning the transcript does not show). That seat ran
+    # out of room to act; it did not describe a change instead of making it.
+    # Without the resolved limit a cap cannot be told from a context stop, so an
+    # unknown $Limit says no.
+    param($Ending, $Limit)
+
+    if ($null -eq $Limit -or $null -eq $Ending.OutputTokens) { return $false }
+    return ($Ending.FinishReason -eq "length" -and -not $Ending.LastStepHadContent -and [int]$Ending.OutputTokens -ge [int]$Limit)
+}
+
+function Get-ModelOutputLimit {
+    # limit.output for -ModelId in the RESOLVED opencode config (`opencode debug
+    # config`, the same source test-profiles.ps1 checks). $null when it cannot be
+    # read - opencode missing, config invalid, model not registered - so the gate
+    # degrades to "cannot confirm a cap" instead of failing the run.
+    param([string]$ModelId)
+
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
+        $provider, $name = $ModelId -split '/', 2
+        $lim = $cfg.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit
+        if ($lim -and $lim.output) { return [int]$lim.output }
+    } catch {
+        # fall through to $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    return $null
+}
+
 function Invoke-OpencodeRun {
     param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec)
 
@@ -549,7 +613,7 @@ function Invoke-OpencodeRun {
         # later instead of stranded in %TEMP% (the round-2 mistake this repo's
         # own review-gate work already learned from - see r3-protocol.md).
     }
-    return [pscustomobject]@{ ExitCode = $code; Writes = $writes; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); TranscriptPath = $out }
+    return [pscustomobject]@{ ExitCode = $code; Writes = $writes; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); TranscriptPath = $out; Ending = (Get-TranscriptEnding -Path $out) }
 }
 
 # --- main loop ---------------------------------------------------------------
@@ -605,7 +669,10 @@ if (-not $ollamaBaseVar) {
 }
 $ovOpencode = Run-Native "opencode" @("--version")
 $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
-Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" })) -ForegroundColor DarkGray
+# limit.output of the seat, from the resolved opencode config: what the writes
+# gate compares the last step's output tokens against to call an output-cap hit.
+$outputLimit = Get-ModelOutputLimit -ModelId $Model
+Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
@@ -709,11 +776,21 @@ foreach ($tk in $tasksToRun) {
     }
 
     Write-Result $tk.id "opencode run" "PASS" ("exit {0}, {1} write/edit tool calls" -f $run.ExitCode, $run.Writes)
+    $capHit = Test-OutputCapHit -Ending $run.Ending -Limit $outputLimit
     if ($run.Writes -eq 0) {
-        Write-Result $tk.id "writes gate" "FAIL" "0 write/edit calls - the model described the change instead of making it (the old liar mode). This run does not count."
+        if ($capHit) {
+            Write-Result $tk.id "writes gate" "FAIL" ("0 write/edit calls - NOT liar mode: the last step used all {0} output tokens (limit.output) without a text or tool call, so the seat ran out of room to act. Recorded as a FAIL, and as a cap hit rather than liar mode." -f $run.Ending.OutputTokens)
+        } elseif ($run.Ending.FinishReason -eq "length" -and -not $run.Ending.LastStepHadContent) {
+            # Cut off, but not confirmed as the cap (limit.output unreadable, or the
+            # stop came below it - a full context, say). Still not a described change.
+            Write-Result $tk.id "writes gate" "FAIL" ("0 write/edit calls - the last step was cut off by a length stop ({0} output tokens, limit.output {1}) with no text or tool call. Truncated, not a described change, and not confirmed as an output-cap hit either. Recorded as a FAIL." -f $run.Ending.OutputTokens, $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }))
+        } else {
+            Write-Result $tk.id "writes gate" "FAIL" "0 write/edit calls - the model described the change instead of making it (the old liar mode). This run does not count."
+        }
         $overallPass = $false
     } else {
         $writeNote = if ($run.Writes -gt 5) { " (repeated-call look: $($run.Writes) writes for a 2-file task - see docs/troubleshooting.md)" } else { "" }
+        if ($capHit) { $writeNote += " (the last step then hit the output cap at $($run.Ending.OutputTokens) tokens)" }
         Write-Result $tk.id "writes gate" "PASS" "$($run.Writes) write/edit calls$writeNote"
     }
 
@@ -874,6 +951,10 @@ foreach ($tk in $tasksToRun) {
         promptSha256    = $promptHashes[$tk.id]
         opencodeExit    = $run.ExitCode
         writes          = $run.Writes
+        finishReason    = $run.Ending.FinishReason
+        lastStepOutput  = $run.Ending.OutputTokens
+        outputLimit     = $outputLimit
+        outputCapHit    = $capHit
         gates           = $gateSummary
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord

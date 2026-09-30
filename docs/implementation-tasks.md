@@ -592,7 +592,8 @@ Pass by task, across all seats:
 - Two task lanes, 6 attempts, disjoint task sets (no collision): 3 graded —
   `ministral × kane-03` FAIL/suite (broke test-file loading),
   `ministral × kane-04` FAIL/failsOnOld (test never modified, the kane-04
-  disease), `ornith × lfc-02` FAIL liar mode (exit 0, 0 writes) — and 3
+  disease), `ornith × lfc-02` FAIL, 0 writes (an output-cap hit, not liar mode:
+  corrected 2026-09-30) — and 3
   timeout unknowns at the 900 s cap (`qwen3:8b-node3 × lfc-02`,
   `qwen3.6 × asohav-01/asohav-02`, no rows). Corpus 102 → 105.
   Ministral 0/7, ornith 1/7; `lfm2.5`/`ministral`/`ornith` out as executors.

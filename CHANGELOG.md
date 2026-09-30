@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: the writes gate tells an output-cap hit from liar mode. An
+  exit-0 run with no write whose last step is an empty `length` step at
+  `limit.output` (no text, no tool call) is reported as "NOT liar mode: the
+  seat ran out of room to act", and the run JSON records `outputCapHit`,
+  `finishReason`, `lastStepOutput` and `outputLimit` (read from `opencode debug
+  config`; an unreadable limit degrades to "cannot confirm a cap"). Both are
+  still FAILs, and the `tasks-summary.tsv` schema is unchanged. A `length`
+  stop that cannot be confirmed as the cap (limit unreadable, or the stop came
+  below it) gets its own "truncated" message instead of the liar-mode one. A
+  run that makes edits and then hits the cap keeps its PASS, with a note. New
+  `tests/test-cap-hit.ps1` runs the real functions and the real gate block on
+  synthetic transcripts and 8 committed ones the 2026-09-29 audit classified;
+  it fails on eight mutants (four of the classifier, four of the gate wiring).
+  A scratch re-derivation over all 31 exit-0 zero-write rows gives the audit's
+  split (8 cap hits, 23 genuine). Also fixes two docs that still called
+  `ornith:9b`'s cap hits liar mode (`docs/target-setup.md`,
+  `docs/implementation-tasks.md`).
 - `test-tasks.ps1`: grade tasks that list two or more `srcRevertFiles`. The
   failsOnOld revert built its `git stash push` arguments with the file list
   nested inside the array; `Run-Native`'s `[string[]]` parameter joined it into
