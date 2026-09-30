@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- lfc-03's acceptance commit `3215aaf` is published
+  (`bench/status-guard-throw` pushed to `mkane848/lfc-bot`; a from-scratch
+  fetch resolves), so every benchmark pin is on GitHub. Corrects the
+  "local-only" wording in this changelog, `AGENTS.md` and `docs/roadmap.md`.
 - Record data point 12 (`docs/implementation-tasks.md`): replay audit of the
   12 unaudited N>1 passes (PRs #62–#64), closing DP11's caveat. 10 genuine
   and spec-complete; 2 qualified with grades standing (lfc-02 × `qwen3.5`
@@ -26,9 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     acceptance commit is not on origin (`Get-PublishState`), with the push
     command. `git ls-remote` and a by-SHA fetch into an empty repo show **all
     nine pinned bases are on GitHub**: eight on `main`, `kane-01`'s `92a8ed0` as
-    `review-gate/deck-validity` and PR #82's head. **One thing is local-only and
-    needs the owner:** lfc-03's acceptance commit `3215aaf`
-    (`bench/status-guard-throw`).
+  `review-gate/deck-validity` and PR #82's head. lfc-03's acceptance commit
+  `3215aaf` (`bench/status-guard-throw`) was the one local-only pin — pushed
+  2026-09-30 (`git -C M:/Projects/LFCbot push origin bench/status-guard-throw`;
+  a from-scratch fetch of the SHA resolves), so every pin is now on GitHub.
   - lfc-03's acceptance tests are pinned by `acceptance.commit`
     (`Resolve-AcceptanceCommit`): all 18 recorded acceptance runs used
     `3215aaf`, and a branch that has moved is a WARN, not followed.
@@ -223,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transitions, typecheck clean) and 29/29 on the owner's acceptance tests.
   Step 5's DoD is met. Result files + one `tasks-summary.tsv` row archived.
 - Owner acceptance tests for `lfc-03` (`LFCbot` `bench/status-guard-throw` @
-  `3215aaf`, local branch) assert the prompt's error contract — id, current
+  `3215aaf`, on GitHub since 2026-09-30) assert the prompt's error contract — id, current
   and requested status in the message — instead of a `/cannot .* from/`
   phrasing that failed a spec-compliant guard with other wording.
 - `test-tasks.ps1`: informational owner-acceptance check. A task's

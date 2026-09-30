@@ -1037,14 +1037,11 @@ verifiable by anyone with read access.
 > **What GitHub has** (`git ls-remote`, plus a fetch by SHA of each commit into
 > an empty repo, 2026-09-30): **all nine pinned bases.** Eight are on `main`;
 > `kane-01`'s `92a8ed0` is the tip of `review-gate/deck-validity` and the head of
-> PR #82 (`refs/pull/82/head`) on `mkane848/kaneenabler`. **Not on GitHub:
-> lfc-03's acceptance commit `3215aaf`** (the local `bench/status-guard-throw`;
-> the fetch is refused), so nobody but the owner can re-run those tests until it
-> is pushed:
->
-> ```powershell
-> git -C M:/Projects/LFCbot push origin 3215aafde5f8eb6278d662af24cb01a6fab10eb0:refs/heads/bench/status-guard-throw
-> ```
+> PR #82 (`refs/pull/82/head`) on `mkane848/kaneenabler`. lfc-03's acceptance
+> commit `3215aaf` was the one exception (local `bench/status-guard-throw`
+> only) — **published later the same day** (`git -C M:/Projects/LFCbot push
+> origin bench/status-guard-throw`; a from-scratch fetch of the SHA now
+> resolves). Every pin in the benchmark is on GitHub.
 >
 > `run-tasks-batch.ps1 -SetupOnly` prints that command while it is true. (The
 > first version of this note said kane-01's base was on no remote. That was
