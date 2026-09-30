@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Record data point 12 (`docs/implementation-tasks.md`): replay audit of the
+  12 unaudited N>1 passes (PRs #62–#64), closing DP11's caveat. 10 genuine
+  and spec-complete; 2 qualified with grades standing (lfc-02 × `qwen3.5`
+  rep 1 ships a hardcoded `0.0.0` User-Agent version against a real 1.5.0,
+  rep 2 deletes a used type import into a typecheck-SKIP task). No hollow
+  passes; the standings are strengthened, not revised.
 - Pin every benchmark task's base commit, so a moved branch cannot change a
   base under the corpus. `kane-01`, `lfc-01` and `lfc-03` ran from the tip of a
   local branch (a work branch, and `main`); every recorded row had happened to
