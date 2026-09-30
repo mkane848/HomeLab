@@ -7,6 +7,12 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 The rest of this file is the full backlog by theme. This is the short list of
 what to actually pick up next, highest value first.
 
+> **Status (2026-09-30).** This is the 2026-09-23 plan, kept as written. Since
+> then: the control rematch (item 2a) has run, `qwen3.5:9b` is at N≥3 on six of
+> nine tasks (2b), the frontier-cell N>1 protocol has run (DP11), and item 3 is
+> done. Items 1 and 4–8 are unchanged. The current standings are under
+> "Executor standings" below.
+
 1. **Close the KaneEnabler validator holes** under the fix-and-reverify gate —
    Background-pairing eligibility bug, direct `legality_commander` check on
    named commanders, singleton paper-rule, `banned`/`notFound` dedupe, and the
@@ -757,6 +763,13 @@ It does, and it changes how the "0/3" result above should be read.
   Evaluation"](https://arxiv.org/html/2510.08996v2). Task 1/2 are private,
   unpublished bugs in this user's own repos — structurally immune to that
   specific critique.
+  **Correction (2026-09-30):** the three source repos (`mkane848/KaneEnabler`,
+  `lfc-bot`, `ASoHaVCompanionApp`) are public on GitHub, so "private" is wrong.
+  The fixes are recent (2026-08 and 2026-09), so contamination of the seats
+  measured so far is unlikely but unchecked, and the claim will not survive a
+  model trained after they were published. "Unpublished" is a per-model claim
+  (the model's training cutoff vs the task's commit date), and no held-out set
+  exists.
 - **The "liar mode" and destructive-rewrite failures are a named, studied
   failure class, not a fluke of these particular runs.**
   ["Reward Hacking Benchmark"](https://arxiv.org/abs/2605.02964) measures
@@ -931,6 +944,17 @@ git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7
 (GitHub: `mkane848/asohavcompanionapp`, `mkane848/kaneenabler`,
 `mkane848/lfc-bot`) — same repos, same commit hashes, independently
 verifiable by anyone with read access.
+
+> **Correction (2026-09-30).** Only the pinned parent commits are public. The
+> `bench/*` branches the harness resolves (`refs/heads/<branch>` in the local
+> checkout) exist only on the owner's machine: on 2026-09-29 none of the seven
+> was on `origin`, and `bench/status-guard-throw` @ `fcf9d1a` (lfc-03's
+> acceptance tests) is a commit no remote has. `kane-01` pins the mutable
+> branch `review-gate/deck-validity` instead of a SHA; its tip on 2026-09-29
+> still equaled the recorded base `92a8ed0`. Anyone can re-create a task branch
+> from its `benchBaseCommit` with `git branch`, but lfc-03's acceptance tests
+> cannot be re-created from GitHub. Pushing the branches (or exporting the
+> acceptance block as a patch) closes this.
 
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 

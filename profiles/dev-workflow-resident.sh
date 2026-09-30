@@ -33,6 +33,12 @@
 # EMPTY tool_calls array and prints the call as chat text instead. That is not
 # a quality judgement - a model that fails the probe cannot edit a file at all,
 # and will report success anyway.
+#
+# Update 2026-09-30: "only the qwen3 family" described that first batch. 13 of
+# 22 probed models pass (Ollama 0.34.2/0.34.3; AGENTS.md Gotchas), and a probe
+# PASS is necessary, not sufficient. qwen3:8b is last of the 8 desktop seats on
+# the real-repo task benchmark (0/9; docs/roadmap.md -> Executor standings).
+# Re-seating is an owner decision.
 
 # Load shared vars from .env
 DEVDOCS_ENV="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env"

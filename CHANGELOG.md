@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current tasks list one file, so it never fired. New
   `tests/test-stash-args.ps1` runs the real line against a throwaway repo (one
   file, two files, bare string); it fails on the old code and passes now.
+- Correct claims the data no longer supports (docs and comments only, no
+  behavior change), from a recheck against `tests/results/`:
+  - "Only the qwen3 family can call tools / 5 of 13 pass" (`AGENTS.md`,
+    `README.md`, `docs/start-here.md`, `docs/troubleshooting.md`,
+    `docs/profiles.md`, `docs/model-architecture.md`, two profile comments, two
+    test-script comments): 13 of 22 probed models pass (Ollama 0.34.2/0.34.3), and a
+    probe PASS is necessary, not sufficient (`lfm2.5:8b` passes, then makes zero
+    writes on 8 of 8 tasks). `AGENTS.md` also says the configured main seat is
+    not the best-measured one.
+  - Stale `num_ctx` figures in `AGENTS.md` and `README.md` now match
+    `startup.ps1` `$contextModels` (65536 for six seats, 32768 for the qwen3
+    pair and devstral pair).
+  - `tests/results/README.md`: update banner (218 rows, 81 passes), an
+    opencode-version era axis, a correction that the control rematch ran, and a
+    correction that 8 of the 31 zero-write rows since 2026-09-22 are output-cap
+    hits (`nemotron` 4/6, `ornith` 3/4, `qwen3:8b` 1/1), not liar mode.
+    `AGENTS.md` Gotchas gains the same warning.
+  - `docs/roadmap.md`: the source repos are public (not "private"); the
+    `bench/*` branches are local-only (not "verifiable by anyone"); a status
+    note on the 2026-09-23 "Next up" list.
+  - `docs/adversarial-review-2026-09-29.md`: dated addendum correcting five
+    statements against the raw rows (control rematch had run, task difficulty
+    figures were the 09-23 inventory, liar-mode list, N=1 confirmed,
+    protocol config key).
 - Adversarial review of the testing methodology
   (`docs/adversarial-review-2026-09-29.md`): what each harness measures,
   N=1 / era-confound / guided-repair limits, plus the N>1 protocol

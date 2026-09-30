@@ -448,9 +448,12 @@ function New-Intent {
 $profileIntents = @{
     # Main seat must be a model that can actually CALL TOOLS. qwen2.5-coder and
     # deepseek-r1 cannot (tests/test-toolcalls.ps1) - they print the call as
-    # chat text and report edits they never made. Only the qwen3 family (8b/14b)
-    # and devstral:24b pass, so a qwen3 holds the main seat here regardless of
-    # code-quality ranking. 14b was re-seated 2026-09-17 for loose-prompt intent
+    # chat text and report edits they never made. The qwen3 pair (8b/14b) and
+    # devstral:24b passed on 2026-09-17 (13 of 22 probed models pass on Ollama
+    # 0.34.2/0.34.3, AGENTS.md Gotchas), so a tool-capable seat holds the main seat here
+    # regardless of code-quality ranking. This check asserts tool capability, not
+    # task performance (docs/roadmap.md -> Executor standings). 14b was
+    # re-seated 2026-09-17 for loose-prompt intent
     # handling; watch for repeated tool calls (see docs/troubleshooting.md).
     "dev-workflow-quality"  = New-Intent -Purpose "qwen3:14b drives in-thread at 32k, /plan on demand" -Main "ollama-desktop/qwen3:14b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:3b" -Desktop $true
     "dev-workflow-resident" = New-Intent -Purpose "qwen3:8b drives, 7b coder resident as a no-tools code/review model (no coder subagent since 2026-09-17)" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true

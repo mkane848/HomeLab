@@ -479,8 +479,8 @@ if ($selectedTasks.Count -eq 0) {
 
 # --- 2c. models ----------------------------------------------------------------
 # Seats come from tests/run-tasks-models.tsv - the tags the toolcalls probe has
-# actually measured PASS on (Gotchas: "Only the qwen3 family can reliably call
-# tools...") - intersected with each live host's /api/tags, so a new model is
+# actually measured PASS on (AGENTS.md Gotchas: a probe PASS is necessary, not
+# sufficient) - intersected with each live host's /api/tags, so a new model is
 # one TSV row and a down host / an unpulled tag drops out by itself. Pick
 # "custom" to type any other opencode model id - nothing stops you, but an
 # un-probed model may silently no-op (liar mode) instead of failing loudly.
