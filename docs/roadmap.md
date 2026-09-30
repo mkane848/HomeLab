@@ -313,14 +313,38 @@ above is unchanged for the other five seats (N=1).
   still counts against it for an interactive seat.
 - **What this does not settle.** Five seats are still N=1. The dense pair's 32k
   against the others' 64k is still confounded with seat (nothing tests 40k for
-  the qwen3 pair). Replicates straddle opencode 1.18.32 and 1.18.33, and
-  back-to-back replicates agree far more often than the same cells across
-  batches (DP11), so they are not independent evidence. `kane-01`, `kane-03`
+  the qwen3 pair). Replicates straddle opencode 1.18.32 and 1.18.33 (split
+  below), and back-to-back replicates agree far more often than the same cells
+  across batches (DP11), so they are not independent evidence. `kane-01`, `kane-03`
   and `lfc-01` are still one attempt per seat, and `qwen3:14b` × kane-02 has
   one.
 - **The suite now saturates at the top.** `qwen3.6` passes 14 of 15 attempts,
   8 of 9 on the cells that were the hardest. New or differently shaped tasks are
   what keep separating the top seats.
+
+**By opencode version (added 2026-09-30).** The table above pools two versions:
+each cell's DP8/DP9 attempt ran on 1.18.32 and its fresh replicates on 1.18.33
+(all on 2026-09-29). Cut by version, same tasks, timeouts counted:
+
+| seat | 1.18.32, one attempt per cell | 1.18.33, fresh reps | 1.18.33, the 3 frontier cells |
+|---|---|---|---|
+| `qwen3.6:35b-a3b-coding` | 8/9 | 6/6 | 6/6 |
+| `qwen3.5:9b` | 7/9 | 6/12 | 2/6 |
+| `qwen3:14b` | 2/9 | 0/4 | 0/4 (two cells) |
+
+The order is the same on both versions, so no seat decision moves. On the
+frontier cells at 1.18.33 alone, `qwen3.6` 6/6 against `qwen3.5` 2/6 is Fisher
+p = 0.061, and 4/4 against `qwen3:14b`'s 0/4 on the two cells it ran is p = 0.029
+(its `lfc-03` timeout counted). Under a version-strict key every cell has 2
+attempts, not the 3 the protocol asks for. The split cannot separate version from
+session: `qwen3.5` passed `asohav-01` and `asohav-02` on 1.18.32 and failed both
+twice on 1.18.33, and all 8 disagreeing replicate pairs in the corpus are
+cross-version (8 of 19), while the 11 back-to-back pairs and the 2 same-version,
+different-session pairs all agree. Two pairs is too few to call it. The next
+protocol run should pin the version and put a cell's reps in different sessions:
+`run-tasks-batch.ps1` now runs reps rep-outer and stops if the version changes,
+and the config template sets `autoupdate` to `"notify"` (opencode installs patch
+releases by itself when a TUI starts, never from `opencode run`).
 
 Nothing here re-seats a profile or changes a config.
 

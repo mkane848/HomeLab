@@ -39,6 +39,19 @@
 # defaults, 900/300). "One run of everything that
 # has no data yet":
 #   .\tests\run-tasks-batch.ps1 -SkipSetup -Mode Both -Models new -Tasks all -Reps 1 -OnlyMissing -Yes
+#
+# Replicates (-Reps N > 1) and the opencode version - docs/adversarial-review-2026-09-29.md:
+#   - Run order is REP-OUTER within each model: every task's rep 1, then every
+#     task's rep 2, so one cell's replicates are a whole pass apart instead of
+#     adjacent. Replicates run back to back agreed in 11 of 11 pairs, so they may
+#     be sharing session state and are not independent evidence. Models stay
+#     grouped (a model switch is a reload). -BackToBack restores the old order.
+#   - A batch runs on ONE opencode version. The version is read at the start and
+#     checked before every run; if it changes (a TUI launched on this machine
+#     upgraded the binary - opencode installs patch releases on its own when
+#     "autoupdate" is on) the batch stops rather than mix versions in a cell.
+#     The preflight says whether autoupdate is pinned (false / "notify" in
+#     opencode.jsonc, or OPENCODE_DISABLE_AUTOUPDATE=1).
 
 param(
     [switch]$SetupOnly,
@@ -49,6 +62,9 @@ param(
     [string[]]$Models,
     [int]$Reps = 0,
     [switch]$OnlyMissing,
+    # Keep a cell's replicates adjacent (task outer, rep inner). The default is
+    # rep-outer; see the header.
+    [switch]$BackToBack,
     [switch]$Yes,
     # Seconds per opencode run / per grading command, forwarded to every
     # test-tasks.ps1 invocation. 0 (default) leaves test-tasks.ps1's own
@@ -361,6 +377,89 @@ function Get-GradedPairs {
     return $done
 }
 
+function New-RunList {
+    # The (task, model, rep) run order. Models stay grouped in the order given.
+    # Within a model reps are the OUTER loop by default (every task's rep 1, then
+    # every task's rep 2), so one cell's replicates are a whole pass apart;
+    # -BackToBack keeps a cell's reps adjacent (task outer, rep inner).
+    # -OnlyMissing drops a task x model pair that already has a graded row, for
+    # every rep. Returns { Runs; Skipped } (Skipped counts pairs).
+    param([string[]]$Models, [string[]]$Tasks, [int]$Reps, [hashtable]$Graded = @{}, [switch]$OnlyMissing, [switch]$BackToBack)
+
+    $runs = New-Object System.Collections.Generic.List[pscustomobject]
+    $skipped = 0
+    foreach ($model in $Models) {
+        $todo = New-Object System.Collections.Generic.List[string]
+        foreach ($taskId in $Tasks) {
+            if ($OnlyMissing -and $Graded["$taskId|$model"]) { $skipped++; continue }
+            $todo.Add($taskId)
+        }
+        if ($BackToBack) {
+            foreach ($taskId in $todo) {
+                for ($r = 1; $r -le $Reps; $r++) { $runs.Add([pscustomobject]@{ Task = $taskId; Model = $model; Rep = $r }) }
+            }
+        } else {
+            for ($r = 1; $r -le $Reps; $r++) {
+                foreach ($taskId in $todo) { $runs.Add([pscustomobject]@{ Task = $taskId; Model = $model; Rep = $r }) }
+            }
+        }
+    }
+    return [pscustomobject]@{ Runs = $runs; Skipped = $skipped }
+}
+
+function Get-OpencodeVersion {
+    # `opencode --version`, trimmed - the string test-tasks.ps1 stamps into every
+    # run JSON as opencodeVersion. $null when opencode is missing or prints
+    # something that is not a version.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = (& opencode --version 2>$null | Out-String).Trim()
+        if ($out -match '^\d+\.\d+\.\d+') { return $out }
+    } catch {
+        # fall through to $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    return $null
+}
+
+function Get-OpencodeVersionDrift {
+    # $null while opencode still reports $Expected, or when it cannot be asked
+    # (no claim is better than a false one); otherwise the message that stops the
+    # batch. A batch that straddles two versions cannot compare its own replicates.
+    param([string]$Expected)
+
+    if (-not $Expected) { return $null }
+    $now = Get-OpencodeVersion
+    if (-not $now -or $now -eq $Expected) { return $null }
+    return "opencode changed from $Expected to $now during the batch"
+}
+
+function Get-OpencodeConfig {
+    # The RESOLVED opencode config (`opencode debug config`) as an object, or $null.
+    try {
+        return ((& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop)
+    } catch { return $null }
+}
+
+function Test-OpencodeAutoupdatePinned {
+    # True when opencode will not upgrade itself: the global config sets
+    # autoupdate to false or "notify", or OPENCODE_DISABLE_AUTOUPDATE is "1" or
+    # "true" (opencode's own rule for boolean flags, case-insensitive). Unset
+    # means ON - patch releases install themselves when a TUI starts (never from
+    # `opencode run`), which is how the corpus went 1.18.31 -> .32 -> .33 in ten days.
+    param($Config, [string]$EnvValue = $env:OPENCODE_DISABLE_AUTOUPDATE)
+
+    if ($EnvValue -and @("true", "1") -contains $EnvValue.ToLower()) { return $true }
+    if ($null -ne $Config) {
+        $a = $Config.autoupdate
+        if ($a -is [bool] -and -not $a) { return $true }
+        if ($a -is [string] -and $a -eq "notify") { return $true }
+    }
+    return $false
+}
+
 # Chat models only - embedding models have no chat endpoint to probe.
 $EMBED_PATTERN = 'embed|bge-|nomic|mxbai'
 
@@ -554,24 +653,24 @@ if (-not $PSBoundParameters.ContainsKey('OnlyMissing') -and -not $Yes) {
 # Build the run list. Models with the fewest graded runs go first, so an
 # interrupted batch has still covered the models with no data at all.
 $graded = Get-GradedPairs
-$runList = New-Object System.Collections.Generic.List[pscustomobject]
-$skipped = 0
 $ordered = $selectedModels | Sort-Object { $mm = $_; @($selectedTasks | Where-Object { $graded["$_|$mm"] }).Count }, { $_ }
-foreach ($model in $ordered) {
-    foreach ($taskId in $selectedTasks) {
-        if ($OnlyMissing -and $graded["$taskId|$model"]) { $skipped++; continue }
-        for ($r = 1; $r -le $repCount; $r++) {
-            $runList.Add([pscustomobject]@{ Task = $taskId; Model = $model; Rep = $r })
-        }
-    }
-}
+$plan = New-RunList -Models @($ordered) -Tasks @($selectedTasks) -Reps $repCount -Graded $graded -OnlyMissing:$OnlyMissing -BackToBack:$BackToBack
+$runList = $plan.Runs
+$skipped = $plan.Skipped
 $total = $runList.Count
+
+# One batch, one opencode version: read now, checked before every run.
+$batchOpencode = Get-OpencodeVersion
 
 Write-Host ""
 Write-Host "=== Plan ===" -ForegroundColor Cyan
 Write-Host "  Tasks:  $($selectedTasks -join ', ')"
 Write-Host "  Models: $($ordered -join ', ')"
 Write-Host "  Reps:   $repCount each  ->  $total total run(s)"
+if ($repCount -gt 1) {
+    Write-Host ("  Order:  {0}" -f $(if ($BackToBack) { "back-to-back (a cell's reps adjacent)" } else { "rep-outer (a cell's reps a full pass apart)" }))
+}
+Write-Host ("  opencode: {0}" -f $(if ($batchOpencode) { $batchOpencode } else { "unknown - a version change mid-batch cannot be detected" }))
 if ($OnlyMissing) { Write-Host "  Skipped $skipped task x model pair(s) that already have a graded result" }
 Write-Host ""
 if ($total -eq 0) {
@@ -653,6 +752,15 @@ foreach ($e in $preflight) {
         Write-Host ("  [FAIL] {0}  {1}" -f $e.Provider, $e.Detail) -ForegroundColor Red
     }
 }
+# opencode installs patch releases by itself when a TUI starts, so opening
+# OpenCode on this machine mid-batch can swap the binary under it. Not a FAIL:
+# the drift check below stops the batch if it happens.
+if (Test-OpencodeAutoupdatePinned -Config (Get-OpencodeConfig)) {
+    Write-Host "  [PASS] opencode autoupdate is pinned" -ForegroundColor Green
+} else {
+    Write-Host '  [WARN] opencode autoupdate is ON - starting the OpenCode TUI on this machine can upgrade the binary under a running batch.' -ForegroundColor Yellow
+    Write-Host '         The batch stops if the version changes. Pin it: "autoupdate": "notify" in opencode.jsonc, or OPENCODE_DISABLE_AUTOUPDATE=1.' -ForegroundColor Yellow
+}
 Write-Host ""
 
 $deadEndpoints = @($preflight | Where-Object { -not $_.Ok })
@@ -676,8 +784,14 @@ if (-not $Yes) {
 
 $results = New-Object System.Collections.Generic.List[pscustomobject]
 $runNum = 0
+$stopped = $null
 foreach ($run in $runList) {
     $runNum++
+    $drift = Get-OpencodeVersionDrift -Expected $batchOpencode
+    if ($drift) {
+        $stopped = "$drift, before run $runNum of $total; $($total - $runNum + 1) run(s) not started. A cell must not straddle versions: pin autoupdate, then re-run the rest on one version."
+        break
+    }
     Write-Host ""
     Write-Host ">>> [$runNum/$total] $($run.Task)  x  $($run.Model)  (rep $($run.Rep) of $repCount)" -ForegroundColor Cyan
     $taskArgs = @{ Task = $run.Task; Model = $run.Model; ModelLabel = $run.Model }
@@ -693,8 +807,12 @@ foreach ($run in $runList) {
 }
 
 Write-Host ""
-Write-Host "=== Batch complete ===" -ForegroundColor Cyan
+Write-Host $(if ($stopped) { "=== Batch STOPPED ===" } else { "=== Batch complete ===" }) -ForegroundColor $(if ($stopped) { "Red" } else { "Cyan" })
 $results | Format-Table -AutoSize
+if ($stopped) {
+    Write-Host $stopped -ForegroundColor Red
+    exit 1
+}
 
 $fails = @($results | Where-Object { $_.ExitCode -ne 0 })
 if ($fails.Count -gt 0) {

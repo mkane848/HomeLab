@@ -1240,7 +1240,10 @@ Pass by task, across all seats:
         version drift, session effects and regression to the mean cannot be
         separated here. `qwen3.5`'s DP9 "7/9" was optimistic: asohav-01 and
         asohav-02 passed once and then failed twice, lfc-02 failed once and then
-        passed twice.
+        passed twice. Update 2026-09-30: split by opencode version, all 8
+        disagreements are cross-version pairs (8 of 19); 0 of 11 back-to-back
+        pairs and 0 of 2 same-version, different-session pairs disagree
+        (roadmap.md → "By opencode version").
       - **Where the protocol's definition of done falls short.** The control ×
         kane-02 cell has one attempt, not three (`qwen3:14b` was not re-run
         there). The replicates in every cell straddle opencode 1.18.32 and

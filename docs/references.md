@@ -63,10 +63,18 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 |---|---|---|
 | swe-edit-repo | SWE-Edit (Viewer/Editor edit decomposition, PR-Edit eval) | <https://github.com/microsoft/SWE-Edit> |
 | metaharness-adr127 | agent-harness-generator ADR-127 — search/replace patch primitive vs whole-file on large files (2026-06, run-to-run stable) | <https://github.com/ruvnet/metaharness/blob/4db1c8f8/docs/adrs/ADR-127-darwin-searchreplace-patch-primitive.md> |
+| opencode-upgrade | opencode `packages/opencode/src/cli/upgrade.ts` at commit `2fa3363` (2026-09-29) — the autoupdate routine: skipped when `autoupdate` is false or `OPENCODE_DISABLE_AUTOUPDATE` is 1/true; only patch releases install themselves, a minor or major one notifies | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/opencode/src/cli/upgrade.ts> |
+| opencode-tui-worker | opencode `packages/opencode/src/cli/tui/worker.ts` at `2fa3363` — `checkUpgrade`, the only caller of that routine (`opencode run` never calls it) | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/opencode/src/cli/tui/worker.ts> |
+| opencode-config-docs | opencode docs source `config.mdx` at `2fa3363` — "Autoupdate": `autoupdate` is true, false or `"notify"` (the rendered page, opencode.ai, was not reachable when this was written) | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/web/src/content/docs/config.mdx> |
+| opencode-cli-docs | opencode docs source `cli.mdx` at `2fa3363` — environment variables, incl. `OPENCODE_DISABLE_AUTOUPDATE` | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/web/src/content/docs/cli.mdx> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
-in [methodology-research.md](methodology-research.md).
+in [methodology-research.md](methodology-research.md); `opencode-*` → AGENTS.md
+Gotchas ("opencode upgrades itself…"), the addendum in
+[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), and the
+`autoupdate` comment in `opencode/global/opencode.jsonc`. These are read at one
+commit: re-check them when opencode's major or minor version moves.
 
 ## Another page to cite from
 

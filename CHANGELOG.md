@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Hold benchmark replicates to one opencode version and spread them across time.
+  opencode installs patch releases by itself when a TUI starts (never from
+  `opencode run`; read from upstream at `2fa3363`), and the results corpus took
+  1.18.31, .32 and .33 in ten days. Split by version, all 8 disagreeing
+  replicate pairs are cross-version (8 of 19; 0 of 11 back-to-back, 0 of 2
+  same-version other-session), so version cannot be told from session.
+  - `docs/adversarial-review-2026-09-29.md` §7: a same-config attempt shares
+    prompt sha, `numCtx`, Ollama version **and** opencode version.
+  - `run-tasks-batch.ps1`: reps run rep-outer within each model (`-BackToBack`
+    for the old order); the batch reads `opencode --version` at the start and
+    stops if it changes; the preflight reports whether autoupdate is pinned.
+    New `tests/test-batch-plan.ps1` (27 checks; fails on seven mutants).
+  - `opencode/global/opencode.jsonc`: `autoupdate` `true` → `"notify"`. **The one
+    behavior change:** OpenCode no longer upgrades itself; run `opencode upgrade`
+    on purpose, between batches. Revert that line to keep autoupdate on; the
+    drift stop still protects a batch.
+  - `docs/roadmap.md` → "By opencode version": the seat order is the same on
+    both versions (`qwen3.6` 8/9 then 6/6, `qwen3.5` 7/9 then 6/12, `qwen3:14b`
+    2/9 then 0/4); on the frontier cells at 1.18.33 `qwen3.6` is 6/6 to
+    `qwen3.5`'s 2/6 (p = 0.061). No seat decision moves.
+  - New `docs/references.md` rows for the opencode source and docs read.
 - `test-tasks.ps1`: the writes gate tells an output-cap hit from liar mode. An
   exit-0 run with no write whose last step is an empty `length` step at
   `limit.output` (no text, no tool call) is reported as "NOT liar mode: the
