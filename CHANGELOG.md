@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Pin every benchmark task's base commit, so a moved branch cannot change a
+  base under the corpus. `kane-01`, `lfc-01` and `lfc-03` ran from the tip of a
+  local branch (a work branch, and `main`); every recorded row had happened to
+  use one commit per task, and those are now `benchBaseCommit` in
+  `tests/tasks/manifest.json`, with `bench/*` branch labels like the other six.
+  - `test-tasks.ps1` `Resolve-TaskBase`: the worktree is made from the pinned
+    SHA, not from `refs/heads/<branch>`. A local branch elsewhere is a WARN; a
+    pin missing from the repo is an error naming the `git push` that fixes it; a
+    task without a pin still uses the branch tip.
+  - `run-tasks-batch.ps1 -SetupOnly` warns when a pinned base or lfc-03's
+    acceptance branch is on no remote (`Get-PublishState`), with the push
+    command. Checked against clones of the public repos: eight of the nine pins
+    are on `origin/main`. **Two are still local-only and need the owner:**
+    `kane-01`'s `92a8ed0` (the task with the most rows) and
+    `bench/status-guard-throw` (lfc-03's acceptance tests).
+  - New `tests/test-task-pins.ps1`: manifest pins, all 218 recorded rows ran from
+    their task's pin, and the two functions on throwaway repos; it fails on nine
+    mutants. `AGENTS.md` and `docs/roadmap.md` (the 2026-09-30 correction, the
+    setup section) updated.
 - Hold benchmark replicates to one opencode version and spread them across time.
   opencode installs patch releases by itself when a TUI starts (never from
   `opencode run`; read from upstream at `2fa3363`), and the results corpus took

@@ -983,10 +983,14 @@ verification. **`MANAPOOL_API_KEY` must be unset/empty in the shell running
 own prompt tells the model this too, but the baseline check runs before the
 model sees anything.
 
-**Setup required before these run — new local branches.** `test-tasks.ps1`
-resolves `refs/heads/<branch>` in the task's local `repo` checkout (not the
-GitHub remote), so each new task's pre-fix state needs a real local branch
-pinned at the exact parent commit verified above. In each local checkout:
+**Setup required before these run — new local branches (not required since
+2026-09-30).** `test-tasks.ps1` used to resolve `refs/heads/<branch>` in the
+task's local `repo` checkout (not the GitHub remote), so each new task's
+pre-fix state needed a real local branch pinned at the exact parent commit
+verified above. It now runs the pinned `benchBaseCommit` itself
+(`Resolve-TaskBase`), so these branches are labels that
+`run-tasks-batch.ps1 -SetupOnly` still creates; the commands below are the
+by-hand equivalent. In each local checkout:
 
 ```powershell
 # C:\Projects\KaneEnabler
@@ -994,6 +998,7 @@ git fetch origin
 git branch bench/multi-word-creature-types 0e9b703047d37e31abbccbda2c9de175ae3e33cb
 git branch bench/saga-chapter-triggers 4029a94a8bd5a22df1f3dcf819719c0e448270b4
 git branch bench/singleton-up-to-n 420372615ef8b95566dc8ab24039c1532830fdbf
+git branch bench/background-pair 92a8ed0df10262cc878d4d214d0a312d542375ec   # kane-01: local commit, see below
 
 # M:\TTRPG\A Story of Heroes and Villains
 git fetch origin
@@ -1003,6 +1008,8 @@ git branch bench/changelog-uuid-id d83381ad650b3474a50310e0dd3441a03cd89706
 # M:\Projects\LFCbot
 git fetch origin
 git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7363
+git branch bench/listing-status-guard 4906dc2881d362bda2006d3407e0ba63e005b91b
+git branch bench/status-transition-guard 4906dc2881d362bda2006d3407e0ba63e005b91b
 ```
 
 `ASoHaVCompanionApp` and `KaneEnabler` are npm-installed via `git clone`
@@ -1011,15 +1018,32 @@ git branch bench/scryfall-required-headers 170b395baf8ad4205f6fb6d409b29c25635e7
 verifiable by anyone with read access.
 
 > **Correction (2026-09-30).** Only the pinned parent commits are public. The
-> `bench/*` branches the harness resolves (`refs/heads/<branch>` in the local
-> checkout) exist only on the owner's machine: on 2026-09-29 none of the seven
+> `bench/*` branches the harness resolved (`refs/heads/<branch>` in the local
+> checkout) existed only on the owner's machine: on 2026-09-29 none of the seven
 > was on `origin`, and `bench/status-guard-throw` @ `fcf9d1a` (lfc-03's
-> acceptance tests) is a commit no remote has. `kane-01` pins the mutable
-> branch `review-gate/deck-validity` instead of a SHA; its tip on 2026-09-29
-> still equaled the recorded base `92a8ed0`. Anyone can re-create a task branch
-> from its `benchBaseCommit` with `git branch`, but lfc-03's acceptance tests
-> cannot be re-created from GitHub. Pushing the branches (or exporting the
-> acceptance block as a patch) closes this.
+> acceptance tests) is a commit no remote has. `kane-01` pinned the mutable
+> branch `review-gate/deck-validity` instead of a SHA, and `lfc-01`/`lfc-03` the
+> tip of the local `main`; every recorded row had in fact used one commit per
+> task (kane-01 `92a8ed0`, lfc-01/lfc-03 `4906dc2`).
+>
+> **Fixed the same day.** All nine tasks are now pinned by `benchBaseCommit`, the
+> harness runs the pin (a moved branch is a WARN, a pin missing from the repo is
+> an error), and `tests/test-task-pins.ps1` checks that every one of the 218
+> recorded rows ran from its task's pin. Checked against clones of the public
+> repos: eight of the nine pinned commits are on `origin/main`. **Two things
+> remain, and only the owner can do them** (`run-tasks-batch.ps1 -SetupOnly`
+> prints both while they are true): `kane-01`'s `92a8ed0` is on no remote (it is
+> the tip of the local `review-gate/deck-validity`), so the task with the most
+> rows in the corpus cannot be reproduced by anyone else, and lfc-03's
+> acceptance tests exist only on the local `bench/status-guard-throw`.
+>
+> ```powershell
+> git -C C:/Projects/KaneEnabler push origin 92a8ed0df10262cc878d4d214d0a312d542375ec:refs/heads/bench/background-pair
+> git -C M:/Projects/LFCbot push origin bench/status-guard-throw
+> ```
+>
+> The first publishes `92a8ed0` and whatever review-gate history under it is not
+> yet upstream; look at `git log origin/main..92a8ed0` before pushing.
 
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
