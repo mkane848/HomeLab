@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: grade tasks that list two or more `srcRevertFiles`. The
+  failsOnOld revert built its `git stash push` arguments with the file list
+  nested inside the array; `Run-Native`'s `[string[]]` parameter joined it into
+  one argument (`a.ts b.ts`), git rejected the pathspec, and every model would
+  have got "git stash push failed - cannot grade" on such a task. All nine
+  current tasks list one file, so it never fired. New
+  `tests/test-stash-args.ps1` runs the real line against a throwaway repo (one
+  file, two files, bare string); it fails on the old code and passes now.
 - Adversarial review of the testing methodology
   (`docs/adversarial-review-2026-09-29.md`): what each harness measures,
   N=1 / era-confound / guided-repair limits, plus the N>1 protocol
