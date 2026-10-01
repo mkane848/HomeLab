@@ -1523,3 +1523,21 @@ Open, in order — each gates the next:
    done: all slices pass in order with you only in planning + merge
    (milestone 5, greenfield). The `lfm2.5` version-rematch (drop
    `-OnlyMissing` deliberately) stays deferred until the lanes clear.
+10. **PARKED — TUI session watchdog (alert-first, not auto-nudge).**
+    Trial TUI sessions stall mid-loop with no human watching (observed
+    2026-10-01: qwen3.6 task-4 session sat 6+ min after a completed
+    tool step — no new step-start, model unloaded in `/api/ps` — needing
+    a manual kick). Batch runs don't need this (a stall is a timeout →
+    `_TIMEOUT_` transcript, no row). Build `tests/watch-session.ps1`:
+    poll the session DB for latest-part timestamp + last-step state and
+    fire (toast + log with session ID and idle minutes) when idle
+    mid-loop past a threshold; escalate past N alerts / M total minutes
+    into a friction flag on the cell. Deliberately alert-only: a nudge is
+    a grading-record interaction in a trial, so the human still sends it
+    and auto-injection would contaminate cells (the 2026-10-01 "Continue…"
+    of unclear provenance did exactly that). Log every sent nudge per
+    cell. Definition of done: a stalled TUI session pages within minutes
+    with session ID + idle time; thresholds + nudge-logging rule recorded
+    in `docs/main-seat-trial.md`; no auto-input path exists.
+    **Status 2026-10-01: parked — do not start while the PR65 harness
+    session is editing those files.**

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Main-seat trial: all four `qwen3.6` cells graded (task 1 CLEAN, task 2
+  CLEAN on the corrected `170b395` base after a VOID run on `4906dc2`,
+  task 3 QUALIFIED, task 4 CLEAN with a retracted fixture-trap claim).
+  Session rows in `docs/main-seat-trial.md`; control cells still open.
+  Parks the alert-first TUI session watchdog (`docs/implementation-tasks.md`
+  item 10): the task-4 session stalled 6+ min mid-loop needing a manual
+  kick, and batch timeouts already cover non-interactive runs.
 - lfc-03's acceptance commit `3215aaf` is published
   (`bench/status-guard-throw` pushed to `mkane848/lfc-bot`; a from-scratch
   fetch resolves), so every benchmark pin is on GitHub. Corrects the
