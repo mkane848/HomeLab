@@ -108,4 +108,21 @@ it" — that experiment's pass bar is defined before it runs.
 Date, seat, task, base SHA, opencode version, Ollama version, `numCtx`,
 verdict, friction notes, and the session ID from session start (so the
 transcript can be revisited). Twelve rows fills the table: 4 tasks × 3
-seats.
+ seats.
+
+| Date | Seat | Task | Base | Verdict | Friction | Session |
+|---|---|---|---|---|---|---|
+| 2026-09-30 | `qwen3:14b` (control) | 1 fulfill | `4906dc2` | FAIL | right-layer fix unrun, committed broken code | `ses_f0c2b8415ffelOL8fbJdl1U5l1` |
+| 2026-09-30 | `qwen3.5:9b` | 1 fulfill | `4906dc2` | FAIL | handler-only fix, 337/337 verified but wrong layer | `ses_f0bf8c590ffezOUTM3zkZPh1d4` |
+| 2026-09-30 | `qwen3.6:35b-a3b-coding` | 1 fulfill | `4906dc2` | CLEAN | service guard + 3 callers, 341/341, stash-proved | `ses_f0bd25c87ffe9LcRdIYfRFwgQt` |
+| 2026-09-30 | `qwen3.6` | 2 headers @ wrong base | `4906dc2` | VOID | premise void (fix upstream); 2-hr overrun vs 30-min cap; stale mock claim in summary | `ses_f0bb4b492ffeiuaa5h8iQ1pGlP` |
+| 2026-09-30 | `qwen3.6` | 2 headers, no brief | `4906dc2` | VOID | meta-chatter pasted instead of task; seat freelanced, tree untouched | `ses_f0b108aadffesc2x7yvQF1oty7` |
+| 2026-09-30 | `qwen3.6` | 2 headers | `170b395` | CLEAN | 1-line `Accept` fix + pin, stash-proved, 243/243, 9 min | `ses_f0ae8b7dfffe15Vry77FjQwha2` |
+| 2026-09-30 | `qwen3.6` | 3 vague | `9060ae9` | QUALIFIED | no clarifying move; cosmetic fix, oversold threat model, announced test never added | `ses_f0aacce3bffe1GhkTucWTHELh8` |
+| 2026-10-01 | `qwen3.6` | 4 banned-cmdr (Kane) | `54cd6ca` | CLEAN | fixture-trap detour, retracted under challenge; 1 mid-loop stall (kicked); obeyed do-not-touch | `ses_f08d367a2ffewYcdtBmeKCFnvY` |
+
+Seats ran on `opencode 1.18.33`, desktop Ollama `0.34.3`
+(`numCtx`: qwen3.6/qwen3.5 `65536`, qwen3:14b `32768`). Transcripts are
+git-ignored (`session-<id>.md` at repo root). Control cells (qwen3:14b
+tasks 2–4, qwen3.5 tasks 2–4) and the second experiment are still open;
+VOID rows don't count toward the twelve.
