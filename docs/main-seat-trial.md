@@ -127,3 +127,20 @@ Seats ran on `opencode 1.18.33`, desktop Ollama `0.34.3`
 git-ignored (`session-<id>.md` at repo root). Control cells (qwen3:14b
 tasks 2–4, qwen3.5 tasks 2–4) and the second experiment are still open;
 VOID rows don't count toward the twelve.
+
+## Status and next (2026-10-01, PR #74)
+
+- Candidate `qwen3.6`: 3 CLEAN / 1 QUALIFIED / 0 FAILs — the re-seat bar
+  is mathematically cleared (control ceiling: 3 CLEANs; 3 ≥ 3 passes).
+- Control `qwen3:14b`: 0 CLEANs (tasks 1, 3). Open: control tasks 2 + 4,
+  `qwen3.5` tasks 2–4 (backfill; only control task 3 was must-run).
+- Next: define the second experiment's pass bar before it starts (real
+  daily work: latency, co-residency with the 3b companion, multi-day
+  reliability). Trial measures capability; the experiment measures
+  livability.
+- Session watchdog stays parked (`docs/implementation-tasks.md` item 10)
+  until the PR65 harness session lands.
+- Trial branches are retired with work discarded per protocol; transcripts
+  are git-ignored at repo root (`session-<id>.md`). The stock kick-phrase
+  ("Continue if you have next steps…") is confirmed owner-sent — log
+  future nudges as owner nudges with stall durations.
