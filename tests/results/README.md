@@ -116,6 +116,17 @@ different harnesses:
   started after more than 5 idle minutes used to pay a reload of its seat
   (about a minute for `qwen3.6`) plus a full prefill, and now usually does not.
   Do not compare durations across this date without that caveat.
+- **Serving engine (recorded from 2026-10-03).** Every row so far was served by
+  Ollama, which the owner plans to replace. Run JSONs now carry an
+  engine-neutral `servingEngine` block (`name`, `version`, `endpoint`,
+  `provider`) beside the Ollama-shaped `ollamaVersion`, which is kept so older
+  files still compare; rows before 2026-10-03 have no block and are all
+  `ollama`. A different engine is a new era: it changes the chat template
+  path, the tool-call parsing and how an over-long prompt is handled (Ollama
+  truncates silently; see "Prompt truncated by Ollama"), so the "same config"
+  key gains the engine name and version. The truncation check is
+  Ollama-specific; under any other engine a run records `promptTruncation` as
+  "not checked", never as a clean, until that engine gets its own detector.
 
 Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
 and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger
@@ -233,6 +244,46 @@ demonstration in this corpus. (`ornith:9b` shows the same shape 3×;
 > making it") mislabeled them until 2026-09-30; it now reports a cap hit
 > separately (`tests/test-cap-hit.ps1`). Rows are unchanged: the graded row and
 > its FAIL stand, and only the reading of `writes = 0` differs.
+
+### Prompt truncated by Ollama — 4 rows (2026-10-03)
+
+`opencodeExit=0`, `writes=0`, one step, no tool call, and a prose answer that
+pastes code ("Here are the three files updated…"). They read as liar mode and
+the writes gate labelled them so. They are not: Ollama logged
+`truncating input prompt limit=32770 prompt=83886 keep=4 new=32770` (asohav-05)
+and `prompt=83122` (asohav-06) at the start of each run, and the transcript's
+first step reports exactly 32,770 input tokens. At those two tasks' pins the
+asohav repo's `CLAUDE.md` is 281,225 and 278,549 bytes (16–56 KB at the
+neighbouring pins); OpenCode puts it in every request, so the first request
+was ~83k tokens against `qwen3.6`'s 65,536. Ollama kept the first 4 tokens and
+the tail, which drops the system prompt, the tool schemas and the task. **No
+64k seat can be measured on these two tasks as pinned.**
+
+| timestamp | task | seat |
+|---|---|---|
+| `2026-10-03T16:45:34` | `asohav-05-library-write-validation` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-10-03T16:49:56` | `asohav-06-bond-cap-setting` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-10-03T17:29:36` | `asohav-05-library-write-validation` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+| `2026-10-03T17:33:53` | `asohav-06-bond-cap-setting` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
+
+Exclude them from every denominator. Both tasks are retired in the manifest
+since 2026-10-03 (`retired`, owner decision; `docs/roadmap.md` → "Task set
+expansion II" has the way back), so no new rows will join these. Since
+2026-10-03 `test-tasks.ps1` reads
+the local Ollama log for each run's window (`Get-OllamaPromptTruncation`) and
+turns a hit into a FAILed run with a `_TRUNCATED_` transcript and no row; each
+graded run JSON records the check in `promptTruncation` (`tests/test-prompt-truncation.ps1`).
+Only a local Ollama is checked; a node3 or server run records "not checked".
+Before that date the check did not exist, so an older exit-0, zero-write,
+one-step row against a large repo is worth a look at the Ollama log before it
+is counted as liar mode.
+
+Not this class: the same day's `kane-07` and `kane-08` re-runs (17:20:25,
+17:27:16) were never truncated (input peaked at 61,114 and 49,943). `kane-07`
+read `signals.ts` and its test (~31k tokens) twice, OpenCode compacted the
+session, and after the summary the model wrote a plan instead of the change;
+`kane-08` lost the task at 46,576 tokens and asked what it should do. Those
+rows stand as genuine failures of the seat at long context.
 
 ### No transcript kept — 4 rows
 

@@ -1,0 +1,36 @@
+﻿{
+    "timestamp":  "2026-10-03T16:59:26",
+    "taskId":  "asohav-08-end-combat-clears-strain",
+    "taskTitle":  "ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero\u0027s sheet",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "9afb9112b0e2596edac0e7fe4055149512ab3b62",
+    "promptSha256":  "00B17B0AB757",
+    "opencodeExit":  0,
+    "writes":  9,
+    "finishReason":  "stop",
+    "lastStepOutput":  1,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "PASS",
+                  "suite":  "PASS",
+                  "failsOnOld":  "PASS"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "PASS",
+                       "ref":  "upstream-fix",
+                       "commit":  "d7696990b5e2551c9897e6ec255c70be213ca8b2",
+                       "detail":  "Tests  20 passed (20)"
+                   },
+    "elapsedSec":  432.1,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  {
+                    "DATABASE_URL":  null
+                },
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-asohav-08-end-combat-clears-strain-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-165926.jsonl"
+}

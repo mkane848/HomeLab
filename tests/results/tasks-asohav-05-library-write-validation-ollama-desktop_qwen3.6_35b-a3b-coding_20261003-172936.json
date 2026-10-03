@@ -1,0 +1,36 @@
+﻿{
+    "timestamp":  "2026-10-03T17:29:36",
+    "taskId":  "asohav-05-library-write-validation",
+    "taskTitle":  "ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "79b369d7ba01ed02affa6534a33ef698d17b5518",
+    "promptSha256":  "E035793F95A4",
+    "opencodeExit":  0,
+    "writes":  0,
+    "finishReason":  "stop",
+    "lastStepOutput":  950,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "FAIL",
+                  "suite":  "PASS",
+                  "failsOnOld":  "FAIL"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "SKIP",
+                       "ref":  null,
+                       "commit":  null,
+                       "detail":  "task defines no acceptance block"
+                   },
+    "elapsedSec":  132.9,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  {
+                    "DATABASE_URL":  null
+                },
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-asohav-05-library-write-validation-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-172936.jsonl"
+}

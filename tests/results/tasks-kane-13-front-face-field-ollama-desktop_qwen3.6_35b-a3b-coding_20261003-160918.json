@@ -1,0 +1,34 @@
+﻿{
+    "timestamp":  "2026-10-03T16:09:18",
+    "taskId":  "kane-13-front-face-field",
+    "taskTitle":  "KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card\u0027s combined value",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+    "promptSha256":  "68434547D568",
+    "opencodeExit":  0,
+    "writes":  4,
+    "finishReason":  "stop",
+    "lastStepOutput":  357,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "PASS",
+                  "suite":  "PASS",
+                  "failsOnOld":  "PASS"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "PASS",
+                       "ref":  "upstream-fix",
+                       "commit":  "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+                       "detail":  "Tests  22 passed (22)"
+                   },
+    "elapsedSec":  113,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  null,
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-kane-13-front-face-field-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-160918.jsonl"
+}

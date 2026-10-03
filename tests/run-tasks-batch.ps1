@@ -74,7 +74,10 @@ param(
     # seats, whose runs otherwise die at the default cap with no transcript
     # (see docs/implementation-tasks.md → "Gap-fill batch review").
     [int]$RunTimeout = 0,
-    [int]$CommandTimeout = 0
+    [int]$CommandTimeout = 0,
+    # Offer and run tasks the manifest marks `retired` (left out of 'all' and
+    # the picker otherwise; naming one is an error). Forwarded to test-tasks.ps1.
+    [switch]$IncludeRetired
 )
 
 $scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -256,6 +259,14 @@ function Select-FromList {
         }
     }
     return $picked
+}
+
+function Get-OfferedTasks {
+    # The manifest tasks this batch offers: every task, minus the `retired` ones
+    # unless -IncludeRetired. 'all' and the picker both draw from this list, so
+    # a retired task is never run by accident (test-tasks.ps1 refuses it too).
+    param($ManifestTasks, [bool]$IncludeRetired)
+    return @($ManifestTasks | Where-Object { $IncludeRetired -or -not $_.retired })
 }
 
 function Split-IdList {
@@ -639,19 +650,32 @@ if ($Mode -ne "Tasks") {
 }
 
 # --- 2b. tasks -----------------------------------------------------------------
+$offeredTasks = Get-OfferedTasks -ManifestTasks $manifest.tasks -IncludeRetired ([bool]$IncludeRetired)
+$retiredTasks = @($manifest.tasks | Where-Object { $_.retired })
+if ($retiredTasks.Count -gt 0 -and -not $IncludeRetired) {
+    Write-Host "  ($($retiredTasks.Count) retired task(s) not offered: $(@($retiredTasks | ForEach-Object id) -join ', '); -IncludeRetired to include)" -ForegroundColor DarkGray
+}
 if ($Tasks) {
     $ids = Split-IdList $Tasks
-    $selectedTasks = if (($ids -join ",").ToLower() -eq "all") { @($manifest.tasks | ForEach-Object id) } else { $ids }
+    $selectedTasks = if (($ids -join ",").ToLower() -eq "all") { @($offeredTasks | ForEach-Object id) } else { $ids }
     $unknown = @($selectedTasks | Where-Object { -not $tasksById.ContainsKey($_) })
     if ($unknown.Count -gt 0) {
         Write-Host "ERROR: unknown task id(s): $($unknown -join ', ')" -ForegroundColor Red
         exit 1
     }
+    $namedRetired = @($selectedTasks | Where-Object { $tasksById[$_].retired -and -not $IncludeRetired })
+    if ($namedRetired.Count -gt 0) {
+        foreach ($id in $namedRetired) {
+            Write-Host "ERROR: $id is retired ($($tasksById[$id].retired.date)): $($tasksById[$id].retired.reason)" -ForegroundColor Red
+        }
+        Write-Host "Drop it from -Tasks, or pass -IncludeRetired to run it anyway." -ForegroundColor Red
+        exit 1
+    }
 } else {
     Write-Host "=== Select tasks ===" -ForegroundColor Cyan
-    $taskOptions = $manifest.tasks | ForEach-Object { "$($_.id)  -  $($_.title)" }
+    $taskOptions = $offeredTasks | ForEach-Object { "$($_.id)  -  $($_.title)" }
     $taskIdx = Select-FromList -Prompt "Tasks to run" -Options $taskOptions
-    $selectedTasks = @($taskIdx | ForEach-Object { $manifest.tasks[$_].id })
+    $selectedTasks = @($taskIdx | ForEach-Object { $offeredTasks[$_].id })
 }
 if ($selectedTasks.Count -eq 0) {
     Write-Host "No tasks selected - nothing to do." -ForegroundColor Yellow
@@ -879,6 +903,7 @@ foreach ($run in $runList) {
     $taskArgs = @{ Task = $run.Task; Model = $run.Model; ModelLabel = $run.Model }
     if ($RunTimeout -gt 0) { $taskArgs['RunTimeout'] = $RunTimeout }
     if ($CommandTimeout -gt 0) { $taskArgs['CommandTimeout'] = $CommandTimeout }
+    if ($IncludeRetired) { $taskArgs['IncludeRetired'] = $true }
     # One run's uncaught exception must not end an unattended batch: on
     # 2026-10-02 a dead job host in run 1 of 16 threw out of test-tasks.ps1 and
     # the other 15 never started. Record the run as crashed and move on.

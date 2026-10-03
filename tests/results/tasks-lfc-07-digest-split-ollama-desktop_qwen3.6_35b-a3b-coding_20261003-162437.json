@@ -1,0 +1,34 @@
+﻿{
+    "timestamp":  "2026-10-03T16:24:37",
+    "taskId":  "lfc-07-digest-split",
+    "taskTitle":  "lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "d6a5338d809407d181b7d74eef064bbd0d81ffa2",
+    "promptSha256":  "13627E1AE2C0",
+    "opencodeExit":  0,
+    "writes":  0,
+    "finishReason":  "length",
+    "lastStepOutput":  8192,
+    "outputLimit":  8192,
+    "outputCapHit":  true,
+    "gates":  {
+                  "scope":  "FAIL",
+                  "suite":  "PASS",
+                  "failsOnOld":  "FAIL"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "FAIL",
+                       "ref":  "upstream-fix",
+                       "commit":  "e644702a6ce9753b69ca3291e1bdc388e2d1a7d3",
+                       "detail":  "Tests  6 failed | 7 passed (13) - returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; starts a new message at a section heading rather than splitting a section that fits; hard-splits a single line longer than the limit instead of dropping it; sends a digest longer than one message as several, each within the limit; leaves the watermark unchanged when a later message fails, so nothing is dropped; (6 failed)"
+                   },
+    "elapsedSec":  412.5,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  null,
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-lfc-07-digest-split-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-162437.jsonl"
+}

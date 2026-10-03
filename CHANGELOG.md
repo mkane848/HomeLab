@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Retire `asohav-05-library-write-validation` and `asohav-06-bond-cap-setting`
+  (owner decision 2026-10-03). Their pins carry the asohav repo's ~280 KB
+  `CLAUDE.md`, a file that existed for two days before the owner trimmed it to
+  16 KB, so they measure a transient mistake that no 64k seat can see past, not
+  daily use. New manifest field `retired` ({date, reason, see}): the task keeps
+  its id, pin and rows; `test-tasks.ps1` and `run-tasks-batch.ps1` leave it out
+  of a no-argument run, `-Tasks all` and the picker, and refuse it by name
+  unless `-IncludeRetired`. The roadmap records the way back (new ids on the
+  pin plus the first trimmed `CLAUDE.md`, `47bf270`) and the open question of
+  how tasks should treat a repo's instruction file. Guarded by
+  `tests/test-retired-tasks.ps1` (27 checks, PowerShell 7 and 5.1).
+- First model run of the 18 new tasks: `qwen3.6` (desktop, Ollama 0.34.3,
+  opencode 1.18.34, 64k, CPU companion), 18 runs plus a follow-up of four at an
+  1800 s cap. 11 of 16 valid graded runs pass every gate; the failures are one
+  test that does not catch its bug (`kane-14`), two output-cap hits (`lfc-07`,
+  `asohav-09`) and two long-context losses (`kane-07` overflowed into OpenCode
+  compaction, `kane-08` lost the task at 46k tokens). Four rows (`asohav-05`/
+  `-06`, twice each) measured nothing: the repo's ~280 KB `CLAUDE.md` at those
+  pins made the first request ~83k tokens and Ollama truncated it to 32,770,
+  dropping the system prompt, tools and task. Recorded in
+  `tests/results/README.md` ("Prompt truncated by Ollama") and the roadmap's
+  "Task set expansion II". `test-tasks.ps1` now detects that case from the local
+  Ollama log (`Get-OllamaPromptTruncation`: exit -3, `_TRUNCATED_` transcript,
+  no row) and records `promptTruncation` and an engine-neutral `servingEngine`
+  in every graded run JSON, ahead of the planned move off Ollama. New guard
+  `tests/test-prompt-truncation.ps1` (24 checks, PowerShell 7 and 5.1).
 - `opencode <profile>` from any PowerShell (owner request 2026-10-03):
   `desktop/scripts/opencode-profiles.ps1` defines an `opencode` function that
   sends a live profile name (full, or without `dev-workflow-`/`dev-`, any case)

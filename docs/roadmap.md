@@ -1260,6 +1260,61 @@ git branch bench/end-combat-clears-strain 9afb9112b0e2596edac0e7fe4055149512ab3b
 git branch bench/seed-virtue-conformance 8686bf41c9ac130bd521f05e056460ca777f43bf
 ```
 
+**First model run (2026-10-03): `qwen3.6` on all 18, 11 of 16 valid graded runs
+pass.** Desktop, Ollama 0.34.3, opencode 1.18.34, num_ctx 65536, limit.output
+8192, small model `qwen2.5-coder-3b-cpu`, keep-alive 4h, 900 s run cap; then a
+follow-up of four at 1800 s. Rows and transcripts are in `tests/results/`
+(`2026-10-03T16:00`–`17:33`).
+
+- **Clean (all gates PASS), 11:** `kane-09` to `kane-13`, `lfc-04`, `lfc-05`,
+  `asohav-03`, `asohav-04`, `asohav-07`, `asohav-08`; 1.3 to 12 minutes each.
+- **Test does not catch the bug, 1:** `kane-14` (fix and tests written, suite
+  green, the new test still passes with the fix reverted).
+- **Output cap, 2:** `lfc-07` (one step) and `asohav-09` (after six working
+  steps) ended on a step that spent all 8192 output tokens with no edit.
+- **Long context, 2 (the 1800 s follow-up):** `kane-07` and `kane-08` timed out
+  at 900 s still reading (18–19 reads and searches, no edit). At 1800 s neither
+  timed out and both failed: `signals.ts` and its test cost ~31k tokens, so
+  `kane-07` overflowed into OpenCode compaction and wrote a plan instead of the
+  change, and `kane-08` lost the task at 46,576 tokens of context.
+- **Not a measurement, 4 rows:** `asohav-05` and `asohav-06`, twice each. The
+  repo's `CLAUDE.md` at those pins is ~280 KB, the first request ~83k tokens,
+  and Ollama truncated it to 32,770, dropping the system prompt, tools and task
+  (`tests/results/README.md` → "Prompt truncated by Ollama"). Any 64k seat
+  fails them the same way; the harness now detects this and records no row.
+
+The failure classes are the seat's known limits (output cap, long context),
+plus one weak test.
+
+**`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
+manifest marks them `retired` (date, reason, evidence): they keep their ids,
+pins and rows, `test-tasks.ps1` and `run-tasks-batch.ps1` leave them out of
+`all` and the picker and refuse them by name unless `-IncludeRetired`
+(`tests/test-retired-tasks.ps1`). The reason is that the oversized file is not
+daily use: the ~280 KB `CLAUDE.md` existed 2026-09-10 to 09-12, and the owner
+trimmed it to 16 KB, which is what OpenCode loads in that repo today.
+
+- **Way back (not built):** a new id per task (`asohav-05b`, `asohav-06b`) on a
+  base that is the original pin plus the first trimmed `CLAUDE.md`
+  (`47bf270`, 2026-09-12, 15,643 bytes), chosen because it describes the code
+  as it was at the pins; today's file describes features that do not exist
+  there. The pin itself cannot move under the old id, and swapping the file in
+  the worktree during a run would trip the scope gate. Needs a bench branch
+  pushed to the asohav repo, so it is the owner's call.
+- **Open question first: how should a task treat the repo's instruction
+  file?** OpenCode loads a project's `AGENTS.md`, else its `CLAUDE.md`
+  ([OpenCode rules](https://opencode.ai/docs/rules/)), into every request. Of
+  the 27 pins, 12 load a `CLAUDE.md` and 15 an `AGENTS.md`, from ~180 tokens
+  (KaneEnabler's, which also tells the agent to run
+  `pnpm dlx @tanstack/intent@latest`, a network fetch, before substantial
+  edits) to ~19k (`asohav-03`) and ~70k (the two retired). Options: as pinned
+  (today; realistic only where the file was), normalized (a trimmed or
+  current file on a new base), or none (`OPENCODE_DISABLE_CLAUDE_CODE=1`
+  covers only `CLAUDE.md`, not `AGENTS.md`, so "none" is not symmetric
+  across repos). Any change to how a task loads it is a new era for that
+  task's rows. `asohav-03`/`-04` (77 KB and 56 KB, 14–19k tokens at the start
+  of every request) fit and passed, but carry part of the same distortion.
+
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
 **Superseding the context-budget explanation previously recorded here.** That
