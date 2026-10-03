@@ -24,9 +24,17 @@
 #     on 2026-10-01). The desktop sets OLLAMA_KEEP_ALIVE=4h (User env, since
 #     2026-10-03), and desktop\scripts\opencode.ps1 pre-loads this seat at
 #     launch, so that cost now lands once a day, not once per break.
-#   - The companion runs on the CPU (below). The VRAM measurement was taken on
-#     a clean desktop (no browser, WSL and Docker stopped); with the dev stack
-#     (DEV_DOCKER_STACK, WSL capped at 12 GB) it is unmeasured.
+#   - It is heavy on system RAM too: Ollama maps the whole model file into
+#     RAM (server.log "CPU_Mapped model buffer size = 20293.98 MiB"), the
+#     ~12 GB it also copies to the GPU included. The qwen3.6 process held
+#     16.56 GB private and the CPU companion 2.4 GB, so ~3.5 GB of 32 GB stays
+#     available. Measured 2026-10-03 (ReBAR on; not the cause).
+#   - So this profile does NOT start the Docker dev stack at login
+#     (DEV_DOCKER_STACK=false since 2026-10-03). With the stack up, WSL's VM
+#     alone held 2.1 GB, available memory fell to 0.55-1.1 GB, and the
+#     qwen3.6 process paged at 4k-19k hard page-ins/s mid-turn. Start it by
+#     hand (desktop\scripts\docker-stack.ps1 up) only when a project needs it,
+#     and expect slower replies while it runs.
 #   - Watch a session for repeated `<- Write` lines; if you see them, drop
 #     back to qwen3:8b, which stays registered and seats fine.
 #
@@ -40,6 +48,9 @@
 # FLASH_ATTENTION=1 + KV_CACHE_TYPE=q8_0):
 #   qwen3.6:35b-a3b-coding @64k = 21.13 GB (12.51 GB VRAM, rest RAM)  main agent
 #   qwen2.5-coder-3b-cpu   @16k =  2.27 GB (0 VRAM, all RAM)    small model (titles)
+# Host RAM is more than the "rest": Ollama maps the whole 20.3 GB file, and
+# the llama-server processes held 16.56 GB and 2.40 GB private (Get-Process,
+# 2026-10-03), ~19 GB of the 32.
 #
 # Why the companion is on the CPU: qwen3.6 takes every byte of VRAM it can,
 # so the GPU qwen2.5-coder:3b evicted it at each session start (titles), and
@@ -82,7 +93,8 @@ export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder-3b-cpu"
 # vs the ~11.4k baseline). Lean global scope; projects opt in via skills.paths.
 export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
 
-# Start the local dev stack (Postgres + Redis) with startup.ps1 at login.
-export DEV_DOCKER_STACK=true
+# Do not start the local dev stack (Postgres + Redis) at login: qwen3.6 leaves
+# no RAM for WSL (header). desktop\scripts\docker-stack.ps1 up when needed.
+export DEV_DOCKER_STACK=false
 
 echo "[profile] Workflow Quality: qwen3.6 drives in-thread (64k), CPU companion, /plan on demand"
