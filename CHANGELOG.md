@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Pin each benchmark task's test environment. `tests/tasks/manifest.json` gains
+  an optional `testEnv` (variable → value, `null` = unset) that `test-tasks.ps1`
+  applies to the test command and to the model's own `opencode run` process,
+  restores afterwards, and records in the run JSON (`Set-TaskTestEnv` /
+  `Restore-TaskTestEnv`, used by `Invoke-Test` and around the `opencode` call).
+  `asohav-02` pins `DATABASE_URL` to unset: a model-written test that imports
+  the real `repo.ts` imports `pgPool.ts`, which throws at import without it, and
+  the harness process had the variable on 2026-09-29 but not on 09-27, so the
+  two `qwen3.6` passes of 09-29 load only where it is set. `lfc-02` pins
+  `MANAPOOL_API_KEY` to unset (the flake its prompt already warns about). New
+  `tests/test-task-env.ps1`, 50 checks: the manifest entries, the real
+  set/restore functions and `Invoke-Test`, and the real `test-tasks.ps1` run end
+  to end against a fixture repo with a stand-in `opencode` (three tasks in one
+  run: the model's process, the gates and the run JSON see the pins, and the
+  next task does not). Sixteen mutants (scratch copies) each fail it.
+- Record a second replay of DP12's 12 passes (`docs/implementation-tasks.md` →
+  DP12 addendum), this time with the gates re-run and the project's own fix
+  commit as an oracle. All 12 gates reproduce and all 12 sources are right
+  against tests the models never saw; three of DP12's classifications differ
+  (kane-04 × `qwen3.5` rep 1 asserts no warning, both lfc-03 passes never test
+  `expired`, both asohav-02 passes need `DATABASE_URL`), so 5 clean and 7
+  qualified rather than 10 and 2. `docs/roadmap.md` carries the consequence for
+  the `qwen3.6` lead: 12/15 and Fisher p = 0.30 over `qwen3.5` if the asohav-02
+  passes are counted as a clean checkout would count them.
 - Main-seat trial: control task 3 FAIL (`qwen3:14b` on `9060ae9`, same base
   as the candidate: edit-first, false truncate claim over dead code, an
   unprompted reject→truncate contract change with the specifying test

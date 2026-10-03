@@ -96,6 +96,19 @@ different harnesses:
   re-cut by the stamped version. opencode installs patch releases by itself when
   a TUI starts (never from `opencode run`), which fits the version taking three
   values in ten days; the config template now sets `autoupdate` to `"notify"`.
+- **Test environment (added 2026-10-03).** Until then a gate ran under whatever
+  environment the harness process held, and nothing recorded which. `asohav-02`
+  showed the cost: a model-written test that imports the real `repo.ts` imports
+  `pgPool.ts`, which throws at import unless `DATABASE_URL` is set. The models'
+  own vitest runs hit that error on 2026-09-27 and never on 09-29, so the
+  variable was set by then; the two `qwen3.6` passes of 09-29 (`...221825`,
+  `...223027`) load only where it is set (replayed clean: suite gate FAIL), and
+  no other replayable `asohav-02` row's suite verdict depends on it. The manifest
+  now pins it (`testEnv`: `DATABASE_URL` unset for `asohav-02`, `MANAPOOL_API_KEY`
+  unset for `lfc-02`) for the test command and for the model's own shell, and the
+  run JSON records `testEnv`. Rows before 2026-10-03 have no such field. The
+  "same config" key stays prompt sha, `numCtx`, Ollama version and opencode
+  version, plus the test environment where one is recorded.
 
 Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
 and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger

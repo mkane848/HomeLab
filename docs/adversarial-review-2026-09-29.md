@@ -136,6 +136,7 @@ never evidence against the lineup.
 **Rule.** No re-seat, drop, or context change cites a gap smaller than
 what N≥3 per cell on the same prompt sha, same `numCtx`, same Ollama
 version **and same opencode version** (added 2026-09-30, see the addendum)
+and, where the manifest pins one, the same `testEnv` (added 2026-10-03)
 can support. Timeouts and `_INFRA_`/`_CONTEXT_`/`_ABORTED_`
 transcripts count as attempts — report per-attempt, never graded-only.
 

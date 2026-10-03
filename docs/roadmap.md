@@ -302,6 +302,17 @@ above is unchanged for the other five seats (N=1).
   and 0.0014. The step-6 table's 8/9 against 7/9 could not separate the top two;
   `qwen3.5`'s 7/9 was optimistic (13/21 at N≥3 on the same config, after two
   cells it had passed once failed twice).
+- **Caveat on that lead (2026-10-03, `docs/implementation-tasks.md` → DP12
+  addendum).** Two of `qwen3.6`'s 14 passes (`asohav-02`, 2026-09-29) load only
+  where `DATABASE_URL` is set; replayed on a clean checkout their test file does
+  not load and the suite gate fails. Counted that way `qwen3.6` is 12/15
+  (0.55–0.93), its lead over `qwen3.5` is Fisher p = 0.30 over all tasks and
+  0.64 on the frontier cells (6/9 against 4/9; 4/6 against 2/6 at 1.18.33,
+  p = 0.57), and the gap to `qwen3:14b` stays (p = 0.0018; 0.011 on the
+  frontier cells). The order is unchanged, so no seat decision moves, but "the
+  lead holds up" against `qwen3.5` is not supported on that reading. Which
+  reading the benchmark means is the owner's call; the harness now pins the
+  variable to unset (`testEnv`), so new `asohav-02` rows measure the clean one.
 - **`qwen3.5` misses by breaking the build or by writing a test that passes on
   broken code, not by writing nothing.** Its 8 same-config misses are seven
   graded rows with edits and one infra crash (a template error after
