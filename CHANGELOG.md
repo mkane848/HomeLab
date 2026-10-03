@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile's two models in `/api/ps`; the first try logged one `evicting` line
   because Ollama acknowledges `keep_alive: 0` before the memory is free, and
   after the wait the repeat logged none.
+- `dev-workflow-quality` no longer starts the Docker dev stack at login
+  (`DEV_DOCKER_STACK=false`; owner decision 2026-10-03). `qwen3.6` holds far
+  more system RAM than documented: Ollama maps the whole 20.3 GB model file
+  (`CPU_Mapped`), GPU part included, and the process held 16.56 GB private
+  beside the companion's 2.40 GB, ~3.5 GB of 32 GB left. With the stack up
+  (WSL's VM 2.1 GB) available memory fell to 0.55–1.1 GB, the model paged at
+  4k–19k hard page-ins/s, and the re-run of the companion driver was killed
+  for low memory 85 s into its first turn. RAM figures corrected in the
+  profile header, `AGENTS.md`, `docs/profiles.md`, `docs/start-here.md`,
+  `startup.ps1`'s comment and `docs/main-seat-trial.md` (new "Follow-up"
+  section). Start the stack by hand with `docker-stack.ps1 up`.
 - Desktop keep-alive is 4h (User env `OLLAMA_KEEP_ALIVE=4h`, owner decision
   2026-10-03; was Ollama's 5m default, under which an idle `qwen3.6` reloaded
   and re-prefilled for 2–3.5 min). Confirmed live as `OLLAMA_KEEP_ALIVE:4h0m0s`

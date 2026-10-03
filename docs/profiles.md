@@ -91,9 +91,13 @@ against its intent manifest (purpose, tier flags, main/small model, and whether 
 | `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-node3` | Third node (RTX 3080 FE): general + embed on node3, server autocomplete | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) |
 
-`dev-workflow-quality` also exports `DEV_DOCKER_STACK=true`, so `startup.ps1`
-starts the local Postgres + Redis stack (`desktop/docker`) at login alongside
-Ollama. The other two do not.
+No live profile starts the local Postgres + Redis stack (`desktop/docker`) at
+login; start it with `.\desktop\scripts\docker-stack.ps1 up` when a project
+needs it. `dev-workflow-quality` exported `DEV_DOCKER_STACK=true` until
+2026-10-03 and now exports `false`: `qwen3.6` and its companion hold ~19 GB of
+the desktop's 32 GB of RAM, and with the stack up (WSL's VM alone took 2.1 GB)
+available memory fell under 1.1 GB and the model paged mid-turn (see the VRAM
+table below).
 
 > **Changed 2026-10-03:** the main seat moved `qwen3:14b` →
 > **`qwen3.6:35b-a3b-coding`**, and the small model `qwen2.5-coder:3b` →
@@ -190,7 +194,13 @@ The quality pair cannot be budgeted the old way: `qwen3.6` is a MoE model
 larger than the card, so Ollama fills the GPU with as many of its layers as fit
 and runs the rest from system RAM, leaving no room for a second GPU model. The
 companion therefore runs on the CPU (measured 2026-10-03, clean desktop: no
-evictions across three sessions; `docs/main-seat-trial.md`). Before that the
+evictions across three sessions; `docs/main-seat-trial.md`). The RAM side is
+bigger than "the rest" suggests: Ollama maps the whole model file into RAM
+(`server.log`: `CPU_Mapped model buffer size = 20293.98 MiB`, beside
+`Vulkan0 model buffer size = 11988.43 MiB`), and the `qwen3.6` process held
+16.56 GB of private memory and the companion 2.40 GB (`Get-Process`,
+2026-10-03), leaving
+~3.5 GB of 32 GB available — no room for WSL and the Docker dev stack. Before that the
 pair was `qwen3:14b` @32k + `qwen2.5-coder:3b` = 13.29 GB, both on the GPU.
 
 `/plan` runs on the main agent, so no separate planner model swaps in.

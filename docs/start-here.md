@@ -358,7 +358,11 @@ silently evicted the main agent.
 
 **The default seat breaks that arithmetic on purpose.** `qwen3.6:35b-a3b-coding`
 is 21.13 GB at 64k — bigger than the card — so Ollama puts as much of it on the
-GPU as fits (12.51 GB) and runs the rest from system RAM. Nothing else fits on
+GPU as fits (12.51 GB) and runs the rest from system RAM — and Ollama maps the
+whole model file into RAM, so the process held 16.56 GB, not just the 8.6 GB
+that missed the GPU. The
+pair leaves ~3.5 GB of 32 GB free and the Docker dev stack does not start at
+login (`docs/profiles.md`). Nothing else fits on
 the GPU beside it: the GPU 3b evicted it at every session start. That is why
 `dev-workflow-quality` uses `qwen2.5-coder-3b-cpu`, the same 3b pinned to the
 CPU (`num_gpu 0`, derived by `startup.ps1`). Expect `/api/ps` to show:
