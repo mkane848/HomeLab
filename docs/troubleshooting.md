@@ -152,7 +152,7 @@ $body = @{
 
 | Model | `tool_calls` | Probe time | Notes |
 |---|---|---|---|
-| `qwen3:14b` | ✅ populated | 11.9 s | **the main seat** (dev-workflow-quality) |
+| `qwen3:14b` | ✅ populated | 11.9 s | the main seat 2026-09-17 to 2026-10-03 (now `qwen3.6:35b-a3b-coding`, PASS in the 2026-09-22 re-probe) |
 | `qwen3:8b` | ✅ populated | 11 s | lighter main seat (resident/desktop-only) |
 | `devstral:24b` | ✅ populated | 41.9 s | works, but 8.1 tok/s — see below |
 | `qwen2.5-coder` 3b/7b/14b/-16k | ❌ empty | — | prints the JSON as chat text |
@@ -417,9 +417,11 @@ curl.exe -s http://localhost:11434/api/ps
 Select-String -Path "$env:LOCALAPPDATA\Ollama\server.log" -Pattern 'gpu memory' | Select-Object -Last 1
 ```
 
-Practical rule: the `dev-workflow-quality` pair (qwen3:14b + qwen2.5-coder:3b =
-13.29 GB) does **not** coexist with a game — switch to `dev-workflow-resident`
-(11.97 GB) when the GPU is shared. Anything that wants a second 14B or larger
+Practical rule: the `dev-workflow-quality` seat (`qwen3.6:35b-a3b-coding`, which
+already fills the GPU at 12.51 GB and spills the rest to RAM; its companion
+runs on the CPU) is not measured beside a game — switch to
+`dev-workflow-resident` (11.97 GB) when the GPU is shared. (Its previous pair,
+qwen3:14b + qwen2.5-coder:3b = 13.29 GB, did **not** coexist with one.) Anything that wants a second 14B or larger
 needs the game closed.
 
 ### Desktop is slow / the main model keeps reloading

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Desktop keep-alive is 4h (User env `OLLAMA_KEEP_ALIVE=4h`, owner decision
+  2026-10-03; was Ollama's 5m default, under which an idle `qwen3.6` reloaded
+  and re-prefilled for 2–3.5 min). Confirmed live as `OLLAMA_KEEP_ALIVE:4h0m0s`
+  in `server.log` after a restart. `desktop\scripts\opencode.ps1` now
+  pre-loads the profile's desktop main seat in the background at launch
+  (`-NoWarm` skips it). It warms the main seat only: warming the CPU companion
+  as well let it load first, and `qwen3.6`'s load then evicted it, so it
+  loaded twice; cold-start test after the fix: 0 evictions, both models
+  expiring 4h out. Recorded in `AGENTS.md` (Gotchas), the quality profile,
+  the roadmap's decision list and `tests/results/README.md` ("Era
+  confound": durations across the date are not comparable; verdicts are).
+- Re-seat `dev-workflow-quality`: the main seat is `qwen3.6:35b-a3b-coding`
+  (was `qwen3:14b`, seated 2026-09-17) and the small model is
+  `qwen2.5-coder-3b-cpu` (was `qwen2.5-coder:3b`), per the main-seat trial
+  and its companion experiment (`docs/main-seat-trial.md`). `startup.ps1`
+  derives the companion from the 3b with `num_gpu 0` (`$derivedModels`, after
+  the context bakes) and lists it in its context contract;
+  `DEV_DESKTOP_MODELS` gains `qwen3.6`; `test-profiles.ps1`'s intent manifest
+  moves with the profile. `AGENTS.md`, `docs/profiles.md`,
+  `docs/start-here.md`, `docs/troubleshooting.md`,
+  `docs/model-architecture.md`, the roadmap's standings label and the model
+  comments and display names in `opencode/global/opencode.jsonc` now name
+  the new seat; dated history is unchanged. Not measured: the pair beside a
+  game, and beside the Docker dev stack (the experiment ran with WSL
+  stopped).
 - Close the main-seat trial and pre-register its second experiment
   (`docs/main-seat-trial.md`). `qwen3.6:35b-a3b-coding` meets the re-seat
   bar (zero FAILs, three CLEANs; the control can reach two at most), so the

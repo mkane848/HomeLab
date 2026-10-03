@@ -282,13 +282,15 @@ Proposed next, owner decision:
   `qwen3.6`.
 - Raise qwen3-coder's `limit.output` to 8192.
 - Settle the devstral pair.
-- Decide `OLLAMA_KEEP_ALIVE` (added 2026-10-03). The desktop runs Ollama's
-  5m default and nothing in the repo sets it. On 2026-10-01 `qwen3.6`
-  reloaded four times in one morning after idling past 5 minutes, with no
-  eviction involved, and each first reply took 2m11s to 3m28s (reload plus a
-  full re-prefill; `docs/main-seat-trial.md` → "Second experiment"). A longer
-  keep-alive removes most of that, but holds the GPU while idle (gaming) and
-  is a configuration change for the benchmark.
+- ~~Decide `OLLAMA_KEEP_ALIVE`.~~ Decided 2026-10-03: **4h**, a User env var
+  on the desktop. Under the 5m default, `qwen3.6` reloaded four times on the
+  morning of 2026-10-01 after idling past 5 minutes, with no eviction
+  involved, and each first reply took 2m11s to 3m28s (reload plus a full
+  re-prefill; `docs/main-seat-trial.md` → "Second experiment"). 4h covers a
+  working day's breaks and still frees the memory overnight; performance
+  while gaming is out of scope (owner). `desktop\scripts\opencode.ps1` also
+  pre-loads the main seat at launch. Gate verdicts are unaffected; durations
+  across the date are not comparable (`tests/results/README.md`).
 
 ### Executor standings after the N>1 protocol (2026-09-30)
 
@@ -302,7 +304,7 @@ above is unchanged for the other five seats (N=1).
 |---|---|---|---|
 | `qwen3.6:35b-a3b-coding` | 64k | **14/15** (0.70–0.99) | 8/9 |
 | `qwen3.5:9b` | 64k | 13/21 (0.41–0.79) | 4/9 |
-| `qwen3:14b` (default main seat) | 32k | 2/13 (0.04–0.42) | 0/7 |
+| `qwen3:14b` (default main seat until 2026-10-03) | 32k | 2/13 (0.04–0.42) | 0/7 |
 
 - **The `qwen3.6` lead now holds up.** Against `qwen3.5`: Fisher p = 0.051 over
   all tasks, 0.13 on the frontier cells alone. Against `qwen3:14b`: p = 0.0001

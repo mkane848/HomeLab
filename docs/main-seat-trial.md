@@ -273,4 +273,5 @@ log files, and the poll were kept outside the repo (session scratchpad).
 
 Per the pass bar, the profile change ships: `dev-workflow-quality` seats
 `qwen3.6` with the CPU companion, `startup.ps1` bakes the companion, and
-`test-profiles.ps1`'s intent manifest moves with it. Separate change.
+`test-profiles.ps1`'s intent manifest moves with it. Shipped 2026-10-03
+(`profiles/dev-workflow-quality.sh`, `startup.ps1` `$derivedModels`).
