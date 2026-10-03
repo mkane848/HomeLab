@@ -1,0 +1,34 @@
+﻿{
+    "timestamp":  "2026-10-03T16:14:56",
+    "taskId":  "lfc-04-admin-manage-server-permission",
+    "taskTitle":  "lfc-bot: /admin\u0027s default visibility must be the Manage Server permission, not the Administrator bit",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "e644702a6ce9753b69ca3291e1bdc388e2d1a7d3",
+    "promptSha256":  "08C5B9716E3B",
+    "opencodeExit":  0,
+    "writes":  3,
+    "finishReason":  "stop",
+    "lastStepOutput":  218,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "PASS",
+                  "suite":  "PASS",
+                  "failsOnOld":  "PASS"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "PASS",
+                       "ref":  "upstream-fix",
+                       "commit":  "0e9d123847f2302106cdc5da32ea32f5b3992988",
+                       "detail":  "Tests  5 passed (5)"
+                   },
+    "elapsedSec":  82.1,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  null,
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-lfc-04-admin-manage-server-permission-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-161456.jsonl"
+}

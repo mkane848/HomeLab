@@ -1,0 +1,36 @@
+﻿{
+    "timestamp":  "2026-10-03T16:52:01",
+    "taskId":  "asohav-07-rapport-clamp",
+    "taskTitle":  "ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "d73d6c978f478e3aca5fb836683fcfe639debd43",
+    "promptSha256":  "8F82A36A716D",
+    "opencodeExit":  0,
+    "writes":  3,
+    "finishReason":  "stop",
+    "lastStepOutput":  252,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "PASS",
+                  "suite":  "PASS",
+                  "failsOnOld":  "PASS"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "PASS",
+                       "ref":  "upstream-fix",
+                       "commit":  "2db8a09b37fc967ad1199bfa436a3d1ebde1c0d1",
+                       "detail":  "Tests  5 passed (5)"
+                   },
+    "elapsedSec":  112.1,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  {
+                    "DATABASE_URL":  null
+                },
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-asohav-07-rapport-clamp-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-165201.jsonl"
+}

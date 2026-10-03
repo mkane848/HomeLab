@@ -1,0 +1,34 @@
+﻿{
+    "timestamp":  "2026-10-03T16:49:56",
+    "taskId":  "asohav-06-bond-cap-setting",
+    "taskTitle":  "ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5",
+    "model":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "modelLabel":  "ollama-desktop/qwen3.6:35b-a3b-coding",
+    "baseCommit":  "84719041b3312cab3e49901dea20d7129bb24761",
+    "promptSha256":  "1835952E9426",
+    "opencodeExit":  0,
+    "writes":  0,
+    "finishReason":  "stop",
+    "lastStepOutput":  7302,
+    "outputLimit":  8192,
+    "outputCapHit":  false,
+    "gates":  {
+                  "scope":  "FAIL",
+                  "suite":  "PASS",
+                  "failsOnOld":  "FAIL"
+              },
+    "typecheck":  "SKIP",
+    "acceptance":  {
+                       "status":  "SKIP",
+                       "ref":  null,
+                       "commit":  null,
+                       "detail":  "task defines no acceptance block"
+                   },
+    "elapsedSec":  255.6,
+    "ollamaVersion":  "ollama version is 0.34.3",
+    "opencodeVersion":  "1.18.34",
+    "numCtx":  65536,
+    "testEnv":  null,
+    "samplingControl":  "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc\u0027s model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+    "transcriptFile":  "tasks-asohav-06-bond-cap-setting-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-164956.jsonl"
+}

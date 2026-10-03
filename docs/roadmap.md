@@ -1260,6 +1260,33 @@ git branch bench/end-combat-clears-strain 9afb9112b0e2596edac0e7fe4055149512ab3b
 git branch bench/seed-virtue-conformance 8686bf41c9ac130bd521f05e056460ca777f43bf
 ```
 
+**First model run (2026-10-03): `qwen3.6` on all 18, 11 of 16 valid graded runs
+pass.** Desktop, Ollama 0.34.3, opencode 1.18.34, num_ctx 65536, limit.output
+8192, small model `qwen2.5-coder-3b-cpu`, keep-alive 4h, 900 s run cap; then a
+follow-up of four at 1800 s. Rows and transcripts are in `tests/results/`
+(`2026-10-03T16:00`–`17:33`).
+
+- **Clean (all gates PASS), 11:** `kane-09` to `kane-13`, `lfc-04`, `lfc-05`,
+  `asohav-03`, `asohav-04`, `asohav-07`, `asohav-08`; 1.3 to 12 minutes each.
+- **Test does not catch the bug, 1:** `kane-14` (fix and tests written, suite
+  green, the new test still passes with the fix reverted).
+- **Output cap, 2:** `lfc-07` (one step) and `asohav-09` (after six working
+  steps) ended on a step that spent all 8192 output tokens with no edit.
+- **Long context, 2 (the 1800 s follow-up):** `kane-07` and `kane-08` timed out
+  at 900 s still reading (18–19 reads and searches, no edit). At 1800 s neither
+  timed out and both failed: `signals.ts` and its test cost ~31k tokens, so
+  `kane-07` overflowed into OpenCode compaction and wrote a plan instead of the
+  change, and `kane-08` lost the task at 46,576 tokens of context.
+- **Not a measurement, 4 rows:** `asohav-05` and `asohav-06`, twice each. The
+  repo's `CLAUDE.md` at those pins is ~280 KB, the first request ~83k tokens,
+  and Ollama truncated it to 32,770, dropping the system prompt, tools and task
+  (`tests/results/README.md` → "Prompt truncated by Ollama"). Any 64k seat
+  fails them the same way; the harness now detects this and records no row.
+
+The failure classes are the seat's known limits (output cap, long context),
+plus one weak test. Whether to keep `CLAUDE.md` in the agent's context for
+these tasks is an open owner decision.
+
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
 **Superseding the context-budget explanation previously recorded here.** That
