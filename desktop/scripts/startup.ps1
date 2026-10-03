@@ -196,7 +196,8 @@ foreach ($d in $derivedModels) {
 Write-Host "[startup] Desktop ready." -ForegroundColor Green
 
 # Optional local dev stack (Postgres + Redis) via Docker Desktop. Controlled by
-# DEV_DOCKER_STACK in the active profile (dev-workflow-quality sets it true).
+# DEV_DOCKER_STACK in the active profile (no live profile sets it true since
+# 2026-10-03: qwen3.6 leaves no RAM for WSL - see dev-workflow-quality.sh).
 # CPU-only services - see desktop/docker/docker-compose.yml. Native stderr on
 # docker under $ErrorActionPreference=Stop becomes a terminating error, so drop
 # to Continue around the calls (AGENTS.md gotcha) and restore after.

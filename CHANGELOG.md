@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `dev-workflow-quality` no longer starts the Docker dev stack at login
+  (`DEV_DOCKER_STACK=false`; owner decision 2026-10-03). `qwen3.6` holds far
+  more system RAM than documented: Ollama maps the whole 20.3 GB model file
+  (`CPU_Mapped`), GPU part included, and the process held 16.56 GB private
+  beside the companion's 2.40 GB, ~3.5 GB of 32 GB left. With the stack up
+  (WSL's VM 2.1 GB) available memory fell to 0.55–1.1 GB, the model paged at
+  4k–19k hard page-ins/s, and the re-run of the companion driver was killed
+  for low memory 85 s into its first turn. RAM figures corrected in the
+  profile header, `AGENTS.md`, `docs/profiles.md`, `docs/start-here.md`,
+  `startup.ps1`'s comment and `docs/main-seat-trial.md` (new "Follow-up"
+  section). Start the stack by hand with `docker-stack.ps1 up`.
 - A dead job host no longer ends a task batch. On 2026-10-02 the PowerShell
   process of the background job running `opencode` died under run 1 of 16
   (`kane-01` × `devstral-small-2:24b`); `Receive-Job` raised

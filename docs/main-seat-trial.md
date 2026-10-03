@@ -275,3 +275,28 @@ Per the pass bar, the profile change ships: `dev-workflow-quality` seats
 `qwen3.6` with the CPU companion, `startup.ps1` bakes the companion, and
 `test-profiles.ps1`'s intent manifest moves with it. Shipped 2026-10-03
 (`profiles/dev-workflow-quality.sh`, `startup.ps1` `$derivedModels`).
+
+### Follow-up (2026-10-03): the pair beside the Docker dev stack does not fit
+
+The setup above assumed `qwen3.6` puts "~10 GB in system RAM". It holds
+more. `server.log` shows Ollama maps the whole model file into RAM
+(`CPU_Mapped model buffer size = 20293.98 MiB`) beside the GPU copy
+(`Vulkan0 model buffer size = 11988.43 MiB`), and `Get-Process` showed the
+`qwen3.6` process at 16.56 GB private (20.63 GB working set before Windows
+trimmed it) and the companion at 2.40 GB. With both loaded and nothing else
+running, ~3.5 GB of 32 GB was available.
+
+The same three-session driver was re-run with Docker Desktop and the dev
+stack up (13:48 local; Postgres 36 MiB, Redis 8 MiB, WSL's VM 2.1 GB).
+Available memory sat at 0.55–1.1 GB and the disk served 4,000–19,000 hard
+page-ins/s through the first turn. At about 85 s into that turn the
+supervising Claude Code session killed the driver itself for critically low
+system memory, so no turn finished and nothing here is a timing comparison.
+The decision did not need one: `dev-workflow-quality` stopped starting the
+stack at login (`DEV_DOCKER_STACK=false`), and the stack is now started by
+hand when a project needs it. Resizable BAR is enabled on this desktop; it
+governs CPU access to VRAM and does not touch the mapped host buffer.
+
+Untested: loading `qwen3.6` without the memory map (`use_mmap` false) might
+keep only the ~8.6 GB that is not on the GPU in RAM. That is a separate
+measurement.
