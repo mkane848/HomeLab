@@ -282,6 +282,13 @@ Proposed next, owner decision:
   `qwen3.6`.
 - Raise qwen3-coder's `limit.output` to 8192.
 - Settle the devstral pair.
+- Decide `OLLAMA_KEEP_ALIVE` (added 2026-10-03). The desktop runs Ollama's
+  5m default and nothing in the repo sets it. On 2026-10-01 `qwen3.6`
+  reloaded four times in one morning after idling past 5 minutes, with no
+  eviction involved, and each first reply took 2m11s to 3m28s (reload plus a
+  full re-prefill; `docs/main-seat-trial.md` → "Second experiment"). A longer
+  keep-alive removes most of that, but holds the GPU while idle (gaming) and
+  is a configuration change for the benchmark.
 
 ### Executor standings after the N>1 protocol (2026-09-30)
 

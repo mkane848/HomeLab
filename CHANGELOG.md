@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Close the main-seat trial and pre-register its second experiment
+  (`docs/main-seat-trial.md`). `qwen3.6:35b-a3b-coding` meets the re-seat
+  bar (zero FAILs, three CLEANs; the control can reach two at most), so the
+  four open cells were not run. The trial-day Ollama logs show `qwen3.6`
+  spills to system RAM and takes every GPU byte, the 3b companion runs once
+  per session (titles) and evicts it then, and keep-alive reloads cost more
+  (2–3.5 min first replies). Option B (a 32k re-measure) is ruled out; option
+  A, the same 3b pinned to the CPU (`qwen2.5-coder-3b-cpu`, registered in
+  `opencode/global/opencode.jsonc`, built by hand), runs first against a
+  five-criterion pass bar on a clean desktop; option C, documented eviction
+  acceptance, is the fallback. No profile changes until it passes.
+  `OLLAMA_KEEP_ALIVE` is added to the roadmap's owner decisions.
 - Add 18 benchmark tasks mined from the owner's repos, so the suite is 27:
   `kane-07` to `kane-14`, `lfc-04`, `lfc-05`, `lfc-07` and `asohav-03` to
   `asohav-09` (the 15 candidates that fit the harness plus `kane-14`, `lfc-07`
