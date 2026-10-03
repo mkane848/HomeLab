@@ -13,7 +13,8 @@
 # What it does:
 #   1. manifest:  every `testEnv` is an object of valid variable names -> string or null (null =
 #                 unset) with a `testEnvNote` saying why; asohav-02 pins DATABASE_URL and lfc-02
-#                 pins MANAPOOL_API_KEY (the two documented hazards).
+#                 pins MANAPOOL_API_KEY (the two documented hazards), and every ASoHaV
+#                 apps/server task pins DATABASE_URL (asohav-02's finding, applied to the family).
 #   2. Set-TaskTestEnv / Restore-TaskTestEnv, the REAL functions from test-tasks.ps1: a pin over
 #                 an ambient value, null and "" unsetting, a variable that was absent, an
 #                 unrelated variable left alone, no-op for a task without `testEnv`, restore
@@ -88,6 +89,14 @@ try {
     $lfc = $manifest.tasks | Where-Object { $_.id -eq "lfc-02-scryfall-headers" }
     Check "asohav-02 pins DATABASE_URL" ($null -ne $asohav -and $null -ne $asohav.testEnv -and [bool]$asohav.testEnv.PSObject.Properties["DATABASE_URL"]) "True"
     Check "lfc-02 pins MANAPOOL_API_KEY" ($null -ne $lfc -and $null -ne $lfc.testEnv -and [bool]$lfc.testEnv.PSObject.Properties["MANAPOOL_API_KEY"]) "True"
+    # The standing rule behind asohav-02's pin: any ASoHaV apps/server task's model-written test can
+    # import the real repo.ts (-> pgPool.ts), which throws without DATABASE_URL, so each one pins it.
+    # asohav-01 pre-dates the rule: its 17 recorded rows ran under the ambient environment and
+    # nothing in them depends on it (its project test mocks the repo module), so it is not
+    # re-pinned - a pin would only split its same-config key without evidence.
+    $serverTasks = @($manifest.tasks | Where-Object { $_.id -like "asohav-*" -and $_.testDir -eq "apps/server" -and $_.id -ne "asohav-01-library-write-reporting" })
+    $unpinned = @($serverTasks | Where-Object { -not ($_.PSObject.Properties["testEnv"] -and $_.testEnv -and $_.testEnv.PSObject.Properties["DATABASE_URL"]) })
+    Check ("every ASoHaV apps/server task pins DATABASE_URL ({0} task(s))" -f $serverTasks.Count) ($serverTasks.Count -ge 1 -and $unpinned.Count -eq 0) "True"
 
     # ---- 2. Set-TaskTestEnv / Restore-TaskTestEnv ------------------------------------------------
     Write-Host "-- Set-TaskTestEnv / Restore-TaskTestEnv (real functions)"

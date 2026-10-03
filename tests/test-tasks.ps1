@@ -22,8 +22,9 @@
 #                SKIP when it does not, because a task that compiled nothing
 #                must not read as one that compiled cleanly.
 #   acceptance - informational, never a gate: when the task defines an
-#                `acceptance` block ({ ref, files }), the owner's test files at
-#                that local branch are swapped in over the model's, testCmd runs
+#                `acceptance` block ({ ref, commit, files }), the owner's (or, for
+#                tasks mined from a real fix, the upstream fix commit's own) test
+#                files at that pinned commit are swapped in over the model's, testCmd runs
 #                against the model's source, and the model's files are restored.
 #                Recorded in the per-run JSON only (PASS/FAIL/ERROR/SKIP + the
 #                exact commit used); the TSV schema is unchanged. Under -DryRun
@@ -240,7 +241,8 @@ function Resolve-AcceptanceCommit {
     # moved branch would change what "meets the owner's contract" means between runs
     # (all 18 recorded lfc-03 runs used one commit, which is the pin). A local branch
     # that has moved off the pin is reported, not followed; without a pin the branch
-    # tip is used, as before. Returns { Commit; Warning; Error }.
+    # tip is used, as before. A pinned commit this clone does not have yet is fetched
+    # from origin once before it is called missing. Returns { Commit; Warning; Error }.
     param($Task)
 
     $acc = $Task.acceptance
@@ -251,10 +253,17 @@ function Resolve-AcceptanceCommit {
         }
         return [pscustomobject]@{ Commit = $tip; Warning = $null; Error = $null }
     }
-    $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$($acc.commit)^{commit}")
+    $r = $null
+    foreach ($attempt in 1, 2) {
+        $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$($acc.commit)^{commit}")
+        if ($r.ExitCode -eq 0) { break }
+        # A commit that is upstream but not yet local (a task whose acceptance tests are an
+        # upstream fix commit's own test file): one fetch, then look again, as Resolve-TaskBase does.
+        if ($attempt -eq 1) { Run-Native "git" @("-C", $Task.repo, "fetch", "origin", "--quiet") | Out-Null }
+    }
     if ($r.ExitCode -ne 0) {
         return [pscustomobject]@{ Commit = $null; Warning = $null
-            Error = "pinned acceptance commit $($acc.commit) is not in $($Task.repo). It only ever lived on the local branch $($acc.ref); if that branch was deleted or rewritten, restore the commit or re-pin it" }
+            Error = "pinned acceptance commit $($acc.commit) is not in $($Task.repo), even after git fetch origin. If it only ever lived on the local branch $($acc.ref) and that branch was deleted or rewritten, restore the commit or re-pin it" }
     }
     $full = ($r.Output | Where-Object { $_ } | Select-Object -First 1).Trim()
     $warning = $null

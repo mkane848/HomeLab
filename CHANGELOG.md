@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Harness: a pinned acceptance commit this clone does not have yet is fetched
+  from `origin` once before it is called missing (`Resolve-AcceptanceCommit`,
+  as `Resolve-TaskBase` already did for a base), and `run-tasks-batch.ps1
+  -SetupOnly` fetches for it too. Groundwork for tasks mined from upstream fix
+  commits, whose acceptance oracle is the fix commit's own test file: it is on
+  `origin/main` but not necessarily in an older clone. `test-task-pins.ps1`
+  gains five checks (a base pin and an acceptance pin that are upstream but not
+  yet local, an acceptance pin that exists nowhere; the acceptance ones fail
+  against the previous harness) and its real-checkout step now resolves pins
+  through the harness's own resolvers. `test-task-env.ps1` gains a guard that
+  every ASoHaV `apps/server` task pins `DATABASE_URL` (`asohav-01` is exempt:
+  it pre-dates the rule and its recorded rows do not depend on it).
 - Pin each benchmark task's test environment. `tests/tasks/manifest.json` gains
   an optional `testEnv` (variable → value, `null` = unset) that `test-tasks.ps1`
   applies to the test command and to the model's own `opencode run` process,

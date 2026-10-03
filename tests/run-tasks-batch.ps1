@@ -194,14 +194,20 @@ if (-not $SkipSetup) {
             Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is not on origin, so nobody else can reproduce this task." -ForegroundColor Yellow
             Write-Host "         Publish it: git -C `"$repo`" push origin $($b.Commit):refs/heads/$($b.Branch)" -ForegroundColor Yellow
         }
-        # Same question for the owner's acceptance tests (lfc-03), pinned by `acceptance.commit`
-        # (a task without the pin follows the local branch `acceptance.ref`).
+        # Same question for the owner's acceptance tests (lfc-03's own branch; the other tasks'
+        # are an upstream fix commit's test file), pinned by `acceptance.commit` (a task without
+        # the pin follows the local branch `acceptance.ref`).
         $accRef = if ($task.acceptance) { $task.acceptance.ref } else { $null }
         if ($accRef) {
             $accSha = if ($task.acceptance.commit) { $task.acceptance.commit } else { (& git -C $repo rev-parse --verify --quiet "refs/heads/$accRef" 2>$null | Select-Object -First 1) }
             if (-not $accSha) {
                 Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow
             } else {
+                & git -C $repo cat-file -e "$accSha^{commit}" *> $null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "  fetching $repo for the acceptance commit ..." -ForegroundColor DarkGray
+                    & git -C $repo fetch origin --quiet *> $null
+                }
                 switch (Get-PublishState -Repo $repo -Commit $accSha) {
                     "missing"     { Write-Host "  [WARN] $($b.TaskId): acceptance commit $($accSha.Substring(0,10)) is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow }
                     "unpublished" {
