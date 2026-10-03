@@ -46,7 +46,11 @@ cd dev-docs
 ```
 
 `opencode.ps1` defaults to `dev-workflow-quality`; pass `-Profile <name>` for
-another. Add models with `.\desktop\scripts\models.ps1 -Profile`.
+another. Or run `.\desktop\scripts\install-opencode-profiles.ps1` once, and from
+any PowerShell window `opencode quality`, `opencode resident`,
+`opencode desktop-only` or `opencode node3` launches with that profile's models
+(and unloads the previous profile's). A plain `opencode` is unchanged. Add
+models with `.\desktop\scripts\models.ps1 -Profile`.
 
 Prefer VS Code? Skip straight to [docs/vscode.md](docs/vscode.md) —
 `startup.ps1` above still applies (it's what starts Ollama and bakes context),

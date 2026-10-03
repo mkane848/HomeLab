@@ -168,7 +168,8 @@ any profile whose main seat is not tool-capable.
 
 If a session seems to be doing nothing, check which model is driving. A bare
 `opencode` launch falls back to User-level env defaults rather than a profile —
-launch via `desktop\scripts\opencode.ps1`, which sources one for you.
+launch via `desktop\scripts\opencode.ps1`, which sources one for you, or
+`opencode <profile>` once `install-opencode-profiles.ps1` has run.
 
 ## VRAM budgets are measured, not catalog sizes
 

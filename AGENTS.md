@@ -53,6 +53,16 @@ Launch OpenCode via
 process env, and pre-loads the profile's desktop main seat in the background so
 the first reply skips the cold load; `-NoWarm` skips that) or from a shell that
 has sourced the profile; a bare launch falls back to User-level defaults.
+From any PowerShell, `opencode <profile>` does the same (`opencode quality`,
+`opencode resident run "..."`; short names drop `dev-workflow-`/`dev-`):
+`desktop\scripts\opencode-profiles.ps1` defines that `opencode` function, put in
+`$PROFILE` by `install-opencode-profiles.ps1`, and anything that is not a live
+profile name goes to the real opencode untouched. Since 2026-10-03 the launcher
+also unloads the desktop models the profile does not use before warming
+(`-KeepLoaded` skips that; a profile with no desktop seat leaves the desktop
+alone), and restores the shell's env when opencode exits, so a later bare
+`opencode` is really bare. `tests/test-opencode-profiles.ps1` guards the
+routing and the restore.
 
 Live profiles are `dev-workflow-quality.sh` (default), `dev-workflow-resident.sh`, `dev-desktop-only.sh` and `dev-node3.sh`; they set `OPENCODE_MODEL`/`OPENCODE_SMALL_MODEL`/`DEV_*_MODELS`. Eight server profiles are parked in `profiles/parked/` — see its README for the bring-back procedure (`git mv` + `test-profiles.ps1 -Profile <name>`; probe server models before seating — the server has never run `test-toolcalls.ps1`).
 

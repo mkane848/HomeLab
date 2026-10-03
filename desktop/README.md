@@ -49,6 +49,8 @@ Scripts and configs for the personal desktop machine — the native-Vulkan Ollam
 - `scripts/startup.ps1` — start desktop Ollama + models, bake `deepseek-r1-16k`, honor `DEV_TIERS_DESKTOP`
 - `scripts/startup.bat` — double-click launcher wrapper
 - `scripts/status.ps1` — check what's running
+- `scripts/opencode.ps1` — launch OpenCode with a profile's models (`-Profile <name>`)
+- `scripts/opencode-profiles.ps1` + `scripts/install-opencode-profiles.ps1` — `opencode <profile>` from any PowerShell
 - `scripts/models.ps1` — catalog-aware model installer (see above)
 - `scripts/sync-wezterm.ps1` — deploy the WezTerm config (`..\..\wezterm\wezterm.lua`) to `C:\Users\<you>\.wezterm.lua`
 - `scripts/sync-opencode.ps1` — deploy `opencode/global/opencode.jsonc` to `~/.config/opencode/`
