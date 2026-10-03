@@ -302,7 +302,7 @@ above is unchanged for the other five seats (N=1).
 |---|---|---|---|
 | `qwen3.6:35b-a3b-coding` | 64k | **14/15** (0.70–0.99) | 8/9 |
 | `qwen3.5:9b` | 64k | 13/21 (0.41–0.79) | 4/9 |
-| `qwen3:14b` (default main seat) | 32k | 2/13 (0.04–0.42) | 0/7 |
+| `qwen3:14b` (default main seat until 2026-10-03) | 32k | 2/13 (0.04–0.42) | 0/7 |
 
 - **The `qwen3.6` lead now holds up.** Against `qwen3.5`: Fisher p = 0.051 over
   all tasks, 0.13 on the frontier cells alone. Against `qwen3:14b`: p = 0.0001

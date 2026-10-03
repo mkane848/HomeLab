@@ -377,6 +377,9 @@ $budgetsMs = @{
     "qwen3:8b"            = 60000;  "qwen3:14b"            = 90000;  "deepseek-r1:14b"    = 120000
     "deepseek-r1-16k"     = 90000;  "codestral:22b"        = 90000;  "gemma3:12b"         = 90000
     "glm4:9b"             = 60000;  "gpt-oss:20b"          = 90000;  "qwq:32b"            = 240000
+    # The quality pair (2026-10-03): cold-load PONG measured 61.0 s for qwen3.6
+    # (21 GB, partly in system RAM) and 5.6 s for the CPU 3b; about twice that.
+    "qwen3.6:35b-a3b-coding" = 120000;  "qwen2.5-coder-3b-cpu" = 15000
 }
 
 function Get-Budget {
@@ -452,10 +455,11 @@ $profileIntents = @{
     # devstral:24b passed on 2026-09-17 (13 of 22 probed models pass on Ollama
     # 0.34.2/0.34.3, AGENTS.md Gotchas), so a tool-capable seat holds the main seat here
     # regardless of code-quality ranking. This check asserts tool capability, not
-    # task performance (docs/roadmap.md -> Executor standings). 14b was
-    # re-seated 2026-09-17 for loose-prompt intent
-    # handling; watch for repeated tool calls (see docs/troubleshooting.md).
-    "dev-workflow-quality"  = New-Intent -Purpose "qwen3:14b drives in-thread at 32k, /plan on demand" -Main "ollama-desktop/qwen3:14b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:3b" -Desktop $true
+    # task performance (docs/roadmap.md -> Executor standings). qwen3.6 took
+    # the quality seat 2026-10-03 (docs/main-seat-trial.md: trial win plus the
+    # companion experiment), after qwen3:14b (2026-09-17); its small model is
+    # the CPU-pinned 3b that startup.ps1 derives, so titles do not evict it.
+    "dev-workflow-quality"  = New-Intent -Purpose "qwen3.6 drives in-thread at 64k with a CPU companion, /plan on demand" -Main "ollama-desktop/qwen3.6:35b-a3b-coding" -Role "general" -Small "ollama-desktop/qwen2.5-coder-3b-cpu" -Desktop $true
     "dev-workflow-resident" = New-Intent -Purpose "qwen3:8b drives, 7b coder resident as a no-tools code/review model (no coder subagent since 2026-09-17)" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
     "dev-workflow-server"   = New-Intent -Purpose "qwen3:8b drives from the server, desktop planner" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Desktop $true
     "dev-desktop-only"      = New-Intent -Purpose "standalone desktop console, no LAN deps" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true

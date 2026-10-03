@@ -159,6 +159,25 @@ foreach ($m in $contextModels) {
     Remove-Item -LiteralPath $mf -Force
 }
 
+# Derived models that pin more than a context. qwen2.5-coder-3b-cpu is the 3b
+# with num_gpu 0: it runs on the CPU and needs no VRAM, so it can be the small
+# model (titles) next to qwen3.6, which takes every byte of VRAM it can and was
+# evicted by the GPU 3b at each session start (docs/main-seat-trial.md ->
+# "Second experiment", 2026-10-03). Built after the loop so its base already
+# carries its baked context.
+$derivedModels = @(
+    @{ Name = "qwen2.5-coder-3b-cpu"; From = "qwen2.5-coder:3b"; Ctx = 16384; NumGpu = 0 }
+)
+foreach ($d in $derivedModels) {
+    $dCtx = if ($ctxOverride) { $ContextLength } else { $d.Ctx }
+    Write-Host ""
+    Write-Host "[startup] Deriving $($d.Name) from $($d.From) (num_ctx=$dCtx, num_gpu=$($d.NumGpu))..." -ForegroundColor Cyan
+    $mf = Join-Path $env:TEMP "Modelfile-derived-$($d.Name)"
+    Set-Content -LiteralPath $mf -Value "FROM $($d.From)`nPARAMETER num_ctx $dCtx`nPARAMETER num_gpu $($d.NumGpu)" -Encoding ascii
+    & ollama create $d.Name -f $mf | Out-Null
+    Remove-Item -LiteralPath $mf -Force
+}
+
 $ErrorActionPreference = $savedEapBake
 
 Write-Host ""
@@ -169,6 +188,10 @@ foreach ($m in $contextModels) {
     $aliasCtxs = if ($ctxOverride) { @($ContextLength) } else { $m.Aliases }
     $aliasList = ($aliasCtxs | ForEach-Object { "$shortName-$([math]::Round($_ / 1024))k@$_" }) -join ', '
     Write-Host ("  {0,-22} {1}{2}" -f $m.Base, $baseCtx, $(if ($aliasList) { "  ($aliasList)" } else { "" }))
+}
+foreach ($d in $derivedModels) {
+    $dCtx = if ($ctxOverride) { $ContextLength } else { $d.Ctx }
+    Write-Host ("  {0,-22} {1}  (from {2}, num_gpu {3})" -f $d.Name, $dCtx, $d.From, $d.NumGpu)
 }
 Write-Host "[startup] Desktop ready." -ForegroundColor Green
 

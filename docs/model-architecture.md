@@ -8,8 +8,8 @@
 > grown to 13 of 22 probed models, see AGENTS.md Gotchas). It still presents
 > `deepseek-r1-16k` and the `qwen2.5-coder` family as working seats; none of
 > them can call a tool, and an agent seated on one will claim edits it never
-> made. It also never mentions `qwen3:14b`, which is the actual default main
-> seat.
+> made. It also never mentions `qwen3:14b` (the default main seat 2026-09-17 to
+> 2026-10-03) or `qwen3.6:35b-a3b-coding` (the default since).
 >
 > Current sources of truth:
 > - **Which models can be agent seats** → [start-here.md](start-here.md) →

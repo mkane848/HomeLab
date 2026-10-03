@@ -8,7 +8,8 @@ what you should actually see.
 **Right now:** the server (`SERVER_IP`) will not POST — hardware recovery is
 in progress ([`server-recovery-cpu-led.md`](server-recovery-cpu-led.md)). So
 the default loop runs on the Windows desktop, and the profile you want is
-`dev-workflow-quality` (qwen3:14b at 32k). Nothing below needs the server.
+`dev-workflow-quality` (qwen3.6 at 64k, with a CPU companion). Nothing below
+needs the server.
 (The third node is live too — `dev-node3` serves `qwen3:8b` general + embed on
 the 3080 FE; see [profiles.md](profiles.md).)
 
@@ -109,7 +110,7 @@ Ollama isn't up — check `Get-Process ollama`.
 You should see this line before the UI appears:
 
 ```
-[opencode] profile=dev-workflow-quality OPENCODE_MODEL=ollama-desktop/qwen3:14b
+[opencode] profile=dev-workflow-quality OPENCODE_MODEL=ollama-desktop/qwen3.6:35b-a3b-coding
 ```
 
 **What a profile is.** A profile is a shell script that exports environment
@@ -117,8 +118,8 @@ variables — nothing more. It doesn't install anything or start anything. It
 just answers "which models, on which machines, for this shell":
 
 ```bash
-export OPENCODE_MODEL="ollama-desktop/qwen3:14b"        # the agent you talk to
-export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:3b"  # titles, summaries
+export OPENCODE_MODEL="ollama-desktop/qwen3.6:35b-a3b-coding"  # the agent you talk to
+export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder-3b-cpu"  # titles
 export OLLAMA_DESKTOP_BASE_URL="http://localhost:11434/v1"
 export DEV_TIERS_DESKTOP=true                          # startup.ps1 reads this
 ```
@@ -192,7 +193,7 @@ here. Raw output: [`tests/results/toolcalls-0.34.1.txt`](../tests/results/toolca
 
 | Model | Can call tools? |
 |---|---|
-| `qwen3:14b` | **yes** — the main seat (watch for repeated calls below) |
+| `qwen3:14b` | **yes** — the main seat 2026-09-17 to 2026-10-03 (watch for repeated calls below) |
 | `qwen3:8b` | **yes** — the lighter main seat in `dev-workflow-resident`/`dev-desktop-only` |
 | `qwen3.5:9b` | **yes** — first measured 2026-09-19 |
 | `qwen3-coder:30b-a3b` | **yes** — first measured 2026-09-19; the review-gate auditor seat |
@@ -335,9 +336,22 @@ usable. If a second model doesn't fit alongside the first, Ollama **evicts** the
 first. That costs ~14 seconds to reload *and* throws away the cached prompt
 prefix, so the next turn re-processes everything from scratch.
 
-This is why the small model is a 3B. The pair above is **13.29 GB** and both
-stay put. The old setup paired a 14B (11.27 GB) with a 7B (5.22 GB) = 16.5 GB,
-which does not fit — so every title generation silently evicted the main agent.
+This is why the small model is a 3B. A 3B pair like the one above stays put
+(`qwen3:14b` + 3b was **13.29 GB**). The old setup paired a 14B (11.27 GB) with
+a 7B (5.22 GB) = 16.5 GB, which does not fit — so every title generation
+silently evicted the main agent.
+
+**The default seat breaks that arithmetic on purpose.** `qwen3.6:35b-a3b-coding`
+is 21.13 GB at 64k — bigger than the card — so Ollama puts as much of it on the
+GPU as fits (12.51 GB) and runs the rest from system RAM. Nothing else fits on
+the GPU beside it: the GPU 3b evicted it at every session start. That is why
+`dev-workflow-quality` uses `qwen2.5-coder-3b-cpu`, the same 3b pinned to the
+CPU (`num_gpu 0`, derived by `startup.ps1`). Expect `/api/ps` to show:
+
+```
+qwen3.6:35b-a3b-coding        size=21.13GB  vram=12.51GB
+qwen2.5-coder-3b-cpu:latest   size=2.27GB   vram=0.00GB
+```
 
 **Why 32k and not 16k.** The system prompt plus tool schemas measure 11,441
 tokens. Subtract the 4,096 reserved for output and a 16k window leaves about
@@ -358,11 +372,11 @@ msg="llama-server model predicted to exceed available memory, evicting"
 
 Only `dev-workflow-resident` survives gaming (its pair is 11.97 GB), so that is
 the profile to switch to when the GPU is shared. The `dev-workflow-quality`
-pair does *not*:
+seat is not measured while gaming (it already fills the GPU and spills to RAM):
 
 | Profile | Pair | VRAM | While gaming (~12.5 GB) |
 |---|---|---|---|
-| `dev-workflow-quality` | `qwen3:14b` @32k + 3b | 13.29 GB | **no — evicts** |
+| `dev-workflow-quality` | `qwen3.6` @64k + CPU 3b | 12.51 GB (all it can get) | not measured |
 | `dev-workflow-resident` | `qwen3:8b` @32k + coder-16k | 11.97 GB | fine |
 
 What will *not* survive it at all: anything you deliberately switch to that's

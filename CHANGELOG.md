@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Re-seat `dev-workflow-quality`: the main seat is `qwen3.6:35b-a3b-coding`
+  (was `qwen3:14b`, seated 2026-09-17) and the small model is
+  `qwen2.5-coder-3b-cpu` (was `qwen2.5-coder:3b`), per the main-seat trial
+  and its companion experiment (`docs/main-seat-trial.md`). `startup.ps1`
+  derives the companion from the 3b with `num_gpu 0` (`$derivedModels`, after
+  the context bakes) and lists it in its context contract;
+  `DEV_DESKTOP_MODELS` gains `qwen3.6`; `test-profiles.ps1`'s intent manifest
+  moves with the profile. `AGENTS.md`, `docs/profiles.md`,
+  `docs/start-here.md`, `docs/troubleshooting.md`,
+  `docs/model-architecture.md`, the roadmap's standings label and the model
+  comments and display names in `opencode/global/opencode.jsonc` now name
+  the new seat; dated history is unchanged. Not measured: the pair beside a
+  game, and beside the Docker dev stack (the experiment ran with WSL
+  stopped).
 - Close the main-seat trial and pre-register its second experiment
   (`docs/main-seat-trial.md`). `qwen3.6:35b-a3b-coding` meets the re-seat
   bar (zero FAILs, three CLEANs; the control can reach two at most), so the

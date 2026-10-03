@@ -241,9 +241,9 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
         },
-        // Small/companion model. The 3b stays resident next to the 14b; the
-        // 7b does not (see profiles/dev-workflow-quality.sh for the measured
-        // VRAM budget).
+        // Small/companion model on the GPU. It stayed resident next to qwen3:14b
+        // (13.29 GB); the 7b does not. Next to qwen3.6 it evicts the main seat,
+        // which is why dev-workflow-quality uses the CPU copy below.
         "qwen2.5-coder:3b": {
           "name": "Qwen 2.5 Coder 3B (Desktop, small)",
           "attachment": true,
@@ -254,10 +254,11 @@
           "limit": { "context": 16384, "output": 2048 }
         },
         // The same 3b with num_gpu 0 baked in: runs on the CPU, needs no VRAM.
-        // Candidate companion for qwen3.6, which spills to system RAM and takes
-        // every GPU byte, so the GPU 3b evicts it at each session start. Built
-        // by hand for the second experiment (docs/main-seat-trial.md); no
-        // profile uses it yet.
+        // Small model of dev-workflow-quality since 2026-10-03. qwen3.6 spills
+        // to system RAM and takes every GPU byte, so the GPU 3b evicted it at
+        // each session start; this one did not (docs/main-seat-trial.md ->
+        // "Second experiment", 0 evictions in 3 sessions). Derived by
+        // startup.ps1 ($derivedModels).
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Desktop, CPU, small)",
           "attachment": true,
@@ -279,9 +280,10 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 32768, "output": 4096 }
         },
-        // MAIN SEAT of dev-workflow-quality. Probed 2026-09-17: PASS in 11.9s.
-        // Measured at 32k: 11.03 GB, 100% on GPU, 48.9 tok/s. Pairs with the
-        // 3b small model at 13.29 GB of ~14.8 GB usable.
+        // Main seat of dev-workflow-quality from 2026-09-17 to 2026-10-03 (now
+        // qwen3.6, below). Probed 2026-09-17: PASS in 11.9s. Measured at 32k:
+        // 11.03 GB, 100% on GPU, 48.9 tok/s. Pairs with the 3b small model at
+        // 13.29 GB of ~14.8 GB usable.
         //
         // output 4096 -> 8192 (2026-09-21). At 4096 this seat ran out of output
         // budget inside its own reasoning block on 8 of 16 task-veracity runs:
@@ -296,7 +298,7 @@
         // The 8b carries the same cap and rarely reaches it - it reasons less
         // before acting - so this is a 14b ceiling, not a fleet-wide one.
         "qwen3:14b": {
-          "name": "Qwen3 14B 32k ctx (Desktop) - main seat",
+          "name": "Qwen3 14B 32k ctx (Desktop) - former main seat",
           "attachment": true,
           "reasoning": true,
           "tool_call": true,
@@ -395,11 +397,14 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 65536, "output": 4096 }
         },
+        // MAIN SEAT of dev-workflow-quality since 2026-10-03
+        // (docs/main-seat-trial.md). 64k: 21.13 GB, of which 12.51 GB on the
+        // GPU and the rest in system RAM; its small model is the CPU 3b above.
         // Starting-build planner seat (agreed 2026-09-23): a plan carries
         // multi-order work orders plus acceptance tests, which does not fit
         // the 4096 executor budget (the qwen3:14b truncation trap) - 8192.
         "qwen3.6:35b-a3b-coding": {
-          "name": "Qwen3.6 35B-A3B Coding (Desktop, candidate, offloads)",
+          "name": "Qwen3.6 35B-A3B Coding (Desktop, main seat, offloads)",
           "attachment": true,
           "reasoning": true,
           "tool_call": true,

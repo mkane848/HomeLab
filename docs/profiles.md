@@ -26,7 +26,7 @@ not POST) plus the onboarded third node:
 
 | Profile | Main seat | Use it when |
 |---|---|---|
-| `dev-workflow-quality` | `qwen3:14b` @32k + `qwen2.5-coder:3b` | default — everyday work |
+| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` | default — everyday work |
 | `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` | you want the 7B resident for code text |
 | `dev-desktop-only` | `qwen3:8b` | plain local console, no extras |
 | `dev-node3` | `qwen3:8b` on node3 (onboarded 2026-09-20) | general + embed work on the 3080 FE |
@@ -86,7 +86,7 @@ against its intent manifest (purpose, tier flags, main/small model, and whether 
 
 | Profile | Purpose | Main / small model |
 |---------|---------|--------------------|
-| `dev-workflow-quality` | Default. qwen3:14b drives in-thread at 32k, `/plan` on demand | `qwen3:14b` / `qwen2.5-coder:3b` |
+| `dev-workflow-quality` | Default. qwen3.6 drives in-thread at 64k with a CPU companion, `/plan` on demand | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` |
 | `dev-workflow-resident` | Same, but keeps the 7B coder resident as a no-tools code/review model | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-node3` | Third node (RTX 3080 FE): general + embed on node3, server autocomplete | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) |
@@ -95,7 +95,16 @@ against its intent manifest (purpose, tier flags, main/small model, and whether 
 starts the local Postgres + Redis stack (`desktop/docker`) at login alongside
 Ollama. The other two do not.
 
-> **Changed 2026-09-17 (twice, final state):** `dev-workflow-quality`'s main
+> **Changed 2026-10-03:** the main seat moved `qwen3:14b` →
+> **`qwen3.6:35b-a3b-coding`**, and the small model `qwen2.5-coder:3b` →
+> **`qwen2.5-coder-3b-cpu`** (the same 3b with `num_gpu 0`, derived by
+> `startup.ps1`). `qwen3.6` won the plain-language main-seat trial and leads
+> the task benchmark; it takes all the VRAM it can and spills the rest to
+> system RAM, so the GPU 3b evicted it at every session start, and the CPU
+> copy does not. Evidence and pass bar: `docs/main-seat-trial.md`. The
+> history below is how `qwen3:14b` got the seat.
+>
+> **Changed 2026-09-17 (twice):** `dev-workflow-quality`'s main
 > seat moved `qwen2.5-coder:14b` → `qwen3:8b` → **`qwen3:14b`**. The coder
 > cannot call tools — only the qwen3 family (8b/14b) and `devstral:24b` passed
 > `tests/test-toolcalls.ps1` that day, verified on this exact stack (13 of 22
@@ -140,13 +149,14 @@ mode just asks the session's current model for a text plan; no file is written.
 were accurate and two of its three interpretations were inverted. Details:
 `docs/troubleshooting.md` → "`/plan` works now — but verify every claim".
 
-Coding work is driven by the **main session model**, which must be `qwen3:14b`
-(or `qwen3:8b` in the lighter profiles).
+Coding work is driven by the **main session model**, which must be
+`qwen3.6:35b-a3b-coding` (or `qwen3:8b` in the lighter profiles).
 
 ### Every main seat is a tool-capable model — keep it that way
 
-Every live and parked profile seats a qwen3 (8b or 14b) — the only family that
-passes the probe. Before 2026-09-17 most seated a `qwen2.5-coder` or
+Every live and parked profile seats a model that passes the probe:
+`qwen3.6:35b-a3b-coding` in `dev-workflow-quality`, `qwen3:8b` everywhere
+else. Before 2026-09-17 most seated a `qwen2.5-coder` or
 `deepseek-r1` tag, **none of which can call tools** —
 those sessions answered questions and described changes but never touched the
 filesystem, and reported success anyway. See `docs/troubleshooting.md` → "Agent
@@ -172,8 +182,15 @@ Measured with `OLLAMA_FLASH_ATTENTION=1` + `OLLAMA_KV_CACHE_TYPE=q8_0`:
 
 | Profile | Resident pair | VRAM |
 |---|---|---|
-| `dev-workflow-quality` | `qwen3:14b` @32k + `qwen2.5-coder:3b` @16k | 11.03 + 2.26 = **13.29 GB** |
+| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` @16k | 12.51 (of 21.13 total; the rest in RAM) + 0 (2.27 in RAM) = **12.51 GB**, all the GPU Ollama gives it |
 | `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` @16k | 7.16 + 4.81 = **11.97 GB** |
+
+The quality pair cannot be budgeted the old way: `qwen3.6` is a MoE model
+larger than the card, so Ollama fills the GPU with as many of its layers as fit
+and runs the rest from system RAM, leaving no room for a second GPU model. The
+companion therefore runs on the CPU (measured 2026-10-03, clean desktop: no
+evictions across three sessions; `docs/main-seat-trial.md`). Before that the
+pair was `qwen3:14b` @32k + `qwen2.5-coder:3b` = 13.29 GB, both on the GPU.
 
 `/plan` runs on the main agent, so no separate planner model swaps in.
 `qwen2.5-coder:14b` (11.27 GB) can be swapped in deliberately for a no-tools
