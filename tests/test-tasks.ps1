@@ -117,6 +117,8 @@ param(
     # check. Default: %LOCALAPPDATA%\Ollama when the model's provider points at
     # localhost; any other host is not checked (its log is on that machine).
     [string]$OllamaLogDir = "",
+    # Run a task the manifest marks `retired` (see Resolve-TaskSelection).
+    [switch]$IncludeRetired,
     [ValidateSet("write", "edit", "")]
     [string]$EditFormat = ""
 )
@@ -144,12 +146,37 @@ if (-not (Test-Path -LiteralPath $wtRoot)) {
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $allTasks = @($manifest.tasks)
 
-if (@($Task).Count -gt 0) {
-    $wanted = @($Task | ForEach-Object { $_.Trim() })
-    $tasksToRun = @($allTasks | Where-Object { $wanted -contains $_.id })
-} else {
-    $tasksToRun = @($allTasks)
+function Resolve-TaskSelection {
+    # Which manifest tasks to run. A task with a `retired` object ({date,
+    # reason, see}) stays in the manifest - its id, pin and rows are history -
+    # but is not run: left out of a no-argument run, and an error when named,
+    # unless -IncludeRetired. First retired 2026-10-03: asohav-05/06, which no
+    # 64k seat can see as pinned (tests/results/README.md -> "Prompt truncated
+    # by Ollama").
+    param($AllTasks, [string[]]$Requested, [bool]$IncludeRetired)
+    $named = @($Requested | Where-Object { $_ } | ForEach-Object { $_.Trim() })
+    $picked = if ($named.Count -gt 0) { @($AllTasks | Where-Object { $named -contains $_.id }) } else { @($AllTasks) }
+    $retired = @($picked | Where-Object { $_.retired })
+    $refused = @()
+    if (-not $IncludeRetired -and $retired.Count -gt 0) {
+        if ($named.Count -gt 0) { $refused = $retired }
+        $picked = @($picked | Where-Object { -not $_.retired })
+    }
+    return [pscustomobject]@{ Run = $picked; Refused = $refused; Skipped = $(if ($named.Count -eq 0 -and -not $IncludeRetired) { $retired } else { @() }) }
 }
+
+$selection = Resolve-TaskSelection -AllTasks $allTasks -Requested $Task -IncludeRetired ([bool]$IncludeRetired)
+if ($selection.Refused.Count -gt 0) {
+    foreach ($r in $selection.Refused) {
+        Write-Host "ERROR: $($r.id) is retired ($($r.retired.date)): $($r.retired.reason)" -ForegroundColor Red
+        Write-Host "       see $($r.retired.see); pass -IncludeRetired to run it anyway" -ForegroundColor Red
+    }
+    exit 1
+}
+if ($selection.Skipped.Count -gt 0) {
+    Write-Host "skipping $($selection.Skipped.Count) retired task(s): $(@($selection.Skipped | ForEach-Object id) -join ', ')" -ForegroundColor DarkGray
+}
+$tasksToRun = @($selection.Run)
 if ($tasksToRun.Count -eq 0) {
     Write-Host "ERROR: no tasks matched. Manifest has: $($allTasks.id -join ', ')" -ForegroundColor Red
     exit 1

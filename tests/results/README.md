@@ -266,7 +266,10 @@ the tail, which drops the system prompt, the tool schemas and the task. **No
 | `2026-10-03T17:29:36` | `asohav-05-library-write-validation` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
 | `2026-10-03T17:33:53` | `asohav-06-bond-cap-setting` | `ollama-desktop/qwen3.6:35b-a3b-coding` |
 
-Exclude them from every denominator. Since 2026-10-03 `test-tasks.ps1` reads
+Exclude them from every denominator. Both tasks are retired in the manifest
+since 2026-10-03 (`retired`, owner decision; `docs/roadmap.md` → "Task set
+expansion II" has the way back), so no new rows will join these. Since
+2026-10-03 `test-tasks.ps1` reads
 the local Ollama log for each run's window (`Get-OllamaPromptTruncation`) and
 turns a hit into a FAILed run with a `_TRUNCATED_` transcript and no row; each
 graded run JSON records the check in `promptTruncation` (`tests/test-prompt-truncation.ps1`).

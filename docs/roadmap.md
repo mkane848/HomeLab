@@ -1284,8 +1284,36 @@ follow-up of four at 1800 s. Rows and transcripts are in `tests/results/`
   fails them the same way; the harness now detects this and records no row.
 
 The failure classes are the seat's known limits (output cap, long context),
-plus one weak test. Whether to keep `CLAUDE.md` in the agent's context for
-these tasks is an open owner decision.
+plus one weak test.
+
+**`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
+manifest marks them `retired` (date, reason, evidence): they keep their ids,
+pins and rows, `test-tasks.ps1` and `run-tasks-batch.ps1` leave them out of
+`all` and the picker and refuse them by name unless `-IncludeRetired`
+(`tests/test-retired-tasks.ps1`). The reason is that the oversized file is not
+daily use: the ~280 KB `CLAUDE.md` existed 2026-09-10 to 09-12, and the owner
+trimmed it to 16 KB, which is what OpenCode loads in that repo today.
+
+- **Way back (not built):** a new id per task (`asohav-05b`, `asohav-06b`) on a
+  base that is the original pin plus the first trimmed `CLAUDE.md`
+  (`47bf270`, 2026-09-12, 15,643 bytes), chosen because it describes the code
+  as it was at the pins; today's file describes features that do not exist
+  there. The pin itself cannot move under the old id, and swapping the file in
+  the worktree during a run would trip the scope gate. Needs a bench branch
+  pushed to the asohav repo, so it is the owner's call.
+- **Open question first: how should a task treat the repo's instruction
+  file?** OpenCode loads a project's `AGENTS.md`, else its `CLAUDE.md`
+  ([OpenCode rules](https://opencode.ai/docs/rules/)), into every request. Of
+  the 27 pins, 12 load a `CLAUDE.md` and 15 an `AGENTS.md`, from ~180 tokens
+  (KaneEnabler's, which also tells the agent to run
+  `pnpm dlx @tanstack/intent@latest`, a network fetch, before substantial
+  edits) to ~19k (`asohav-03`) and ~70k (the two retired). Options: as pinned
+  (today; realistic only where the file was), normalized (a trimmed or
+  current file on a new base), or none (`OPENCODE_DISABLE_CLAUDE_CODE=1`
+  covers only `CLAUDE.md`, not `AGENTS.md`, so "none" is not symmetric
+  across repos). Any change to how a task loads it is a new era for that
+  task's rows. `asohav-03`/`-04` (77 KB and 56 KB, 14–19k tokens at the start
+  of every request) fit and passed, but carry part of the same distortion.
 
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
