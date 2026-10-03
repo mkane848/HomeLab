@@ -12,8 +12,8 @@
 #
 #   scope      - the diff touches ONLY the manifest's allowFiles.
 #   suite      - the repo's own unit suite passes after the change.
-#   failsOnOld - revert ONLY the source files (git stash push - keeping the
-#                model's test), the suite must now FAIL. This is the PR #82
+#   failsOnOld - revert ONLY the source files (checked out of the pinned base,
+#                the model's test kept), the suite must now FAIL. This is the PR #82
 #                "green test that never enters its claimed branch" trap made
 #                mechanical: a test that passes on broken code = FAIL here.
 #   typecheck  - scoped to the touched module graph (informational, never FAIL:
@@ -22,8 +22,9 @@
 #                SKIP when it does not, because a task that compiled nothing
 #                must not read as one that compiled cleanly.
 #   acceptance - informational, never a gate: when the task defines an
-#                `acceptance` block ({ ref, files }), the owner's test files at
-#                that local branch are swapped in over the model's, testCmd runs
+#                `acceptance` block ({ ref, commit, files }), the owner's (or, for
+#                tasks mined from a real fix, the upstream fix commit's own) test
+#                files at that pinned commit are swapped in over the model's, testCmd runs
 #                against the model's source, and the model's files are restored.
 #                Recorded in the per-run JSON only (PASS/FAIL/ERROR/SKIP + the
 #                exact commit used); the TSV schema is unchanged. Under -DryRun
@@ -240,7 +241,8 @@ function Resolve-AcceptanceCommit {
     # moved branch would change what "meets the owner's contract" means between runs
     # (all 18 recorded lfc-03 runs used one commit, which is the pin). A local branch
     # that has moved off the pin is reported, not followed; without a pin the branch
-    # tip is used, as before. Returns { Commit; Warning; Error }.
+    # tip is used, as before. A pinned commit this clone does not have yet is fetched
+    # from origin once before it is called missing. Returns { Commit; Warning; Error }.
     param($Task)
 
     $acc = $Task.acceptance
@@ -251,10 +253,17 @@ function Resolve-AcceptanceCommit {
         }
         return [pscustomobject]@{ Commit = $tip; Warning = $null; Error = $null }
     }
-    $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$($acc.commit)^{commit}")
+    $r = $null
+    foreach ($attempt in 1, 2) {
+        $r = Run-Native "git" @("-C", $Task.repo, "rev-parse", "--verify", "--quiet", "$($acc.commit)^{commit}")
+        if ($r.ExitCode -eq 0) { break }
+        # A commit that is upstream but not yet local (a task whose acceptance tests are an
+        # upstream fix commit's own test file): one fetch, then look again, as Resolve-TaskBase does.
+        if ($attempt -eq 1) { Run-Native "git" @("-C", $Task.repo, "fetch", "origin", "--quiet") | Out-Null }
+    }
     if ($r.ExitCode -ne 0) {
         return [pscustomobject]@{ Commit = $null; Warning = $null
-            Error = "pinned acceptance commit $($acc.commit) is not in $($Task.repo). It only ever lived on the local branch $($acc.ref); if that branch was deleted or rewritten, restore the commit or re-pin it" }
+            Error = "pinned acceptance commit $($acc.commit) is not in $($Task.repo), even after git fetch origin. If it only ever lived on the local branch $($acc.ref) and that branch was deleted or rewritten, restore the commit or re-pin it" }
     }
     $full = ($r.Output | Where-Object { $_ } | Select-Object -First 1).Trim()
     $warning = $null
@@ -488,6 +497,64 @@ function Move-Transcript {
     } catch {
         return $false
     }
+}
+
+# failsOnOld reverts the task's source files and puts the model's versions back afterwards.
+# It used to do that with `git stash push` / `git stash pop`, but refs/stash belongs to the
+# REPOSITORY, not to a worktree: two tasks of one repo graded at the same time (two terminals,
+# the documented way to run seats concurrently) pushed and popped each other's
+# stashes. A pop could apply the other task's source into this worktree, or fail and leave this
+# task's source reverted for the acceptance run that follows, and a collision on the stash lock
+# would read as "git stash push failed - cannot grade". Saving the model's bytes and checking the
+# files out of the pinned base touches nothing outside this worktree.
+function Save-SourceFiles {
+    param([string]$WtPath, [string[]]$Files)
+    $saved = [ordered]@{}
+    foreach ($f in $Files) {
+        $full = Join-Path $WtPath $f
+        $saved[$f] = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
+    }
+    return , $saved
+}
+
+# Puts Save-SourceFiles' bytes back (a file that did not exist is removed again). Returns $true
+# when every file is byte for byte what it was.
+function Restore-SourceFiles {
+    param([string]$WtPath, $Saved)
+    $same = $true
+    foreach ($f in @($Saved.Keys)) {
+        $full = Join-Path $WtPath $f
+        if ($null -eq $Saved[$f]) {
+            Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $full) { $same = $false }
+        } else {
+            [System.IO.File]::WriteAllBytes($full, $Saved[$f])
+            if ([Convert]::ToBase64String([System.IO.File]::ReadAllBytes($full)) -ne [Convert]::ToBase64String($Saved[$f])) { $same = $false }
+        }
+    }
+    return $same
+}
+
+# Runs the task's tests with its source files checked out of $BaseCommit (the model's tests and
+# every other file untouched), then puts the model's source back whatever happened. Returns
+# { Result = the Invoke-Test result, or $null; Error = why it could not run, or $null;
+# Restored = $true when the model's files are back byte for byte }.
+function Invoke-WithSourceReverted {
+    param($Task, [string]$WtPath, [string]$BaseCommit)
+    $saved = Save-SourceFiles $WtPath @($Task.srcRevertFiles)
+    $result = $null
+    $err = $null
+    try {
+        # Concatenate, never nest: a nested @($Task.srcRevertFiles) reaches Run-Native's
+        # [string[]] parameter as ONE space-joined element ("a.ts b.ts"), which git
+        # rejects as a pathspec, so any task listing 2+ files could not be graded.
+        $r = Run-Native "git" (@("-C", $WtPath, "checkout", $BaseCommit, "--") + @($Task.srcRevertFiles))
+        if ($r.ExitCode -ne 0) { $err = "git checkout of the source files failed: $($r.Output -join ' ')" }
+        else { $result = Invoke-Test $Task $WtPath }
+    } finally {
+        $restored = Restore-SourceFiles $WtPath $saved
+    }
+    return [pscustomobject]@{ Result = $result; Error = $err; Restored = $restored }
 }
 
 # Owner-authored acceptance tests, run against whatever source is in the
@@ -942,9 +1009,10 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 3: fails-on-old-code --------------------------------------------
-    # Revert ONLY the source files (stash keeps the model's tests), rerun. The
+    # Revert ONLY the source files (the model's tests stay), rerun. The
     # fix-and-reverify DoD: a test that passes on the broken code is a
-    # false-positive test and FAILs here. Restore unconditionally afterwards.
+    # false-positive test and FAILs here. The model's source is put back
+    # byte for byte afterwards (Invoke-WithSourceReverted).
     $failsOnOldOk = $false
     $srcChanged = @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) })
     if ($srcChanged.Count -eq 0) {
@@ -952,15 +1020,12 @@ foreach ($tk in $tasksToRun) {
         $overallPass = $false
     } else {
         $failsOnOldOk = $false
-        # Concatenate, never nest: a nested @($tk.srcRevertFiles) reaches Run-Native's
-        # [string[]] parameter as ONE space-joined element ("a.ts b.ts"), which git
-        # rejects as a pathspec, so any task listing 2+ files could not be graded.
-        $r = Run-Native "git" (@("-C", $wt.Wt, "stash", "push", "--") + @($tk.srcRevertFiles))
-        if ($r.ExitCode -ne 0) {
-            Write-Result $tk.id "fails-on-old" "FAIL" "git stash push failed - cannot grade"
+        $rv = Invoke-WithSourceReverted $tk $wt.Wt $wt.Head
+        if ($rv.Error) {
+            Write-Result $tk.id "fails-on-old" "FAIL" "$($rv.Error) - cannot grade"
             $overallPass = $false
         } else {
-            $reverted = Invoke-Test $tk $wt.Wt
+            $reverted = $rv.Result
             if ($reverted.ExitCode -ne 0) {
                 $failed = Get-FailedTestNames -Output $reverted.Output
                 Write-Result $tk.id "fails-on-old" "PASS" "suite fails with source reverted, test kept: $($failed -join '; ')"
@@ -974,10 +1039,9 @@ foreach ($tk in $tasksToRun) {
                 }
                 $overallPass = $false
             }
-            $p = Run-Native "git" @("-C", $wt.Wt, "stash", "pop")
-            if ($p.ExitCode -ne 0) {
-                Write-Result $tk.id "fails-on-old" "WARN" "stash pop failed - worktree may hold stashed changes; inspecting recommended"
-            }
+        }
+        if (-not $rv.Restored) {
+            Write-Result $tk.id "fails-on-old" "WARN" "the model's source files were NOT restored byte for byte after the revert - inspect $($wt.Wt) before trusting the later steps"
         }
     }
 

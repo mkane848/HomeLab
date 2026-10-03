@@ -18,12 +18,15 @@
 #                no comparison. (A future re-base must be a NEW task id, or this fails:
 #                two bases under one id make the rows incomparable.)
 #   3. Resolve-TaskBase and Resolve-AcceptanceCommit, the REAL functions from test-tasks.ps1,
-#                on throwaway git repos.
+#                on throwaway git repos, including a commit that is upstream but not yet in the
+#                clone (fetched from origin once before it is called missing).
 #   4. Get-PublishState, the REAL function from run-tasks-batch.ps1, against a throwaway
 #                bare origin: published / unpublished / unknown / missing, including the
 #                two shapes that once produced a wrong answer - a commit only a pull-request
 #                ref reaches, and a single-branch clone that cannot see the branch holding it.
-#   5. the real checkouts, when this machine has them: each pin resolves in its repo.
+#   5. the real checkouts, when this machine has them: each pin (and acceptance commit) resolves
+#                in its repo - through the harness's own resolvers, so a commit the clone lacks
+#                is fetched from origin first, exactly as a run would do.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-task-pins.ps1 [-ScriptPath <test-tasks.ps1>] [-BatchPath <run-tasks-batch.ps1>]
@@ -155,6 +158,28 @@ try {
     $a = Resolve-AcceptanceCommit (& $acc "bench/deleted" $null)
     Check "no pin and no branch: cannot resolve"                       ([bool](-not $a.Commit -and $a.Error -match "cannot resolve refs/heads/bench/deleted")) $true
 
+    Write-Host "-- fetch on a miss (a commit that is upstream but not yet in this clone)"
+    $up = Join-Path $tmpRoot "up.git"
+    git init -q --bare --initial-branch=main $up
+    $seed = New-Repo
+    git -C $seed remote add origin $up
+    $null = New-Commit $seed "u1"
+    git -C $seed push -q origin main 2>$null
+    $clone = Join-Path $tmpRoot "clone"
+    git clone -q $up $clone
+    $u2 = New-Commit $seed "u2"
+    git -C $seed push -q origin main 2>$null
+    Check "the clone starts without the later commit"                  ((Run-Native "git" @("-C", $clone, "cat-file", "-e", "$u2^{commit}")).ExitCode -ne 0) $true
+    $b = Resolve-TaskBase ([pscustomobject]@{ id = "t"; repo = $clone; branch = "bench/x"; benchBaseCommit = $u2 })
+    Check "a base pin that is upstream but not yet local is fetched, then run" ($b.Head -eq $u2 -and -not $b.Error) $true
+    $u3 = New-Commit $seed "u3"
+    git -C $seed push -q origin main 2>$null
+    Check "the clone is still without the next one"                    ((Run-Native "git" @("-C", $clone, "cat-file", "-e", "$u3^{commit}")).ExitCode -ne 0) $true
+    $a = Resolve-AcceptanceCommit ([pscustomobject]@{ id = "t"; repo = $clone; acceptance = [pscustomobject]@{ ref = "upstream-fix"; commit = $u3; files = @("f.txt") } })
+    Check "an acceptance pin that is upstream but not yet local is fetched, then run (no branch warning for a label)" ($a.Commit -eq $u3 -and -not $a.Error -and -not $a.Warning) $true
+    $a = Resolve-AcceptanceCommit ([pscustomobject]@{ id = "t"; repo = $clone; acceptance = [pscustomobject]@{ ref = "upstream-fix"; commit = $gone; files = @("f.txt") } })
+    Check "an acceptance pin that exists nowhere is an error that says a fetch was tried" ([bool](-not $a.Commit -and $a.Error -match "even after git fetch origin")) $true
+
     Write-Host "-- Get-PublishState (real function, throwaway bare origin)"
     $origin = Join-Path $tmpRoot "origin.git"
     git init -q --bare $origin
@@ -198,8 +223,12 @@ try {
     foreach ($t in $manifest.tasks) {
         if (-not (Test-Path -LiteralPath $t.repo)) { continue }
         $present++
-        $r = Run-Native "git" @("-C", $t.repo, "cat-file", "-e", "$($t.benchBaseCommit)^{commit}")
-        Check ("{0}: the pin resolves in {1}" -f $t.id, $t.repo) ($r.ExitCode -eq 0) $true
+        $b = Resolve-TaskBase $t
+        Check ("{0}: the pin resolves in {1}" -f $t.id, $t.repo) ([bool]$b.Head) $true
+        if ($t.acceptance) {
+            $a = Resolve-AcceptanceCommit $t
+            Check ("{0}: the acceptance commit resolves in {1}" -f $t.id, $t.repo) ([bool]$a.Commit) $true
+        }
     }
     if (-not $present) { Write-Host "SKIP none of the task repos are checked out on this machine" }
 } finally {

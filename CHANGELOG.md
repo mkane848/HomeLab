@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add 18 benchmark tasks mined from the owner's repos, so the suite is 27:
+  `kane-07` to `kane-14`, `lfc-04`, `lfc-05`, `lfc-07` and `asohav-03` to
+  `asohav-09` (the 15 candidates that fit the harness plus `kane-14`, `lfc-07`
+  and `asohav-05`, which needed the multi-file `srcRevertFiles` fix). Each is a
+  real merged fix pinned at its fix commit's parent, and 15 carry an
+  `acceptance` block whose oracle is the upstream fix commit's own test file.
+  New shapes: two-source-file fixes, brand-new test files, spec reversals,
+  React component and hook tests, a symptom-only data-conformance prompt. Every
+  entry ran through the real `test-tasks.ps1` with a stand-in `opencode` in a
+  fresh worktree: the baseline equals `baselineExpect`, the upstream tests fail
+  on the untouched base, the reference fix passes every gate, the fix without
+  tests fails failsOnOld, the tests without the fix fail scope and suite, and
+  the gate results are identical across four environments and three repeats.
+  `asohav-05`, `asohav-07` and `asohav-08` pin `DATABASE_URL` (the `asohav-02`
+  rule). `docs/roadmap.md` → "Task set expansion II" has the table, the parts
+  the upstream tests do not pin, and the 11 candidates not added.
+- failsOnOld no longer uses `git stash`. `refs/stash` belongs to the repository,
+  not to a worktree, so two tasks of one repo graded at the same time popped
+  each other's stashes (found independently by three of the agents validating
+  the new tasks: `stash pop failed`, then an acceptance run against reverted
+  source). `Invoke-WithSourceReverted` saves the model's source bytes, checks
+  the files out of the pinned base (not `HEAD`, so a model that commits still
+  reverts to the pin) and writes the bytes back, touching nothing outside the
+  worktree. The gate verdicts were already decided before the pop, and the six
+  same-repo overlaps in the corpus (2026-09-23, `kane` tasks) finished at least
+  85 s apart, so no recorded verdict is known to be affected.
+  `tests/test-revert-source.ps1`, 46 checks (one-file, two-file and bare-string
+  `srcRevertFiles`, non-text bytes restored byte for byte, a path the base
+  lacks, a model that committed, two worktrees of one repo held open together),
+  replaces `test-stash-args.ps1`; six mutants of the mechanism (the old stash,
+  nested-array arguments, a text restore, `HEAD` instead of the pin, no restore,
+  a revert that reaches the tests) each fail it. A second battery of the 18 new
+  tasks against the new harness ran six lanes at once, two per repository, and
+  reproduced all 72 runs of the first (the sequential one) exactly.
+- Harness: a pinned acceptance commit this clone does not have yet is fetched
+  from `origin` once before it is called missing (`Resolve-AcceptanceCommit`,
+  as `Resolve-TaskBase` already did for a base), and `run-tasks-batch.ps1
+  -SetupOnly` fetches for it too. Groundwork for tasks mined from upstream fix
+  commits, whose acceptance oracle is the fix commit's own test file: it is on
+  `origin/main` but not necessarily in an older clone. `test-task-pins.ps1`
+  gains five checks (a base pin and an acceptance pin that are upstream but not
+  yet local, an acceptance pin that exists nowhere; the acceptance ones fail
+  against the previous harness) and its real-checkout step now resolves pins
+  through the harness's own resolvers. `test-task-env.ps1` gains a guard that
+  every ASoHaV `apps/server` task pins `DATABASE_URL` (`asohav-01` is exempt:
+  it pre-dates the rule and its recorded rows do not depend on it).
+- `Get-PublishState` (`run-tasks-batch.ps1`) sets `$ErrorActionPreference =
+  "Continue"` for itself. Its git probes write to stderr in normal operation (a
+  commit origin lacks is "not our ref"; a local origin warns that it ignores
+  `--filter`), and under a caller's `"Stop"` Windows PowerShell 5.1 turns that
+  into a terminating error. The batch itself runs under the default, so the
+  real `-SetupOnly` was unaffected; `test-task-pins.ps1` (which sets `"Stop"`)
+  failed on 5.1 at "a commit that was pushed", and passes on 5.1 and 7 now.
+  Found by the first run of the regression tests on Windows PowerShell 5.1.
 - Pin each benchmark task's test environment. `tests/tasks/manifest.json` gains
   an optional `testEnv` (variable → value, `null` = unset) that `test-tasks.ps1`
   applies to the test command and to the model's own `opencode run` process,

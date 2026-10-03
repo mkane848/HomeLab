@@ -273,6 +273,553 @@
       "testEnv": { "MANAPOOL_API_KEY": null },
       "testEnvNote": "null = unset. A real MANAPOOL_API_KEY makes one pre-existing test in this file flaky (an extra network call it does not expect); the prompt asks the model to unset it, and this makes the gates and the model's shell do so whatever the harness process holds.",
       "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards, which looks up card data from the Scryfall API. src/services/scryfall.ts's scryfallFetchOnce function sends every outbound request to Scryfall with only a single header: User-Agent. Scryfall's API documentation requires BOTH a descriptive User-Agent (naming the application, ideally with a version) AND an Accept header on every request, and states it may block requests that omit either. There is a bug: no Accept header is sent at all, and the User-Agent value that IS sent is just a bare repository URL (via PROJECT_NAME/PROJECT_REPOSITORY), not a name/version pair as Scryfall's docs describe. Fix scryfallFetchOnce so every outbound Scryfall request includes: (1) an Accept header (any reasonable value indicating JSON is acceptable, e.g. 'application/json'); (2) a User-Agent header that identifies the application by name AND a real version number read from this package's own package.json (not hardcoded, so it cannot silently drift out of sync with an actual release) - do not import package.json with a static import (it sits outside this package's TypeScript rootDir and would break the build); read it a way that works correctly under both the test runner and the compiled dist/ build. Add or update a test in tests/services/scryfall.test.ts proving that an outbound request (e.g. via autocompleteCards) carries a truthy Accept header and a User-Agent matching a name/version pattern (e.g. matches /^LFCbot\\/\\d+\\.\\d+\\.\\d+/). Your added/updated test must FAIL if only your header fix is reverted while the test changes stay. Change ONLY these two files: src/services/scryfall.ts and tests/services/scryfall.test.ts. Do not commit. Do not touch any other file. Before running the suite, make sure the MANAPOOL_API_KEY environment variable is unset or empty in your shell for this task - a real key present in your environment makes an unrelated existing test in this same file flaky (it triggers a real extra network call the test does not expect), independent of anything in this task. When done, run `npx vitest run tests/services/scryfall.test.ts` and make sure it passes."
+    },
+    {
+      "id": "kane-07-find-qualifier-type",
+      "title": "KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause",
+      "source": "Mined from KaneEnabler commit 731e98508f53528647418403133c63c437307313 (2026-08-22, real merged fix; a clean two-file commit, only its CHANGELOG/docs edits dropped). Verified 2026-10-03 in a fresh worktree at the parent (10889539112089dcd122014f934520f9f11cf558): 76/76 baseline, then the fix commit's signals.test.ts alone against the unfixed source (1/77 fail) to confirm failsOnOld, then 77/77 with the fix's signals.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). Same file as kane-02, different bug class: how far a text search reaches (first type word anywhere in a clause vs. the text the payoff pattern matched). Three pre-existing tests (Sliver Gravemother, two lord-wording ones) go red if a fix drops the whole-clause fallback.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/find-qualifier-type",
+      "benchBaseCommit": "10889539112089dcd122014f934520f9f11cf558",
+      "baselineExpect": {
+        "testsTotal": 76,
+        "testsPass": 76
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts",
+        "apps/commander-recommender/server/src/services/signals.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/signals.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports: the added upstream test drives buildVocabulary/buildCardFacts/detectSignals with Angel of Glory's Rise's real text (quoted in the prompt) and expects a Human-qualified reanimator signal and no Zombie-qualified one.",
+        "ref": "upstream-fix",
+        "commit": "731e98508f53528647418403133c63c437307313",
+        "files": ["apps/commander-recommender/server/src/services/signals.test.ts"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender whose server reads each card's oracle text and tags it with archetype signals, some of which carry a creature-type qualifier (for example Reanimator (Sliver)). In apps/commander-recommender/server/src/services/signals.ts, findQualifier(facts, def, vocab) works out that qualifier for an archetype whose payoff can be restricted to one creature type: it walks the card text clause by clause and, in the first clause where one of the archetype's payoff patterns (its rewards and consumes matchers) matches, returns a creature type from that clause. There is a bug: it returns the FIRST creature-type word found anywhere in the clause, whether or not that word has anything to do with what the pattern actually matched. Angel of Glory's Rise reads 'When this creature enters, exile all Zombies, then return all Human creature cards from your graveyard to the battlefield.' It is a Human reanimator, but its signal comes out as Reanimator (Zombie), because 'Zombies', which are merely exiled, come before 'Human', the thing actually returned, in the same clause. Fix findQualifier so the qualifier is the type the payoff actually restricts (here, the Humans being returned), not whichever type word happens to come first in the clause. Required behaviour: (1) Angel of Glory's Rise (type line 'Creature - Angel', with Zombie, Human and Angel in the creature-type vocabulary) yields a reanimator signal qualified 'Human' and no reanimator signal qualified 'Zombie'; (2) Sliver Gravemother ('Each Sliver creature card in your graveyard has encore {X}, where X is its mana value.') must still be Reanimator (Sliver), and every other existing test in the file must keep passing; (3) an unrestricted reanimator ('Return target creature card from your graveyard to the battlefield.') stays unqualified. Add a test in signals.test.ts for the Angel of Glory's Rise case; the file already has the helpers makeCard(overrides), signalsFor(card, creatureTypes?, keywords?), find(signals, archetype, qualifier?) and rolesOf(signals, archetype, qualifier?). Your added test must FAIL if only your signals.ts fix is reverted while the test change stays. Change ONLY these two files: apps/commander-recommender/server/src/services/signals.ts and apps/commander-recommender/server/src/services/signals.test.ts. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/services/signals.test.ts` from apps/commander-recommender/server and make sure it passes."
+    },
+    {
+      "id": "kane-08-aristocrats-false-positives",
+      "title": "KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs)",
+      "source": "Mined from KaneEnabler commit e95219824e1c9d30da1f48ba160cf69560b40e14 (2026-08-26, real merged fix), scoped down to its signals.ts half: the commit also changed synergy.ts/synergy.test.ts (a separate produces-only-supporters fix), CHANGELOG and docs, all dropped. What remains is four independent false-positive fixes in signals.ts, each pinned by one real-card test. Verified 2026-10-03 in a fresh worktree at the parent (45095ab148d27fdbe20765a112d1dd7d743e4fcd): 234/234 baseline, then the fix commit's signals.test.ts alone against the unfixed source (4/238 fail) to confirm failsOnOld, then 238/238 with the fix's signals.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A four-part fix in the manifest's largest source file (signals.ts, 2,742 lines at this pin; kane-02's pin has the same file at 907). Unstated on purpose: the death-trigger rewards matcher must stay a plain RegExp (findQualifier skips function matchers); a function matcher turns 2 pre-existing tests red.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/aristocrats-false-positives",
+      "benchBaseCommit": "45095ab148d27fdbe20765a112d1dd7d743e4fcd",
+      "baselineExpect": {
+        "testsTotal": 234,
+        "testsPass": 234
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts",
+        "apps/commander-recommender/server/src/services/signals.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/services/signals.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/services/signals.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports: the four added upstream tests drive detectSignals with the real oracle text of Flame-Blessed Bolt, Markov Enforcer, Blood Hypnotist and Greater Gargadon (all quoted in the prompt) and expect no aristocrats signal for the first three and no aristocrats consumes role for Gargadon.",
+        "ref": "upstream-fix",
+        "commit": "e95219824e1c9d30da1f48ba160cf69560b40e14",
+        "files": ["apps/commander-recommender/server/src/services/signals.test.ts"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender whose server reads each card's oracle text and tags it with archetype signals. apps/commander-recommender/server/src/services/signals.ts defines the Aristocrats archetype (the 'aristocrats' entry in ARCHETYPES): its death-trigger 'rewards' pattern and its sacrifice-outlet 'consumes' matcher (built on costSideOf, sacrificesKind and sacrificesACreature). Four independent false positives wrongly give real cards an Aristocrats signal. (1) Flame-Blessed Bolt ('Flame-Blessed Bolt deals 2 damage to target creature or planeswalker. If that creature or planeswalker would die this turn, exile it instead.') is credited as a death-trigger payoff, but a 'would die ... instead' replacement effect is not a death trigger: nothing dies. (2) Markov Enforcer ('Whenever a creature dealt damage by this creature this turn dies, create a Blood token.') is credited the same way, but a creature dealt damage by this card is whatever it just fought, an opponent's creature, not your own board dying. (3) Blood Hypnotist ('Whenever you sacrifice one or more Blood tokens, target creature can't block this turn.') is credited as a creature sacrifice outlet: the clause has no colon, so costSideOf returns all of it and the word 'creature' after the comma is read as the sacrificed object. (4) Greater Gargadon ('Sacrifice an artifact, creature, or land: Remove a time counter from this card.') is credited as a creature sacrifice outlet, but creature is just one of three interchangeable choices in that list, not a creature-specific plan. Fix signals.ts so cards 1 to 3 get no Aristocrats signal at all and Greater Gargadon gets no Aristocrats 'consumes' role, while these keep working: an ordinary death trigger ('Whenever this creature or another creature dies, ...'); a 'Sacrifice a creature:' or 'Sacrifice a Goblin:' outlet; a spell's 'As an additional cost to cast this spell, sacrifice a Goblin.'; and an activated ability's cost, which is still only the text before its colon, so a 'sacrifice' in the effect after the colon does not count. Add tests in signals.test.ts, one per false positive, proving the card no longer gets the signal (the file already has makeCard, signalsFor(card, creatureTypes?, keywords?), find(signals, archetype, qualifier?) and rolesOf). Your added tests must FAIL if only your signals.ts changes are reverted while the test changes stay. Change ONLY these two files: apps/commander-recommender/server/src/services/signals.ts and apps/commander-recommender/server/src/services/signals.test.ts. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/services/signals.test.ts` from apps/commander-recommender/server and make sure it passes."
+    },
+    {
+      "id": "kane-09-colour-filter-subset",
+      "title": "KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection)",
+      "source": "Mined from KaneEnabler commit e0ef290365bc43031357ecc454e7e5e7554f3e99 (2026-08-24, real merged fix), scoped down to client/src/lib/filters.ts and filters.test.ts: the commit also changed RecommendationResults.tsx, ResultFilters.tsx, ResultFilters.test.tsx and filters.css (muted colour pips), CHANGELOG and docs, all dropped. Verified 2026-10-03 in a fresh worktree at the parent (f0abf087f92323e69a0a706e14c22b427fb80d31): 16/16 baseline, then the fix commit's filters.test.ts alone against the unfixed source (3/17 fail) to confirm failsOnOld, then 17/17 with the fix's filters.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; tests-only = suite FAIL). A SPEC REVERSAL, unlike the other tasks: the pre-existing tests encode the old 'touches this colour' rule and two of the three red tests are old assertions whose expectations flip, so a source-only change fails the suite itself, not only failsOnOld. Client package (jsdom); no setup needed.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/colour-filter-subset",
+      "benchBaseCommit": "f0abf087f92323e69a0a706e14c22b427fb80d31",
+      "baselineExpect": {
+        "testsTotal": 16,
+        "testsPass": 16
+      },
+      "allowFiles": [
+        "apps/commander-recommender/client/src/lib/filters.ts",
+        "apps/commander-recommender/client/src/lib/filters.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/client/src/lib/filters.ts"
+      ],
+      "testDir": "apps/commander-recommender/client",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/lib/filters.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports: applyFilters and EMPTY_FILTERS over colorIdentity arrays; the prompt states the subset rule, the colourless rule and the R+G / Abzan example in words, so a spec-compliant fix cannot be failed on naming.",
+        "ref": "upstream-fix",
+        "commit": "e0ef290365bc43031357ecc454e7e5e7554f3e99",
+        "files": ["apps/commander-recommender/client/src/lib/filters.test.ts"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a Commander (EDH) deck recommender. apps/commander-recommender/client/src/lib/filters.ts applies the result-list filters. The colour facet, filters.colors, has an include list and an exclude list of colour letters (W, U, B, R, G); each suggestion's colorIdentity is the array of colour letters in that commander's identity. This is a deliberate change of rule, not a typo fix. Today a colour include means 'touches this colour': matchesColors keeps a commander if ANY of its identity colours is among the included ones, so including R and G keeps a Golgari or an Abzan (W, B, G) commander and drops colourless commanders. The required rule is the standard Commander colour-identity one: when colours are included, a commander passes only if its whole colour identity fits inside the included colours, and the empty (colourless) identity fits inside anything, so colourless commanders always pass a colour include. Examples: including B keeps mono-black and colourless and drops Golgari (B, G), W-B and W-R; including R and G keeps mono-red, mono-green, Gruul (R, G) and colourless, and drops Abzan (W, B, G). Everything else stays as it is: with nothing included there is no colour restriction; colour exclude still drops any identity that touches an excluded colour; include and exclude still combine with AND; the separate colorCategory facet (colorless / multicolor) is untouched; and the order of the kept suggestions is unchanged. Because the rule is reversed, two existing tests in filters.test.ts assert the OLD behaviour (the 'color include' test that keeps anything touching an included colour, and the one that drops a colourless commander) and will fail once the source is right. Rewrite those two tests (titles and expectations) so they assert the new rule instead of working around them, and add a test that an Abzan commander does not survive an R and G include. Also update the comment above matchesColors, which still describes the old rule. Your updated tests must FAIL if only your filters.ts change is reverted while the test changes stay. Change ONLY these two files: apps/commander-recommender/client/src/lib/filters.ts and apps/commander-recommender/client/src/lib/filters.test.ts. Do not commit. Do not touch any other file, including the filter UI components. When done, run `pnpm exec vitest run src/lib/filters.test.ts` from apps/commander-recommender/client and make sure it passes."
+    },
+    {
+      "id": "kane-10-combo-permalink-scheme",
+      "title": "KaneEnabler: a stored combo permalink must only become a link when its scheme is https",
+      "source": "Mined from KaneEnabler commit 271636f41a6e31f24d88f2a8cd8101935b02e76e (2026-08-21, real merged fix), a nine-bug, 24-file bundle ('Fix bugs found in a tech-stack audit ...') scoped down to its apps/home permalink fix (ComboPreferenceRow.tsx + Profile.test.tsx); the other eight bugs, docs and version bumps are out of scope. Verified 2026-10-03 in a fresh worktree at the parent (605a2e080cfddee855337f1b3d0b9cf7e48ddd6e): 10/10 baseline, then the fix commit's Profile.test.tsx alone against the unfixed source (1/11 fail) to confirm failsOnOld, then 11/11 with the fix's source; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A security bug (unvalidated jsonb reaching an href) tested with testing-library and jsdom: the first component-rendering task here.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/combo-permalink-scheme",
+      "benchBaseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+      "baselineExpect": {
+        "testsTotal": 10,
+        "testsPass": 10
+      },
+      "allowFiles": [
+        "apps/home/src/components/ComboPreferenceRow.tsx",
+        "apps/home/src/routes/Profile.test.tsx"
+      ],
+      "srcRevertFiles": [
+        "apps/home/src/components/ComboPreferenceRow.tsx"
+      ],
+      "testDir": "apps/home",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/routes/Profile.test.tsx"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing to pin beyond existing behaviour: it finds the link by its existing accessible name (View on Commander Spellbook), expects it absent for a javascript: permalink, and expects an https permalink to keep its href unchanged; the prompt states that rule.",
+        "ref": "upstream-fix",
+        "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+        "files": ["apps/home/src/routes/Profile.test.tsx"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a pnpm monorepo of Magic: The Gathering tools. Its home app (apps/home) has a /profile page listing a signed-in user's favourited and hated Commander Spellbook combos, and each combo row is rendered by the ComboPreferenceRow component in apps/home/src/components/ComboPreferenceRow.tsx, straight from the preference's stored snapshot (card names, what the combo produces, a description and a permalink) with a 'View on Commander Spellbook' link built from snapshot.permalink. There is a security bug: the component uses snapshot.permalink as the link's href whenever it is truthy, but the snapshot is jsonb with no content validation - the database only enforces row ownership - so a signed-in user can write anything into it directly through the Supabase client. A stored permalink of 'javascript:alert(1)' (or any other URL scheme) therefore becomes a live anchor on the profile page. Fix ComboPreferenceRow so that (1) a permalink is used as the link's href only when it is an https URL; for any other value - a javascript: URL, an http: URL, a data: URL, an empty string, or no permalink at all - no 'View on Commander Spellbook' link is rendered at all; (2) a normal https permalink such as 'https://commanderspellbook.com/combo/abc' still renders the link exactly as before, with that href, target='_blank' and rel='noreferrer'; (3) the rest of the row (card names, produces, description, Remove button) is unchanged. Add or update tests in apps/home/src/routes/Profile.test.tsx proving: a combo whose stored permalink is 'javascript:alert(1)' renders no 'View on Commander Spellbook' link; and an https permalink still renders that link with the right href (the existing test 'renders a favourited combo from its stored snapshot' never looks at the link, so extend it or add a sibling test). The file already has a COMBO_PREFERENCE fixture with an https permalink and mocks for the @mtg/profile hooks, including useComboPreferences, so build the hostile case by spreading the fixture and overriding its snapshot. Your added/updated test(s) must FAIL if only your ComboPreferenceRow.tsx fix is reverted while the test changes stay. Change ONLY these two files: apps/home/src/components/ComboPreferenceRow.tsx and apps/home/src/routes/Profile.test.tsx. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/routes/Profile.test.tsx` from apps/home and make sure it passes."
+    },
+    {
+      "id": "kane-11-useauth-session-reject",
+      "title": "KaneEnabler: a rejected initial session check must not leave useAuth loading forever",
+      "source": "Mined from KaneEnabler commit 271636f41a6e31f24d88f2a8cd8101935b02e76e (2026-08-21, real merged fix), a nine-bug, 24-file bundle ('Fix bugs found in a tech-stack audit ...') scoped down to its packages/profile fix (useAuth.ts + useAuth.test.ts); the other eight bugs, docs and version bumps are out of scope. Verified 2026-10-03 in a fresh worktree at the parent (605a2e080cfddee855337f1b3d0b9cf7e48ddd6e): 11/11 baseline, then the fix commit's useAuth.test.ts alone against the unfixed source (1/12 fail) to confirm failsOnOld, then 12/12 with the fix's source; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). An unhandled promise rejection in a React hook (renderHook): a missing error path, not wrong logic.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/useauth-session-reject",
+      "benchBaseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+      "baselineExpect": {
+        "testsTotal": 11,
+        "testsPass": 11
+      },
+      "allowFiles": [
+        "packages/profile/src/useAuth.ts",
+        "packages/profile/src/useAuth.test.ts"
+      ],
+      "srcRevertFiles": [
+        "packages/profile/src/useAuth.ts"
+      ],
+      "testDir": "packages/profile",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/useAuth.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing to pin beyond existing exports: it mocks getSession() to reject and reads loading and user from the existing useAuth() return value.",
+        "ref": "upstream-fix",
+        "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+        "files": ["packages/profile/src/useAuth.test.ts"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a pnpm monorepo of Magic: The Gathering tools. The shared Supabase-backed sign-in package packages/profile exports a useAuth hook (packages/profile/src/useAuth.ts) that returns { user, loading, configured, signUp, signIn, signOut }, where loading is true only while the initial session check made on mount is in flight. Every consumer gates its render on loading: the account menu in the nav bar and the whole /profile route stay hidden until it is false. There is a bug: the mount effect calls supabase.auth.getSession().then(...) and only that success path ever calls setLoading(false). getSession() normally resolves with { data, error } rather than rejecting, but when the underlying fetch itself fails (a network failure or a CSP block - for example it rejects with TypeError('Failed to fetch')) the promise rejects, nothing handles the rejection, and loading stays true forever. The sign-in UI then never appears, instead of the app degrading to signed-out. Fix useAuth so that (1) when the initial getSession() call rejects, loading becomes false and user stays null; (2) the success path is unchanged - a resolved session still sets the user and clears loading - and so is the cleanup contract: the existing cancelled flag still stops an unmounted hook from setting state, and the onAuthStateChange subscription is still unsubscribed on unmount; (3) the not-configured path (no Supabase client) is untouched. Add or update tests in packages/profile/src/useAuth.test.ts proving: with getSession mocked to reject, the hook ends up with loading false and user null. The file already mocks ./client and has a describe block for the configured case with a getSession mock and a waitFor pattern you can follow. Your added/updated test(s) must FAIL if only your useAuth.ts fix is reverted while the test changes stay. Change ONLY these two files: packages/profile/src/useAuth.ts and packages/profile/src/useAuth.test.ts. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/useAuth.test.ts` from packages/profile and make sure it passes."
+    },
+    {
+      "id": "kane-12-error-handler-400",
+      "title": "KaneEnabler: a malformed JSON request body must be answered with 400, not 500",
+      "source": "Mined from KaneEnabler commit 271636f41a6e31f24d88f2a8cd8101935b02e76e (2026-08-21, real merged fix), a nine-bug, 24-file bundle ('Fix bugs found in a tech-stack audit ...') scoped down to its commander-recommender server fix (errorHandler.ts + errorHandler.test.ts); the other eight bugs, docs and version bumps are out of scope. Verified 2026-10-03 in a fresh worktree at the parent (605a2e080cfddee855337f1b3d0b9cf7e48ddd6e): 3/3 baseline, then the fix commit's errorHandler.test.ts alone against the unfixed source (1/5 fail) to confirm failsOnOld, then 5/5 with the fix's source; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). An HTTP status-mapping bug in Express middleware, with a control that a plain SyntaxError stays 500. Small and easy by design.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/error-handler-400",
+      "benchBaseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+      "baselineExpect": {
+        "testsTotal": 3,
+        "testsPass": 3
+      },
+      "allowFiles": [
+        "apps/commander-recommender/server/src/errorHandler.ts",
+        "apps/commander-recommender/server/src/errorHandler.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/commander-recommender/server/src/errorHandler.ts"
+      ],
+      "testDir": "apps/commander-recommender/server",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/errorHandler.test.ts"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. The prompt pins the exact response the upstream test asserts (status 400, JSON body {\"error\":\"Request body is not valid JSON.\"}) and that a SyntaxError carrying no status stays the generic 500.",
+        "ref": "upstream-fix",
+        "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+        "files": ["apps/commander-recommender/server/src/errorHandler.test.ts"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a pnpm monorepo of Magic: The Gathering tools. Its commander-recommender server (apps/commander-recommender/server) is an Express app whose last-registered error middleware is errorHandler in apps/commander-recommender/server/src/errorHandler.ts; app.ts registers it after express.json({ limit: '2mb' }). It logs the error, delegates to next(err) without writing a second response if the headers were already sent, and otherwise answers every error with HTTP 500 and the JSON body { error: 'Something went wrong on the server. Please try again.' }. There is a bug: when a client sends a request body that is not valid JSON, express.json() (body-parser) fails before any route runs and hands the error handler a SyntaxError that carries status: 400, because body-parser marks it as a client error. errorHandler ignores that status and answers 500, so a client mistake is reported as a server incident to anything that branches on the status code. Fix errorHandler so that (1) an error that is a SyntaxError carrying status 400 is answered with HTTP 400 and the JSON body { error: 'Request body is not valid JSON.' } (that exact message); (2) a plain SyntaxError with no status - an unrelated parsing bug in our own code - is still answered with the generic 500; (3) every other error keeps today's behaviour: it is logged, answered with the generic 500, its own message is never echoed to the client, and next(err) is called instead of writing a response once headers are sent. Add or update tests in apps/commander-recommender/server/src/errorHandler.test.ts proving: a SyntaxError with status 400 gets the 400 and that body, and a SyntaxError without a status still gets the generic 500. The file already has a mockRes() helper (status and json spies that return the response) and silences console.error with vi.spyOn in each test, so follow that pattern. Your added/updated test(s) must FAIL if only your errorHandler.ts fix is reverted while the test changes stay. Change ONLY these two files: apps/commander-recommender/server/src/errorHandler.ts and apps/commander-recommender/server/src/errorHandler.test.ts. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/errorHandler.test.ts` from apps/commander-recommender/server and make sure it passes."
+    },
+    {
+      "id": "kane-13-front-face-field",
+      "title": "KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card's combined value",
+      "source": "Mined from KaneEnabler commit 271636f41a6e31f24d88f2a8cd8101935b02e76e (2026-08-21, real merged fix), a nine-bug, 24-file bundle ('Fix bugs found in a tech-stack audit ...') scoped down to its packages/card-model fix (scryfallFields.js + scryfallFields.test.js, plain JavaScript); the other eight bugs, docs and version bumps are out of scope. Verified 2026-10-03 in a fresh worktree at the parent (605a2e080cfddee855337f1b3d0b9cf7e48ddd6e): 20/20 baseline, then the fix commit's scryfallFields.test.js alone against the unfixed source (1/22 fail) to confirm failsOnOld, then 22/22 with the fix's source; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A data-shape bug with a control: adventure cards read the front face, split cards keep the joined value, so a naive always-front-face fix fails.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/front-face-field",
+      "benchBaseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+      "baselineExpect": {
+        "testsTotal": 20,
+        "testsPass": 20
+      },
+      "allowFiles": [
+        "packages/card-model/src/scryfallFields.js",
+        "packages/card-model/src/scryfallFields.test.js"
+      ],
+      "srcRevertFiles": [
+        "packages/card-model/src/scryfallFields.js"
+      ],
+      "testDir": "packages/card-model",
+      "testCmd": ["pnpm", "exec", "vitest", "run", "src/scryfallFields.test.js"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing to pin beyond the existing frontFaceField(card, field) export: the prompt names the adventure and split layout values, the three fields and the card shapes Scryfall gives them.",
+        "ref": "upstream-fix",
+        "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+        "files": ["packages/card-model/src/scryfallFields.test.js"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a pnpm monorepo of Magic: The Gathering tools. The shared package packages/card-model has packages/card-model/src/scryfallFields.js (plain JavaScript, not TypeScript), which reads normalized fields off raw Scryfall bulk-data card objects. Its frontFaceField(card, field) returns a card's 'mana_cost', 'power' or 'toughness' (field is one of those three strings) for display, and for a multi-faced card it must report the front face, not both faces joined, because such a card is cast as one face or the other, never both. There is a bug: it returns card[field] whenever that is defined and only falls back to card_faces[0][field] otherwise. That is right for a single-faced card and for a modal DFC (which has no top-level value), but wrong for an Adventure card, because Scryfall gives an adventure card a top-level mana_cost that is both halves joined with ' // '. Bonecrusher Giant is { layout: 'adventure', mana_cost: '{2}{R} // {1}{R}', power: '4', toughness: '3', card_faces: [{ mana_cost: '{2}{R}', power: '4', toughness: '3' }, { mana_cost: '{1}{R}' }] }, and frontFaceField returns '{2}{R} // {1}{R}' for it, which shows five mana pips for a three-mana creature. A split card is the opposite case: both halves of 'Fire // Ice' really are paid for together, so its combined top-level mana_cost '{1}{R} // {1}{U}' is the correct answer and must be kept. Fix frontFaceField so that (1) for an adventure card, mana_cost, power and toughness are all read from the front face (card_faces[0]) - '{2}{R}', '4' and '3' for Bonecrusher Giant; (2) a split card keeps its combined top-level mana_cost; (3) everything that works today keeps working: a single-faced card returns its own field, a modal DFC returns its front face's value, a transform DFC still returns its front face's power and toughness, and undefined comes back when neither the card nor its front face has the field. Add or update tests in packages/card-model/src/scryfallFields.test.js proving: the adventure case above for all three fields; a split card's combined mana_cost is preserved (the file's splitCard() fixture has no top-level mana_cost today although real split cards do, so add the joined one to the fixture); the existing cases still hold. The file already has fixture builders for single-faced, modal DFC, transform and split cards; add an adventure one. Your added/updated test(s) must FAIL if only your scryfallFields.js fix is reverted while the test changes stay. Change ONLY these two files: packages/card-model/src/scryfallFields.js and packages/card-model/src/scryfallFields.test.js. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run src/scryfallFields.test.js` from packages/card-model and make sure it passes."
+    },
+    {
+      "id": "kane-14-undo-toast-timer",
+      "title": "KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window",
+      "source": "Mined from KaneEnabler commit 271636f41a6e31f24d88f2a8cd8101935b02e76e (2026-08-21, real merged fix), a nine-bug, 24-file bundle ('Fix bugs found in a tech-stack audit ...') scoped down to its apps/time-counters undo-toast fix (UndoToast.tsx + App.tsx + the NEW UndoToast.test.tsx); the other eight bugs, docs and version bumps are out of scope. Verified 2026-10-03 in a fresh worktree at the parent (605a2e080cfddee855337f1b3d0b9cf7e48ddd6e): the test file is new, so baseline = the FULL suite, 108/108; then the fix commit's UndoToast.test.tsx alone against the unfixed source (1/111 fail) to confirm failsOnOld, then 111/111 with its source fix; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A React effect-dependency bug under fake timers; the fix adds a required prop App.tsx must supply, hence two srcRevertFiles.",
+      "repo": "C:/Projects/KaneEnabler",
+      "branch": "bench/undo-toast-timer",
+      "benchBaseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+      "baselineExpect": {
+        "testsTotal": 108,
+        "testsPass": 108
+      },
+      "allowFiles": [
+        "apps/time-counters/src/components/UndoToast.tsx",
+        "apps/time-counters/src/App.tsx",
+        "apps/time-counters/src/components/UndoToast.test.tsx"
+      ],
+      "srcRevertFiles": [
+        "apps/time-counters/src/components/UndoToast.tsx",
+        "apps/time-counters/src/App.tsx"
+      ],
+      "testDir": "apps/time-counters",
+      "testCmd": ["pnpm", "exec", "vitest", "run"],
+      "installFlags": ["--frozen-lockfile", "--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own new test file (UndoToast.test.tsx, absent at the pin), swapped in over the model's and run against the model's source - informational, never a gate. The prompt pins the one interface that test depends on and the model could not guess: a new required string prop named instanceId on UndoToast, which the timer must follow, and that App.tsx passes the removed card's instanceId.",
+        "ref": "upstream-fix",
+        "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+        "files": ["apps/time-counters/src/components/UndoToast.test.tsx"]
+      },
+      "prompt": "You are working in the KaneEnabler repository: a pnpm monorepo of Magic: The Gathering tools. Its time-counters app (apps/time-counters) tracks counters on the cards in a Commander game. Removing a tracked card shows a small UndoToast (apps/time-counters/src/components/UndoToast.tsx) with an Undo button, which apps/time-counters/src/App.tsx renders from the useGameState hook's lastRemoved record; the toast dismisses itself 6000 ms (AUTO_DISMISS_MS) after it appears. There is a bug: UndoToast starts that timer in a useEffect whose dependency list contains the card's NAME (and onDismiss), not anything that identifies the particular removal. Two copies of the same card - two Suspended copies of one spell, two same-named tokens - are common, so if a player removes the second copy while the first copy's toast is still showing, the name has not changed, the effect does not re-run, and the first removal's already-running timer dismisses the second toast early, cutting short the undo window the player is promised. For example: remove a 'Suspended Spell', wait 5 s, remove another card also named 'Suspended Spell', and the toast vanishes 1 s later instead of 6 s later. Fix it so that (1) UndoToast takes a new REQUIRED string prop named instanceId that identifies the removal it is showing, and its dismiss timer restarts whenever the removal changes, even when the card name stays the same; (2) App.tsx passes the removed card's own instanceId (tracked cards already have one) to it; (3) everything else is unchanged: the toast still dismisses 6000 ms after it appears and not before, still shows '<card name> removed', and the Undo and Dismiss buttons and the unmount cleanup behave as before. UndoToast has no test file yet. Add the tests in a NEW file, apps/time-counters/src/components/UndoToast.test.tsx (it does not exist - create it; the jsdom environment and jest-dom matchers are already configured, and AddCardPanel.test.tsx next to it shows the vitest and @testing-library/react style), using vi.useFakeTimers() and render/rerender, proving: onDismiss fires once after 6000 ms and not before; a second removal with the same cardName but a different instanceId, rendered part-way through the window, gets its own full 6000 ms; and the card name is shown. Your added test(s) must FAIL if only your UndoToast.tsx and App.tsx changes are reverted while the test file stays. Change ONLY these three files: apps/time-counters/src/components/UndoToast.tsx, apps/time-counters/src/App.tsx and apps/time-counters/src/components/UndoToast.test.tsx. Do not commit. Do not touch any other file. When done, run `pnpm exec vitest run` from apps/time-counters and make sure the whole suite passes."
+    },
+    {
+      "id": "lfc-04-admin-manage-server-permission",
+      "title": "lfc-bot: /admin's default visibility must be the Manage Server permission, not the Administrator bit",
+      "source": "Mined from lfc-bot commit 0e9d123847f2302106cdc5da32ea32f5b3992988 (2026-09-25, real merged fix; a two-file commit, nothing to scope down). Verified 2026-10-03 in a fresh worktree at the parent (e644702a6ce9753b69ca3291e1bdc388e2d1a7d3, which is the fix commit of lfc-07): 4/4 baseline, then the fix commit's admin.test.ts alone against the unfixed source (1/5 fail) to confirm failsOnOld, then 5/5 with the fix's admin.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A Discord authorization bug: the command's default member permissions held a literal that is the Administrator bit (1 << 3) under a comment saying Manage Server (1 << 5), so only Administrators could see /admin in the picker; the run-time check was already right. Five wrong-value mutants (the old literal, ManageGuild plus Administrator, 0, null, ManageMessages) all turn the upstream test red; four equivalent encodings of the right bit (0x20, 32n, 1n << 5n, '32') all stay green.",
+      "repo": "M:/Projects/LFCbot",
+      "branch": "bench/admin-manage-server-permission",
+      "benchBaseCommit": "e644702a6ce9753b69ca3291e1bdc388e2d1a7d3",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 4,
+        "testsPass": 4
+      },
+      "allowFiles": [
+        "src/commands/admin/admin.ts",
+        "tests/commands/admin/admin.test.ts"
+      ],
+      "srcRevertFiles": [
+        "src/commands/admin/admin.ts"
+      ],
+      "testDir": ".",
+      "testCmd": ["npx", "vitest", "run", "tests/commands/admin/admin.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports: the added upstream test reads adminCommand.data.toJSON().default_member_permissions and expects the Manage Server bit as discord.js serializes it (a decimal string), which the prompt states.",
+        "ref": "upstream-fix",
+        "commit": "0e9d123847f2302106cdc5da32ea32f5b3992988",
+        "files": ["tests/commands/admin/admin.test.ts"]
+      },
+      "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards. The /admin slash command (src/commands/admin/admin.ts) is meant for members who hold the Manage Server permission: its run-time handler, execute, calls requireManageServer, and its builder, build(), sets the command's default member permissions so that Discord hides /admin from everyone else. There is a bug: a member who has Manage Server but is not an Administrator never sees /admin in the slash-command picker at all, even though the run-time check would let them in - in practice only Administrators can find it. The cause is the value build() passes to setDefaultMemberPermissions: it is a raw numeric literal with a comment calling it 'Manage Server (1 << 3)', but bit 1 << 3 (0x8) is Discord's Administrator flag, and Manage Server is a different permission bit. Fix build() so that: (1) the command's registered JSON, adminCommand.data.toJSON().default_member_permissions, carries the Manage Server permission bit and no other bit, serialized the way discord.js serializes a single permission flag (a decimal string); (2) the run-time requireManageServer check in execute stays exactly as it is - the default visibility is only a convenience, not the security check - and the command's name and subcommands are unchanged; (3) the comment next to the call is accurate about what it grants. Add or update a test in tests/commands/admin/admin.test.ts proving the command's default_member_permissions is the Manage Server bit; the file already imports PermissionFlagsBits from discord.js, and this test only needs adminCommand.data, not a fake interaction. Your added/updated test must FAIL if only your admin.ts fix is reverted while the test changes stay. Change ONLY these two files: src/commands/admin/admin.ts and tests/commands/admin/admin.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run tests/commands/admin/admin.test.ts` and make sure it passes."
+    },
+    {
+      "id": "lfc-05-digest-allowed-mentions",
+      "title": "lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing)",
+      "source": "Mined from lfc-bot commit d998d2da5722bd0a8c060fa263f96b17f5b75786 (2026-08-30, 'Pre-launch readiness pass: fix confirmed bugs, safety net, cleanup'), a multi-file bundle (security notes, docs, the have/want/edit commands, cards.ts, index.ts and more) scoped down to its digest.ts half and the one new digest test; everything else is dropped. Verified 2026-10-03 in a fresh worktree at the parent (6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef): 6/6 baseline, then the fix commit's digest.test.ts alone against the unfixed source (1/7 fail) to confirm failsOnOld, then 7/7 with the fix's digest.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A security bug: a member-controlled display name ('everyone') reaches Discord's default mention parsing through the digest. The upstream fix passes { content, allowedMentions: { parse: [] } } to both the channel send and the DM send, but the upstream test covers the channel send only (a mutant that leaves the DM send as a bare string stays green), so the DM half is checked only by the model's own tests.",
+      "repo": "M:/Projects/LFCbot",
+      "branch": "bench/digest-allowed-mentions",
+      "benchBaseCommit": "6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 6,
+        "testsPass": 6
+      },
+      "allowFiles": [
+        "src/services/digest.ts",
+        "tests/services/digest.test.ts"
+      ],
+      "srcRevertFiles": [
+        "src/services/digest.ts"
+      ],
+      "testDir": ".",
+      "testCmd": ["npx", "vitest", "run", "tests/services/digest.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. The prompt pins the exact call shape the upstream test asserts for the channel send (an options object with content and allowedMentions { parse: [] }). The upstream test does not cover the DM send, so a missing DM fix cannot show up here.",
+        "ref": "upstream-fix",
+        "commit": "d998d2da5722bd0a8c060fa263f96b17f5b75786",
+        "files": ["tests/services/digest.test.ts"]
+      },
+      "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards that posts a daily listing digest. In src/services/digest.ts, runDigest builds one text message (formatDigest, whose lines come from digestLine in src/utils/embeds.ts) and delivers it with deliverToChannel (channel.send) and/or deliverToDm (user.send), depending on the server's digest mode. There is a security bug: every listing line carries '@' plus the listing author's Discord display name, which the author controls, and both sends pass the digest as a bare string. A member whose display name is 'everyone' (or 'here') therefore puts a literal '@everyone' into the digest, and because the send call tells Discord nothing about mentions, Discord's default mention parsing treats that text as a real mention and can notify the whole channel. The cause is in digest.ts: neither send restricts mention parsing for text the bot does not control. Fix digest.ts so that: (1) the channel send and the DM send each pass an options object instead of a bare string - the digest text as 'content' and an 'allowedMentions' option whose value is exactly { parse: [] } (an empty parse list, no other keys inside it), so nothing in the text can ping anyone; (2) the digest text itself is not altered - formatDigest and digestLine stay as they are, and names are still shown as written, they just cannot ping; (3) retries, the watermark rules and the returned DigestResult stay exactly as they are, so the existing tests in tests/services/digest.test.ts keep passing. Add or update tests in tests/services/digest.test.ts proving: the channel send is called with an options object containing allowedMentions { parse: [] } (the file already has fakeClientWithChannelSend, which hands your mock to channel.send, and an addListing helper); and the DM send gets the same option (this needs a server row with digestMode 'dm' and a digestDmUserId, and a fake client whose users.fetch resolves to an object with a send mock). Your added/updated tests must FAIL if only your digest.ts fix is reverted while the test changes stay. Change ONLY these two files: src/services/digest.ts and tests/services/digest.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run tests/services/digest.test.ts` and make sure it passes."
+    },
+    {
+      "id": "lfc-07-digest-split",
+      "title": "lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure",
+      "source": "Mined from lfc-bot commit e644702a6ce9753b69ca3291e1bdc388e2d1a7d3 (2026-09-25, 'fix(digest): split digests that exceed Discord's message length'; digest.ts, constants.ts and digest.test.ts, nothing to scope down). Verified 2026-10-03 in a fresh worktree at the parent (d6a5338d809407d181b7d74eef064bbd0d81ffa2): 7/7 baseline, then the fix commit's digest.test.ts alone against the unfixed source (6/13 fail) to confirm failsOnOld, then 13/13 with the fix's digest.ts and constants.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). The first lfc task whose fix spans a source file and a constants file (srcRevertFiles lists both) and the most feature-shaped one: the prompt states the contract of the new splitDigestMessage function and the DISCORD_MESSAGE_MAX_LENGTH constant that the upstream tests import, not the algorithm. The Discord failure is real: a busy server's digest passes 2,000 characters, every retry fails, the watermark never advances and every later digest is bigger.",
+      "repo": "M:/Projects/LFCbot",
+      "branch": "bench/digest-split",
+      "benchBaseCommit": "d6a5338d809407d181b7d74eef064bbd0d81ffa2",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 7,
+        "testsPass": 7
+      },
+      "allowFiles": [
+        "src/services/digest.ts",
+        "src/utils/constants.ts",
+        "tests/services/digest.test.ts"
+      ],
+      "srcRevertFiles": [
+        "src/services/digest.ts",
+        "src/utils/constants.ts"
+      ],
+      "testDir": ".",
+      "testCmd": ["npx", "vitest", "run", "tests/services/digest.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. The upstream tests import splitDigestMessage from digest.ts and DISCORD_MESSAGE_MAX_LENGTH from constants.ts and assert exact splitting results, so the prompt pins both names, the signature, the limit and the contract (block, line and over-long-line behaviour, the all-or-nothing delivery rule) in words; it does not dictate the algorithm.",
+        "ref": "upstream-fix",
+        "commit": "e644702a6ce9753b69ca3291e1bdc388e2d1a7d3",
+        "files": ["tests/services/digest.test.ts"]
+      },
+      "prompt": "You are working in the lfc-bot repository: a Discord bot for trading Magic: The Gathering cards that posts a daily listing digest. In src/services/digest.ts, runDigest builds the digest as ONE string - a heading line followed by the sections from formatDigest (each a heading line plus one '- ...' line per listing, sections separated by a blank line) - and deliverToChannel and deliverToDm each send it in a single call. Discord rejects a message whose content is over 2,000 characters, and roughly 16 listings with printings and links are enough to pass that. There is a bug: the send then fails on every retry, runDigest keeps the watermark and raises the alert, and because the listings stay pending every later digest is bigger and fails the same way, so a busy server never gets a digest again. Fix it so that: (1) src/utils/constants.ts exports DISCORD_MESSAGE_MAX_LENGTH = 2000; (2) src/services/digest.ts exports splitDigestMessage(text: string, limit = DISCORD_MESSAGE_MAX_LENGTH): string[] with this contract - text that fits within limit comes back unchanged as a one-element array; otherwise the result is several messages, in order, each at most limit characters, together holding every non-empty line of the text exactly once and in the original order; the text is made of blocks separated by a blank line (the heading, each section), and a block that fits in one message is never split - when the next block would not fit in the current message it starts a new one, and the separator at a break belongs to neither message (with limit 100, two 79-character blocks come back as exactly those two blocks); a block longer than limit is split between its lines; a single line longer than limit is cut into consecutive pieces of exactly limit characters, the last holding the remainder (250 x's with limit 100 give 100, 100 and 50), never dropped; (3) runDigest sends those messages in order to each destination, channel and DM, each message through the same retry as today and each send still receiving { content, allowedMentions: { parse: [] } }; (4) a destination counts as delivered only if every message reached it - if any message still fails after its retries that destination failed, so when no destination succeeded the watermark does not advance and the log and alert happen as today (a message that did arrive may be repeated next run; that is better than dropping a listing). Add or update tests in tests/services/digest.test.ts proving: the split function (fits as is; no line lost and every message within the limit; a section that fits is not split; an over-long line is cut, not dropped), and runDigest on a busy day (several sends, each within the limit, watermark advanced; and a later message that keeps failing: not sent, lastDigestAt unchanged). The file's addListing inserts one listing, so extend it to build a busy day, and a test where a send keeps failing needs the 10-second timeout the existing persistent-failure test uses because retries back off in real time. Your added/updated tests must FAIL if only your source changes are reverted while the test changes stay. Change ONLY these three files: src/services/digest.ts, src/utils/constants.ts and tests/services/digest.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run tests/services/digest.test.ts` and make sure it passes."
+    },
+    {
+      "id": "asohav-03-glossary-depth-flatten",
+      "title": "ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets",
+      "source": "Mined from ASoHaVCompanionApp commit 3003542385e2e83a862ff648b69ea0a8f9873da6 (2026-08-14, 'Fix glossary tooltip depth cap, add See also chips'), a 7-file bundle (React component, CSS, the See also chips feature) scoped down to its pure-function half, packages/shared/src/glossary.ts and glossary.test.ts; docs/roadmap.md had dropped this candidate as unscopable, and it is scopable because the commit's only test change is the pure-function test. Verified 2026-10-03 in a fresh worktree at the parent (5c891936847a844bb23dd74b02aa1fa6f1525f84): 20/20 baseline, then the fix commit's glossary.test.ts alone against the unfixed source (2/21 fail) to confirm failsOnOld, then 21/21 with the fix's glossary.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; tests-only = suite FAIL; source-only = suite and failsOnOld FAIL, because the existing 'does not link past MAX_DEPTH' test encodes the old rule). Both halves of the fix are required (a constant-only change and a flatten-only change each leave a test red), which is why the prompt states both behaviours. Pure functions, no setup or environment needed.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/glossary-depth-flatten",
+      "benchBaseCommit": "5c891936847a844bb23dd74b02aa1fa6f1525f84",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 20,
+        "testsPass": 20
+      },
+      "allowFiles": [
+        "packages/shared/src/glossary.ts",
+        "packages/shared/src/glossary.test.ts"
+      ],
+      "srcRevertFiles": [
+        "packages/shared/src/glossary.ts"
+      ],
+      "testDir": "packages/shared",
+      "testCmd": ["npx", "vitest", "run", "src/glossary.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own glossary.test.ts, swapped in over the model's and run against the model's source - informational, never a gate. It uses only the existing exports buildGlossaryMatcher and linkifyText with explicit depth arguments; the prompt pins the depth semantics (depth 0 links, depth 1 and deeper does not) and the flattened output for 'you feel [shaken][g-condition] by it.', so nothing else is left to guess.",
+        "ref": "upstream-fix",
+        "commit": "3003542385e2e83a862ff648b69ea0a8f9873da6",
+        "files": ["packages/shared/src/glossary.test.ts"]
+      },
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains): a tabletop RPG companion app whose Content Admin authors a glossary of terms (Name, Aliases, Definition) that the character sheet turns into tap-to-reveal links. packages/shared/src/glossary.ts exports linkifyText(text, matcher, depth = 0, excludeTermId?), which splits text into segments of the form { text, term? }, where term is set only on a segment that links to a glossary term. Links come from two sources: automatic matches of a capitalized term Name or Alias, and explicit author tags written [Term] or [display][term-id-or-name], e.g. 'you feel [shaken][g-condition] by it.' shows 'shaken' as a link to the term g-condition. depth counts bubble-opens: 0 is the original sheet text, and a term's Definition, shown inside the bubble opened by tapping a depth-0 link, is linkified at depth 1. The constant MAX_DEPTH is meant to stop a bubble from opening further bubbles, but there are two defects. (a) It is 1, so a Definition inside a bubble can itself contain links and a player can tap Kin, then Bond, then Kin again, stacking bubbles without end; the intent was always exactly one level, so text at depth 1 must be plain. (b) Past the limit the function returns the raw text without scanning for tags at all, so an explicit tag inside such a Definition shows its literal brackets. Fix linkifyText so that: (1) at depth 0 everything behaves exactly as today, including auto-linking, explicit tags and excludeTermId; (2) at depth 1 and deeper no segment has a term, and text with no brackets comes back with its content unchanged; (3) at depth 1 and deeper an explicit tag is flattened to its plain display text instead of leaking brackets, so 'you feel [shaken][g-condition] by it.' yields segments whose text joins to 'you feel shaken by it.', while escaped brackets, an unclosed bracket and an unresolved tag keep rendering as they do at depth 0. The existing test 'does not link past MAX_DEPTH' encodes the old limit (depth 1 links, depth 2 does not), so update it to the new one. Add or update tests in packages/shared/src/glossary.test.ts proving: depth 0 links and depth 1 does not; and an explicit [display][id] tag at depth 1 is flattened to its display text with no linked segment. Your added/updated test(s) must FAIL if only your glossary.ts fix is reverted while the test changes stay. Change ONLY these two files: packages/shared/src/glossary.ts and packages/shared/src/glossary.test.ts. Do not commit. Do not touch any other file (the web component GlossaryText.tsx is out of scope). When done, run `npx vitest run src/glossary.test.ts` from packages/shared and make sure it passes."
+    },
+    {
+      "id": "asohav-04-neutral-status-polarity",
+      "title": "ASoHaVCompanionApp: a Neutral Status must not count as a hindering roll modifier or trigger Subdued",
+      "source": "Mined from ASoHaVCompanionApp commit 2729b58616447dc6ff6ede2cebdae2641d4e7c47 (2026-08-13, 'fix(shared): correct Virtue-array rules, fix Neutral Status treated as Negative'), scoped down to the Neutral-polarity half in packages/shared/src/engine.ts and engine.test.ts: the commit also changed the Virtue-array rules and a third Neutral site in logic.ts (separate tests), both dropped, and the prompt tells the model to leave logic.ts alone. Verified 2026-10-03 in a fresh worktree at the parent (f15a58cb9ef29c3b511caa0d88949a7b10686874): 22/22 baseline, then the fix commit's engine.test.ts alone against the unfixed source (2/24 fail) to confirm failsOnOld, then 24/24 with the fix's engine.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A polarity test written as 'not Positive' instead of 'is Negative' at two independent sites (computeRollBreakdown's hindering filter and giveStatus's Subdued trigger); reverting either site alone turns one upstream test red.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/neutral-status-polarity",
+      "benchBaseCommit": "f15a58cb9ef29c3b511caa0d88949a7b10686874",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 22,
+        "testsPass": 22
+      },
+      "allowFiles": [
+        "packages/shared/src/engine.ts",
+        "packages/shared/src/engine.test.ts"
+      ],
+      "srcRevertFiles": [
+        "packages/shared/src/engine.ts"
+      ],
+      "testDir": "packages/shared",
+      "testCmd": ["npx", "vitest", "run", "src/engine.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "acceptance": {
+        "note": "The upstream fix commit's own engine.test.ts, swapped in over the model's and run against the model's source - informational, never a gate. It uses only existing exports (computeRollBreakdown, giveStatus, seedLibrary), so nothing beyond existing exports needs pinning.",
+        "ref": "upstream-fix",
+        "commit": "2729b58616447dc6ff6ede2cebdae2641d4e7c47",
+        "files": ["packages/shared/src/engine.test.ts"]
+      },
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains): a tabletop RPG companion app. A Hero's character sheet carries Statuses (Bleeding, Rattled, Prepared...), each with a Name, a Rank from 1 to 6 and a Polarity: Positive (helps the Hero), Negative (hurts the Hero) or Neutral (a note-like Status that is neither - the Give a Status dialog offers all three). packages/shared/src/engine.ts is the pure rules engine; the app never rolls dice, it tells the player what to roll. computeRollBreakdown(sheet, virtueId, library, moveId?) itemizes 2d6 + Virtue score plus the single highest helpful Status (added) and the single highest hindering Status (subtracted), returning Sources and Total. giveStatus(statuses, incoming, maxRank) adds or raises a Status, caps its Rank at maxRank (6) and returns { Statuses, Subdued }; Subdued: true means a Negative Status has just been pushed to the cap, so the player must run the Subdued flow (take a Scar, Risk Death or Blaze of Glory). There is a bug: both functions decide whether a Status is bad by asking whether it is not Positive instead of whether it is Negative, so a Neutral Status is treated as a Negative one in two independent places. A Rank 5 Neutral Status named Watched subtracts 5 from a roll total and is listed as the highest hindering Status, and a Neutral Status that reaches the cap wrongly reports Subdued: true. Fix engine.ts so that: (1) computeRollBreakdown never counts a Neutral Status as helpful or hindering - it adds no Status entry to Sources and changes nothing in Total, and next to a lower-ranked Negative Status it is still the Negative one that is reported as hindering; (2) giveStatus reports Subdued: true only when the incoming Status is Negative and reaches maxRank - a Neutral Status at the cap still has its Rank capped at maxRank but reports Subdued: false; (3) Positive and Negative Statuses behave exactly as before (the highest Positive is added, the highest Negative is subtracted, a Positive at the cap is not Subdued, a Negative at the cap is). The same Polarity test also appears in packages/shared/src/logic.ts; that one is out of scope here, leave it alone. Add or update tests in packages/shared/src/engine.test.ts (it already has makeSheet and makeStatus helpers and a seeded library) proving (1) and (2) for a Neutral Status. Your added/updated test(s) must FAIL if only your engine.ts fix is reverted while the test changes stay. Change ONLY these two files: packages/shared/src/engine.ts and packages/shared/src/engine.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run src/engine.test.ts` from packages/shared and make sure it passes."
+    },
+    {
+      "id": "asohav-05-library-write-validation",
+      "title": "ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it",
+      "source": "Mined from ASoHaVCompanionApp commit 3e0b074596d11cf2acf8af714d0455f80c881ea0 (2026-09-12, 'Ship 0.51.0: Content Admin, phases 1 and 2'), a 35-file release bundle scoped down to its server-side input-trust fixes in apps/server/src/routes/library.ts and apps/server/src/adminLogic.ts (the restore-from-changelog route, the delete guard and every web change are dropped). The tests are hand-scoped, not a commit: the parent's library.test.ts plus the fix commit's describe('field validation') and describe('settings validation') blocks verbatim (the restore and delete-guard tests and the getChangeLogEntry mock removed), so there is no acceptance block. Verified 2026-10-03 in a fresh worktree at the parent (79b369d7ba01ed02affa6534a33ef698d17b5518): 14/14 baseline, then that scoped test file alone against the unfixed source (8/24 fail) to confirm failsOnOld, then 24/24 with the fix's adminLogic.ts and the four validation hunks of its library.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). The first ASoHaV task with a source file and a helper file in srcRevertFiles; five input-trust fixes, each mutation-verified: settings type checks, required fields on create and on update, declared defaults, and the generated Id winning over a client-sent one.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/library-write-validation",
+      "benchBaseCommit": "79b369d7ba01ed02affa6534a33ef698d17b5518",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 14,
+        "testsPass": 14
+      },
+      "allowFiles": [
+        "apps/server/src/routes/library.ts",
+        "apps/server/src/adminLogic.ts",
+        "apps/server/src/routes/library.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/server/src/routes/library.ts",
+        "apps/server/src/adminLogic.ts"
+      ],
+      "testDir": "apps/server",
+      "testCmd": ["npx", "vitest", "run", "src/routes/library.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "testEnv": { "DATABASE_URL": null },
+      "testEnvNote": "null = unset. Standing pin for the apps/server tasks. A model-written test that imports the real repo.ts also imports pgPool.ts, which throws at import time unless DATABASE_URL is set (the route tests avoid it by mocking the repo module with vi.mock). Unset is a clean checkout: the gates and the model's own shell see what CI would. The gate results of this task were verified identical with DATABASE_URL unset, set to a dummy URL, and ambient.",
+      "setup": [
+        {
+          "note": "build @asohav/shared so the server package's workspace import resolves",
+          "cwd": "packages/shared",
+          "cmd": ["npx", "tsc", "-p", "tsconfig.json"]
+        }
+      ],
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains, a tabletop RPG companion app). Its Content Admin panel lets designers edit the shared game library: collections such as Virtues, Items and Moves, plus ten global game settings. The admin-only write routes are in apps/server/src/routes/library.ts, with helpers in apps/server/src/adminLogic.ts; packages/shared/src/schema.ts declares each collection's fields (a type and optional required and default flags) and the settings with their types (settingsFields). There is a bug: the routes trust the request body and never consult that schema. PUT /library/settings merges anything it is sent, so {GlossaryAutoLink: null} silently switches off glossary auto-linking app-wide, a string is stored as a track length, and a misspelled key is stored and never read. POST /library/:collection ignores required and default (a record with no Name is created; an Item made without LoadCost gets none) and spreads the body over the generated Id, so a client-sent Id wins. PUT /library/:collection/:id never checks required fields. Fix it so that: (1) PUT /library/settings answers 400 with { error: message } and saves nothing for a key that is not a declared setting (message says 'Unknown setting'), a whole-number setting that is not an integer (a string, null, a boolean or 9.5; negative integers are fine, so add no range limits) or a GlossaryAutoLink that is not true or false (message says it must be true or false), and a valid patch still saves as before; (2) POST answers 400 with { error } and saves nothing when a required field is missing, null, or an empty or whitespace-only string (message says the field is required); (3) on create, a field with a declared default that the body leaves out gets that default, but a value the client sent is never replaced (LoadCost: 0 stays 0); (4) on create the Id is always the freshly generated, prefixed one (a Virtue's starts with 'v-'), whatever the client sends; (5) PUT /library/:collection/:id stays a partial update: a body that omits a required field still succeeds and keeps the stored value, but a required field that is present and blank gets 400 and nothing is saved. Add or update tests in library.test.ts (it has appAs(isAdmin), makeLibrary() and a mocked repo) proving each point, including the 400 body and that saveLibrary was not called. Your added/updated test(s) must FAIL if only your changes to library.ts and adminLogic.ts are reverted while the test changes stay. Change ONLY these three files: apps/server/src/routes/library.ts, apps/server/src/adminLogic.ts and apps/server/src/routes/library.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run src/routes/library.test.ts` from apps/server and make sure it passes."
+    },
+    {
+      "id": "asohav-06-bond-cap-setting",
+      "title": "ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5",
+      "source": "Mined from ASoHaVCompanionApp commit 3615d3d8bbbeb7313e43d9719ae5f7b01dd6588c (2026-09-11, 'Ship 0.50.0: correctness and safety, out of the project audit'), a release bundle of about nine unrelated changes scoped down to its Bond-cap change in packages/shared/src/logic.ts. The tests are hand-scoped, not a commit: the parent's logic.test.ts plus the fix commit's describe('Bond cap honours GameSettings.BondTrackLength') block verbatim, minus one expect(DEFAULT_BOND_CAP) line and plus the already-existing resolveAcceptedBond import name (the fix commit's own logic.test.ts imports helpers added elsewhere in that commit), so there is no acceptance block. Verified 2026-10-03 in a fresh worktree at the parent (84719041b3312cab3e49901dea20d7129bb24761): 93/93 baseline, then that scoped test file alone against the unfixed source (3/97 fail) to confirm failsOnOld, then 97/97 with the Bond region of the fix's logic.ts spliced into the parent's; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). Known weakness: the hardcoded 5 sits at six sites and the upstream tests pin only four (leaving applySpendBond's own lock check, or the nested applySpendBond call inside resolveAcceptedBond, on the default cap stays green; two extra tests that pin them turn the unfixed source red 5/99), so a model's own tests are what must cover the other two. The prompt lists all six behaviours and pins the interface (an optional trailing cap parameter that defaults to 5).",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/bond-cap-setting",
+      "benchBaseCommit": "84719041b3312cab3e49901dea20d7129bb24761",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 93,
+        "testsPass": 93
+      },
+      "allowFiles": [
+        "packages/shared/src/logic.ts",
+        "packages/shared/src/logic.test.ts"
+      ],
+      "srcRevertFiles": [
+        "packages/shared/src/logic.ts"
+      ],
+      "testDir": "packages/shared",
+      "testCmd": ["npx", "vitest", "run", "src/logic.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains): a tabletop RPG companion app. Two Heroes in a party share a Bond: a record with a BondLevel and a BondTrack (a row of pips). Marking Bond fills the track; forging a Bond raises the Level by one and empties the track; spending Bond removes pips and, when the track would go below 0, costs one Level and refills the track to its top pip; a Bond whose Level and Track are both full is locked, and Bond can no longer be spent on it. The track length is the admin-editable setting GameSettings.BondTrackLength (default 5), and the web UI already draws that many pips. But packages/shared/src/logic.ts still hardcodes a literal 5 as the cap inside the Bond functions, so raising the setting to 7 shows seven pips that the logic will never let anyone fill. Fix isBondLocked(bond), applySpendBond(bond, delta = 1) and resolveAcceptedBond(bond) by giving each a new optional trailing number parameter cap that defaults to 5 (they are pure functions with no access to the settings, and every existing call site must keep behaving identically). With a cap of N: (1) isBondLocked is true only when both BondLevel and BondTrack are at least N, so a 5/5 Bond is not locked at cap 7; (2) applySpendBond uses the cap for its own lock check (spending on a 5/5 Bond at cap 7 works, at 7/7 it throws BondHandshakeError) and its error text names the real cap instead of a fixed Level 5; (3) when a spend drops the track below zero the Level drops by one and the track resets to N - 1, not a literal 4; (4) resolveAcceptedBond passes the cap on when it resolves a legacy SpendBond proposal, so (2) and (3) hold there too; (5) resolveAcceptedBond clamps an accepted MarkBond to N; (6) it clamps the new Level of an accepted ForgeBond to N. The server and web callers are out of scope and stay unchanged. Add or update tests in packages/shared/src/logic.test.ts (it already has a makeBond helper and an 'isBondLocked / applySpendBond' block; resolveAcceptedBond is not imported there yet) proving each of the six behaviours with a non-default cap such as 7, and that omitting the cap still behaves as 5. Your added/updated test(s) must FAIL if only your logic.ts fix is reverted while the test changes stay. Change ONLY these two files: packages/shared/src/logic.ts and packages/shared/src/logic.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run src/logic.test.ts` from packages/shared and make sure it passes."
+    },
+    {
+      "id": "asohav-07-rapport-clamp",
+      "title": "ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away",
+      "source": "Mined from ASoHaVCompanionApp commit 2db8a09b37fc967ad1199bfa436a3d1ebde1c0d1 (2026-09-22, 'slice 0 / WP 0A: stop the party route clamping Rapport to the cap'), scoped down to apps/server/src/routes/party.ts and party.test.ts (a one-line web file, KeepWatchModal.tsx, dropped). Verified 2026-10-03 in a fresh worktree at the parent (d73d6c978f478e3aca5fb836683fcfe639debd43): 5/5 baseline, then the fix commit's party.test.ts alone against the unfixed source (1/5 fail) to confirm failsOnOld, then 5/5 with the fix's party.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; tests-only = suite FAIL; source-only = suite and failsOnOld FAIL, because the existing 'clamps Rapport down to the track length' test encodes the old rule). A ruleset change landing as a bug fix: an over-eager server clamp discards banked state, so the old test has to be replaced rather than kept.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/rapport-clamp",
+      "benchBaseCommit": "d73d6c978f478e3aca5fb836683fcfe639debd43",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 5,
+        "testsPass": 5
+      },
+      "allowFiles": [
+        "apps/server/src/routes/party.ts",
+        "apps/server/src/routes/party.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/server/src/routes/party.ts"
+      ],
+      "testDir": "apps/server",
+      "testCmd": ["npx", "vitest", "run", "src/routes/party.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "testEnv": { "DATABASE_URL": null },
+      "testEnvNote": "null = unset. Standing pin for the apps/server tasks. A model-written test that imports the real repo.ts also imports pgPool.ts, which throws at import time unless DATABASE_URL is set (the route tests avoid it by mocking the repo module with vi.mock). Unset is a clean checkout: the gates and the model's own shell see what CI would. The gate results of this task were verified identical with DATABASE_URL unset, set to a dummy URL, and ambient.",
+      "setup": [
+        {
+          "note": "build @asohav/shared so the server package's workspace import resolves",
+          "cwd": "packages/shared",
+          "cmd": ["npx", "tsc", "-p", "tsconfig.json"]
+        }
+      ],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports needs pinning.",
+        "ref": "upstream-fix",
+        "commit": "2db8a09b37fc967ad1199bfa436a3d1ebde1c0d1",
+        "files": ["apps/server/src/routes/party.test.ts"]
+      },
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains), a tabletop RPG companion app with an Express server in apps/server. Every campaign has one shared Party record, and the Party holds Rapport: a running count of the group's teamwork that players build up in play and spend to help each other (Aid). The track has a length that designers set in the game library (settings.RapportTrackLength, 5 by default). Under the current V0.6 ruleset, Rapport is allowed to overflow the track: the extra is banked until the next Make Camp (the party's rest step, where Rapport turns into a Party advance), and only spending Rapport early forfeits it. In apps/server/src/routes/party.ts, PUT /campaigns/:campaignId/party lets any campaign member save the whole Party document: it merges the request body over the stored party and then clamps Rapport server-side to the range 0 through RapportTrackLength, reading the library for the ceiling. There is a bug: that clamp dates from the older rules, when Rapport was a plain capped counter, so every save silently throws the banked overflow away. For example, with a track length of 5, saving a Party with Rapport 13 stores and returns 5. Fix the route so that: (1) a Rapport above the track length is kept exactly as sent, with no upper limit at all (13 stays 13, both in the response body's party.Rapport and in the object passed to saveParty); (2) a negative Rapport is still raised to 0 (-4 becomes 0); (3) an in-range value is untouched (3 stays 3); (4) everything else about the route is unchanged, including the 404 for an unknown campaign, the 403 for a non-member and the 409 for an archived campaign. Add or update tests in apps/server/src/routes/party.test.ts proving (1) through (3). The file currently has a test called 'clamps Rapport down to the track length' that sends 9999 and expects 5: that behaviour is being reversed on purpose, so replace that test instead of keeping it. Your added/updated test(s) must FAIL if only your party.ts fix is reverted while the test changes stay. The web client has a matching cap of its own that is handled separately, so leave apps/web alone. Change ONLY these two files: apps/server/src/routes/party.ts and apps/server/src/routes/party.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run src/routes/party.test.ts` from apps/server and make sure it passes."
+    },
+    {
+      "id": "asohav-08-end-combat-clears-strain",
+      "title": "ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet",
+      "source": "Mined from ASoHaVCompanionApp commit d7696990b5e2551c9897e6ec255c70be213ca8b2 (2026-09-23, 'slice 6 / WP 6F: ending Combat'), scoped down to apps/server/src/routes/combat.ts and combat.test.ts (the DefiantGoals.tsx and EndCombatFlow.tsx web halves are dropped). A documented live defect (Planning Docs/WorkPlan-V0.6-Revision.md B1: End Combat never clears Strain). Verified 2026-10-03 in a fresh worktree at the parent (9afb9112b0e2596edac0e7fe4055149512ab3b62): 18/18 baseline, then the fix commit's combat.test.ts alone against the unfixed source (1/20 fail) to confirm failsOnOld, then 20/20 with the fix's combat.ts; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A missing cascading side effect across separate records (the Encounter and each Hero's sheet); the prompt pins the repo call shapes the upstream test asserts (getSheet by RefId, saveSheet(sheet, campaignId), only sheets with marked Strain saved) because they cannot be guessed.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/end-combat-clears-strain",
+      "benchBaseCommit": "9afb9112b0e2596edac0e7fe4055149512ab3b62",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 18,
+        "testsPass": 18
+      },
+      "allowFiles": [
+        "apps/server/src/routes/combat.ts",
+        "apps/server/src/routes/combat.test.ts"
+      ],
+      "srcRevertFiles": [
+        "apps/server/src/routes/combat.ts"
+      ],
+      "testDir": "apps/server",
+      "testCmd": ["npx", "vitest", "run", "src/routes/combat.test.ts"],
+      "installFlags": ["--ignore-scripts"],
+      "testEnv": { "DATABASE_URL": null },
+      "testEnvNote": "null = unset. Standing pin for the apps/server tasks. A model-written test that imports the real repo.ts also imports pgPool.ts, which throws at import time unless DATABASE_URL is set (the route tests avoid it by mocking the repo module with vi.mock). Unset is a clean checkout: the gates and the model's own shell see what CI would. The gate results of this task were verified identical with DATABASE_URL unset, set to a dummy URL, and ambient.",
+      "setup": [
+        {
+          "note": "build @asohav/shared so the server package's workspace import resolves",
+          "cwd": "packages/shared",
+          "cmd": ["npx", "tsc", "-p", "tsconfig.json"]
+        }
+      ],
+      "acceptance": {
+        "note": "The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. The prompt pins the call shape saveSheet(sheet, campaignId) and that only sheets with marked Strain are saved.",
+        "ref": "upstream-fix",
+        "commit": "d7696990b5e2551c9897e6ec255c70be213ca8b2",
+        "files": ["apps/server/src/routes/combat.test.ts"]
+      },
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains), a tabletop RPG companion app with an Express server in apps/server. The GM (game master) runs each fight as a Combat Encounter record: it has Participants (Kind 'PC' for a Hero, a player's character, whose RefId is that Hero's character id, or Kind 'Enemy'), a Status of 'Active' or 'Ended', and a History log of { Id, At, Text } entries, newest first. A Hero's Strain, the harm marked during a fight, lives on the Hero's own character sheet, a separate record from the Encounter: CharacterSheet.Strain is an array of booleans, one per Strain box, true meaning marked. The ruleset (V0.6, 'Ending Combat') says that when Combat ends all Strain is cleared, while Statuses remain. In apps/server/src/routes/combat.ts, POST /campaigns/:campaignId/combat/:encounterId/end is the GM-only route that ends a fight. There is a bug: it only flips the Encounter's Status to 'Ended' and saves the Encounter. It never reads or writes the Heroes' sheets, so every Hero leaves the fight still carrying the Strain they marked and starts the next one with it. Fix the route so that, besides ending the Encounter as it does today: (1) for each participant of Kind 'PC' it loads the Hero's sheet with getSheet(participant.RefId) from the repo module, once per Hero participant, skipping Enemy participants and any participant whose sheet comes back null; (2) a sheet that has at least one Strain box marked is saved with saveSheet(sheet, campaignId), where the first argument is that sheet with every Strain entry set to false (same number of boxes, every other field unchanged) and the second is the campaign's id; (3) a sheet with no Strain marked is not saved at all; (4) a new History entry whose Text contains 'Combat ended', shaped like the one the /start route creates, is added at the front of the Encounter's History, and the response is still 200 with { encounter } showing Status 'Ended'; (5) a non-GM is still refused with 403, and no sheet is read or written. Add or update tests in apps/server/src/routes/combat.test.ts proving (1) through (5); note that the file mocks the repo module with a vi.mock factory listing each repo function the routes use, and builds Encounters with makeEncounter(). Your added/updated test(s) must FAIL if only your combat.ts fix is reverted while the test changes stay. Change ONLY these two files: apps/server/src/routes/combat.ts and apps/server/src/routes/combat.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run src/routes/combat.test.ts` from apps/server and make sure it passes."
+    },
+    {
+      "id": "asohav-09-seed-virtue-conformance",
+      "title": "ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name",
+      "source": "Mined from ASoHaVCompanionApp commit aec6644bfd4f92d787253680b7682ed9b0e4c52a (2026-09-25, 'Give Strike a Nerve its Virtue: m-strike VirtueId null -> v-guile (0.64.3)'), a release commit scoped down to one token in packages/shared/src/seedLibrary.ts (the SEED_VERSION bump and the version, lockfile and docs edits are dropped) plus the NEW packages/shared/src/seedLibrary.test.ts, which reads Planning Docs/Ruleset-V0.6.md. Because the test file is new, the baseline is the FULL shared suite: 368/368 at the parent (8686bf41c9ac130bd521f05e056460ca777f43bf); the fix commit's test file alone against the unfixed source fails 1 of 371, then 371/371 with the one-token fix; replayed through test-tasks.ps1 with a stand-in opencode (reference = every gate PASS; source-only = failsOnOld FAIL; tests-only = suite FAIL). A data/spec-conformance bug whose source of truth is a Markdown document, not code, so the prompt names the document and the invariant but not the wrong Move. No acceptance block: the upstream test looks for the '# Basic Moves' chapter with LF line endings in a 2 MB file and the repo has no .gitattributes, so a CRLF checkout (git for Windows defaults to autocrlf) would fail it for every model without saying why, and a dry run would still read as 'fails on the untouched base'; the prompt tells the model the file may have either line ending.",
+      "repo": "M:/TTRPG/A Story of Heroes and Villains",
+      "branch": "bench/seed-virtue-conformance",
+      "benchBaseCommit": "8686bf41c9ac130bd521f05e056460ca777f43bf",
+      "packageManager": "npm",
+      "baselineExpect": {
+        "testsTotal": 368,
+        "testsPass": 368
+      },
+      "allowFiles": [
+        "packages/shared/src/seedLibrary.ts",
+        "packages/shared/src/seedLibrary.test.ts"
+      ],
+      "srcRevertFiles": [
+        "packages/shared/src/seedLibrary.ts"
+      ],
+      "testDir": "packages/shared",
+      "testCmd": ["npx", "vitest", "run"],
+      "installFlags": ["--ignore-scripts"],
+      "prompt": "You are working in the ASoHaVCompanionApp repository (A Story of Heroes and Villains): a tabletop RPG companion app for a Powered-by-the-Apocalypse game. A Move is a named action a Hero can take; a Basic Move is rolled with one of five Virtues (Might, Mettle, Heart, Wit, Guile), or lets the player choose which. The canonical rules text is Planning Docs/Ruleset-V0.6.md (about 2 MB with very long lines; note the space in the folder name; it may have LF or CRLF line endings). Its '# Basic Moves' chapter, which runs to the next top-level heading, lists every Basic Move as a level-2 heading shaped like '## Sway the Spirit (Heart)': one Virtue in the parentheses means the Move always rolls that Virtue, 'Wit/Heart' offers a choice of two and 'Any' offers a free choice. Headings are not perfectly uniform: some have a markdown-escaped hyphen (a backslash and a dash) between the name and the parentheses, and some carry trailing spaces. The app's starter library is built by seedLibrary() in packages/shared/src/seedLibrary.ts; each Move there has a Name, a Kind ('Basic' or 'Adventure') and a VirtueId, which is a seeded Virtue's Id (look the Id up by the Virtue's Name) or null. A Move with a VirtueId is filed under that Virtue in the Moves drawer and fixed in the roll builder; null makes the builder ask the player. There is a data bug: nothing ever compared the seed against the ruleset, and at least one Basic Move's VirtueId disagrees with its heading. Make the seed conform: a Basic Move whose heading names exactly one Virtue must carry that Virtue's Id, and one whose heading offers a choice (two Virtues, or Any) must keep VirtueId null. Do not hand-copy a table of expected values; write a test that reads the ruleset file itself, finds each Basic Move heading in that chapter, and checks the seeded Move of the same Name against it (and that every heading found has a seeded Move, so a parsing slip cannot pass silently), then fix whatever seed data the test shows to be wrong. Put the test in a NEW file, packages/shared/src/seedLibrary.test.ts (it does not exist yet); it must FAIL if only your seedLibrary.ts fix is reverted while the test stays. Change ONLY these two files: packages/shared/src/seedLibrary.ts and packages/shared/src/seedLibrary.test.ts. Do not commit. Do not touch any other file. When done, run `npx vitest run` from packages/shared and make sure the whole suite passes."
     }
   ]
 }

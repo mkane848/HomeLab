@@ -114,6 +114,10 @@ function Get-PublishState {
     # single-branch clone shows (1) one branch only - that is how a published commit was
     # once reported as local-only.
     param([string]$Repo, [string]$Commit)
+    # Every probe below can write to stderr (a commit origin lacks is "not our ref"; a
+    # local origin warns that it ignores --filter). Under a caller's "Stop", Windows
+    # PowerShell 5.1 turns that into a terminating error, so set it here, function-local.
+    $ErrorActionPreference = "Continue"
 
     & git -C $Repo cat-file -e "$Commit^{commit}" *> $null
     if ($LASTEXITCODE -ne 0) { return "missing" }
@@ -188,20 +192,26 @@ if (-not $SkipSetup) {
         }
 
         # Can anyone else get the pinned base? A commit that exists only on this
-        # machine cannot be reproduced. (Today all nine can: eight are on main and
+        # machine cannot be reproduced. (Today all 27 can: 26 are on main and
         # kane-01's is a branch tip and refs/pull/82/head.)
         if ((Get-PublishState -Repo $repo -Commit $b.Commit) -eq "unpublished") {
             Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is not on origin, so nobody else can reproduce this task." -ForegroundColor Yellow
             Write-Host "         Publish it: git -C `"$repo`" push origin $($b.Commit):refs/heads/$($b.Branch)" -ForegroundColor Yellow
         }
-        # Same question for the owner's acceptance tests (lfc-03), pinned by `acceptance.commit`
-        # (a task without the pin follows the local branch `acceptance.ref`).
+        # Same question for the owner's acceptance tests (lfc-03's own branch; the other tasks'
+        # are an upstream fix commit's test file), pinned by `acceptance.commit` (a task without
+        # the pin follows the local branch `acceptance.ref`).
         $accRef = if ($task.acceptance) { $task.acceptance.ref } else { $null }
         if ($accRef) {
             $accSha = if ($task.acceptance.commit) { $task.acceptance.commit } else { (& git -C $repo rev-parse --verify --quiet "refs/heads/$accRef" 2>$null | Select-Object -First 1) }
             if (-not $accSha) {
                 Write-Host "  [WARN] $($b.TaskId): acceptance branch $accRef is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow
             } else {
+                & git -C $repo cat-file -e "$accSha^{commit}" *> $null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "  fetching $repo for the acceptance commit ..." -ForegroundColor DarkGray
+                    & git -C $repo fetch origin --quiet *> $null
+                }
                 switch (Get-PublishState -Repo $repo -Commit $accSha) {
                     "missing"     { Write-Host "  [WARN] $($b.TaskId): acceptance commit $($accSha.Substring(0,10)) is not in $repo - the acceptance run will report ERROR." -ForegroundColor Yellow }
                     "unpublished" {
