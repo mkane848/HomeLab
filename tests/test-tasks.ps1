@@ -64,6 +64,13 @@
 # inspected, extracting them is a follow-up; this harness does not assume a
 # shape it hasn't verified.
 #
+# Test environment: a task's manifest `testEnv` (name -> value; null or "" =
+# unset) is applied to the test command AND to the `opencode run` process, so
+# the model's own shell and every gate see the same variables whatever the
+# harness process happens to hold, and is restored afterwards. It is recorded
+# in each run JSON as `testEnv` (absent on earlier rows, which ran under the
+# ambient environment). asohav-02 needs it: see that task's `testEnvNote`.
+#
 # Usage (PowerShell, from anywhere; source a profile first so OPENCODE_MODEL/
 # OLLAMA_*_BASE_URL are set, or pass -Model):
 #   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model ollama-desktop/qwen3:14b
@@ -374,10 +381,43 @@ function Ensure-Worktree {
     return [pscustomobject]@{ Wt = $WtPath; Head = $head }
 }
 
+# A task's `testEnv` pins the environment its test command and the model's own
+# shell run under. Without it a gate result depends on whatever the harness
+# process happens to hold: asohav-02's model-written test imports the real
+# repo.ts, which imports pgPool.ts, which throws at import time unless
+# DATABASE_URL is set - so that kind of test file could not load on 2026-09-27
+# (variable absent: the models' own vitest runs show the error) and passed on
+# 2026-09-29 (present), with nothing in the result saying which. Set-TaskTestEnv
+# applies the pins and returns what Restore-TaskTestEnv needs to put the process
+# back, so one task's pins never leak into the next task of the same batch.
+function Set-TaskTestEnv {
+    param($Task)
+    $saved = [ordered]@{}
+    if ($Task -and $Task.PSObject.Properties["testEnv"] -and $Task.testEnv) {
+        foreach ($p in $Task.testEnv.PSObject.Properties) {
+            $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name)
+            $value = if ($null -eq $p.Value) { "" } else { [string]$p.Value }
+            [Environment]::SetEnvironmentVariable($p.Name, $value)   # "" removes the variable
+        }
+    }
+    return , $saved
+}
+
+function Restore-TaskTestEnv {
+    param($Saved)
+    if (-not $Saved) { return }
+    foreach ($name in @($Saved.Keys)) { [Environment]::SetEnvironmentVariable($name, $Saved[$name]) }
+}
+
 function Invoke-Test {
     param($Task, [string]$WtPath)
     $testDir = Join-Path $WtPath $Task.testDir
-    return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+    $savedEnv = Set-TaskTestEnv $Task
+    try {
+        return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+    } finally {
+        Restore-TaskTestEnv $savedEnv
+    }
 }
 
 function Get-FailedTestNames {
@@ -814,7 +854,14 @@ foreach ($tk in $tasksToRun) {
         continue
     }
 
-    $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+    # The model's own shell gets the pinned environment too: a test it sees pass
+    # has to be one the gates can run (opencode inherits this process's env).
+    $savedEnv = Set-TaskTestEnv $tk
+    try {
+        $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+    } finally {
+        Restore-TaskTestEnv $savedEnv
+    }
     # A run that never reached the model is not a result. opencode exits 0 even
     # when the model refuses to write (real liar mode), so ANY non-zero exit is
     # infrastructure: unreachable provider, bad model id, crash. Grading those as
@@ -1034,6 +1081,7 @@ foreach ($tk in $tasksToRun) {
         ollamaVersion   = $ollamaVersion
         opencodeVersion = $opencodeVersion
         numCtx          = $numCtx
+        testEnv         = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
         transcriptFile  = $transcriptFileField
     }

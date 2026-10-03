@@ -1303,6 +1303,97 @@ Pass by task, across all seats:
       - Cosmetic, both kane-04 reps: `Nazgûl` reached the test file as U+FFFD
         (read→edit round-trip through the loose matcher; arbitrary fixture
         strings, suite unaffected).
+      - **Addendum (2026-10-03): the same 12 passes replayed again, with the
+        gates re-run.** DP12 read the replayed diffs; this pass also ran them.
+        Each transcript's completed `edit`/`write` calls were applied in order
+        onto a worktree at the task's pinned base (opencode's own recorded diff
+        first, the exact `oldString` second, errored calls skipped), then:
+        scope vs `allowFiles`; the task's `testCmd` (suite gate);
+        `srcRevertFiles` back to the pin with the model's tests kept
+        (failsOnOld); removed base lines and test names. Oracles the models
+        never saw: the project's own fix commit (the first commit after the pin
+        on `origin/main`) and, for lfc-03, the owner's 29 acceptance tests at
+        `3215aaf`. A replay cannot reapply a bash command that edits files;
+        none of the 12 ran one (a vitest redirect to a temp file, a
+        `pnpm install`, a `node -e` probe). Scratch script, not committed.
+        - **All 12 gates reproduce** on a clean Linux box: suite green (12 to
+          197 tests) and 1 to 7 named tests failing with the source reverted,
+          each time. asohav-02 ×2 only with `DATABASE_URL` set (below).
+        - **All 12 sources are right.** The project's fix-commit tests fail on
+          the base source in all four upstream-mined tasks and pass on all 10
+          model sources (asohav-02 ×2, kane-02 ×4, kane-04 ×2, lfc-02 ×2); the
+          owner's lfc-03 tests fail 5 of 29 on the base and pass 29 of 29 on
+          both passes. The 10 models' own tests run against the project's
+          source: 8 pass. The two that do not pin their own reading, which the
+          prompt allows: kane-04 rep 2's "unparseable" example is `thirteen`,
+          which the project's fix parses (it widened `NUMBER_WORDS` to twenty);
+          lfc-02 rep 2 asserts `Accept === 'application/json'`, where the
+          project sends `application/json;q=0.9,*/*;q=0.8`.
+        - **The tests the models wrote: three DP12 classifications differ.**
+          Same bar DP12 applied to lfc-02: a prompt requirement unmet in an
+          artifact the gates do not read, or a defect a standard check flags.
+          - kane-04 × `qwen3.5` rep 1 (`...163713`) asserts no warning. Its
+            third whole-file `write` of the test (50 s after the second, so not
+            a race) dropped the warn tracker the second had, which is the
+            version DP12 describes. The model's own summary lists a third test,
+            `'genuinely unparseable value returns 1'`, and the replayed file
+            has no `warn` in it. The source does warn (`up to xyz` gives 1 and
+            one `console.warn`), so only the requirement's test half is unmet,
+            and that test passes on the old code.
+          - lfc-03 × `qwen3.6` ×2 (`...223928`, `...224611`) never test
+            `expired`, though requirement (1) lists fulfilling and deleting an
+            expired listing as forbidden and (3) asks for the FULL matrix: no
+            added line mentions it, the owner's tests do 11 times, and both
+            sources pass them. Rep 1 asserts the message only as
+            `/cannot transition/`, and one test is titled "re-fulfilling an
+            already-fulfilled listing via softDeleteListing throws" while
+            asserting `.not.toThrow()`. Rep 2's 10 tests cover 6 transitions
+            (fulfilled to fulfilled five times), and its message test cannot
+            tell the current status from the requested one (both `fulfilled`).
+          - asohav-02 × `qwen3.6` ×2: environment-dependent, next.
+        - **Confirmed, empirically.** lfc-02 rep 1 sends
+          `User-Agent: LFCbot/0.0.0` (package.json says 1.5.0 at the pin), and
+          the project's own test passes on it, so only the prompt's anti-drift
+          clause catches it. lfc-02 rep 2 sends `LFCbot/1.5.0`, but
+          `tsc --noEmit` reports 7 errors (`Cannot find name 'CardFinish' |
+          'CardVariant' | 'ResolvedCard'`) against 0 at the base and in rep 1.
+          No assertion was removed anywhere. Not reproduced: the U+FFFD in
+          `Nazgûl`. The committed kane-04 transcripts carry it intact (50
+          occurrences, 0 U+FFFD) and so does the replayed file.
+        - **asohav-02: both `qwen3.6` passes load only where `DATABASE_URL` is
+          set.** Their tests import the real `repo.ts`, which imports
+          `pgPool.ts`, which throws at import without it; the project's own
+          test mocks `./pgPool.js`. Replayed clean, the file does not load
+          (1 failed suite, 194 tests green, exit 1); with a stub value both
+          reproduce PASS/PASS. The project's own CI would fail on it too: its
+          `test` job runs `npm ci` then `npm test` (the server's
+          `vitest run`) with no `DATABASE_URL`. Nothing in this repo sets the
+          variable. The
+          models' own vitest runs hit the import error on 2026-09-27 (11 times
+          in 5 transcripts) and never on 09-29 (0 of 24 runs), so the harness
+          process held it by then. Of the 17 asohav-02 rows whose edits
+          replay, these are the only two whose suite verdict depends on it (15
+          agree with the recorded verdict; the other two ran file-editing
+          bash). The 09-27 FAILs are not environmental: with the variable set
+          they still fail on the model's own errors (`qwen3:14b` imports `repo`
+          wrongly, `qwen3-coder` `require()`s from an ESM test, `qwen3.6`
+          calls a nonexistent `vi.doImport`).
+        - **Net effect.** No grade changes. By the bar above the 12 are 5 clean
+          (kane-02 ×4, kane-04 rep 2) and 7 qualified (asohav-02 ×2, kane-04
+          rep 1, lfc-02 ×2, lfc-03 ×2), not 10 and 2: `qwen3.6`'s 6 passes are
+          2 clean and 4 qualified, `qwen3.5`'s 3 and 3. The asohav-02 reading
+          moves a cited statistic: counted as a clean checkout, `qwen3.6` is
+          12/15, not 14/15, and its lead over `qwen3.5` (13/21) is Fisher
+          p = 0.30, not 0.051; the gap to `qwen3:14b` (2/13) stays, p = 0.0018
+          (`docs/roadmap.md` → "Executor standings"). Which reading the
+          benchmark means is the owner's call. The harness now pins asohav-02's
+          `DATABASE_URL` to unset (`testEnv`, 2026-10-03), so new rows measure
+          the clean one; re-running that cell per seat replaces the replayed
+          counterfactual with measured rows.
+        - Not changed: failsOnOld still accepts any non-zero exit, a load
+          error included (four asohav-02 replays under a clean environment
+          fail only on it). None of the 12 relies on that: each fails on named
+          assertions.
 
 - [ ] **Greenfield trial: slice-0 webapp skeleton + first slice chain.** The
       scaffold-from-scratch shape is DECIDED (roadmap.md → "scaffold-from-
