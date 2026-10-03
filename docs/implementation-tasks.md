@@ -1365,7 +1365,10 @@ Pass by task, across all seats:
           `pgPool.ts`, which throws at import without it; the project's own
           test mocks `./pgPool.js`. Replayed clean, the file does not load
           (1 failed suite, 194 tests green, exit 1); with a stub value both
-          reproduce PASS/PASS. Nothing in this repo sets the variable. The
+          reproduce PASS/PASS. The project's own CI would fail on it too: its
+          `test` job runs `npm ci` then `npm test` (the server's
+          `vitest run`) with no `DATABASE_URL`. Nothing in this repo sets the
+          variable. The
           models' own vitest runs hit the import error on 2026-09-27 (11 times
           in 5 transcripts) and never on 09-29 (0 of 24 runs), so the harness
           process held it by then. Of the 17 asohav-02 rows whose edits
