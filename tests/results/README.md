@@ -109,6 +109,13 @@ different harnesses:
   run JSON records `testEnv`. Rows before 2026-10-03 have no such field. The
   "same config" key stays prompt sha, `numCtx`, Ollama version and opencode
   version, plus the test environment where one is recorded.
+- **Desktop keep-alive 5m → 4h (2026-10-03, ~12:50 local).** `OLLAMA_KEEP_ALIVE`
+  is a User env var from then on (it was Ollama's 5m default). Gate verdicts do
+  not depend on it — a run's requests are back to back — so it is not in the
+  "same config" key. Wall-clock fields (`elapsedSec`, timeouts) are: a run that
+  started after more than 5 idle minutes used to pay a reload of its seat
+  (about a minute for `qwen3.6`) plus a full prefill, and now usually does not.
+  Do not compare durations across this date without that caveat.
 
 Consequence for selection: **no desktop qwen3 row exists from 2026-09-22 on,
 and every challenger row is from 2026-09-23.** Any incumbent-vs-challenger

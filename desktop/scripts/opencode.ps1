@@ -16,12 +16,14 @@
 # Options:
 #   -Profile <name>   profile basename under profiles/ (default dev-workflow-quality).
 #   -ListProfiles     print the workflow profiles and exit.
+#   -NoWarm           do not pre-load the profile's desktop models (see below).
 #   -BashPath         Git Bash executable (auto-detected if omitted).
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
     [string]$Profile = "dev-workflow-quality",
     [switch]$ListProfiles,
+    [switch]$NoWarm,
     [string]$BashPath = "",
     [Parameter(ValueFromRemainingArguments = $true)][string[]]$OpenCodeArgs = @()
 )
@@ -92,6 +94,37 @@ if (-not $env:OPENCODE_MODEL) {
 }
 
 Write-Host "[opencode] profile=$Profile OPENCODE_MODEL=$env:OPENCODE_MODEL" -ForegroundColor DarkGray
+
+# Warm the profile's main model in the background, so the first reply does not
+# also pay the cold load (qwen3.6: ~60 s, measured 2026-10-03). A /api/generate
+# with no prompt only loads the model, and OLLAMA_KEEP_ALIVE (4h, User env)
+# keeps it loaded after that. Fire-and-forget: the request runs while OpenCode
+# starts and never delays or fails the launch. Only an ollama-desktop main seat
+# is warmed; -NoWarm skips it.
+# The small model is deliberately NOT warmed. Warming both at once let the CPU
+# 3b load first, and qwen3.6's load (which does not fit the GPU) then evicted
+# it, so it loaded twice. Loaded after the main seat - by the session's first
+# title - it stays (docs/main-seat-trial.md, "Second experiment").
+if (-not $NoWarm) {
+    $warmBase = "$env:OLLAMA_DESKTOP_BASE_URL" -replace '/v1/?$', ''
+    $warmModels = @(@($env:OPENCODE_MODEL) |
+        Where-Object { $_ -like 'ollama-desktop/*' } |
+        ForEach-Object { $_.Substring('ollama-desktop/'.Length) })
+    if ($warmBase -and $warmModels.Count -gt 0) {
+        try {
+            Add-Type -AssemblyName System.Net.Http -ErrorAction SilentlyContinue
+            $warmClient = New-Object System.Net.Http.HttpClient
+            $warmClient.Timeout = [TimeSpan]::FromMinutes(10)
+            foreach ($m in $warmModels) {
+                $body = New-Object System.Net.Http.StringContent(('{"model":"' + $m + '"}'), [System.Text.Encoding]::UTF8, 'application/json')
+                $null = $warmClient.PostAsync("$warmBase/api/generate", $body)
+            }
+            Write-Host "[opencode] warming $($warmModels -join ', ') in the background" -ForegroundColor DarkGray
+        } catch {
+            Write-Host "[opencode] warm-up skipped: $($_.Exception.Message)" -ForegroundColor DarkGray
+        }
+    }
+}
 
 & opencode @OpenCodeArgs
 exit $LASTEXITCODE

@@ -19,9 +19,11 @@
 #   - A fresh preamble prefill is slow (~70 s for the first request of the
 #     first session); later sessions reuse the prompt cache as long as the
 #     model stays loaded (17-23 s first turns, measured).
-#   - Keep-alive is Ollama's 5m default: idle past 5 minutes and the next
-#     reply pays a reload plus a full re-prefill (2-3.5 min measured on
-#     2026-10-01). OLLAMA_KEEP_ALIVE is an open owner decision (roadmap).
+#   - Idle unloads: under Ollama's 5m default keep-alive, the next reply after
+#     5 idle minutes paid a reload plus a full re-prefill (2-3.5 min measured
+#     on 2026-10-01). The desktop sets OLLAMA_KEEP_ALIVE=4h (User env, since
+#     2026-10-03), and desktop\scripts\opencode.ps1 pre-loads this seat at
+#     launch, so that cost now lands once a day, not once per break.
 #   - The companion runs on the CPU (below). The VRAM measurement was taken on
 #     a clean desktop (no browser, WSL and Docker stopped); with the dev stack
 #     (DEV_DOCKER_STACK, WSL capped at 12 GB) it is unmeasured.

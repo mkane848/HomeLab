@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Desktop keep-alive is 4h (User env `OLLAMA_KEEP_ALIVE=4h`, owner decision
+  2026-10-03; was Ollama's 5m default, under which an idle `qwen3.6` reloaded
+  and re-prefilled for 2–3.5 min). Confirmed live as `OLLAMA_KEEP_ALIVE:4h0m0s`
+  in `server.log` after a restart. `desktop\scripts\opencode.ps1` now
+  pre-loads the profile's desktop main seat in the background at launch
+  (`-NoWarm` skips it). It warms the main seat only: warming the CPU companion
+  as well let it load first, and `qwen3.6`'s load then evicted it, so it
+  loaded twice; cold-start test after the fix: 0 evictions, both models
+  expiring 4h out. Recorded in `AGENTS.md` (Gotchas), the quality profile,
+  the roadmap's decision list and `tests/results/README.md` ("Era
+  confound": durations across the date are not comparable; verdicts are).
 - Re-seat `dev-workflow-quality`: the main seat is `qwen3.6:35b-a3b-coding`
   (was `qwen3:14b`, seated 2026-09-17) and the small model is
   `qwen2.5-coder-3b-cpu` (was `qwen2.5-coder:3b`), per the main-seat trial
