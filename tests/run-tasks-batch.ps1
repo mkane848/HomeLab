@@ -188,7 +188,7 @@ if (-not $SkipSetup) {
         }
 
         # Can anyone else get the pinned base? A commit that exists only on this
-        # machine cannot be reproduced. (Today all nine can: eight are on main and
+        # machine cannot be reproduced. (Today all 27 can: 26 are on main and
         # kane-01's is a branch tip and refs/pull/82/head.)
         if ((Get-PublishState -Repo $repo -Commit $b.Commit) -eq "unpublished") {
             Write-Host "  [WARN] $($b.TaskId): base $($b.Commit.Substring(0,10)) is not on origin, so nobody else can reproduce this task." -ForegroundColor Yellow

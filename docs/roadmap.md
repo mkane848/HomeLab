@@ -1059,6 +1059,198 @@ verifiable by anyone with read access.
 > wrong: the check ran in single-branch clones, which show `main` only.
 > `Get-PublishState` now asks the remote itself.)
 
+### Task set expansion II: 18 tasks from the 2026-09-29 mining (2026-10-03)
+
+The suite saturates at the top (see "Executor standings" above), so on
+2026-10-03 the owner chose to add the 15 mined candidates that fit the harness
+as it was, plus the three that needed the multi-file `srcRevertFiles` fix from
+#65 (`kane-14`, `lfc-07`, `asohav-05`). All 18 are in
+`tests/tasks/manifest.json`: **27 tasks, nine original and 18 new, none with a
+graded row yet.** Each is a real, already-merged upstream fix: the pin is the
+fix commit's parent, scoped down where the commit was a bundle, and the fix
+commit's own test file is the informational acceptance oracle for 15 of them.
+All 33 pinned commits (18 bases, 15 acceptance commits) are reachable from
+`main` on GitHub (`mkane848/kaneenabler`, `lfc-bot`, `asohavcompanionapp`;
+checked 2026-10-03).
+
+| Task | What it is | Baseline | Upstream tests on the unfixed source | Source files |
+|---|---|---|---|---|
+| `kane-07-find-qualifier-type` | how far a text search reaches: the first creature-type word in the whole clause vs the text the payoff pattern matched (same file as `kane-02`) | 76/76 | 1 of 77 | `signals.ts` |
+| `kane-08-aristocrats-false-positives` | four independent false positives (replacement effect, combat-kill trigger, sacrifice-cost scan, multi-resource cost) in the manifest's largest source file | 234/234 | 4 of 238 | `signals.ts` |
+| `kane-09-colour-filter-subset` | **spec reversal**: the colour include filter becomes subset, not intersection; two existing assertions flip | 16/16 | 3 of 17 | `filters.ts` (client) |
+| `kane-10-combo-permalink-scheme` | security: a stored permalink of any scheme rendered as a link; a React component test | 10/10 | 1 of 11 | `ComboPreferenceRow.tsx` |
+| `kane-11-useauth-session-reject` | unhandled rejection in a React hook (`renderHook`): `loading` never clears | 11/11 | 1 of 12 | `useAuth.ts` |
+| `kane-12-error-handler-400` | status mapping in Express error middleware: malformed JSON answered 500, not 400 (the easy one) | 3/3 | 1 of 5 | `errorHandler.ts` |
+| `kane-13-front-face-field` | data-shape bug in plain JavaScript with a control: adventure cards read the front face, split cards keep the joined value | 20/20 | 1 of 22 | `scryfallFields.js` |
+| `kane-14-undo-toast-timer` | React effect dependencies under fake timers; **two source files and a new test file** (the full suite is the baseline) | 108/108 | 1 of 111 | `UndoToast.tsx`, `App.tsx` |
+| `lfc-04-admin-manage-server-permission` | Discord authorization: `/admin` was visible by default to the Administrator bit, not Manage Server | 4/4 | 1 of 5 | `admin.ts` |
+| `lfc-05-digest-allowed-mentions` | security: a display name of "everyone" can mass-ping through the digest | 6/6 | 1 of 7 | `digest.ts` |
+| `lfc-07-digest-split` | feature-shaped: split an over-long digest across messages with no line lost and the watermark held on a partial failure; **source, constants and test** | 7/7 | 6 of 13 | `digest.ts`, `constants.ts` |
+| `asohav-03-glossary-depth-flatten` | two-part fix in a pure function (depth cap and tag flattening); one existing test encodes the old limit | 20/20 | 2 of 21 | `glossary.ts` |
+| `asohav-04-neutral-status-polarity` | `!== 'Positive'` where `=== 'Negative'` was meant, at two independent sites | 22/22 | 2 of 24 | `engine.ts` |
+| `asohav-05-library-write-validation` | five input-trust fixes in an Express route and its helper file; **hand-scoped tests** | 14/14 | 8 of 24 | `library.ts`, `adminLogic.ts` |
+| `asohav-06-bond-cap-setting` | a hardcoded cap at six sites; **hand-scoped tests** | 93/93 | 3 of 97 | `logic.ts` |
+| `asohav-07-rapport-clamp` | a ruleset change landing as a bug fix: an over-eager clamp, so the old test must be replaced | 5/5 | 1 of 5 | `party.ts` |
+| `asohav-08-end-combat-clears-strain` | a missing cascading side effect across separate records; the repo call shapes are pinned in the prompt | 18/18 | 1 of 20 | `combat.ts` |
+| `asohav-09-seed-virtue-conformance` | data/spec conformance against a Markdown document; **new test file** (the full shared suite is the baseline); symptom-only prompt | 368/368 | 1 of 371 | `seedLibrary.ts` |
+
+`kane-10` to `kane-14` share one base (`605a2e0`, a nine-bug audit commit; each
+task uses only its own bug's files) and `lfc-04`'s base is `lfc-07`'s fix
+commit. Shapes the suite did not have: three tasks with two source files
+(`kane-14`, `lfc-07`, `asohav-05`), two with a brand-new test file (`kane-14`,
+`asohav-09`), three spec reversals where an existing test must be rewritten
+(`kane-09`, `asohav-03`, `asohav-07`), React component and hook tests
+(`kane-10`, `kane-11`, `kane-14`), a security cluster (`kane-10`, `lfc-05`,
+`lfc-04`), and a prompt that names the symptom and the source of truth but not
+the wrong value (`asohav-09`).
+
+**How they were checked.** Each entry ran through the real
+`tests/test-tasks.ps1` against a local clone, with a stand-in `opencode` that
+applies a known change instead of calling a model (the stand-in and the
+reference patches lived in the session scratch, not in the repo), in a fresh
+worktree at the pin:
+
+- `-DryRun`: install and `setup` work, the baseline equals `baselineExpect`,
+  and the acceptance tests fail on the untouched base.
+- `ref`, the upstream fix and tests restricted to `allowFiles`: every gate
+  PASS and acceptance PASS.
+- `srconly`, the fix without tests: failsOnOld FAIL (the PR #82 trap, caught);
+  the suite fails too for the three spec reversals, because an existing test
+  encodes the old rule.
+- `testsonly`, the tests without the fix: scope, suite and acceptance FAIL.
+- `ref` again under four environments (ambient, `MANAPOOL_API_KEY` and
+  `DATABASE_URL` unset, both set to dummy values, `TZ=Pacific/Auckland`) and
+  three repeats: the gate results were identical in all 18 tasks, so no pin was
+  needed beyond the ASoHaV rule below. `lfc-04`, `lfc-05` and `lfc-07` do not
+  need `lfc-02`'s `MANAPOOL_API_KEY` pin.
+
+The first battery ran against the previous, stash-based harness, one lane per
+repository. A second ran the 18 tasks against the harness as merged here with
+six lanes at once, two per repository clone (the case the stash made unsafe),
+and reproduced all 72 runs (18 tasks × `ref`, `srconly`, `testsonly` and a
+repeat of `ref`) exactly, acceptance details included, with no stash or restore
+warning and an empty stash in every clone.
+
+**Acceptance.** 15 of the 18 carry an `acceptance` block whose `commit` is the
+upstream fix commit and whose `files` are its test file (informational, never a
+gate; `ref` is the label `upstream-fix`). The prompts pin every name those
+tests depend on and a model could not guess (`kane-14`'s `instanceId` prop,
+`lfc-07`'s `splitDigestMessage` and `DISCORD_MESSAGE_MAX_LENGTH`, `lfc-05`'s
+`{ parse: [] }` call shape, `asohav-08`'s `getSheet` and `saveSheet` shapes), so
+a correct but differently written fix is not failed on naming. Three tasks have
+none: `asohav-05` and `asohav-06` (the oracle would be hand-scoped, not a
+commit) and `asohav-09` (the upstream test looks for the `# Basic Moves`
+chapter with LF line endings in a 2 MB file and the repo has no
+`.gitattributes`, so a CRLF checkout, which git for Windows produces by
+default, would fail it for every model without saying why, and a dry run would
+still read as "fails on the untouched base"; the prompt tells the model the
+file may have either line ending).
+
+**What the gates cannot check.** Mutating the reference fix and running the
+upstream tests found the parts they do not pin; for these only the model's own
+tests (graded by failsOnOld) can catch a partial fix:
+
+- `kane-14`: the `App.tsx` wiring (reverting it alone stays green; vitest does
+  not typecheck and typecheck is not a gate).
+- `asohav-06`: two of the six cap sites (the nested `applySpendBond` call in
+  `resolveAcceptedBond` and `applySpendBond`'s own lock check), and the lock
+  error text. The prompt lists all six behaviours.
+- `lfc-05`: the DM send. `lfc-07`: DM delivery as one message, and sending in
+  order. Three different correct `splitDigestMessage` designs pass the upstream
+  tests; the wrong variants (cut every N characters, repeated headings, kept
+  separators, dropped long lines, reversed order, swallowed failures) do not.
+- `asohav-05`: a client-sent `0` staying `0` (a `||`-style default survives).
+  `asohav-07`: "no upper limit" is pinned only at 13. `kane-10`: the `http:` and
+  `data:` schemes. `kane-11`: the unmount guard in the new `.catch`. `kane-12`:
+  the `SyntaxError` check. `kane-13`: `power`/`toughness` and the non-adventure
+  layouts. `kane-08`: the `amplifies` lookbehind, a colon winning over a later
+  "sacrifice", and the exact heuristic for the multi-resource cost.
+
+No gap turned up for `kane-07`, `kane-09`, `lfc-04`, `asohav-03`, `asohav-04`,
+`asohav-08` or `asohav-09` in the mutation sets tried (each fix part reverted
+alone, plus wrong variants). `kane-08` carries a trap the prompt leaves
+unstated on purpose: the death-trigger `rewards` matcher must stay a plain
+RegExp (`findQualifier` skips function matchers), and the pre-existing suite
+catches a violation (two tests go red).
+
+**Harness changes made on the way.**
+
+- A pinned acceptance commit the clone lacks is fetched from `origin` once
+  before it is called missing (`Resolve-AcceptanceCommit`; `run-tasks-batch.ps1
+  -SetupOnly` fetches for it too), because the fix commits are on `main` but not
+  necessarily in an older clone.
+- **failsOnOld no longer uses `git stash`.** Three of the validating agents hit
+  it independently: `refs/stash` belongs to the repository, not to a worktree,
+  so two tasks of one repo graded at the same time popped each other's stashes
+  (the symptom is `stash pop failed` and an acceptance run against reverted
+  source). The revert now saves the model's bytes, checks the source files out
+  of the pinned base and writes the bytes back, touching nothing outside the
+  worktree (`tests/test-revert-source.ps1` replaces `test-stash-args.ps1`; six
+  mutants of the mechanism each fail it). The three gate verdicts were already
+  decided before the pop, so the hazard reached the acceptance run and the next
+  worktree state, not the verdicts; a collision on the stash lock would have
+  read as "cannot grade". Corpus check: six pairs of same-repo runs overlapped
+  (all `kane` tasks, 2026-09-23, the desktop and node3 terminals); their
+  recorded finish times are at least 85 s apart, so their grading windows,
+  which last tens of seconds, very probably did not overlap, and no recorded
+  verdict is known to be affected. The earlier advice to give each terminal
+  disjoint task ids is now sufficient for tasks of one repo too.
+- `tests/test-task-env.ps1` checks that every ASoHaV `apps/server` task pins
+  `DATABASE_URL` (the `asohav-02` finding applied to the family; `asohav-05`,
+  `asohav-07` and `asohav-08` carry it, `asohav-01` pre-dates the rule).
+
+**Not added.** The rest of the 29 candidates, with their pins, for later:
+
+| Candidate | Parent | Why not |
+|---|---|---|
+| `kane-05` singleton copy limit, `kane-06` commander legality dedupe | `92a8ed0` (`kane-01`'s base) | owner-diagnosed open defects with no upstream fix commit; the tests and a reference fix were authored by the miner, so the oracle is not the project's own (`kane-05` has a trap: a correct fix turns 4 of the 10 original tests red) |
+| `lfc-06` autocomplete deadline (fix `64939c4`) | `2383f249101da5a4a39b07af18efa8f85bb311c7` | fits the harness, but the scryfall tests are `MANAPOOL_API_KEY`-sensitive (`lfc-02`'s flake); would need the same `testEnv` pin |
+| `asohav-10` odds (fix `46e88f5`), `asohav-11` engine (`e793ff9`), `asohav-12` enemies (`4e5bbcf`) | `44ead5d`, `dae86a9`, `088e5e7` | implement-to-given-tests: the baseline is red by design and the tests exist before the model starts, so `baselineExpect` and failsOnOld do not apply; needs a task kind that protects the test files |
+| `asohav-13` misfortune authz (fix `7c5a4de`) | `e909907` | 2 source and 2 test files; gradable now (`allowFiles` takes any number of files), not chosen: partly a feature, 14 red tests |
+| lfc multi-file autocomplete (fix `64939c4`), kane fading permanents (`4029a94`) | `2383f24`, `f7d9bc1` | 3 and 4 source files plus tests; gradable now, large prompts |
+| asohav web character create (fix `3a7589d`) | `8686bf4` | vitest never goes red, only `tsc` does; needs typecheck as a hard gate |
+| kane `parseJsonArray` refactor (no upstream fix) | `2945ca8` | behaviour-preserving: the suite is green before and after and only `tsc` catches a dropped import; needs a refactor kind (no failsOnOld, `tsc` hard gate, a structural check) |
+
+**Running them.** `.\tests\run-tasks-batch.ps1 -SetupOnly` creates the 18 local
+`bench/*` labels (the by-hand equivalent is below) and fetches what the clones
+lack. On the Windows machine, `.\tests\test-tasks.ps1 -Task <id> -DryRun` per
+new task is the first check: it installs, runs the baseline (the table's
+`Baseline`) and reports the acceptance tests failing on the untouched base. A
+bare `-OnlyMissing` batch now queues 18 tasks for every seat, which is hours;
+pick tasks with `-Tasks`. **Report the new tasks as their own cohort.** The
+standings in this document and in `tests/results/README.md` are over the
+original nine; do not pool the two until each seat has comparable runs on
+both.
+
+```powershell
+# C:\Projects\KaneEnabler
+git fetch origin
+git branch bench/find-qualifier-type 10889539112089dcd122014f934520f9f11cf558
+git branch bench/aristocrats-false-positives 45095ab148d27fdbe20765a112d1dd7d743e4fcd
+git branch bench/colour-filter-subset f0abf087f92323e69a0a706e14c22b427fb80d31
+git branch bench/combo-permalink-scheme 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e
+git branch bench/useauth-session-reject 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e
+git branch bench/error-handler-400 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e
+git branch bench/front-face-field 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e
+git branch bench/undo-toast-timer 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e
+
+# M:\Projects\LFCbot
+git fetch origin
+git branch bench/admin-manage-server-permission e644702a6ce9753b69ca3291e1bdc388e2d1a7d3
+git branch bench/digest-allowed-mentions 6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef
+git branch bench/digest-split d6a5338d809407d181b7d74eef064bbd0d81ffa2
+
+# M:\TTRPG\A Story of Heroes and Villains
+git fetch origin
+git branch bench/glossary-depth-flatten 5c891936847a844bb23dd74b02aa1fa6f1525f84
+git branch bench/neutral-status-polarity f15a58cb9ef29c3b511caa0d88949a7b10686874
+git branch bench/library-write-validation 79b369d7ba01ed02affa6534a33ef698d17b5518
+git branch bench/bond-cap-setting 84719041b3312cab3e49901dea20d7129bb24761
+git branch bench/rapport-clamp d73d6c978f478e3aca5fb836683fcfe639debd43
+git branch bench/end-combat-clears-strain 9afb9112b0e2596edac0e7fe4055149512ab3b62
+git branch bench/seed-virtue-conformance 8686bf41c9ac130bd521f05e056460ca777f43bf
+```
+
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
 **Superseding the context-budget explanation previously recorded here.** That
