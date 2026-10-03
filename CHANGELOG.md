@@ -53,6 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the harness's own resolvers. `test-task-env.ps1` gains a guard that
   every ASoHaV `apps/server` task pins `DATABASE_URL` (`asohav-01` is exempt:
   it pre-dates the rule and its recorded rows do not depend on it).
+- `Get-PublishState` (`run-tasks-batch.ps1`) sets `$ErrorActionPreference =
+  "Continue"` for itself. Its git probes write to stderr in normal operation (a
+  commit origin lacks is "not our ref"; a local origin warns that it ignores
+  `--filter`), and under a caller's `"Stop"` Windows PowerShell 5.1 turns that
+  into a terminating error. The batch itself runs under the default, so the
+  real `-SetupOnly` was unaffected; `test-task-pins.ps1` (which sets `"Stop"`)
+  failed on 5.1 at "a commit that was pushed", and passes on 5.1 and 7 now.
+  Found by the first run of the regression tests on Windows PowerShell 5.1.
 - Pin each benchmark task's test environment. `tests/tasks/manifest.json` gains
   an optional `testEnv` (variable → value, `null` = unset) that `test-tasks.ps1`
   applies to the test command and to the model's own `opencode run` process,

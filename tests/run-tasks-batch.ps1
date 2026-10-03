@@ -114,6 +114,10 @@ function Get-PublishState {
     # single-branch clone shows (1) one branch only - that is how a published commit was
     # once reported as local-only.
     param([string]$Repo, [string]$Commit)
+    # Every probe below can write to stderr (a commit origin lacks is "not our ref"; a
+    # local origin warns that it ignores --filter). Under a caller's "Stop", Windows
+    # PowerShell 5.1 turns that into a terminating error, so set it here, function-local.
+    $ErrorActionPreference = "Continue"
 
     & git -C $Repo cat-file -e "$Commit^{commit}" *> $null
     if ($LASTEXITCODE -ne 0) { return "missing" }
