@@ -253,6 +253,20 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
         },
+        // The same 3b with num_gpu 0 baked in: runs on the CPU, needs no VRAM.
+        // Candidate companion for qwen3.6, which spills to system RAM and takes
+        // every GPU byte, so the GPU 3b evicts it at each session start. Built
+        // by hand for the second experiment (docs/main-seat-trial.md); no
+        // profile uses it yet.
+        "qwen2.5-coder-3b-cpu": {
+          "name": "Qwen 2.5 Coder 3B (Desktop, CPU, small)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
         // Lighter agent seat (dev-workflow-resident). Measured at 32k: 7.16 GB,
         // 100% on GPU, 79.8 tok/s. With the 3b that is 9.42 GB, which still
         // fits alongside a running game (~12.5 GB available).
