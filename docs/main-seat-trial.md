@@ -241,6 +241,36 @@ with the CPU companion, `startup.ps1` bakes the companion, and
 `test-profiles.ps1`'s intent manifest moves with it. FAIL on any criterion
 → option C.
 
-### Result
+### Result (2026-10-03): PASS, 5 of 5
 
-Not run yet.
+Run 12:11–12:23 local, desktop Ollama 0.34.3, opencode 1.18.34, 23.1 GB
+RAM free at start, nothing loaded beforehand; Edge, Discord and OpenCode
+closed, WSL and Docker not running. Sessions `ses_efd7600c4ffeWGBJvoBgEeZWhw`,
+`ses_efd72ce12ffesPGJWwCxSanax2`, `ses_efd701af2ffeNkmcwF77luZa93`.
+
+| # | Criterion | Measured | |
+|---|---|---|---|
+| 1 | no `evicting` lines | 0 in `server.log` across the run | PASS |
+| 2 | `qwen3.6` loads once | one load, the 12:12:38 warm-up (57 s) | PASS |
+| 3 | `qwen3.6` VRAM unchanged, companion at 0 | `qwen3.6` 21.13 GB total / 12.51 GB VRAM and `qwen2.5-coder-3b-cpu` 2.27 GB / 0.00 GB in every 2 s `/api/ps` poll from the warm-up to the end (321 rows) and after every turn | PASS |
+| 4 | non-empty, on-topic titles | "Read main-seat-trial.md #2 experiment pass bar requirements", "Read and List Grades For Test Header Comments", "Plan profiles in `/profiles/`" | PASS |
+| 5 | title ≤ 30 s | 14.8 s (first, including the companion's cold load), 3.5 s, 3.4 s | PASS |
+
+Recorded, not graded: first turns took 98.4 s, 23.2 s and 17.3 s. Session
+1's includes the first full prefill of the preamble (its main request took
+69 s, running alongside the title on the CPU). Sessions 2 and 3 started on
+the prompt cache, since nothing evicted `qwen3.6`; on the trial days a
+session start cost a reload of a minute or more on top. All 15 turns
+exited 0, 12 to 109 s each.
+
+Deviation from the registered setup: the sessions were driven with
+`opencode run --agent plan --format json` (each later turn continuing its
+session with `--session`) rather than the TUI, because the owner was away.
+The companion path is the same: opencode's log shows each title as
+`small=true agent=title` to `qwen2.5-coder-3b-cpu`. The prompts were
+read-only questions about this repo. The driver, the per-turn event and
+log files, and the poll were kept outside the repo (session scratchpad).
+
+Per the pass bar, the profile change ships: `dev-workflow-quality` seats
+`qwen3.6` with the CPU companion, `startup.ps1` bakes the companion, and
+`test-profiles.ps1`'s intent manifest moves with it. Separate change.

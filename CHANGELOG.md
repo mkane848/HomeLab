@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   five-criterion pass bar on a clean desktop; option C, documented eviction
   acceptance, is the fallback. No profile changes until it passes.
   `OLLAMA_KEEP_ALIVE` is added to the roadmap's owner decisions.
+  **It passed, 5 of 5 (2026-10-03):** across three sessions (15 turns) no
+  eviction, `qwen3.6` loaded once and kept 12.51 GB of VRAM throughout, the
+  companion stayed at 0 GB VRAM, and titles took 3.4 to 14.8 s. Driven with
+  `opencode run` instead of the TUI (owner away), recorded as a deviation.
 - Add 18 benchmark tasks mined from the owner's repos, so the suite is 27:
   `kane-07` to `kane-14`, `lfc-04`, `lfc-05`, `lfc-07` and `asohav-03` to
   `asohav-09` (the 15 candidates that fit the harness plus `kane-14`, `lfc-07`
