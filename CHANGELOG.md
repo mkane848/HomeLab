@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- failsOnOld no longer uses `git stash`. `refs/stash` belongs to the repository,
+  not to a worktree, so two tasks of one repo graded at the same time popped
+  each other's stashes (found independently by three of the agents validating
+  the new tasks: `stash pop failed`, then an acceptance run against reverted
+  source). `Invoke-WithSourceReverted` saves the model's source bytes, checks
+  the files out of the pinned base (not `HEAD`, so a model that commits still
+  reverts to the pin) and writes the bytes back, touching nothing outside the
+  worktree. The gate verdicts were already decided before the pop, and the six
+  same-repo overlaps in the corpus (2026-09-23, `kane` tasks) finished at least
+  85 s apart, so no recorded verdict is known to be affected.
+  `tests/test-revert-source.ps1`, 46 checks (one-file, two-file and bare-string
+  `srcRevertFiles`, non-text bytes restored byte for byte, a path the base
+  lacks, a model that committed, two worktrees of one repo held open together),
+  replaces `test-stash-args.ps1`; six mutants of the mechanism (the old stash,
+  nested-array arguments, a text restore, `HEAD` instead of the pin, no restore,
+  a revert that reaches the tests) each fail it.
 - Harness: a pinned acceptance commit this clone does not have yet is fetched
   from `origin` once before it is called missing (`Resolve-AcceptanceCommit`,
   as `Resolve-TaskBase` already did for a base), and `run-tasks-batch.ps1
