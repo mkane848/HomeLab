@@ -143,6 +143,21 @@ To use a different profile:
 .\desktop\scripts\opencode.ps1 -Profile dev-workflow-resident
 ```
 
+**Shorter, from any folder:** run `.\desktop\scripts\install-opencode-profiles.ps1`
+once (it adds one guarded line to your PowerShell profiles; `-Uninstall` takes it
+out), open a new terminal, and then:
+
+```powershell
+opencode quality                 # qwen3.6 + the CPU 3b
+opencode resident                # qwen3:8b + the 7b coder
+opencode desktop-only run "..."  # anything after the name goes to opencode
+```
+
+Switching profile unloads the desktop models the new profile does not use, so
+the old profile's models don't sit in memory for the 4-hour keep-alive
+(`-KeepLoaded` keeps them). The profile only lasts for that launch: plain
+`opencode` afterwards is still the bare launch described above.
+
 **Verify it worked** — this prints the config OpenCode actually resolved, which
 is the only thing that counts:
 

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `opencode <profile>` from any PowerShell (owner request 2026-10-03):
+  `desktop/scripts/opencode-profiles.ps1` defines an `opencode` function that
+  sends a live profile name (full, or without `dev-workflow-`/`dev-`, any case)
+  to `desktop/scripts/opencode.ps1` and everything else to the real opencode
+  untouched; `install-opencode-profiles.ps1` adds one guarded line to the
+  PowerShell 7 and 5.1 profiles (`-Uninstall` removes it). The launcher now
+  unloads the desktop models the profile does not use and waits for them to go
+  before warming (`-KeepLoaded` skips; profiles with no desktop seat leave the
+  desktop alone), restores the shell's env when opencode exits, calls the real
+  opencode explicitly, and `-ListProfiles` lists every live profile, not only
+  `dev-workflow-*`. Guarded by `tests/test-opencode-profiles.ps1` (22 checks,
+  PowerShell 7 and 5.1). Live: quality → resident → quality left exactly each
+  profile's two models in `/api/ps`; the first try logged one `evicting` line
+  because Ollama acknowledges `keep_alive: 0` before the memory is free, and
+  after the wait the repeat logged none.
 - `dev-workflow-quality` no longer starts the Docker dev stack at login
   (`DEV_DOCKER_STACK=false`; owner decision 2026-10-03). `qwen3.6` holds far
   more system RAM than documented: Ollama maps the whole 20.3 GB model file
