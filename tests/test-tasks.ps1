@@ -705,6 +705,23 @@ function Get-ModelOutputLimit {
     return $null
 }
 
+function Stop-OrphanOpencode {
+    # Stop-Job does not take the native `opencode run` child with it, and a job
+    # whose PowerShell died leaves it running too - it orphans and keeps driving
+    # the model (and, on a hosted provider, spending the key). Kill every
+    # opencode process pointed at this worktree, whole tree, so the run really
+    # ends and the transcript file is released for archiving.
+    param([string]$WtPath)
+    $orphans = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'opencode%'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($WtPath) })
+    foreach ($o in $orphans) {
+        Run-Native "taskkill" @("/PID", "$($o.ProcessId)", "/T", "/F") | Out-Null
+    }
+    if ($orphans.Count -gt 0) {
+        Write-Host "    killed $($orphans.Count) orphaned opencode process(es) still running against $WtPath" -ForegroundColor Yellow
+    }
+}
+
 function Invoke-OpencodeRun {
     param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec)
 
@@ -725,6 +742,9 @@ function Invoke-OpencodeRun {
         # Each event is appended to $Out as it arrives, not buffered until exit:
         # a run killed at the timeout used to leave no transcript at all (the
         # whole stream sat in a variable), so a timeout was a pure unknown.
+        # The job's own PID first, so the caller can tell a dead job host from a
+        # slow run (PowerShell 7 leaves such a job "Running" forever).
+        [pscustomobject]@{ JobPid = $PID }
         $prev = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
@@ -743,31 +763,73 @@ function Invoke-OpencodeRun {
     } -ArgumentList $WtPath, $ModelId, $promptFile, $out
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
+    # Wait in slices of up to 5 s, checking between them that the job's
+    # PowerShell process is still alive. Windows PowerShell 5.1 marks a job
+    # whose process died as Failed and Wait-Job returns; PowerShell 7 leaves it
+    # "Running" forever, so without this a dead host sat out the whole timeout
+    # and was recorded as a TIMEOUT.
+    $finished = $false
+    $jobPid = $null
+    $hostGone = $false
+    while ($true) {
+        $left = $TimeoutSec - $sw.Elapsed.TotalSeconds
+        if ($left -le 0) { break }
+        if (Wait-Job $job -Timeout ([int][math]::Max(1, [math]::Min(5, [math]::Ceiling($left))))) { $finished = $true; break }
+        if (-not $jobPid) {
+            try {
+                $marker = @(Receive-Job $job -Keep -ErrorAction SilentlyContinue | Where-Object { $_ -and $_.PSObject.Properties.Name -contains "JobPid" }) | Select-Object -First 1
+                if ($marker) { $jobPid = [int]$marker.JobPid }
+            } catch { }
+        }
+        if ($jobPid -and -not (Get-Process -Id $jobPid -ErrorAction SilentlyContinue)) { $hostGone = $true; break }
+    }
+    if (-not $finished -and -not $hostGone) {
         Stop-Job $job -ErrorAction SilentlyContinue
         Remove-Job $job -Force -ErrorAction SilentlyContinue
-        # Stop-Job does not take the native `opencode run` child with it - it
-        # orphans and keeps driving the model (and, on a hosted provider,
-        # spending the key). Kill every opencode process pointed at this
-        # worktree, whole tree, so the run really ends and the transcript
-        # file is released for archiving.
-        $orphans = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'opencode%'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.CommandLine -and $_.CommandLine.Contains($WtPath) })
-        foreach ($o in $orphans) {
-            Run-Native "taskkill" @("/PID", "$($o.ProcessId)", "/T", "/F") | Out-Null
-        }
-        if ($orphans.Count -gt 0) {
-            Write-Host "    killed $($orphans.Count) orphaned opencode process(es) still running against $WtPath" -ForegroundColor Yellow
-        }
+        Stop-OrphanOpencode -WtPath $WtPath
         Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
         # $out is NOT deleted here - whatever the model did before being killed
         # is evidence, not noise. The caller rescues it into tests/results/.
         return [pscustomobject]@{ ExitCode = -1; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "opencode run timed out after $TimeoutSec s (prompt sha $PromptHash)"; TranscriptPath = $out }
     }
-    $jobResult = @(Receive-Job $job)
+    # The job's own PowerShell process can die under the run (2026-10-02, the
+    # first run of a batch: "The background process closed or ended abnormally",
+    # PSSessionStateBroken). Receive-Job then raises an error that the script's
+    # "Stop" made terminating, and it took the whole batch down. A dead job is
+    # infrastructure: report it as such (ExitCode -2; -1 means timeout to the
+    # caller) and let the batch move on.
+    $jobErrs = @()
+    $jobBroken = $null
+    if ($hostGone) {
+        $jobBroken = "its PowerShell process (PID $jobPid) exited before the job finished"
+        $jobResult = @()
+        # Remove-Job below takes ~57 s on such a job in PowerShell 7 (a fixed
+        # transport timeout, measured 2026-10-03; Stop-Job costs the same). Paid
+        # once, only on a dead host, and far short of the run timeout.
+    } else {
+        try {
+            $jobResult = @(Receive-Job $job -ErrorAction SilentlyContinue -ErrorVariable jobErrs |
+                Where-Object { -not ($_ -and $_.PSObject.Properties.Name -contains "JobPid") })
+        } catch {
+            $jobResult = @()
+            $jobBroken = $_.Exception.Message
+        }
+    }
+    if (-not $jobBroken) {
+        $transport = @($jobErrs | Where-Object { $_.Exception -is [System.Management.Automation.Remoting.PSRemotingTransportException] })
+        if ($transport.Count -gt 0) {
+            $jobBroken = $transport[0].Exception.Message
+        } elseif ($job.State -eq "Failed") {
+            $jobBroken = if ($job.JobStateInfo.Reason) { $job.JobStateInfo.Reason.Message } else { "job state Failed" }
+        }
+    }
     Remove-Job $job -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
     $sw.Stop()
+    if ($jobBroken) {
+        Stop-OrphanOpencode -WtPath $WtPath
+        return [pscustomobject]@{ ExitCode = -2; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "the background job running opencode ended abnormally ($jobBroken) (prompt sha $PromptHash). Infrastructure failure, NOT model behaviour: not graded, no summary row."; TranscriptPath = $out }
+    }
 
     $code = -1
     if ($jobResult.Count -ge 1) {
