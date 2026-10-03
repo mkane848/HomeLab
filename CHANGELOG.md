@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- A dead job host no longer ends a task batch. On 2026-10-02 the PowerShell
+  process of the background job running `opencode` died under run 1 of 16
+  (`kane-01` × `devstral-small-2:24b`); `Receive-Job` raised
+  `PSSessionStateBroken`, the script's `Stop` made it terminating, and the
+  other 15 runs never started. Had it not thrown, the empty result would have
+  defaulted to exit -1 and been archived as a `_TIMEOUT_`. `Invoke-OpencodeRun`
+  (`tests/test-tasks.ps1`) now reports it as an infrastructure FAIL (exit -2,
+  `_INFRA_` transcript, no summary row) and kills any orphaned opencode
+  (`Stop-OrphanOpencode`, shared with the timeout path). PowerShell 7 never
+  ends such a job, so the wait is now 5 s slices with a check that the job's
+  PID (its first output) is alive. `tests/run-tasks-batch.ps1` also catches
+  any exception out of a run, records it as `crash`, and continues. New guard
+  `tests/test-opencode-run.ps1` (12 checks, PowerShell 7 and 5.1) kills the
+  job's process for real; against the old code it reproduces the crash.
 - Desktop keep-alive is 4h (User env `OLLAMA_KEEP_ALIVE=4h`, owner decision
   2026-10-03; was Ollama's 5m default, under which an idle `qwen3.6` reloaded
   and re-prefilled for 2–3.5 min). Confirmed live as `OLLAMA_KEEP_ALIVE:4h0m0s`

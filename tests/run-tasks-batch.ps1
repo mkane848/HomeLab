@@ -879,12 +879,25 @@ foreach ($run in $runList) {
     $taskArgs = @{ Task = $run.Task; Model = $run.Model; ModelLabel = $run.Model }
     if ($RunTimeout -gt 0) { $taskArgs['RunTimeout'] = $RunTimeout }
     if ($CommandTimeout -gt 0) { $taskArgs['CommandTimeout'] = $CommandTimeout }
-    & $testTasksPs1 @taskArgs
+    # One run's uncaught exception must not end an unattended batch: on
+    # 2026-10-02 a dead job host in run 1 of 16 threw out of test-tasks.ps1 and
+    # the other 15 never started. Record the run as crashed and move on.
+    # test-tasks.ps1 restores a task's test env and source files in finally
+    # blocks, and the next run of a task rebuilds its worktree from the pin.
+    $crash = $null
+    try {
+        & $testTasksPs1 @taskArgs
+        $code = $LASTEXITCODE
+    } catch {
+        $crash = "$($_.Exception.Message) [$($_.InvocationInfo.ScriptName):$($_.InvocationInfo.ScriptLineNumber)]"
+        $code = "crash"
+        Write-Host "  CRASH: $crash - continuing with the next run" -ForegroundColor Red
+    }
     $results.Add([pscustomobject]@{
         Task     = $run.Task
         Model    = $run.Model
         Rep      = $run.Rep
-        ExitCode = $LASTEXITCODE
+        ExitCode = $code
     })
 }
 
