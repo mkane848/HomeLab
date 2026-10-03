@@ -113,6 +113,10 @@ param(
     [switch]$SkipInstall,
     [switch]$DryRun,
     [switch]$Cleanup,
+    # Where the serving Ollama writes server.log, for the prompt-truncation
+    # check. Default: %LOCALAPPDATA%\Ollama when the model's provider points at
+    # localhost; any other host is not checked (its log is on that machine).
+    [string]$OllamaLogDir = "",
     [ValidateSet("write", "edit", "")]
     [string]$EditFormat = ""
 )
@@ -705,6 +709,48 @@ function Get-ModelOutputLimit {
     return $null
 }
 
+function Get-OllamaPromptTruncation {
+    # Ollama's "truncating input prompt" warnings logged between $Since and
+    # $Until. When a request is longer than the served num_ctx, Ollama keeps
+    # the first `keep` tokens (4) and the tail of the window and drops the
+    # rest - the system prompt, the tool schemas and the task go first. The
+    # model then answers whatever is left, usually in prose, and the writes
+    # gate used to file that as liar mode. On 2026-10-03 asohav-05/06 did this
+    # on all four runs: the repo's 280 KB CLAUDE.md at their pins made the
+    # first request ~83k tokens against qwen3.6's 65,536.
+    # The log has no request id, so a second run against the same Ollama at
+    # the same time would be blamed too; the harness runs one at a time.
+    param([string]$LogDir, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    $hits = @()
+    if (-not $LogDir -or -not (Test-Path -LiteralPath $LogDir)) { return $hits }
+    # server.log is current; Ollama renames it to server-1.log (and so on) when
+    # it restarts, so a restart mid-run leaves part of the run in a rotated file.
+    # server.log is always read: Windows does not keep LastWriteTime current on
+    # a file another process holds open (it read 14:37 at 17:30 on 2026-10-03).
+    # Rotated files are closed, so their timestamp is trustworthy.
+    $files = @(Get-ChildItem -LiteralPath $LogDir -Filter "server*.log" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq "server.log" -or $_.LastWriteTime -ge $Since.LocalDateTime })
+    foreach ($f in $files) {
+        # Ollama is still writing server.log: share ReadWrite or the open fails.
+        try {
+            $fs = New-Object System.IO.FileStream($f.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        } catch { continue }
+        $reader = New-Object System.IO.StreamReader($fs)
+        try {
+            while ($null -ne ($line = $reader.ReadLine())) {
+                if ($line -notmatch 'truncating input prompt') { continue }
+                if ($line -notmatch '^time=(\S+)') { continue }
+                $t = [DateTimeOffset]::MinValue
+                if (-not [DateTimeOffset]::TryParse($Matches[1], [ref]$t)) { continue }
+                if ($t -ge $Since -and $t -le $Until) { $hits += $line }
+            }
+        } finally {
+            $reader.Dispose()
+        }
+    }
+    return $hits
+}
+
 function Stop-OrphanOpencode {
     # Stop-Job does not take the native `opencode run` child with it, and a job
     # whose PowerShell died leaves it running too - it orphans and keeps driving
@@ -879,6 +925,7 @@ Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor Da
 # (the 64k context trial, docs/roadmap.md -> "Context budget").
 $providerId = ($Model -split '/', 2)[0]
 $numCtx = $null
+$ollamaRoot = $null
 $ollamaBaseVar = switch ($providerId) {
     "ollama-desktop" { "OLLAMA_DESKTOP_BASE_URL" }
     "ollama-server"  { "OLLAMA_SERVER_BASE_URL" }
@@ -907,6 +954,36 @@ if (-not $ollamaBaseVar) {
             $numCtx = "unknown (/api/show failed)"
         }
     }
+}
+# What served the model, engine-neutral: Ollama is expected to be replaced
+# (owner, 2026-10-03), and a run under a different engine is a new era, so the
+# engine is recorded by name, not only through the Ollama-shaped
+# `ollamaVersion` (kept, so older result files still compare). An engine this
+# script does not know yet records "unknown" rather than borrowing Ollama's.
+$servingEngine = [ordered]@{
+    name     = $(if ($ollamaBaseVar) { "ollama" } else { "unknown" })
+    version  = $(if ("$ollamaVersion" -match '^ollama version is (\S+)') { $Matches[1] } else { $null })
+    endpoint = $ollamaRoot
+    provider = $providerId
+}
+
+# Prompt-truncation check (Get-OllamaPromptTruncation): Ollama-specific, and
+# only a local Ollama's server.log is readable from here. Every graded run
+# records which it was, so another engine records "not checked", not a clean.
+$truncLogDir = $null
+if ($OllamaLogDir) {
+    $truncLogDir = $OllamaLogDir
+} elseif ($ollamaRoot -and @("localhost", "127.0.0.1", "::1") -contains ([uri]$ollamaRoot).Host) {
+    $truncLogDir = Join-Path $env:LOCALAPPDATA "Ollama"
+}
+$truncCheck = if ($truncLogDir -and (Test-Path -LiteralPath $truncLogDir)) {
+    "checked Ollama server.log in $truncLogDir"
+} elseif ($truncLogDir) {
+    $truncLogDir = $null; "not checked (no Ollama log directory at $truncLogDir)"
+} elseif ($ollamaRoot) {
+    "not checked ($ollamaRoot is not local; its server.log is on that host)"
+} else {
+    "not checked (no truncation detector for engine '$($servingEngine.name)', provider $providerId)"
 }
 $ovOpencode = Run-Native "opencode" @("--version")
 $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
@@ -986,10 +1063,24 @@ foreach ($tk in $tasksToRun) {
     # The model's own shell gets the pinned environment too: a test it sees pass
     # has to be one the gates can run (opencode inherits this process's env).
     $savedEnv = Set-TaskTestEnv $tk
+    $runStart = [DateTimeOffset]::Now
     try {
         $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
     } finally {
         Restore-TaskTestEnv $savedEnv
+    }
+    # A run whose prompt Ollama truncated never showed the model the whole
+    # system prompt, tool list and task, so whatever it did measures the task's
+    # fit, not the model. Same treatment as any infrastructure failure: kept
+    # transcript (_TRUNCATED_), no summary row. Exit -3 is this harness's code
+    # for it (-1 timeout, -2 dead job host).
+    if ($truncLogDir -and $run.ExitCode -eq 0) {
+        $truncation = @(Get-OllamaPromptTruncation -LogDir $truncLogDir -Since $runStart -Until ([DateTimeOffset]::Now))
+        if ($truncation.Count -gt 0) {
+            $truncWhat = ($truncation[0] -replace '^.*msg="truncating input prompt"\s*', '').Trim()
+            $run.ExitCode = -3
+            $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("Ollama truncated the prompt {0} time(s) during the run ({1}): the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {2})." -f $truncation.Count, $truncWhat, $promptHashes[$tk.id])
+        }
     }
     # A run that never reached the model is not a result. opencode exits 0 even
     # when the model refuses to write (real liar mode), so ANY non-zero exit is
@@ -1000,7 +1091,7 @@ foreach ($tk in $tasksToRun) {
     # failed baseline already do.
     if ($run.ExitCode -ne 0) {
         $isTimeout = ($run.ExitCode -eq -1)
-        $kind      = if ($isTimeout) { "TIMEOUT" } else { "INFRA" }
+        $kind      = if ($isTimeout) { "TIMEOUT" } elseif ($run.ExitCode -eq -3) { "TRUNCATED" } else { "INFRA" }
         if ($run.Detail) {
             $runDetail = $run.Detail
         } else {
@@ -1205,9 +1296,11 @@ foreach ($tk in $tasksToRun) {
         acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
         ollamaVersion   = $ollamaVersion
+        servingEngine   = $servingEngine
         opencodeVersion = $opencodeVersion
         numCtx          = $numCtx
-        testEnv         = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
+        promptTruncation = $(if ($truncLogDir) { "$truncCheck - none during the run" } else { $truncCheck })
+        testEnv        = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
         transcriptFile  = $transcriptFileField
     }
