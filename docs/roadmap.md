@@ -1353,6 +1353,34 @@ preconditions as any re-seat above (`-Reliability` is met, DP10; a
 plain-language trial; the companion re-measured). `dev-node3` stays on
 `qwen3:8b` until `qwen3.5:9b` is probed on node3. Owner decision.
 
+**`qwen3.5:9b`'s second run of the same 16 (2026-10-04 15:46 – 17:34): 9 of 16
+again.** Same setup, after the PR #87 merge but on the pre-#87 harness (the
+change does not touch single-turn runs). 9 passes, 5 graded fails, 2 crashes,
+0 timeouts.
+
+| | tasks |
+|---|---|
+| passed both runs | `kane-10`, `kane-11`, `kane-12`, `kane-13`, `lfc-04`, `lfc-05`, `asohav-07` |
+| failed both runs | `kane-07`, `kane-14` (`qwen3.6` fails both of its runs of these too) |
+| crashed both runs | `kane-08` |
+| different each run | `kane-09` pass → fail (31 writes, out of scope), `asohav-04` pass → fail, `asohav-03` fail → pass, `asohav-08` crash → pass, `asohav-09` fail → crash, `lfc-07` timeout → fail |
+
+- **18 of 32 attempts across the two runs, against `qwen3.6`'s 22 of 31 graded
+  runs of the same tasks with no crash.** The 9b is reliable on the small,
+  clearly scoped repairs and erratic beyond them: 6 of 16 tasks changed result,
+  and some passes were costly (`lfc-05`: 24 writes and 713 s, against 3 writes
+  and 110 s in the first run).
+- **Two graded fails had a correct fix.** On `kane-14` and `asohav-04` the
+  upstream fix commit's own tests passed (acceptance `PASS`), but the model
+  left the suite red. The gates are right to fail them; it is the model's own
+  test, not its fix, that is wrong.
+- **All four crashes so far are the template error, at 49.9k–54.4k tokens of
+  context** (both runs: `kane-08` twice, `asohav-08`, `asohav-09`), plus the
+  59.4k one after compaction (DP8). Not yet known whether opencode rewrites the
+  history at that size or the template trips on something else. That is the
+  next measurement, and a derived model without the template's `raise` is the
+  candidate workaround.
+
 **`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
 manifest marks them `retired` (date, reason, evidence): they keep their ids,
 pins and rows, `test-tasks.ps1` and `run-tasks-batch.ps1` leave them out of
@@ -1481,6 +1509,22 @@ owner's real fix, with LFCbot's full suite (83–125 tests) green at every base.
   script in the private repo, not only fail on the base and pass on the real
   fix. The superseded rows stay under their own fingerprint
   (`tests/results/README.md`).
+
+**Runs 2 and 3 (2026-10-04 15:14 – 15:46), current checks only:**
+
+| task | `qwen3.6` | `qwen3.5:9b` |
+|---|---|---|
+| `real-01` | 3/3 | 3/3 |
+| `real-02` | 1/3 | 0/3 |
+| `real-03` | 3/3 | 0/3 |
+| **total** | **7/9** | **3/9** |
+
+- The pilot's split held: both seats handle the small, clearly stated rule
+  (`real-01`); "is this file up to date" is hard for both (`real-02`), because
+  it means comparing a file against the code; and the 9b never wrote the
+  pages `real-03` asks for. Its run 2 edited an env template (denied by the
+  guard rails) and a deployment doc instead; run 3 changed nothing.
+- `real-01`'s two first-run rows under the superseded check are not counted.
 
 **Two-turn support (built 2026-10-04).** A task's `followUps` are fixed later
 turns, sent with `opencode run --session` into the same session and transcript

@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-10-04T17:25:16",
+  "taskId": "asohav-07-rapport-clamp",
+  "taskTitle": "ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "d73d6c978f478e3aca5fb836683fcfe639debd43",
+  "promptSha256": "8F82A36A716D",
+  "opencodeExit": 0,
+  "writes": 2,
+  "finishReason": "stop",
+  "lastStepOutput": 129,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/server/src/routes/party.test.ts",
+      "apps/server/src/routes/party.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "2db8a09b37fc967ad1199bfa436a3d1ebde1c0d1",
+    "hash": null,
+    "detail": "Tests  5 passed (5)"
+  },
+  "elapsedSec": 67.6,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": {
+    "DATABASE_URL": null
+  },
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-07-rapport-clamp-ollama-desktop_qwen3.5_9b_20261004-172516.jsonl"
+}

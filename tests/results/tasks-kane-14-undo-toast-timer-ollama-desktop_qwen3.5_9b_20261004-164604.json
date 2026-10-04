@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-10-04T16:46:04",
+  "taskId": "kane-14-undo-toast-timer",
+  "taskTitle": "KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+  "promptSha256": "B20669CCDD6B",
+  "opencodeExit": 0,
+  "writes": 39,
+  "finishReason": "stop",
+  "lastStepOutput": 209,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/time-counters/src/App.tsx",
+      "apps/time-counters/src/components/UndoToast.tsx",
+      "apps/time-counters/src/components/UndoToast.test.tsx"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+    "hash": null,
+    "detail": "Tests  111 passed (111)"
+  },
+  "elapsedSec": 1045.5,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-14-undo-toast-timer-ollama-desktop_qwen3.5_9b_20261004-164604.jsonl"
+}
