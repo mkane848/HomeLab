@@ -1520,11 +1520,11 @@ Five runs, with no overflow and no crash:
 - A template crash's `_INFRA_` detail names the overflow.
 - Grading is unchanged.
 
+**Decided (owner, 2026-10-04): a front-drop run stays graded** on its end
+state, as in a real session. Unlike truncation, it is what the seat and
+client really do mid-session; `contextEvents` marks it.
+
 **Open (owner):**
-- Should a front-drop run stay graded? Today it is graded on its end state,
-  as in a real session. The alternative is to treat it like truncation:
-  ungraded, no row. Unlike truncation, though, it is what the seat and client
-  really do mid-session.
 - Compaction is the bigger problem. Possible next measurements:
   - keeping more of the session verbatim (`preserve_recent_tokens`,
     `tail_turns`);
