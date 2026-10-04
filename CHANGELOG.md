@@ -25,7 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Their rows go to `real-tasks-summary.tsv` in the results folder; a private
   run mirrors only opaque ids and verdicts to `tests/results/real-tasks-public.tsv`.
   Guided tasks are unchanged. New guard `tests/test-acceptance-grading.ps1`
-  (48 checks, PowerShell 7 and 5.1).
+  (49 checks, PowerShell 7 and 5.1). Both summaries carry `acceptanceHash`, a
+  fingerprint of the hidden tests, because a check revised after a run makes
+  its old rows incomparable.
+- First real-prompt pilot (2026-10-04): three LFCbot documentation tasks from
+  the owner's own sessions. Latest run per task: `qwen3.6` 2/3, `qwen3.5:9b`
+  1/3. Rows are in `tests/results/real-tasks-public.tsv`, ids and verdicts only;
+  `real-01`'s first two rows were graded by a superseded check.
 
 - Light-seat overnight batch (2026-10-03/04): `qwen3:8b`, the main seat of
   three of the four live profiles, and `qwen3.5:9b` on every active task each

@@ -1448,10 +1448,46 @@ UI review round two releases of 24–27 files), so a fair task needs a small
 plan → implementation pair and hidden tests that check behaviour through an
 interface the opener or a committed spec fixes, not the real fix's internals.
 
-**Next:** settle that design with the owner; build the two-turn support; write
-hidden tests for the documentation tasks and the picked plan tasks; `-DryRun`
-each (fails on the base, passes on the real fix); then the pilot on `qwen3.6`
-and `qwen3.5:9b`.
+**Owner decisions on the plan tasks (2026-10-04):** both kinds.
+- **Small work packages** after a committed contract or plan, graded by hidden
+  tests against the names the contract fixes. ASoHaV's slice contracts and their
+  1–5-file work packages are the model.
+- **The real large features** (multi-card input; exact printings with Mana Pool
+  links), rated by the owner against a short checklist and reported separately.
+
+The three documentation tasks run first.
+
+**Pilot 1 (2026-10-04): the three documentation tasks, one run each.** Each
+hidden check passed `-DryRun` first: it fails on the base and passes on the
+owner's real fix, with LFCbot's full suite (83–125 tests) green at every base.
+
+| task | `qwen3.6` | `qwen3.5:9b` |
+|---|---|---|
+| `real-01` | PASS | PASS |
+| `real-02` | FAIL | FAIL |
+| `real-03` | PASS | FAIL |
+
+- **`qwen3.6` 2/3, `qwen3.5:9b` 1/3.**
+- `real-02` asks to bring an agent-instructions file up to date. `qwen3.6` added
+  the two new environment variables but not the five newer modules; `qwen3.5:9b`
+  added neither.
+- On `real-03`, `qwen3.5:9b` misread the request. It linked the platform's own
+  policies instead of writing the bot's: a failure only a real, unspelled-out
+  prompt exposes.
+- `real-01`'s first-run check failed both models' correct answers because it
+  was tuned to the owner's own wording. It was revised, and both passed on the
+  re-run. Since then, every hidden check that judges wording must also accept
+  other correct phrasings and reject near-misses, checked by a calibration
+  script in the private repo, not only fail on the base and pass on the real
+  fix. The superseded rows stay under their own fingerprint
+  (`tests/results/README.md`).
+
+**Next:**
+- Build the two-turn support.
+- Find the owner's messages that started ASoHaV's work packages. If there are
+  none, the verbatim rule rules those tasks out.
+- Draft the checklists for the two large features.
+- Then the plan tasks' pilot.
 
 **TODO:**
 
