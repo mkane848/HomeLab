@@ -184,7 +184,8 @@ exit 2
     $pubText = Get-Content -LiteralPath $pub -Raw
     $pubRows = @(Import-Csv $pub -Delimiter "`t")
     Check "...with five rows"                           $pubRows.Count 5
-    Check "...and only the verdict columns"             (($pubRows[0].PSObject.Properties.Name) -join ",") "timestamp,taskId,model,opencodeVersion,engine,engineVersion,scope,suite,acceptance,elapsedSec"
+    Check "...and only the verdict columns"             (($pubRows[0].PSObject.Properties.Name) -join ",") "timestamp,taskId,model,opencodeVersion,engine,engineVersion,scope,suite,acceptance,acceptanceHash,elapsedSec"
+    Check "...with the hidden tests' fingerprint per row" ($pubRows[0].acceptanceHash -match '^[0-9a-f]{12}$') "True"
     Check "...no prompt text in it"                     ($pubText -match 'PRIVATE-PROMPT-TEXT') "False"
     Check "...no commit in it"                          ($pubText -match $base.Substring(0, 10)) "False"
     Check "nothing else written under tests/results/"   (@(Get-ChildItem $publicResults -File | Where-Object Name -ne "real-tasks-public.tsv").Count) 0

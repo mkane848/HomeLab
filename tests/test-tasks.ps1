@@ -1566,14 +1566,14 @@ foreach ($tk in $tasksToRun) {
         # Real-prompt rows never enter tasks-summary.tsv: a different verdict
         # (scope + suite + acceptance), so they would not compare.
         $realRows.Add((@($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
-                         $gateSummary.scope, $gateSummary.suite, $acceptanceRecord.status, $gateSummary.failsOnOld,
+                         $gateSummary.scope, $gateSummary.suite, $acceptanceRecord.status, $acceptanceRecord.hash, $gateSummary.failsOnOld,
                          $result.elapsedSec) -join "`t"))
         if ($privateRun) {
             # The public mirror: opaque id, model, versions, verdicts. No commit,
             # prompt, path or test detail.
             $publicRealRows.Add((@($result.timestamp, $tk.id, $Model, $opencodeVersion, $servingEngine.name,
                                    $servingEngine.version, $gateSummary.scope, $gateSummary.suite,
-                                   $acceptanceRecord.status, $result.elapsedSec) -join "`t"))
+                                   $acceptanceRecord.status, $acceptanceRecord.hash, $result.elapsedSec) -join "`t"))
         }
     } else {
         $row = @($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
@@ -1597,8 +1597,8 @@ if ($summaryRows.Count -gt 0) {
     $summaryLines += $summaryRows
     Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
 }
-$realHeader = @("timestamp", "taskId", "model", "modelLabel", "baseCommit", "opencodeExit", "writes", "scope", "suite", "acceptance", "failsOnOld", "elapsedSec") -join "`t"
-$publicRealHeader = @("timestamp", "taskId", "model", "opencodeVersion", "engine", "engineVersion", "scope", "suite", "acceptance", "elapsedSec") -join "`t"
+$realHeader = @("timestamp", "taskId", "model", "modelLabel", "baseCommit", "opencodeExit", "writes", "scope", "suite", "acceptance", "acceptanceHash", "failsOnOld", "elapsedSec") -join "`t"
+$publicRealHeader = @("timestamp", "taskId", "model", "opencodeVersion", "engine", "engineVersion", "scope", "suite", "acceptance", "acceptanceHash", "elapsedSec") -join "`t"
 foreach ($sink in @(@($realSummaryTsv, $realHeader, $realRows), @($publicRealTsv, $publicRealHeader, $publicRealRows))) {
     if ($sink[2].Count -gt 0) {
         $sinkDir = Split-Path -Parent $sink[0]

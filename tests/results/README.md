@@ -26,8 +26,16 @@ scope is the guard rails (no lockfile, env, CI or out-of-package edit, under the
 ceilings), and the model's own test is not required unless the prompt asked
 for one. They never enter `tasks-summary.tsv` and do not compare with its rows.
 This file is the public mirror: opaque task id, model, opencode and engine
-versions, the three verdicts and elapsed time. The prompts, transcripts, base
+versions, the three verdicts, `acceptanceHash` (a fingerprint of the hidden
+tests that graded the row) and elapsed time. The prompts, transcripts, base
 commits and full rows (`real-tasks-summary.tsv`) are in the private repo.
+
+**Compare rows only within one task and one `acceptanceHash`.** A hidden test
+can be revised after a run shows it judges wording too narrowly, and the old
+rows stay as history under their old fingerprint. So far: `real-01`'s
+`6d07589d819c` (2026-10-04 12:42 and 12:51) is superseded. That check was tuned
+to the owner's own fix and failed two correct answers. Its `7976ebded682`
+replacement is calibrated against other correct phrasings and near-misses.
 
 ## What counts as a pass
 

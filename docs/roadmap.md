@@ -1389,16 +1389,17 @@ file, the function and the bug, asks for a test, and the run is one turn. The
 north star is plain-language requests in longer sessions, which is where the
 seats fail (compaction, losing the thread at 45–60k, `qwen3.5:9b`'s template
 crash). The owner's own Claude Code, OpenCode and Codex sessions are on the
-desktop, and they show the gap in aggregate (2026-10-04, 770 prompts in 88
-sessions with a typed opener; the harness's scripted canary sessions are left out):
+desktop, and they show the gap in aggregate (2026-10-04, 608 prompts in 73
+sessions with a typed opener; the harness's scripted canary sessions, Codex's
+approval-reviewer messages and injected skill text are left out):
 
 | | owner's opening prompts | guided task prompts |
 |---|---|---|
-| length (median) | 55 words (OpenCode 28, Claude Code 50, Codex 145) | ~400 words |
-| names a file | 32% | 100% |
-| names a function | 17% (0% in Claude Code and OpenCode) | 100% |
-| mentions tests | 28% | 100%, and requires one |
-| sessions of one turn | 30% (40% run 4–10 turns, 20% run 11+) | every task |
+| length (median) | 43 words (OpenCode 28, Codex 43, Claude Code 50) | ~400 words |
+| names a file | 19% | 100% |
+| names a function | 1% | 100% |
+| mentions tests | 16% | 100%, and requires one |
+| sessions of one turn | 29% (40% run 4–10 turns, 18% run 11+) | every task |
 
 **Owner decisions (workshop, 2026-10-04):**
 
@@ -1411,7 +1412,8 @@ sessions with a typed opener; the harness's scripted canary sessions are left ou
   export, anything under `M:\Projects\work`) may inform aggregate statistics,
   never becomes a task, and its text is never committed anywhere.
 - **Single-turn first**: the real opening prompt alone, graded on the outcome.
-  Multi-turn (scripted or simulated follow-ups) comes later.
+  Multi-turn (scripted or simulated follow-ups) comes later. *Revised after the
+  candidate review, below: plan, then "go ahead".*
 - **Verbatim or skip**: a task prompt is exactly what the owner typed, with
   redactions only; one that cannot stand alone is not used.
 - **Hidden tests decide**, not the model's own test (a real prompt rarely asks
@@ -1427,12 +1429,65 @@ sessions with a typed opener; the harness's scripted canary sessions are left ou
 **Built:** the harness support (`grading: "acceptance"`, `scope: "guardrails"`,
 `acceptance.dir`, `acceptance.solution`, `-TaskManifest`/`-ResultsDir`; guarded
 by `tests/test-acceptance-grading.ps1`), and in the private repo a collector and
-reports: 27 candidate openers (LFCbot 21, ASoHaV 6, KaneEnabler 0, whose
-sessions never ended in a commit).
+reports: 23 candidate openers in sessions that ended in a commit (LFCbot 17,
+ASoHaV 6, KaneEnabler 0).
 
-**Next:** the owner reviews the candidates; hidden tests are written or pinned
-for the picks; each passes `-DryRun` (fails on the base, passes on the real
-fix); then the pilot on `qwen3.6` and `qwen3.5:9b`.
+**Candidate review (2026-10-04): no opening prompt is a "change the code"
+request.** The owner's openers are research, planning, reviews and operations
+questions (deployment, SSH, a VM's updates, migrations); code is asked for later
+in the session, once a plan or handoff exists, which is the `/plan` → execute
+loop the north star describes. Of the openers, three are documentation edits
+(tidy an `AGENTS.md`, add a working-convention rule to it, add Terms of Service
+and Privacy Policy pages), kept with simple file checks; the rest are questions
+with no code change to grade, or depend on context outside the repo. So the
+owner revised the single-turn decision: **a task is the real opener plus one
+fixed "go ahead" turn** (`opencode run --session` continues it), graded on the
+end state. Open design question before building it: the features those plans
+led to were large (sealed products took about ten commits over five days; the
+UI review round two releases of 24–27 files), so a fair task needs a small
+plan → implementation pair and hidden tests that check behaviour through an
+interface the opener or a committed spec fixes, not the real fix's internals.
+
+**Owner decisions on the plan tasks (2026-10-04):** both kinds.
+- **Small work packages** after a committed contract or plan, graded by hidden
+  tests against the names the contract fixes. ASoHaV's slice contracts and their
+  1–5-file work packages are the model.
+- **The real large features** (multi-card input; exact printings with Mana Pool
+  links), rated by the owner against a short checklist and reported separately.
+
+The three documentation tasks run first.
+
+**Pilot 1 (2026-10-04): the three documentation tasks, one run each.** Each
+hidden check passed `-DryRun` first: it fails on the base and passes on the
+owner's real fix, with LFCbot's full suite (83–125 tests) green at every base.
+
+| task | `qwen3.6` | `qwen3.5:9b` |
+|---|---|---|
+| `real-01` | PASS | PASS |
+| `real-02` | FAIL | FAIL |
+| `real-03` | PASS | FAIL |
+
+- **`qwen3.6` 2/3, `qwen3.5:9b` 1/3.**
+- `real-02` asks to bring an agent-instructions file up to date. `qwen3.6` added
+  the two new environment variables but not the five newer modules; `qwen3.5:9b`
+  added neither.
+- On `real-03`, `qwen3.5:9b` misread the request. It linked the platform's own
+  policies instead of writing the bot's: a failure only a real, unspelled-out
+  prompt exposes.
+- `real-01`'s first-run check failed both models' correct answers because it
+  was tuned to the owner's own wording. It was revised, and both passed on the
+  re-run. Since then, every hidden check that judges wording must also accept
+  other correct phrasings and reject near-misses, checked by a calibration
+  script in the private repo, not only fail on the base and pass on the real
+  fix. The superseded rows stay under their own fingerprint
+  (`tests/results/README.md`).
+
+**Next:**
+- Build the two-turn support.
+- Find the owner's messages that started ASoHaV's work packages. If there are
+  none, the verbatim rule rules those tasks out.
+- Draft the checklists for the two large features.
+- Then the plan tasks' pilot.
 
 **TODO:**
 
