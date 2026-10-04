@@ -1482,10 +1482,21 @@ owner's real fix, with LFCbot's full suite (83–125 tests) green at every base.
   fix. The superseded rows stay under their own fingerprint
   (`tests/results/README.md`).
 
+**Two-turn support (built 2026-10-04).** A task's `followUps` are fixed later
+turns, sent with `opencode run --session` into the same session and transcript
+and graded on the end state (`tests/test-follow-ups.ps1`). In the one local
+plan-first session, the owner's real go-ahead was a one-word approval that came
+after a scope check, so a short approval is the realistic follow-up.
+
+**ASoHaV's work packages are not on this PC.** None of the 44 local ASoHaV
+prompts starts one. All 67 work-package and contract commits (2026-09-22 to
+09-24) name one Claude Code on the web session in their `Claude-Session`
+trailer. The owner will try to bring that session here (or copy its messages
+out) so the verbatim rule can hold. That one session drove nine slices, so its
+kickoff messages probably each cover several packages.
+
 **Next:**
-- Build the two-turn support.
-- Find the owner's messages that started ASoHaV's work packages. If there are
-  none, the verbatim rule rules those tasks out.
+- Collect that session and see how its kickoff messages map to packages.
 - Draft the checklists for the two large features.
 - Then the plan tasks' pilot.
 

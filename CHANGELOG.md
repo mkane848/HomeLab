@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Multi-turn tasks. A manifest task's `followUps` (fixed later turns, such as
+  the owner's "go ahead" after a plan) are each sent with
+  `opencode run --session <id>` into the same session and transcript.
+  - The run is graded on the end state, edits count across turns, and the run
+    JSON records `turns`.
+  - The follow-ups are part of the prompt hash; single-turn hashes are
+    unchanged.
+  - A turn that cannot find a session id (exit -4) or fails is infrastructure:
+    no row, `_INFRA_` transcript.
+  - `Invoke-OpencodeRun` takes `-SessionId` and `-Transcript`.
+  - New guard `tests/test-follow-ups.ps1` (20 checks, PowerShell 7 and 5.1),
+    which also caught `Get-TranscriptSessionId` leaving the transcript open for
+    the next turn's append.
+
 - Harness support for real-prompt tasks built from the owner's own sessions
   (`docs/roadmap.md` → "Real-use tasks", owner decisions of 2026-10-04).
   `test-tasks.ps1` and `run-tasks-batch.ps1` take `-TaskManifest` and
