@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T21:32:20",
+  "taskId": "asohav-09-seed-virtue-conformance",
+  "taskTitle": "ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "8686bf41c9ac130bd521f05e056460ca777f43bf",
+  "promptSha256": "0174F0B15812",
+  "opencodeExit": 0,
+  "writes": 11,
+  "finishReason": "stop",
+  "lastStepOutput": 407,
+  "outputLimit": 8192,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 1229.2,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-09-seed-virtue-conformance-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-213220.jsonl"
+}

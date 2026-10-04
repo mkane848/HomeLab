@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T20:52:14",
+  "taskId": "lfc-05-digest-allowed-mentions",
+  "taskTitle": "lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing)",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef",
+  "promptSha256": "A23B63C487A5",
+  "opencodeExit": 0,
+  "writes": 5,
+  "finishReason": "stop",
+  "lastStepOutput": 407,
+  "outputLimit": 8192,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "d998d2da5722bd0a8c060fa263f96b17f5b75786",
+    "detail": "Tests  7 passed (7)"
+  },
+  "elapsedSec": 178.6,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-05-digest-allowed-mentions-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-205214.jsonl"
+}

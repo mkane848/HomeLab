@@ -1286,6 +1286,24 @@ follow-up of four at 1800 s. Rows and transcripts are in `tests/results/`
 The failure classes are the seat's known limits (output cap, long context),
 plus one weak test.
 
+**Second run (2026-10-03 evening): the same 16 active tasks, 11 of 15 graded
+runs pass.** Same opencode, Ollama, context, output limit and companion as the
+first; 1800 s cap for all 16 (`2026-10-03T19:21`–`21:32`).
+
+| Across both runs | Tasks |
+|---|---|
+| Pass both (10) | `kane-09` to `kane-13`, `lfc-04`, `lfc-05`, `asohav-03`, `asohav-04`, `asohav-08` |
+| Pass one of two (2) | `asohav-09`: output cap, then a pass (20 min, 11 edits). `asohav-07`: a pass, then a correct source fix (the upstream tests pass on it) beside a test file that does not parse (a note written as code, not a comment) |
+| Fail both (4) | `kane-14`: a correct fix both times (upstream tests pass), a test that passes with it reverted both times. `kane-07`: no edit, then a wrong fix (the upstream test still fails). `lfc-07`: output cap, then a fix that fails 3 of the 13 upstream tests. `kane-08`: no edit, then the 1800 s cap with 29 reads, searches and shell calls and still no edit (no row) |
+
+The ten double passes are the seat's reliable ground on this set; the long-context
+pair (`kane-07`/`-08`) failed both times in different ways, so that limit is
+real, not noise. `asohav-09` passing once it did not hit the 8192 cap is a mild
+argument for trying a higher `limit.output` on this seat, not a strong one.
+`asohav-07`'s run also exposed a grading flaw: with the suite already red,
+`failsOnOld` recorded a `PASS` it never measured. It is `SKIP` from now on
+(`tests/results/README.md` → "What counts as a pass").
+
 **`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
 manifest marks them `retired` (date, reason, evidence): they keep their ids,
 pins and rows, `test-tasks.ps1` and `run-tasks-batch.ps1` leave them out of
