@@ -17,6 +17,18 @@ runs. This file is that separate pass for the full corpus, re-inventoried
 > `docs/roadmap.md` → "Executor standings"; per-attempt tables for the N>1
 > protocol are in `docs/implementation-tasks.md` → "Data point 11".
 
+## Real-prompt tasks: `real-tasks-public.tsv`
+
+Rows from the private real-prompt set (`docs/roadmap.md` → "Real-use tasks")
+are graded differently from everything below: **a run passes on `scope` +
+`suite` + `acceptance`**, where acceptance is hidden tests the model never saw,
+scope is the guard rails (no lockfile, env, CI or out-of-package edit, under the
+ceilings), and the model's own test is not required unless the prompt asked
+for one. They never enter `tasks-summary.tsv` and do not compare with its rows.
+This file is the public mirror: opaque task id, model, opencode and engine
+versions, the three verdicts and elapsed time. The prompts, transcripts, base
+commits and full rows (`real-tasks-summary.tsv`) are in the private repo.
+
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.

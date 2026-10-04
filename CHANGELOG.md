@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Harness support for real-prompt tasks built from the owner's own sessions
+  (`docs/roadmap.md` → "Real-use tasks", owner decisions of 2026-10-04).
+  `test-tasks.ps1` and `run-tasks-batch.ps1` take `-TaskManifest` and
+  `-ResultsDir`; a manifest outside this repo is private and is refused
+  without a `-ResultsDir` outside it too. New task fields:
+  - `grading: "acceptance"`: hidden tests are the gate, and a run passes on
+    scope + suite + acceptance;
+  - `scope: "guardrails"`: no lockfile, `.env*`, CI or out-of-package edit,
+    under file and line ceilings (`Test-Guardrails`);
+  - `acceptance.dir`: hidden tests from a folder beside the manifest, placed
+    only after the model's run;
+  - `acceptance.solution`: `-DryRun` checks the hidden tests pass on the real
+    fix;
+  - `requireTest`: otherwise `failsOnOld` is `SKIP`, "not asked".
+
+  Their rows go to `real-tasks-summary.tsv` in the results folder; a private
+  run mirrors only opaque ids and verdicts to `tests/results/real-tasks-public.tsv`.
+  Guided tasks are unchanged. New guard `tests/test-acceptance-grading.ps1`
+  (48 checks, PowerShell 7 and 5.1).
+
 - Light-seat overnight batch (2026-10-03/04): `qwen3:8b`, the main seat of
   three of the four live profiles, and `qwen3.5:9b` on every active task each
   had no graded row for. `qwen3:8b` passed 0 of 17 attempts (12 graded, 5
