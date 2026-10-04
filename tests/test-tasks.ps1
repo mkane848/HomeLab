@@ -903,6 +903,49 @@ function Get-ModelOutputLimit {
     return $null
 }
 
+function Get-CompactionThreshold {
+    # The prompt size at which opencode 1.18.34 compacts a session for
+    # -ModelId, from a resolved config object (session/overflow.ts `usable`):
+    #   reserved  = compaction.reserved, else min(20000, maxOutput)
+    #   threshold = limit.input - reserved   when limit.input is set,
+    #               limit.context - maxOutput otherwise (reserved unused)
+    # where maxOutput = min(limit.output, 32000). It is part of what a run
+    # measured: a lower threshold compacts earlier, so it is recorded per run.
+    param($Config, [string]$ModelId)
+    $provider, $name = $ModelId -split '/', 2
+    $lim = $null
+    try { $lim = $Config.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit } catch { }
+    if (-not $lim -or -not $lim.context) { return $null }
+    $maxOut = if ($lim.output) { [Math]::Min([int]$lim.output, 32000) } else { 32000 }
+    $cfgReserved = $null
+    if ($Config.PSObject.Properties["compaction"] -and $null -ne $Config.compaction.reserved) { $cfgReserved = [int]$Config.compaction.reserved }
+    $reserved = if ($null -ne $cfgReserved) { $cfgReserved } else { [Math]::Min(20000, $maxOut) }
+    $threshold = if ($lim.input) { [Math]::Max(0, [int]$lim.input - $reserved) } else { [Math]::Max(0, [int]$lim.context - $maxOut) }
+    return [pscustomobject]@{
+        limitContext = [int]$lim.context
+        limitInput   = $(if ($lim.input) { [int]$lim.input } else { $null })
+        limitOutput  = $(if ($lim.output) { [int]$lim.output } else { $null })
+        reserved     = $(if ($lim.input) { $reserved } else { $null })
+        threshold    = $threshold
+    }
+}
+
+function Get-ModelCompactionConfig {
+    # Get-CompactionThreshold on the RESOLVED config (`opencode debug config`,
+    # which includes an OPENCODE_CONFIG overlay). $null when unreadable.
+    param([string]$ModelId)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
+        return Get-CompactionThreshold -Config $cfg -ModelId $ModelId
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+}
+
 function Get-OllamaPromptTruncation {
     # Ollama's "truncating input prompt" warnings logged between $Since and
     # $Until. When a request is longer than the served num_ctx, Ollama keeps
@@ -943,6 +986,104 @@ function Get-OllamaPromptTruncation {
         }
     }
     return $hits
+}
+
+# opencode's synthetic user message after an automatic compaction
+# (session/compaction.ts in 1.18.34, hard-coded). It marks a compaction in a
+# `--format json` transcript, which has no compaction event of its own.
+$script:CompactionContinueText = "Continue if you have next steps, or stop and ask for clarification"
+
+function Get-ContextEvents {
+    # What happened to the session's context window, from the raw opencode JSONL
+    # (docs/roadmap.md -> "Context overflow"):
+    # - Compactions: opencode's automatic compactions (the summary step, then
+    #   the step that opens with $script:CompactionContinueText).
+    # - EndedAfterCompaction: the run stopped within two steps of the last
+    #   compaction with at most one tool call after it. Under `opencode run`
+    #   the "or stop and ask" half of that message ends the run.
+    # - FrontDrops: requests longer than num_ctx. opencode 1.18.34 checks for
+    #   compaction against the last step's tokens, not the tool output that step
+    #   added, so one large read can carry the next request past num_ctx; Ollama
+    #   (server/prompt.go, 0.34.3) then drops messages from the front, keeping
+    #   only system messages, and logs it at debug level. The task prompt is the
+    #   first message to go and the model carries on without it. Signature: the
+    #   next step reuses under half the previous prompt from the cache, the
+    #   request is estimated (3 characters a token) over num_ctx, and neither
+    #   step is a compaction step. Without a numeric num_ctx the prompt must
+    #   also have shrunk.
+    # - TemplateCrash: the same overflow on a model whose template refuses a
+    #   conversation with no user message (qwen3.5:9b: "No user query found in
+    #   messages"), which opencode surfaces as an error.
+    param([string]$Path, $NumCtx)
+
+    $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0 }
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $ev }
+    $steps = New-Object System.Collections.Generic.List[object]
+    $tools = 0; $chars = 0; $isContinue = $false
+    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
+    try {
+        while ($null -ne ($line = $reader.ReadLine())) {
+            if (-not $line.Trim()) { continue }
+            try { $e = $line | ConvertFrom-Json } catch { continue }
+            switch ($e.type) {
+                "tool_use" { $tools++; $chars += ([string]$e.part.state.output).Length }
+                "text"     { if (([string]$e.part.text).TrimStart().StartsWith($script:CompactionContinueText)) { $isContinue = $true } }
+                "error"    { if ($line -match 'No user query found in messages') { $ev.TemplateCrash = $true } }
+                "step_finish" {
+                    $t = $e.part.tokens
+                    $cacheRead = [int]$t.cache.read
+                    $steps.Add([pscustomobject]@{
+                        Prompt    = [int]$t.input + $cacheRead + [int]$t.cache.write
+                        CacheRead = $cacheRead
+                        Out       = [int]$t.output
+                        Tools     = $tools
+                        Chars     = $chars
+                        Continue  = $isContinue
+                    })
+                    $tools = 0; $chars = 0; $isContinue = $false
+                }
+            }
+        }
+    } finally {
+        $reader.Dispose()
+    }
+    # A compaction whose continue step never finished (the run was cut off
+    # there) still happened.
+    $unfinishedCompaction = $isContinue
+    if ($steps.Count -eq 0) { if ($unfinishedCompaction) { $ev.Compactions = 1 }; return $ev }
+
+    $compactionStep = @{}
+    $lastContinue = -1
+    for ($k = 0; $k -lt $steps.Count; $k++) {
+        if ($steps[$k].Prompt -gt $ev.PeakPromptTokens) { $ev.PeakPromptTokens = $steps[$k].Prompt }
+        if ($steps[$k].Continue) {
+            $ev.Compactions++
+            $lastContinue = $k
+            $compactionStep[$k] = $true
+            if ($k -gt 0) { $compactionStep[$k - 1] = $true }  # the summary step
+        }
+    }
+    if ($unfinishedCompaction) { $ev.Compactions++ }
+    if ($lastContinue -ge 0 -and -not $unfinishedCompaction) {
+        $after = @($steps | Select-Object -Skip $lastContinue)
+        $toolsAfter = ($after | Measure-Object -Property Tools -Sum).Sum
+        $ev.EndedAfterCompaction = ($after.Count -le 2 -and $toolsAfter -le 1)
+    }
+    $ctx = if ($NumCtx -is [int] -or $NumCtx -is [long]) { [int]$NumCtx } else { $null }
+    $drops = @()
+    for ($k = 0; $k -lt $steps.Count - 1; $k++) {
+        $a = $steps[$k]; $b = $steps[$k + 1]
+        if ($a.Prompt -le 0 -or $b.Prompt -le 0) { continue }
+        if ($compactionStep[$k] -or $compactionStep[$k + 1]) { continue }
+        if ($b.CacheRead -ge 0.5 * $a.Prompt) { continue }
+        $estimate = [int]($a.Prompt + $a.Out + $a.Chars / 3.0)
+        $over = if ($null -ne $ctx) { $estimate -gt $ctx } else { $b.Prompt -lt $a.Prompt - 1000 }
+        if ($over) {
+            $drops += [pscustomobject]@{ step = $k + 1; promptBefore = $a.Prompt; promptAfter = $b.Prompt; cacheRead = $b.CacheRead; estimatedRequest = $estimate }
+        }
+    }
+    $ev.FrontDrops = $drops
+    return $ev
 }
 
 function Stop-OrphanOpencode {
@@ -1215,7 +1356,9 @@ $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($o
 # limit.output of the seat, from the resolved opencode config: what the writes
 # gate compares the last step's output tokens against to call an output-cap hit.
 $outputLimit = Get-ModelOutputLimit -ModelId $Model
-Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" })) -ForegroundColor DarkGray
+# When opencode compacts this seat's session (Get-CompactionThreshold).
+$compactionConfig = Get-ModelCompactionConfig -ModelId $Model
+Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
@@ -1353,6 +1496,9 @@ foreach ($tk in $tasksToRun) {
             $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("Ollama truncated the prompt {0} time(s) during the run ({1}): the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {2})." -f $truncation.Count, $truncWhat, $promptHashes[$tk.id])
         }
     }
+    # Compactions, overflowed requests and the template crash an overflow causes
+    # (Get-ContextEvents). Read before the transcript is archived.
+    $ctxEvents = Get-ContextEvents -Path $run.TranscriptPath -NumCtx $numCtx
     # A run that never reached the model is not a result. opencode exits 0 even
     # when the model refuses to write (real liar mode), so ANY non-zero exit is
     # infrastructure: unreachable provider, bad model id, crash. Grading those as
@@ -1369,6 +1515,9 @@ foreach ($tk in $tasksToRun) {
             $firstErr  = Get-FirstTranscriptError -Path $run.TranscriptPath
             $errSuffix = if ($firstErr) { " - $firstErr" } else { "" }
             $runDetail = "opencode exited $($run.ExitCode) without a gradable run$errSuffix (prompt sha $($promptHashes[$tk.id])). Infrastructure failure, NOT model behaviour: not graded, no summary row."
+        }
+        if ($ctxEvents.TemplateCrash) {
+            $runDetail += " Cause: a context overflow. The request was longer than num_ctx, so Ollama dropped the oldest messages, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
         }
         Write-Result $tk.id "opencode run" "FAIL" $runDetail
         $overallPass = $false
@@ -1402,6 +1551,15 @@ foreach ($tk in $tasksToRun) {
         $writeNote = if ($run.Writes -gt 5) { " (repeated-call look: $($run.Writes) writes for a 2-file task - see docs/troubleshooting.md)" } else { "" }
         if ($capHit) { $writeNote += " (the last step then hit the output cap at $($run.Ending.OutputTokens) tokens)" }
         Write-Result $tk.id "writes gate" "PASS" "$($run.Writes) write/edit calls$writeNote"
+    }
+    # Context events are recorded, not graded: a front-drop is what this seat
+    # does in a real session too, so the gates still judge the end state.
+    if ($ctxEvents.FrontDrops.Count -gt 0) {
+        $fd = $ctxEvents.FrontDrops[0]
+        Write-Result $tk.id "context" "WARN" ("a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3}); Ollama dropped the oldest messages, the task prompt with them, and the model carried on without it. Recorded in contextEvents, not graded." -f $ctxEvents.FrontDrops.Count, $fd.step, $fd.estimatedRequest, $numCtx)
+    }
+    if ($ctxEvents.Compactions -gt 0) {
+        Write-Host ("    context: {0} compaction(s), peak prompt {1} tokens{2}" -f $ctxEvents.Compactions, $ctxEvents.PeakPromptTokens, $(if ($ctxEvents.EndedAfterCompaction) { "; the run ended right after the last one" } else { "" })) -ForegroundColor DarkGray
     }
 
     # --- grade 1: diff scope -------------------------------------------------
@@ -1617,6 +1775,13 @@ foreach ($tk in $tasksToRun) {
         opencodeVersion = $opencodeVersion
         numCtx          = $numCtx
         promptTruncation = $(if ($truncLogDir) { "$truncCheck - none during the run" } else { $truncCheck })
+        contextEvents   = [pscustomobject]@{
+            compactions          = $ctxEvents.Compactions
+            endedAfterCompaction = $ctxEvents.EndedAfterCompaction
+            frontDrops           = @($ctxEvents.FrontDrops)
+            peakPromptTokens     = $ctxEvents.PeakPromptTokens
+            compactionConfig     = $compactionConfig
+        }
         testEnv        = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
         transcriptFile  = $transcriptFileField

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Context overflow found and recorded. `qwen3.5:9b`'s "No user query found
+  in messages" crash is a request over `num_ctx`, not a template bug:
+  - opencode 1.18.34 decides to compact before counting the tool output a step
+    added;
+  - Ollama 0.34.3 then silently drops the oldest messages, task prompt first.
+
+  Other seats lose their task silently in the same spot: `qwen3.6` on `kane-08`
+  three times out of three, plus three 32k runs on 09-26. All 7 `qwen3.5`
+  crashes are this, and none followed a compaction, correcting earlier
+  write-ups.
+  - `test-tasks.ps1` records `contextEvents` in every run JSON (compactions,
+    ended right after one, front-drops, peak prompt, the compaction threshold),
+    WARNs on a front-drop, and names the cause in a template crash's `_INFRA_`
+    detail. Grading is unchanged.
+  - New guard `tests/test-context-events.ps1`.
+  - A trial that compacted earlier (`limit.input` + `compaction.reserved`) was
+    not adopted: compacted runs pass 4 of 18, and the change would have
+    compacted 15 more runs, 11 of them passes.
+  - The roadmap's proposed workaround, a `qwen3.5:9b` without the template's
+    `raise`, is withdrawn: it would hide the crash as silent task loss.
+  - Docs: `docs/roadmap.md` → "Context overflow", corrections in place,
+    `tests/results/README.md`, an AGENTS.md Gotcha and verification bullet, and
+    three source citations in `docs/references.md`.
+
 - Results: `qwen3.5:9b`'s second run of the 16 guided tasks (9 of 16 again; 18
   of 32 attempts against `qwen3.6`'s 22 of 31; all four crashes are the
   template error at 50–54k tokens), and runs 2 and 3 of the three real-prompt
