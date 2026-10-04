@@ -77,16 +77,23 @@ param(
     [int]$CommandTimeout = 0,
     # Offer and run tasks the manifest marks `retired` (left out of 'all' and
     # the picker otherwise; naming one is an error). Forwarded to test-tasks.ps1.
-    [switch]$IncludeRetired
+    [switch]$IncludeRetired,
+    # Another task manifest and results folder (the private real-prompt set);
+    # forwarded to test-tasks.ps1, which refuses a private manifest without a
+    # private -ResultsDir. -OnlyMissing then reads that folder's summaries.
+    [string]$TaskManifest = "",
+    [string]$ResultsDir = ""
 )
 
 $scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
-$manifestPath = Join-Path $scriptDir "tasks\manifest.json"
+$manifestPath = if ($TaskManifest) { [System.IO.Path]::GetFullPath($TaskManifest) } else { Join-Path $scriptDir "tasks\manifest.json" }
 $testTasksPs1 = Join-Path $scriptDir "test-tasks.ps1"
 $toolcallsPs1 = Join-Path $scriptDir "test-toolcalls.ps1"
 $registryPath = Join-Path $scriptDir "run-tasks-models.tsv"
 $probeLogPath = Join-Path $scriptDir "results\toolcalls-summary.tsv"
-$summaryPath  = Join-Path $scriptDir "results\tasks-summary.tsv"
+$taskResultsDir = if ($ResultsDir) { [System.IO.Path]::GetFullPath($ResultsDir) } else { Join-Path $scriptDir "results" }
+$summaryPath  = Join-Path $taskResultsDir "tasks-summary.tsv"
+$realSummaryPath = Join-Path $taskResultsDir "real-tasks-summary.tsv"
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     Write-Host "ERROR: manifest not found at $manifestPath" -ForegroundColor Red
@@ -461,9 +468,12 @@ function Get-AvailableModelSeats {
 function Get-GradedPairs {
     # "taskId|model" for every GRADED row of tasks-summary.tsv (opencodeExit 0;
     # a non-zero exit never reached the model and is not data - AGENTS.md).
+    # Real-prompt rows live in real-tasks-summary.tsv beside it, same columns
+    # for taskId/model/opencodeExit.
     $done = @{}
-    if (Test-Path -LiteralPath $summaryPath) {
-        foreach ($row in (Import-Csv -LiteralPath $summaryPath -Delimiter "`t")) {
+    foreach ($path in @($summaryPath, $realSummaryPath)) {
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        foreach ($row in (Import-Csv -LiteralPath $path -Delimiter "`t")) {
             if ($row.opencodeExit -eq "0") { $done["$($row.taskId)|$($row.model)"] = [int]$done["$($row.taskId)|$($row.model)"] + 1 }
         }
     }
@@ -904,6 +914,8 @@ foreach ($run in $runList) {
     if ($RunTimeout -gt 0) { $taskArgs['RunTimeout'] = $RunTimeout }
     if ($CommandTimeout -gt 0) { $taskArgs['CommandTimeout'] = $CommandTimeout }
     if ($IncludeRetired) { $taskArgs['IncludeRetired'] = $true }
+    if ($TaskManifest) { $taskArgs['TaskManifest'] = $manifestPath }
+    if ($ResultsDir) { $taskArgs['ResultsDir'] = $taskResultsDir }
     # One run's uncaught exception must not end an unattended batch: on
     # 2026-10-02 a dead job host in run 1 of 16 threw out of test-tasks.ps1 and
     # the other 15 never started. Record the run as crashed and move on.
@@ -937,7 +949,7 @@ if ($stopped) {
 $fails = @($results | Where-Object { $_.ExitCode -ne 0 })
 if ($fails.Count -gt 0) {
     Write-Host "$($fails.Count) of $total run(s) exited non-zero (test-tasks.ps1 exits 1 on any FAIL grade)." -ForegroundColor Yellow
-    Write-Host "Per-run detail is in tests/results/ and the appended rows in tests/results/tasks-summary.tsv." -ForegroundColor Yellow
+    Write-Host "Per-run detail is in $taskResultsDir and the appended rows in its tasks-summary.tsv / real-tasks-summary.tsv." -ForegroundColor Yellow
 } else {
     Write-Host "All $total run(s) completed with exit 0 (no FAIL grade - a run can still carry a WARN)." -ForegroundColor Green
 }

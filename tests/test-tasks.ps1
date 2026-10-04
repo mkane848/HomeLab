@@ -32,6 +32,22 @@
 #                exact commit used); the TSV schema is unchanged. Under -DryRun
 #                the same tests run on the untouched base and must FAIL.
 #
+# Real-prompt tasks (`grading: "acceptance"`, built from the owner's own
+# sessions; docs/roadmap.md -> "Real-use tasks") are graded differently, because
+# the prompt is what the owner typed: it names no files and rarely asks for a
+# test. A run passes on scope + suite + acceptance:
+#   scope      - `scope: "guardrails"`: no lockfile/.env/CI edit, nothing outside
+#                `guardrails.packageRoots`, under the file and line ceilings
+#                (Test-Guardrails). The diff is recorded, not graded.
+#   acceptance - the gate: hidden tests from a pinned commit, or from
+#                `acceptance.dir` (a folder beside a private manifest), placed in
+#                the worktree only after the model's run. -DryRun also checks they
+#                PASS on `acceptance.solution`, the commit that really did the job.
+#   failsOnOld - SKIP ("not asked") unless the task sets `requireTest`.
+# Their rows go to real-tasks-summary.tsv, never tasks-summary.tsv. A manifest
+# outside this repo (-TaskManifest) is private: -ResultsDir must be outside it too,
+# and tests/results/real-tasks-public.tsv gets only opaque ids and verdicts.
+#
 # What is NOT graded, and why that distinction is load-bearing: a run only
 # reaches those gates if `opencode run` exited 0. opencode exits 0 even when
 # the model answers in prose and writes nothing, so `writes = 0` on an exit-0
@@ -122,20 +138,45 @@ param(
     # Run a task the manifest marks `retired` (see Resolve-TaskSelection).
     [switch]$IncludeRetired,
     [ValidateSet("write", "edit", "")]
-    [string]$EditFormat = ""
+    [string]$EditFormat = "",
+    # A task manifest other than tests/tasks/manifest.json - the private
+    # real-prompt set lives outside this public repo (docs/roadmap.md ->
+    # "Real-use tasks"). A manifest outside the repo is a PRIVATE run: it must
+    # also get a -ResultsDir outside the repo, so no prompt or transcript lands
+    # in tests/results/. acceptance.dir paths resolve against its folder.
+    [string]$TaskManifest = "",
+    [string]$ResultsDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot   = Split-Path -Parent $scriptDir
-$manifestPath = Join-Path $scriptDir "tasks\manifest.json"
+$publicResultsDir = Join-Path $scriptDir "results"
+$manifestPath = if ($TaskManifest) { [System.IO.Path]::GetFullPath($TaskManifest) } else { Join-Path $scriptDir "tasks\manifest.json" }
+$manifestDir  = Split-Path -Parent $manifestPath
 $wtRoot     = Join-Path $scriptDir ".worktrees"
-$resultsDir = Join-Path $scriptDir "results"
+$resultsDir = if ($ResultsDir) { [System.IO.Path]::GetFullPath($ResultsDir) } else { $publicResultsDir }
 $summaryTsv = Join-Path $resultsDir "tasks-summary.tsv"
+# Acceptance-graded (real-prompt) rows: the full row in the results directory,
+# and, for a private run, a mirror in tests/results/ with no prompt-bearing field.
+$realSummaryTsv   = Join-Path $resultsDir "real-tasks-summary.tsv"
+$publicRealTsv    = Join-Path $publicResultsDir "real-tasks-public.tsv"
+
+function Test-UnderPath {
+    param([string]$Path, [string]$Root)
+    $p = ([System.IO.Path]::GetFullPath($Path) -replace '\\', '/').TrimEnd('/').ToLowerInvariant()
+    $r = ([System.IO.Path]::GetFullPath($Root) -replace '\\', '/').TrimEnd('/').ToLowerInvariant()
+    return ($p -eq $r -or $p.StartsWith($r + "/"))
+}
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     Write-Host "ERROR: manifest not found at $manifestPath" -ForegroundColor Red
+    exit 1
+}
+$privateRun = -not (Test-UnderPath $manifestPath $repoRoot)
+if ($privateRun -and (Test-UnderPath $resultsDir $repoRoot)) {
+    Write-Host "ERROR: $manifestPath is outside this repo (a private manifest), so its results must be too. Pass -ResultsDir <a folder outside $repoRoot> - tests/results/ is published." -ForegroundColor Red
     exit 1
 }
 if (-not (Test-Path -LiteralPath $resultsDir)) {
@@ -329,6 +370,76 @@ function Get-TreeChanges {
         if ($p) { $files += ($p -replace '\\', '/') }
     }
     return @($files | Where-Object { $_ })
+}
+
+# Every changed file one by one (untracked directories expanded), plus the
+# number of lines the change adds and removes - what the guard-rail scope gate
+# reads. Untracked files count as all-added.
+function Get-ChangeStats {
+    param([string]$WtPath)
+    $files = @()
+    foreach ($line in (Run-Native "git" @("-C", $WtPath, "status", "--porcelain", "-uall")).Output) {
+        if ($line.Length -lt 4) { continue }
+        $p = $line.Substring(3).Trim().Trim('"')
+        if ($p -match ' -> ') { $p = ($p -split ' -> ')[-1] }
+        if ($p) { $files += ($p -replace '\\', '/') }
+    }
+    $lines = 0
+    foreach ($ns in (Run-Native "git" @("-C", $WtPath, "diff", "--numstat", "HEAD")).Output) {
+        if ($ns -match '^(\d+)\s+(\d+)\s') { $lines += [int]$Matches[1] + [int]$Matches[2] }
+    }
+    foreach ($u in (Run-Native "git" @("-C", $WtPath, "ls-files", "--others", "--exclude-standard")).Output) {
+        $full = Join-Path $WtPath $u
+        if ($u -and (Test-Path -LiteralPath $full -PathType Leaf)) {
+            try { $lines += @([System.IO.File]::ReadAllLines($full)).Count } catch { }
+        }
+    }
+    return [pscustomobject]@{ Files = @($files | Where-Object { $_ }); Lines = $lines }
+}
+
+function ConvertTo-GlobRegex {
+    param([string]$Glob)
+    $g = [regex]::Escape(($Glob -replace '\\', '/'))
+    $g = $g -replace '\\\*\\\*/', '(.*/)?' -replace '\\\*\\\*', '.*' -replace '\\\*', '[^/]*' -replace '\\\?', '[^/]'
+    return "^$g$"
+}
+
+# The scope gate for real-prompt tasks (`scope: "guardrails"`). A real prompt
+# names no files, so a fixed allowFiles list would fail a valid fix that took
+# another route; this fails only what a reasonable fix never touches: lockfiles,
+# env files, CI config, anything outside the task's packageRoots, and a change
+# larger than the ceilings. Defaults below; a task's `guardrails` object can add
+# `deny` globs, exempt defaults with `allow`, and set `packageRoots`,
+# `maxChangedFiles` and `maxDiffLines`.
+$script:DefaultGuardrailDeny = @(
+    "**/pnpm-lock.yaml", "**/package-lock.json", "**/yarn.lock", "**/bun.lockb",
+    "**/.env", "**/.env.*", ".github/**", ".gitlab-ci.yml", ".circleci/**", "azure-pipelines.yml",
+    "**/node_modules/**"
+)
+function Test-Guardrails {
+    param([string[]]$Files, [int]$Lines, $Guardrails)
+    $g = if ($Guardrails) { $Guardrails } else { [pscustomobject]@{} }
+    $allow = @($g.allow | Where-Object { $_ })
+    $deny = @($script:DefaultGuardrailDeny | Where-Object { $allow -notcontains $_ }) + @($g.deny | Where-Object { $_ })
+    $roots = @($g.packageRoots | Where-Object { $_ } | ForEach-Object { ($_ -replace '\\', '/').TrimEnd('/') })
+    $maxFiles = if ($g.maxChangedFiles) { [int]$g.maxChangedFiles } else { 15 }
+    $maxLines = if ($g.maxDiffLines) { [int]$g.maxDiffLines } else { 600 }
+    $hits = @()
+    foreach ($f in @($Files | Where-Object { $_ })) {
+        $d = @($deny | Where-Object { $f -match (ConvertTo-GlobRegex $_) } | Select-Object -First 1)
+        if ($d.Count) { $hits += "$f (denied: $($d[0]))"; continue }
+        if ($roots.Count -and -not @($roots | Where-Object { $f -eq $_ -or $f.StartsWith("$_/") }).Count) {
+            $hits += "$f (outside packageRoots: $($roots -join ', '))"
+        }
+    }
+    $count = @($Files | Where-Object { $_ }).Count
+    $problems = @()
+    if ($count -eq 0) { $problems += "no changes at all - the model did not touch the worktree" }
+    if ($hits.Count) { $problems += "touched what a fix should not: $($hits -join '; ')" }
+    if ($count -gt $maxFiles) { $problems += "$count files changed (ceiling $maxFiles)" }
+    if ($Lines -gt $maxLines) { $problems += "$Lines lines changed (ceiling $maxLines)" }
+    $detail = if ($problems.Count) { $problems -join '; ' } else { "$count file(s), $Lines line(s), no guard rail hit: $(($Files | Where-Object { $_ }) -join ', ')" }
+    return [pscustomobject]@{ Ok = ($problems.Count -eq 0); Detail = $detail; Hits = $hits; Files = $count; Lines = $Lines }
 }
 
 function Ensure-Worktree {
@@ -599,43 +710,93 @@ function Invoke-WithSourceReverted {
 # and the worktree's own copies - the model's tests - are put back byte for byte.
 # Status: PASS/FAIL = the owner's tests passed/failed; ERROR = could not run or
 # could not restore (the worktree then needs inspecting).
+# Two sources for the tests: `acceptance.commit`/`ref` + `files` (checked out of
+# a pinned commit, as above), or `acceptance.dir` - a folder, relative to the
+# manifest, whose files are copied over the worktree at the same relative paths.
+# The folder is for hidden tests written for a real-prompt task (they live in
+# the private repo, not at any commit of the task repo). Either way the tests
+# only enter the worktree after the model's run, and leave before the next step.
+# The result's Label names the source; Hash fingerprints a folder's files.
+function Get-AcceptanceDirFiles {
+    param($Task)
+    $dir = Join-Path $manifestDir $Task.acceptance.dir
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) { return $null }
+    $root = (Resolve-Path -LiteralPath $dir).Path.TrimEnd('\', '/')
+    return @(Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName | ForEach-Object {
+        [pscustomobject]@{ Rel = ($_.FullName.Substring($root.Length + 1) -replace '\\', '/'); Bytes = [System.IO.File]::ReadAllBytes($_.FullName) }
+    })
+}
+
 function Invoke-Acceptance {
     param($Task, [string]$WtPath)
 
     $acc = $Task.acceptance
-    $accBase = Resolve-AcceptanceCommit $Task
-    if (-not $accBase.Commit) {
-        return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Detail = $accBase.Error }
+    $dirFiles = $null
+    $sha = $null
+    $hash = $null
+    if ($acc.dir) {
+        $dirFiles = Get-AcceptanceDirFiles $Task
+        if (-not $dirFiles) {
+            return [pscustomobject]@{ Status = "ERROR"; Ref = "dir"; Commit = $null; Hash = $null; Label = "hidden tests in $($acc.dir)"; Detail = "acceptance.dir $($acc.dir) is missing or empty (resolved against $manifestDir)" }
+        }
+        $files = @($dirFiles | ForEach-Object Rel)
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            $ms = New-Object System.IO.MemoryStream
+            foreach ($df in $dirFiles) { $nb = [Text.Encoding]::UTF8.GetBytes($df.Rel + "`n"); $ms.Write($nb, 0, $nb.Length); $ms.Write($df.Bytes, 0, $df.Bytes.Length) }
+            $hash = ([BitConverter]::ToString($sha256.ComputeHash($ms.ToArray())) -replace '-', '').Substring(0, 12).ToLowerInvariant()
+        } finally { $sha256.Dispose() }
+        $label = "hidden tests in $($acc.dir) ($hash)"
+    } else {
+        $accBase = Resolve-AcceptanceCommit $Task
+        if (-not $accBase.Commit) {
+            return [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $null; Hash = $null; Label = "owner tests @ $($acc.ref)"; Detail = $accBase.Error }
+        }
+        if ($accBase.Warning) { Write-Host "    acceptance: $($accBase.Warning)" -ForegroundColor Yellow }
+        $sha = $accBase.Commit
+        $files = @($acc.files)
+        $label = "owner tests @ $($acc.ref) $($sha.Substring(0, 7))"
     }
-    if ($accBase.Warning) { Write-Host "    acceptance: $($accBase.Warning)" -ForegroundColor Yellow }
-    $sha = $accBase.Commit
-    $files = @($acc.files)
     $saved = @{}
     foreach ($f in $files) {
         $full = Join-Path $WtPath $f
         $saved[$f] = if (Test-Path -LiteralPath $full) { [System.IO.File]::ReadAllBytes($full) } else { $null }
     }
     $statusBefore = (Get-TreeChanges $WtPath) -join "|"
+    $mk = { param($status, $detail) [pscustomobject]@{ Status = $status; Ref = $(if ($dirFiles) { "dir" } else { $acc.ref }); Commit = $sha; Hash = $hash; Label = $label; Detail = $detail } }
 
     $result = $null
-    $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files)
+    if ($dirFiles) {
+        $placeErr = $null
+        foreach ($df in $dirFiles) {
+            try {
+                $full = Join-Path $WtPath $df.Rel
+                $parent = Split-Path -Parent $full
+                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+                [System.IO.File]::WriteAllBytes($full, $df.Bytes)
+            } catch { $placeErr = "could not place $($df.Rel): $($_.Exception.Message)" }
+        }
+        $co = [pscustomobject]@{ ExitCode = $(if ($placeErr) { 1 } else { 0 }); Output = @($placeErr) }
+    } else {
+        $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files)
+    }
     if ($co.ExitCode -ne 0) {
-        $result = [pscustomobject]@{ Status = "ERROR"; Ref = $acc.ref; Commit = $sha; Detail = "git checkout of acceptance files failed: $($co.Output -join ' ')" }
+        $result = & $mk "ERROR" "placing the acceptance files failed: $($co.Output -join ' ')"
     } else {
         $t = Invoke-Test $Task $WtPath
         $summary = ($t.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
         $summaryText = if ($summary) { $summary.Line.Trim() } else { "no test summary line" }
         if ($t.ExitCode -eq 0) {
-            $result = [pscustomobject]@{ Status = "PASS"; Ref = $acc.ref; Commit = $sha; Detail = $summaryText }
+            $result = & $mk "PASS" $summaryText
         } else {
             $failed = Get-FailedTestNames -Output $t.Output
-            $result = [pscustomobject]@{ Status = "FAIL"; Ref = $acc.ref; Commit = $sha; Detail = "$summaryText - $($failed -join '; ')" }
+            $result = & $mk "FAIL" "$summaryText - $($failed -join '; ')"
         }
     }
 
     # Restore: unstage (checkout <sha> -- stages the files), then put the saved
     # bytes back, or remove a file the worktree did not have before.
-    Run-Native "git" (@("-C", $WtPath, "reset", "-q", "--") + $files) | Out-Null
+    if (-not $dirFiles) { Run-Native "git" (@("-C", $WtPath, "reset", "-q", "--") + $files) | Out-Null }
     foreach ($f in $files) {
         $full = Join-Path $WtPath $f
         if ($null -eq $saved[$f]) {
@@ -1023,6 +1184,8 @@ Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3}" -f 
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
+$realRows = [System.Collections.Generic.List[string]]::new()
+$publicRealRows = [System.Collections.Generic.List[string]]::new()
 $overallPass = $true
 
 foreach ($tk in $tasksToRun) {
@@ -1080,9 +1243,28 @@ foreach ($tk in $tasksToRun) {
         if ($tk.acceptance) {
             $acc = Invoke-Acceptance $tk $wt.Wt
             switch ($acc.Status) {
-                "FAIL"  { Write-Result $tk.id "acceptance (fails on base)" "PASS" "owner tests @ $($acc.Ref) $($acc.Commit.Substring(0,7)) fail on the untouched source: $($acc.Detail)" }
-                "PASS"  { Write-Result $tk.id "acceptance (fails on base)" "WARN" "owner tests @ $($acc.Ref) PASS on the untouched source - they do not exercise the defect: $($acc.Detail)" }
+                "FAIL"  { Write-Result $tk.id "acceptance (fails on base)" "PASS" "$($acc.Label) fail on the untouched source: $($acc.Detail)" }
+                "PASS"  { Write-Result $tk.id "acceptance (fails on base)" "WARN" "$($acc.Label) PASS on the untouched source - they do not exercise the defect: $($acc.Detail)" }
                 default { Write-Result $tk.id "acceptance (fails on base)" "WARN" $acc.Detail }
+            }
+            # A real-prompt task names the commit that really did the job
+            # (`acceptance.solution`): its hidden tests must PASS there, or they
+            # ask for something the owner never got either.
+            if ($tk.acceptance.solution) {
+                $co = Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $tk.acceptance.solution)
+                if ($co.ExitCode -ne 0) {
+                    Write-Result $tk.id "acceptance (passes on solution)" "WARN" "cannot check out acceptance.solution $($tk.acceptance.solution): $($co.Output -join ' ')"
+                } else {
+                    $acc = Invoke-Acceptance $tk $wt.Wt
+                    switch ($acc.Status) {
+                        "PASS"  { Write-Result $tk.id "acceptance (passes on solution)" "PASS" "$($acc.Label) pass on $($tk.acceptance.solution.Substring(0, 10)): $($acc.Detail)" }
+                        "FAIL"  { Write-Result $tk.id "acceptance (passes on solution)" "WARN" "$($acc.Label) FAIL on the real solution - they ask for more than the owner's own fix: $($acc.Detail)" }
+                        default { Write-Result $tk.id "acceptance (passes on solution)" "WARN" $acc.Detail }
+                    }
+                }
+                Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $wt.Head) | Out-Null
+                Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null
+                Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null
             }
         }
         Write-Result $tk.id "dry-run" "PASS" "worktree + install + baseline validated; model run skipped (add -DryRun removed)"
@@ -1166,7 +1348,15 @@ foreach ($tk in $tasksToRun) {
     $changed = Get-TreeChanges $wt.Wt
     $allowed = @($tk.allowFiles)
     $bad = @($changed | Where-Object { $_ -and ($allowed -notcontains $_) })
-    if ($changed.Count -eq 0) {
+    $gradeByAcceptance = ($tk.grading -eq "acceptance")
+    $guardrail = $null
+    if ($tk.scope -eq "guardrails") {
+        $stats = Get-ChangeStats $wt.Wt
+        $guardrail = Test-Guardrails -Files $stats.Files -Lines $stats.Lines -Guardrails $tk.guardrails
+        $scopeDetail = [pscustomobject]@{ mode = "guardrails"; files = $stats.Files; lines = $stats.Lines; hits = $guardrail.Hits }
+        Write-Result $tk.id "scope (guard rails)" $(if ($guardrail.Ok) { "PASS" } else { "FAIL" }) $guardrail.Detail
+        if (-not $guardrail.Ok) { $overallPass = $false }
+    } elseif ($changed.Count -eq 0) {
         Write-Result $tk.id "scope" "FAIL" "no changes at all - the model did not touch the worktree"
         $overallPass = $false
     } elseif ($bad.Count -gt 0) {
@@ -1203,8 +1393,24 @@ foreach ($tk in $tasksToRun) {
     # like typecheck's "did not run"; the row is already a FAIL on the suite.
     $failsOnOldOk = $false
     $failsOnOldSkipped = $false
-    $srcChanged = @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) })
-    if ($suite.ExitCode -ne 0) {
+    # A real-prompt task names no source files: its "source" is every non-test
+    # file the model changed that exists at the base (a file the base lacks has
+    # nothing to revert to). And the model owes a test only if the prompt asked
+    # for one (`requireTest`); otherwise the hidden tests are the whole verdict.
+    $revertTask = $tk
+    $changedForRevert = $changed
+    if ($gradeByAcceptance) {
+        $changedForRevert = @((Get-ChangeStats $wt.Wt).Files)
+        $atBase = @((Run-Native "git" (@("-C", $wt.Wt, "ls-tree", "-r", "--name-only", $wt.Head, "--") + $changedForRevert)).Output | Where-Object { $_ })
+        $nonTest = @($changedForRevert | Where-Object { $_ -notmatch '(\.test\.|\.spec\.|(^|/)tests?/|__tests__)' -and $atBase -contains $_ })
+        $revertTask = $tk.PSObject.Copy()
+        $revertTask | Add-Member -NotePropertyName srcRevertFiles -NotePropertyValue $nonTest -Force
+    }
+    $srcChanged = @($changedForRevert | Where-Object { $_ -and (@($revertTask.srcRevertFiles) -contains $_) })
+    if ($gradeByAcceptance -and -not $tk.requireTest) {
+        Write-Result $tk.id "fails-on-old" "SKIP" "not asked - the prompt did not ask for a test; the hidden tests decide"
+        $failsOnOldSkipped = $true
+    } elseif ($suite.ExitCode -ne 0) {
         Write-Result $tk.id "fails-on-old" "SKIP" "not measured - the suite is already red with the model's change, so it would fail with the source reverted whatever the test checks"
         $failsOnOldSkipped = $true
     } elseif ($srcChanged.Count -eq 0) {
@@ -1212,7 +1418,7 @@ foreach ($tk in $tasksToRun) {
         $overallPass = $false
     } else {
         $failsOnOldOk = $false
-        $rv = Invoke-WithSourceReverted $tk $wt.Wt $wt.Head
+        $rv = Invoke-WithSourceReverted $revertTask $wt.Wt $wt.Head
         if ($rv.Error) {
             Write-Result $tk.id "fails-on-old" "FAIL" "$($rv.Error) - cannot grade"
             $overallPass = $false
@@ -1273,25 +1479,34 @@ foreach ($tk in $tasksToRun) {
         }
     }
 
-    # --- informational: owner acceptance tests ---------------------------------
-    # Never a gate (see Invoke-Acceptance). Recorded in the per-run JSON only;
-    # the summary TSV keeps its 12 columns.
-    $acceptanceRecord = [pscustomobject]@{ status = "SKIP"; ref = $null; commit = $null; detail = "task defines no acceptance block" }
+    # --- owner acceptance tests: informational, or THE gate --------------------
+    # Informational for the guided tasks (see Invoke-Acceptance): recorded in the
+    # per-run JSON only, the summary TSV keeps its 12 columns. For a real-prompt
+    # task (`grading: "acceptance"`) the hidden tests are the verdict: the run
+    # passes on scope + suite + acceptance.
+    $accLabel = if ($gradeByAcceptance) { "acceptance (gate)" } else { "acceptance (informational)" }
+    $acceptanceRecord = [pscustomobject]@{ status = "SKIP"; ref = $null; commit = $null; hash = $null; detail = "task defines no acceptance block" }
     if (-not $tk.acceptance) {
-        Write-Result $tk.id "acceptance (informational)" "SKIP" "task defines no acceptance block"
+        Write-Result $tk.id $accLabel $(if ($gradeByAcceptance) { "FAIL" } else { "SKIP" }) "task defines no acceptance block"
+        if ($gradeByAcceptance) { $overallPass = $false; $acceptanceRecord.status = "ERROR" }
     } else {
         $acc = Invoke-Acceptance $tk $wt.Wt
-        $acceptanceRecord = [pscustomobject]@{ status = $acc.Status; ref = $acc.Ref; commit = $acc.Commit; detail = $acc.Detail }
-        $shortSha = if ($acc.Commit) { $acc.Commit.Substring(0, 7) } else { "?" }
+        $acceptanceRecord = [pscustomobject]@{ status = $acc.Status; ref = $acc.Ref; commit = $acc.Commit; hash = $acc.Hash; detail = $acc.Detail }
         if ($acc.Status -eq "PASS") {
-            Write-Result $tk.id "acceptance (informational)" "PASS" "owner tests @ $($acc.Ref) $shortSha pass on the model's source: $($acc.Detail)"
+            Write-Result $tk.id $accLabel "PASS" "$($acc.Label) pass on the model's source: $($acc.Detail)"
+        } elseif ($gradeByAcceptance) {
+            Write-Result $tk.id $accLabel "FAIL" "$($acc.Status): $($acc.Label) - $($acc.Detail)"
+            $overallPass = $false
         } else {
-            Write-Result $tk.id "acceptance (informational)" "WARN" "$($acc.Status): owner tests @ $($acc.Ref) $shortSha - $($acc.Detail)"
+            Write-Result $tk.id $accLabel "WARN" "$($acc.Status): $($acc.Label) - $($acc.Detail)"
         }
     }
 
     # --- record ----------------------------------------------------------------
-    $scopeOk = ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
+    $scopeOk = if ($guardrail) { $guardrail.Ok } else {
+        ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
+    }
+    if (-not $guardrail) { $scopeDetail = [pscustomobject]@{ mode = "allowFiles"; files = @($changed); lines = $null; hits = @($bad) } }
     $suiteOk = $suite.ExitCode -eq 0
     $gateSummary = [pscustomobject]@{
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
@@ -1330,7 +1545,9 @@ foreach ($tk in $tasksToRun) {
         lastStepOutput  = $run.Ending.OutputTokens
         outputLimit     = $outputLimit
         outputCapHit    = $capHit
+        grading         = $(if ($gradeByAcceptance) { "acceptance" } else { "gates" })
         gates           = $gateSummary
+        scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
@@ -1345,9 +1562,24 @@ foreach ($tk in $tasksToRun) {
     }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 
-    $row = @($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
-             $gateSummary.scope, $gateSummary.suite, $gateSummary.failsOnOld, $result.typecheck, $result.elapsedSec) -join "`t"
-    $summaryRows.Add($row)
+    if ($gradeByAcceptance) {
+        # Real-prompt rows never enter tasks-summary.tsv: a different verdict
+        # (scope + suite + acceptance), so they would not compare.
+        $realRows.Add((@($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
+                         $gateSummary.scope, $gateSummary.suite, $acceptanceRecord.status, $gateSummary.failsOnOld,
+                         $result.elapsedSec) -join "`t"))
+        if ($privateRun) {
+            # The public mirror: opaque id, model, versions, verdicts. No commit,
+            # prompt, path or test detail.
+            $publicRealRows.Add((@($result.timestamp, $tk.id, $Model, $opencodeVersion, $servingEngine.name,
+                                   $servingEngine.version, $gateSummary.scope, $gateSummary.suite,
+                                   $acceptanceRecord.status, $result.elapsedSec) -join "`t"))
+        }
+    } else {
+        $row = @($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
+                 $gateSummary.scope, $gateSummary.suite, $gateSummary.failsOnOld, $result.typecheck, $result.elapsedSec) -join "`t"
+        $summaryRows.Add($row)
+    }
 
     if ($Cleanup -and -not $NoReset) {
         Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null
@@ -1365,14 +1597,30 @@ if ($summaryRows.Count -gt 0) {
     $summaryLines += $summaryRows
     Add-Content -LiteralPath $summaryTsv -Value $summaryLines -Encoding utf8
 }
+$realHeader = @("timestamp", "taskId", "model", "modelLabel", "baseCommit", "opencodeExit", "writes", "scope", "suite", "acceptance", "failsOnOld", "elapsedSec") -join "`t"
+$publicRealHeader = @("timestamp", "taskId", "model", "opencodeVersion", "engine", "engineVersion", "scope", "suite", "acceptance", "elapsedSec") -join "`t"
+foreach ($sink in @(@($realSummaryTsv, $realHeader, $realRows), @($publicRealTsv, $publicRealHeader, $publicRealRows))) {
+    if ($sink[2].Count -gt 0) {
+        $sinkDir = Split-Path -Parent $sink[0]
+        if (-not (Test-Path -LiteralPath $sinkDir)) { New-Item -ItemType Directory -Path $sinkDir -Force | Out-Null }
+        $lines = @()
+        if (-not (Test-Path -LiteralPath $sink[0])) { $lines += $sink[1] }
+        $lines += $sink[2]
+        Add-Content -LiteralPath $sink[0] -Value $lines -Encoding utf8
+    }
+}
 
 Write-Host ""
 Write-Host ("Results: {0} PASS, {1} FAIL, {2} WARN, {3} SKIP" -f $statusCounts.PASS, $statusCounts.FAIL, $statusCounts.WARN, $statusCounts.SKIP) -ForegroundColor Cyan
 # Only claim an append that happened - timeouts, infra failures, dry runs and
 # red baselines produce no graded row, and this line used to say otherwise.
+if ($realRows.Count -gt 0) {
+    Write-Host "Summary: $($realRows.Count) real-prompt row(s) appended to $realSummaryTsv" -ForegroundColor DarkGray
+    if ($publicRealRows.Count -gt 0) { Write-Host "         and mirrored (verdicts only) to $publicRealTsv" -ForegroundColor DarkGray }
+}
 if ($summaryRows.Count -gt 0) {
     Write-Host "Summary: $($summaryRows.Count) row(s) appended to $summaryTsv" -ForegroundColor DarkGray
-} else {
+} elseif ($realRows.Count -eq 0) {
     Write-Host "Summary: no graded runs - nothing appended to $summaryTsv" -ForegroundColor DarkGray
 }
 

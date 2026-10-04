@@ -1382,6 +1382,68 @@ trimmed it to 16 KB, which is what OpenCode loads in that repo today.
   task's rows. `asohav-03`/`-04` (77 KB and 56 KB, 14–19k tokens at the start
   of every request) fit and passed, but carry part of the same distortion.
 
+### Real-use tasks: the owner's own prompts (planned 2026-10-04)
+
+Every task above is a guided repair: the prompt, written by Claude, names the
+file, the function and the bug, asks for a test, and the run is one turn. The
+north star is plain-language requests in longer sessions, which is where the
+seats fail (compaction, losing the thread at 45–60k, `qwen3.5:9b`'s template
+crash). The owner's own Claude Code, OpenCode and Codex sessions are on the
+desktop, and they show the gap in aggregate (2026-10-04, 770 prompts in 88
+sessions with a typed opener; the harness's scripted canary sessions are left out):
+
+| | owner's opening prompts | guided task prompts |
+|---|---|---|
+| length (median) | 55 words (OpenCode 28, Claude Code 50, Codex 145) | ~400 words |
+| names a file | 32% | 100% |
+| names a function | 17% (0% in Claude Code and OpenCode) | 100% |
+| mentions tests | 28% | 100%, and requires one |
+| sessions of one turn | 30% (40% run 4–10 turns, 20% run 11+) | every task |
+
+**Owner decisions (workshop, 2026-10-04):**
+
+- **Private layer.** This repo is public, so the sessions and the tasks built
+  from them live in a private repo beside it (`HomeLab-private`): the raw
+  collection never committed even there, reviewed tasks, hidden tests and
+  transcripts committed there. This repo gets the harness code and, per run,
+  an opaque task id and the verdicts (`tests/results/real-tasks-public.tsv`).
+- **Work sessions are style-only**: anything from the owner's job (a work Codex
+  export, anything under `M:\Projects\work`) may inform aggregate statistics,
+  never becomes a task, and its text is never committed anywhere.
+- **Single-turn first**: the real opening prompt alone, graded on the outcome.
+  Multi-turn (scripted or simulated follow-ups) comes later.
+- **Verbatim or skip**: a task prompt is exactly what the owner typed, with
+  redactions only; one that cannot stand alone is not used.
+- **Hidden tests decide**, not the model's own test (a real prompt rarely asks
+  for one): the real fix commit's test where it has one, otherwise one written
+  for the task and reviewed by the owner. The suite must stay green.
+- **Guard-rail scope**: no lockfile, env, CI or out-of-package edit, under file
+  and line ceilings; the diff is recorded, not graded.
+- **Product repos only** (LFCbot, KaneEnabler, ASoHaV); a pilot of about 12.
+- A real-prompt task runs with the repo's instruction file exactly as it was at
+  its base commit, because that is what the owner's agent saw; this settles the
+  instruction-file question above for this track only.
+
+**Built:** the harness support (`grading: "acceptance"`, `scope: "guardrails"`,
+`acceptance.dir`, `acceptance.solution`, `-TaskManifest`/`-ResultsDir`; guarded
+by `tests/test-acceptance-grading.ps1`), and in the private repo a collector and
+reports: 27 candidate openers (LFCbot 21, ASoHaV 6, KaneEnabler 0, whose
+sessions never ended in a commit).
+
+**Next:** the owner reviews the candidates; hidden tests are written or pinned
+for the picks; each passes `-DryRun` (fails on the base, passes on the real
+fix); then the pilot on `qwen3.6` and `qwen3.5:9b`.
+
+**TODO:**
+
+- Add the owner's **work Codex sessions** (an export from work) to the style
+  statistics: read locally, style-only, never committed.
+- The other Codex folders on the desktop (dev-docs, `M:\Projects`, ASoHaV,
+  setup folders) stay style-only until the owner marks them personal; LFCbot's
+  are personal (2026-10-04).
+- Optional: the claude.ai data export, if chat history matters.
+- Later: a multi-turn design, informed by how the owner corrects agents.
+
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
 **Superseding the context-budget explanation previously recorded here.** That
