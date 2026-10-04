@@ -16,6 +16,8 @@
 #                the model's test kept), the suite must now FAIL. This is the PR #82
 #                "green test that never enters its claimed branch" trap made
 #                mechanical: a test that passes on broken code = FAIL here.
+#                SKIP when the suite is already red with the model's change: a
+#                suite that fails either way says nothing about the test.
 #   typecheck  - scoped to the touched module graph (informational, never FAIL:
 #                the full project needs every workspace package built first).
 #                PASS/WARN only when the task defines a `typecheck` block;
@@ -1193,9 +1195,19 @@ foreach ($tk in $tasksToRun) {
     # fix-and-reverify DoD: a test that passes on the broken code is a
     # false-positive test and FAILs here. The model's source is put back
     # byte for byte afterwards (Invoke-WithSourceReverted).
+    # Only measurable on a green suite. A suite that is already red with the
+    # model's source in place fails with it reverted too, whatever the test
+    # checks: asohav-07 (2026-10-03) left a test file that does not parse, and
+    # the revert "failed" it, recording failsOnOld=PASS for a test that never
+    # ran (29 earlier rows have suite=FAIL failsOnOld=PASS the same way). SKIP,
+    # like typecheck's "did not run"; the row is already a FAIL on the suite.
     $failsOnOldOk = $false
+    $failsOnOldSkipped = $false
     $srcChanged = @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) })
-    if ($srcChanged.Count -eq 0) {
+    if ($suite.ExitCode -ne 0) {
+        Write-Result $tk.id "fails-on-old" "SKIP" "not measured - the suite is already red with the model's change, so it would fail with the source reverted whatever the test checks"
+        $failsOnOldSkipped = $true
+    } elseif ($srcChanged.Count -eq 0) {
         Write-Result $tk.id "fails-on-old" "FAIL" "no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)"
         $overallPass = $false
     } else {
@@ -1284,7 +1296,7 @@ foreach ($tk in $tasksToRun) {
     $gateSummary = [pscustomobject]@{
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })
-        failsOnOld = $(if ($failsOnOldOk) { "PASS" } else { "FAIL" })
+        failsOnOld = $(if ($failsOnOldSkipped) { "SKIP" } elseif ($failsOnOldOk) { "PASS" } else { "FAIL" })
     }
     # One stamp shared by the JSON result and its .jsonl transcript, so the two
     # files that describe the same run are trivially pairable by filename.
