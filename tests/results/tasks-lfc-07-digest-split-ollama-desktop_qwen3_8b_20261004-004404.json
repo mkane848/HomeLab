@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-04T00:44:04",
+  "taskId": "lfc-07-digest-split",
+  "taskTitle": "lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure",
+  "model": "ollama-desktop/qwen3:8b",
+  "modelLabel": "ollama-desktop/qwen3:8b",
+  "baseCommit": "d6a5338d809407d181b7d74eef064bbd0d81ffa2",
+  "promptSha256": "13627E1AE2C0",
+  "opencodeExit": 0,
+  "writes": 11,
+  "finishReason": "stop",
+  "lastStepOutput": 1161,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "e644702a6ce9753b69ca3291e1bdc388e2d1a7d3",
+    "detail": "no test summary line - (1 failed suite(s) - load/parse error, per-test list skipped: tests/services/digest.test.ts)"
+  },
+  "elapsedSec": 322.8,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 32768,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-07-digest-split-ollama-desktop_qwen3_8b_20261004-004404.jsonl"
+}

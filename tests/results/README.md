@@ -350,6 +350,16 @@ under the default 900 s cap: their true capability is unmeasured, not low.
 Treat every graded-only ratio above as conditional on finishing inside the
 run cap, and use the per-attempt table for selection.
 
+**Timeouts keep their transcripts from 2026-09-26 on** (`_TIMEOUT_*.jsonl`,
+the events up to the cap; the earliest on disk is `lfc-03` × `devstral-small-2`,
+2026-09-26 16:14), so the paragraph above holds for earlier batches only; for
+later ones count timeouts from those files (noted 2026-10-04). The 2026-10-03/04
+light-seat batch added 2 more `_INFRA_` files of the `qwen3.5:9b` template
+error above (`kane-08` at 49.8k tokens, `asohav-08` at 54.1k). That error
+recurs on long contexts, so for `qwen3.5:9b` read it as a property of the
+seat, not as infrastructure, even though it carries no row (`docs/roadmap.md`
+→ "Task set expansion II", the light-seat overnight).
+
 ## Gradable coverage
 
 95 graded rows (exit 0, including the 7 truncated). Against the N=10-per-cell

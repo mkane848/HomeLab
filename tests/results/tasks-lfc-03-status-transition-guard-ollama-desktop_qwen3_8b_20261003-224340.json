@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T22:43:40",
+  "taskId": "lfc-03-status-transition-guard",
+  "taskTitle": "lfc-bot: enforce a status-transition matrix in setStatus - throw on every forbidden transition, allow fulfilled-to-deleted cleanup",
+  "model": "ollama-desktop/qwen3:8b",
+  "modelLabel": "ollama-desktop/qwen3:8b",
+  "baseCommit": "4906dc2881d362bda2006d3407e0ba63e005b91b",
+  "promptSha256": "833A03061C7F",
+  "opencodeExit": 0,
+  "writes": 20,
+  "finishReason": "stop",
+  "lastStepOutput": 1131,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "typecheck": "WARN",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "bench/status-guard-throw",
+    "commit": "3215aafde5f8eb6278d662af24cb01a6fab10eb0",
+    "detail": "Tests  9 failed | 20 passed (29) - searches active listings and excludes non-matching statuses; allows an active listing to be fulfilled; allows an active listing to be deleted; allows a fulfilled listing to be deleted (cleanup path); throws when fulfilling an already-fulfilled listing and leaves it fulfilled; throws when deleting an already-deleted listing and leaves it deleted; throws when fulfilling a deleted listing (deleted is terminal); throws when fulfilling an expired listing and leaves it expired; throws when deleting an expired listing and leaves it expired; (9 failed)"
+  },
+  "elapsedSec": 422.2,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 32768,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3_8b_20261003-224340.jsonl"
+}
