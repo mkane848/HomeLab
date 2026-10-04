@@ -44,6 +44,10 @@
 #                the worktree only after the model's run. -DryRun also checks they
 #                PASS on `acceptance.solution`, the commit that really did the job.
 #   failsOnOld - SKIP ("not asked") unless the task sets `requireTest`.
+# A task may add `followUps`: fixed later turns (the owner's "go ahead" after a
+# plan), each sent with `opencode run --session` into the same session and
+# transcript. The run is graded on the state after the last turn; the follow-ups
+# are part of the prompt hash, and the run JSON records `turns`.
 # Their rows go to real-tasks-summary.tsv, never tasks-summary.tsv. A manifest
 # outside this repo (-TaskManifest) is private: -ResultsDir must be outside it too,
 # and tests/results/real-tasks-public.tsv gets only opaque ids and verdicts.
@@ -958,20 +962,50 @@ function Stop-OrphanOpencode {
     }
 }
 
+# The opencode session a transcript belongs to: every `--format json` event
+# carries a top-level sessionID. $null when the transcript has none (a run that
+# never emitted an event).
+function Get-TranscriptSessionId {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
+    # An explicit reader, closed in finally: returning from inside a foreach
+    # over File.ReadLines leaves the file open until garbage collection, and the
+    # next turn appends to this very file (test-follow-ups.ps1 caught that).
+    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
+    try {
+        while ($null -ne ($line = $reader.ReadLine())) {
+            if (-not $line.Trim()) { continue }
+            try { $e = $line | ConvertFrom-Json } catch { continue }
+            if ($e.sessionID) { return [string]$e.sessionID }
+        }
+    } finally {
+        $reader.Dispose()
+    }
+    return $null
+}
+
 function Invoke-OpencodeRun {
-    param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec)
+    # -SessionId continues an earlier turn (`opencode run --session`) and
+    # -Transcript appends to that turn's transcript, so a multi-turn task keeps
+    # one transcript and Writes counts every turn (see the follow-ups below).
+    param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec,
+          [string]$SessionId = "", [string]$Transcript = "")
 
     $promptFile = Join-Path $env:TEMP ("task-prompt-{0}.md" -f ([guid]::NewGuid().ToString("N")))
     [System.IO.File]::WriteAllText($promptFile, $Prompt, (New-Object System.Text.UTF8Encoding($false)))
-    $out = Join-Path $env:TEMP ("task-run-{0}.jsonl" -f ([guid]::NewGuid().ToString("N")))
-    # Create the transcript up front: the job only appends per event, so a run
-    # that emits nothing before the timeout (north-mini on 2026-09-26, stuck
-    # re-prefilling) otherwise leaves no file and vanishes without a trace. An
-    # empty _TIMEOUT_ transcript is the evidence that it never got a step out.
-    [System.IO.File]::WriteAllText($out, "")
+    if ($Transcript) {
+        $out = $Transcript
+    } else {
+        $out = Join-Path $env:TEMP ("task-run-{0}.jsonl" -f ([guid]::NewGuid().ToString("N")))
+        # Create the transcript up front: the job only appends per event, so a run
+        # that emits nothing before the timeout (north-mini on 2026-09-26, stuck
+        # re-prefilling) otherwise leaves no file and vanishes without a trace. An
+        # empty _TIMEOUT_ transcript is the evidence that it never got a step out.
+        [System.IO.File]::WriteAllText($out, "")
+    }
 
     $job = Start-Job -ScriptBlock {
-        param($Dir, $ModelId, $PromptFile, $Out)
+        param($Dir, $ModelId, $PromptFile, $Out, $SessionId)
         # The canary pattern: run through the real opencode tool layer, JSONL
         # events on stdout, and let the (inherited) process env resolve the
         # provider baseURLs from the sourced profile.
@@ -990,13 +1024,14 @@ function Invoke-OpencodeRun {
             # with the OEM codepage and every non-ASCII char in the transcript
             # is mojibake (an em dash became "ΓÇö" in the 2026-09-26 runs).
             [Console]::OutputEncoding = $enc
-            & opencode run --dir $Dir --model $ModelId --format json --auto $msg 2>$null |
+            $sessionArgs = if ($SessionId) { @("--session", $SessionId) } else { @() }
+            & opencode run --dir $Dir --model $ModelId --format json --auto @sessionArgs $msg 2>$null |
                 ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
         } finally {
             $ErrorActionPreference = $prev
         }
         return $LASTEXITCODE
-    } -ArgumentList $WtPath, $ModelId, $promptFile, $out
+    } -ArgumentList $WtPath, $ModelId, $promptFile, $out, $SessionId
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     # Wait in slices of up to 5 s, checking between them that the job's
@@ -1228,7 +1263,11 @@ foreach ($tk in $tasksToRun) {
         # works on both PS 5.1 and PS 7.
         $sha256 = [Security.Cryptography.SHA256]::Create()
         try {
-            $hashBytes = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($prompt))
+            # A task's follow-up turns are part of what the model was asked, so
+            # they are hashed too (only when present: single-turn hashes are unchanged).
+            $hashInput = $prompt
+            foreach ($fu in @($tk.followUps | Where-Object { $_ })) { $hashInput += "`n--- follow-up ---`n" + $fu }
+            $hashBytes = $sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($hashInput))
         } finally {
             $sha256.Dispose()
         }
@@ -1277,6 +1316,27 @@ foreach ($tk in $tasksToRun) {
     $runStart = [DateTimeOffset]::Now
     try {
         $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+        # Follow-up turns (`followUps`: fixed messages, e.g. the owner's "go
+        # ahead" after a plan): each continues the same opencode session and
+        # appends to the same transcript, with its own -RunTimeout. The run is
+        # graded on the state after the last turn; a turn that cannot start or
+        # exits non-zero makes the whole run infrastructure (exit -4: no session
+        # id to continue).
+        $turnsRun = 1
+        foreach ($fu in @($tk.followUps | Where-Object { $_ })) {
+            if ($run.ExitCode -ne 0) { break }
+            $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
+            if (-not $sessionId) {
+                $run.ExitCode = -4
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("follow-up turn {0} could not start: no sessionID in turn {1}'s transcript (prompt sha {2}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($turnsRun + 1), $turnsRun, $promptHashes[$tk.id])
+                break
+            }
+            Write-Host ("    turn {0}: follow-up in session {1}" -f ($turnsRun + 1), $sessionId) -ForegroundColor DarkGray
+            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $fu -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
+            $run = $next
+            $turnsRun++
+        }
     } finally {
         Restore-TaskTestEnv $savedEnv
     }
@@ -1546,6 +1606,7 @@ foreach ($tk in $tasksToRun) {
         outputLimit     = $outputLimit
         outputCapHit    = $capHit
         grading         = $(if ($gradeByAcceptance) { "acceptance" } else { "gates" })
+        turns           = $turnsRun
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
