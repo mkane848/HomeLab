@@ -213,6 +213,8 @@ shas, one run per cell, 32k (DP7) → 64k:
   on asohav-02) compacted once near 62k and still passed.
 - **Not fixed by 64k:** `qwen3.5:9b`'s chat template crashes on some compacted
   histories (lfc-03, at 59.4k) — the bug moves later, it does not go away.
+  *Corrected 2026-10-04: no compaction was involved. The crash is a context
+  overflow; see "Context overflow" below.*
   `north-mini` is 0/3 at 64k for other reasons (no-write, and a mangled
   `/workspace/M:Projects/…` edit path). `nemotron` still writes nothing on
   kane-02.
@@ -233,7 +235,7 @@ seat, across all 9 tasks:
 | seat | ctx | PASS | how it misses |
 |---|---|---|---|
 | `qwen3.6:35b-a3b-coding` | 64k | **8/9** | one broken test file (asohav-02) |
-| `qwen3.5:9b` | 64k | **7/9** | a template crash after compaction; one out-of-scope run |
+| `qwen3.5:9b` | 64k | **7/9** | a template crash after compaction (a context overflow, corrected 2026-10-04: "Context overflow" below); one out-of-scope run |
 | `laguna-xs-2.1` | 64k | 6/9 | all three misses are 30-minute timeouts on long tasks |
 | `qwen3-coder:30b-a3b` | 64k | 6/9 | broken test files; one output-cap crash |
 | `nemotron-3.5-lightning` | 64k | 5/9 | writes nothing on three tasks; edited `.env` and `vitest.config.ts` once |
@@ -1344,11 +1346,18 @@ profile's companion (`qwen2.5-coder:7b`), opencode 1.18.34, Ollama 0.34.3,
   them as `_INFRA_` with no row because opencode exited non-zero, and
   `-OnlyMissing` would retry them, but they are a property of the seat: a long
   session on `qwen3.5:9b` can end on this error.
+  *Corrected 2026-10-04: neither the 59.4k one nor these followed a
+  compaction. Each is a request over `num_ctx` that Ollama cut from the front,
+  and other seats lose their task silently in the same spot ("Context
+  overflow" below). They still count against the seat, the same as
+  `qwen3.6`'s graded silent loss on `kane-08`.*
 
 What this means: the profiles that seat `qwen3:8b` are seating a model that
 passes nothing on real tasks. `qwen3.5:9b` is the evident replacement for the
 desktop ones, after (1) reproducing the template crash in a long interactive
-session and finding a workaround or accepting it, and (2) the same
+session and finding a workaround or accepting it (*done 2026-10-04: it is a
+context overflow with no seat-side workaround; "Context overflow" below*),
+and (2) the same
 preconditions as any re-seat above (`-Reliability` is met, DP10; a
 plain-language trial; the companion re-measured). `dev-node3` stays on
 `qwen3:8b` until `qwen3.5:9b` is probed on node3. Owner decision.
@@ -1379,7 +1388,10 @@ change does not touch single-turn runs). 9 passes, 5 graded fails, 2 crashes,
   59.4k one after compaction (DP8). Not yet known whether opencode rewrites the
   history at that size or the template trips on something else. That is the
   next measurement, and a derived model without the template's `raise` is the
-  candidate workaround.
+  candidate workaround. *Measured the same day ("Context overflow" below):
+  each is a request over `num_ctx`, none followed a compaction, and the
+  derived model is withdrawn, because it would turn the crash into silent
+  task loss.*
 
 **`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
 manifest marks them `retired` (date, reason, evidence): they keep their ids,
@@ -1409,6 +1421,119 @@ trimmed it to 16 KB, which is what OpenCode loads in that repo today.
   across repos). Any change to how a task loads it is a new era for that
   task's rows. `asohav-03`/`-04` (77 KB and 56 KB, 14–19k tokens at the start
   of every request) fit and passed, but carry part of the same distortion.
+
+### Context overflow: the `qwen3.5:9b` "template crash" and silent task loss (2026-10-04)
+
+**Finding: `qwen3.5:9b`'s `No user query found in messages` is not a template
+bug. It is what a context overflow looks like on that one model; every other
+seat overflows silently and carries on without its task.**
+
+- **Mechanism, read in the source of the versions we run:**
+  - **opencode 1.18.34** compacts when the *last step's* token count reaches
+    `limit.context − limit.output`, which is 61,440 for a 64k seat with a 4096
+    output limit ([opencode `session/overflow.ts` at v1.18.34][oc-overflow]).
+    The tool output that step produced isn't counted, and it all goes into
+    the next request. One `read` returns up to ~50 KB, about 15k tokens, so a
+    session at ~50k plus one large read sends a request over `num_ctx` with
+    no compaction first.
+  - **Ollama 0.34.3** then drops messages from the front until the rest fits,
+    keeping only system messages, and logs it at debug level
+    ([Ollama `server/prompt.go` at v0.34.3][ollama-prompt]).
+  - **The task prompt** is the first message after the system prompt, so it
+    goes first.
+  - **`qwen3.5:9b`'s template** (the GGUF's own) refuses a conversation with
+    no user message, and Ollama returns a 500. The other seats' templates
+    render the conversation, and the model goes on without its task.
+  - **The harness's truncation check** reads Ollama's info-level `truncating
+    input prompt`, so it caught neither case.
+- **Proof:**
+  - A logging proxy between opencode and Ollama captured kane-08's failing
+    request on a third run. It contains the user message, so Ollama must have
+    removed it before rendering.
+  - Replayed to Ollama as captured, the request fails the same way. The same
+    request with only its last tool result cut to 2,000 characters succeeds,
+    at 61,704 prompt tokens.
+- **All 7 `qwen3.5` crashes on record are this overflow, and none followed a
+  compaction.** They are `kane-02` twice at 32k (09-23 and 09-26), `lfc-03`
+  at 59.4k (09-27), `kane-08` twice, `asohav-08` and `asohav-09` (10-04). The
+  earlier write-ups said the `lfc-03` one came "after compaction"; it did not.
+- **The silent version is in the corpus.** On `kane-08`, `qwen3.6` lost the task
+  in all three of its runs (2026-10-03).
+  - In the graded run, its reply after the drop was "I see you've shared the
+    `signals.test.ts` file, but I don't see a specific question or task", and
+    it stopped: a FAIL.
+  - The other two drifted until the time limit.
+  - At 32k on 2026-09-26, the same happened to `laguna-xs-2.1` and
+    `nemotron-3.5-lightning` on `kane-02`, and to `nemotron` on `lfc-03`.
+  - Every case is on a task whose files run to thousands of lines
+    (`signals.ts` is 2,742).
+- **A second compaction failure: a loop.** `qwen3:8b` on `asohav-03` (32k)
+  compacted 14 times. The repo's ~19k-token `CLAUDE.md` keeps the prompt right
+  after compaction (29.2k) above the 28,672 threshold, so it compacted again
+  at once, until the time limit.
+
+**Trial: compact earlier. Not adopted.**
+
+The overlay was loaded with `OPENCODE_CONFIG`, so neither the live config nor
+`tests/results/` changed:
+- `limit.input` set to context − output;
+- `compaction.reserved: 16000`;
+- `preserve_recent_tokens: 8000`.
+
+`qwen3.5:9b` then compacts at 45,440 and `qwen3.6` at 41,344.
+`compaction.reserved` only applies to a model that sets `limit.input`.
+
+Five runs, with no overflow and no crash:
+
+| task | seat | result |
+|---|---|---|
+| `kane-08` | both | FAIL: each compacted at ~50k, then stopped right after, with 0 edits |
+| `asohav-03` | `qwen3.6` | PASS, peaked at 39k, no compaction |
+| `asohav-03` | `qwen3.5:9b` | FAIL at the 4096 output cap, as its first run did |
+| `kane-07` | `qwen3.6` | suite FAIL, as both earlier runs |
+
+- **Why kane-08 stopped.** After an automatic compaction opencode sends a
+  hard-coded "Continue if you have next steps, or stop and ask for
+  clarification if you are unsure how to proceed." ([opencode
+  `session/compaction.ts` at v1.18.34][oc-compaction]). Under `opencode run`,
+  a model that answers it in prose ends the run.
+- **Why not adopt.** Among graded 64k runs of these two seats, 4 of the 18
+  that compacted passed. The new thresholds would have made 15 more runs
+  compact, and 11 of those passed. On 64k seats the overflow costs one task
+  (`kane-08`), so earlier compaction would cost more than it saves.
+  - Caveat: hard, long tasks are the ones that compact, so 4 of 18 overstates
+    what compaction itself costs.
+- **This also retracts the workaround proposed above**, a derived
+  `qwen3.5:9b` without the template's `raise`. It would turn the visible crash
+  into the silent task loss.
+
+**Built (`tests/test-context-events.ps1`):**
+- Every run JSON records `contextEvents`:
+  - compactions, and whether the run ended right after the last one;
+  - front-drops: the next step reuses under half the previous prompt from
+    the cache, the request is estimated over `num_ctx`, and no compaction is
+    involved;
+  - the peak prompt;
+  - `compactionConfig`: the threshold opencode compacts at, so a change to it
+    shows as a new era.
+- A front-drop is a WARN.
+- A template crash's `_INFRA_` detail names the overflow.
+- Grading is unchanged.
+
+**Open (owner):**
+- Should a front-drop run stay graded? Today it is graded on its end state,
+  as in a real session. The alternative is to treat it like truncation:
+  ungraded, no row. Unlike truncation, though, it is what the seat and client
+  really do mid-session.
+- Compaction is the bigger problem. Possible next measurements:
+  - keeping more of the session verbatim (`preserve_recent_tokens`,
+    `tail_turns`);
+  - whether "stops after compaction" happens only under `opencode run`. In
+    the TUI the owner would just answer.
+
+[oc-overflow]: https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/overflow.ts
+[oc-compaction]: https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/compaction.ts
+[ollama-prompt]: https://github.com/ollama/ollama/blob/6383a0fa9cbf97494b847226e189f6e36b401a08/server/prompt.go
 
 ### Real-use tasks: the owner's own prompts (planned 2026-10-04)
 

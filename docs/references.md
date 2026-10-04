@@ -67,14 +67,20 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | opencode-tui-worker | opencode `packages/opencode/src/cli/tui/worker.ts` at `2fa3363` — `checkUpgrade`, the only caller of that routine (`opencode run` never calls it) | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/opencode/src/cli/tui/worker.ts> |
 | opencode-config-docs | opencode docs source `config.mdx` at `2fa3363` — "Autoupdate": `autoupdate` is true, false or `"notify"` (the rendered page, opencode.ai, was not reachable when this was written) | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/web/src/content/docs/config.mdx> |
 | opencode-cli-docs | opencode docs source `cli.mdx` at `2fa3363` — environment variables, incl. `OPENCODE_DISABLE_AUTOUPDATE` | <https://github.com/sst/opencode/blob/2fa3363c924c5c3e367b84a87ae478296a0ed59b/packages/web/src/content/docs/cli.mdx> |
+| opencode-overflow | opencode `packages/opencode/src/session/overflow.ts` at v1.18.34 (`aec0b9a`, read 2026-10-04) — when a session compacts: the last step's tokens against `limit.context − limit.output`, or `limit.input − compaction.reserved` when `limit.input` is set | <https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/overflow.ts> |
+| opencode-compaction | opencode `packages/opencode/src/session/compaction.ts` at v1.18.34 — the hard-coded follow-up after an automatic compaction ("Continue if you have next steps, or stop and ask for clarification…") | <https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/compaction.ts> |
+| ollama-prompt | Ollama `server/prompt.go` at v0.34.3 (`6383a0f`, read 2026-10-04) — `chatPrompt` drops messages from the front until a request fits `num_ctx`, keeping system messages, logged at debug level | <https://github.com/ollama/ollama/blob/6383a0fa9cbf97494b847226e189f6e36b401a08/server/prompt.go> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
 in [methodology-research.md](methodology-research.md); `opencode-*` → AGENTS.md
 Gotchas ("opencode upgrades itself…"), the addendum in
 [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), and the
-`autoupdate` comment in `opencode/global/opencode.jsonc`. These are read at one
-commit: re-check them when opencode's major or minor version moves.
+`autoupdate` comment in `opencode/global/opencode.jsonc`; `opencode-overflow`,
+`opencode-compaction` and `ollama-prompt` → `docs/roadmap.md` → "Context
+overflow" and `Get-ContextEvents` in `tests/test-tasks.ps1`. These are read at one
+commit: re-check them when opencode's major or minor version moves (Ollama's
+on any upgrade).
 
 ## Another page to cite from
 

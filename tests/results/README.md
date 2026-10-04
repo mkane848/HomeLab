@@ -313,7 +313,12 @@ Not this class: the same day's `kane-07` and `kane-08` re-runs (17:20:25,
 read `signals.ts` and its test (~31k tokens) twice, OpenCode compacted the
 session, and after the summary the model wrote a plan instead of the change;
 `kane-08` lost the task at 46,576 tokens and asked what it should do. Those
-rows stand as genuine failures of the seat at long context.
+rows stand as genuine failures of the seat at long context. *2026-10-04, the
+mechanism for `kane-08`: its request before that step was ~69k tokens against
+65,536, so Ollama dropped the oldest messages, the task prompt with them,
+logging only at debug level (`docs/roadmap.md` → "Context overflow"). The row
+still stands: this is what the seat and client do in a real session. Run JSONs
+since then record it in `contextEvents.frontDrops`.*
 
 ### No transcript kept — 4 rows
 
@@ -349,7 +354,14 @@ into OpenCode compaction on the desktop (2026-09-23, diagnosed in
 allowed while generating summary: read`, `qwen3.5:9b` with an Ollama 500
 Jinja `No user query found in messages` inside `multi_step_tool`). Both
 reached the model (real `read` calls first) and both are infrastructure, not
-capability — and `-OnlyMissing` will retry them. The 31st is an
+capability — and `-OnlyMissing` will retry them. *Corrected 2026-10-04 for
+the `qwen3.5:9b` one, and for all six of its later crashes: no compaction was
+involved. A request went over `num_ctx` and Ollama dropped the oldest
+messages, the task prompt first, and that model's template refused a
+conversation with no user message. Other seats lose their task silently in
+the same spot, so it is a capability limit of the seat and client, not
+infrastructure, and it still counts against the seat in attempt totals
+(`docs/roadmap.md` → "Context overflow").* The 31st is an
 `_ABORTED_` transcript (`lfc-02` × `ollama-node3/qwen3:8b`,
 2026-09-23 18:37): the lane was **killed by a human from another session**
 at ~25 min into its 30-min cap, so it is not a timeout and proves nothing
@@ -428,7 +440,10 @@ seat still at 4096 gets the "truncated" reading whenever its last `step_finish`
 is an empty `length` step at the cap; only a `stop` finish is liar mode. A run
 JSON written after the 2026-09-30 harness change carries `outputCapHit`,
 `finishReason`, `lastStepOutput` and `outputLimit`, so newer rows need no
-re-derivation.)
+re-derivation.) Context events are re-derivable the same way: the real
+`Get-ContextEvents` from `test-tasks.ps1` runs on any `.jsonl` (see
+`tests/test-context-events.ps1` for how to load it); run JSONs from
+2026-10-04 on carry the result as `contextEvents`.
 Group seats by `model`, not `modelLabel`. Note that a
 `.jsonl` filename's timestamp can differ from its TSV row's by a second or
 two — match with a tolerance, not equality.

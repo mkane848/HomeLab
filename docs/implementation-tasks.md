@@ -1595,8 +1595,12 @@ Open, in order — each gates the next:
    template crashes on a compacted history) `_CONTEXT_` instead of `_INFRA_`.
    DP9 widens (d): an output-cap truncation ends in the same template 400
    (`Cannot have 2 or more assistant messages`) with no compaction, so the
-   tag should key on the error, not on a compaction having happened. New
-   (e), found in DP9: the gates cannot see a test that fails on the old
+   tag should key on the error, not on a compaction having happened.
+   2026-10-04, partly answered: the `No user query found in messages` crashes
+   are a request over `num_ctx`, not a compacted history, and the harness now
+   names that cause in their `_INFRA_` detail and records `contextEvents` per
+   run. The tag itself is unchanged (`docs/roadmap.md` → "Context overflow").
+   New (e), found in DP9: the gates cannot see a test that fails on the old
    source but covers less than the prompt asks, which happened on 3 of 26
    passes. Candidate: an optional per-task `testMustCover` list (e.g.
    kane-01: the Background in the submitted deck; asohav-01: all seven
