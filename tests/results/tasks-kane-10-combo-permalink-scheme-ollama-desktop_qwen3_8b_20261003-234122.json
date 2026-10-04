@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T23:41:22",
+  "taskId": "kane-10-combo-permalink-scheme",
+  "taskTitle": "KaneEnabler: a stored combo permalink must only become a link when its scheme is https",
+  "model": "ollama-desktop/qwen3:8b",
+  "modelLabel": "ollama-desktop/qwen3:8b",
+  "baseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+  "promptSha256": "E069593B2091",
+  "opencodeExit": 0,
+  "writes": 5,
+  "finishReason": "stop",
+  "lastStepOutput": 590,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+    "detail": "Tests  1 failed | 10 passed (11) - never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)"
+  },
+  "elapsedSec": 109.2,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 32768,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-10-combo-permalink-scheme-ollama-desktop_qwen3_8b_20261003-234122.jsonl"
+}

@@ -1304,6 +1304,55 @@ argument for trying a higher `limit.output` on this seat, not a strong one.
 `failsOnOld` recorded a `PASS` it never measured. It is `SKIP` from now on
 (`tests/results/README.md` → "What counts as a pass").
 
+**The light seat overnight (2026-10-03 22:36 – 10-04 03:27): `qwen3:8b` 0 of
+17, `qwen3.5:9b` 9 of 16.** The question was whether `qwen3:8b`, the main seat
+of three of the four live profiles (`dev-workflow-resident`, `dev-desktop-only`,
+`dev-node3`), can do real work under today's harness, and whether `qwen3.5:9b`
+is the replacement. Every active task each seat had no graded row for: the 16
+new tasks for both, plus `lfc-03` for `qwen3:8b`. Desktop, the resident
+profile's companion (`qwen2.5-coder:7b`), opencode 1.18.34, Ollama 0.34.3,
+1200 s cap. Attempts counted the DP11 way (timeouts and crashes are attempts):
+
+| seat | ctx / limit.output | attempts | pass | graded fail | timeout | crash |
+|---|---|---|---|---|---|---|
+| `qwen3:8b` | 32k / 4096 | 17 | **0** | 12 | 5 | 0 |
+| `qwen3.5:9b` | 64k / 4096 | 16 | **9** | 4 | 1 | 2 |
+| `qwen3.6` (first graded run of each, for scale) | 64k / 8192 | 16 | 11 | 5 | 0 (2 at the 900 s cap, re-run at 1800 s) | 0 |
+
+- **`qwen3:8b` cannot hold an agent seat on these repos.** None of its 12
+  graded runs passed every gate; on the desktop it is 1 of 47 graded runs
+  across the whole corpus, and was 0/9 in step 6 above. Three runs changed only tests and never
+  the source (`kane-14`, `lfc-05`, `asohav-07`), two made edit calls that left
+  the tree unchanged (`kane-08`, 36 calls; `kane-10`, 5), and the rest wrote
+  tests that pass with the fix reverted, or broke the suite. It repeats writes
+  the way `qwen3:14b` did before it was unseated: 108 calls on `lfc-05`, 68 on
+  `lfc-04`, 36 on `kane-12`. No run touched a file outside the task's
+  `allowFiles`. 32k was not the problem: Ollama truncated no prompt all night,
+  `asohav-03`'s ~19k-token instruction file included.
+- **`qwen3.5:9b` passes what `qwen3.6` passes, faster, and misses where it
+  misses.** Passes: `kane-09` to `kane-13`, `lfc-04`, `lfc-05`, `asohav-04`,
+  `asohav-07`, the passes mostly 1–2 minutes each (`kane-09` 7). Misses:
+  `kane-14` (the same weak test `qwen3.6` wrote twice), `kane-07` (suite red),
+  `asohav-03` (output cap at 4096), `asohav-09` (no write/edit call; it created
+  a stray `temp_ruleset.txt` through the shell), `lfc-07` (1200 s cap). 9/16
+  against `qwen3.6`'s 11/16 does not separate the two at N=1.
+- **The two crashes are the known `qwen3.5` template bug, so they count
+  against the seat.** `kane-08` and `asohav-08` ended on an Ollama 500 from
+  the model's chat template, `Jinja Exception: No user query found in
+  messages`, at 49.8k and 54.1k tokens of context: the error recorded at 59.4k
+  after compaction (DP8 above) and on `kane-02` (2026-09-23). The harness files
+  them as `_INFRA_` with no row because opencode exited non-zero, and
+  `-OnlyMissing` would retry them, but they are a property of the seat: a long
+  session on `qwen3.5:9b` can end on this error.
+
+What this means: the profiles that seat `qwen3:8b` are seating a model that
+passes nothing on real tasks. `qwen3.5:9b` is the evident replacement for the
+desktop ones, after (1) reproducing the template crash in a long interactive
+session and finding a workaround or accepting it, and (2) the same
+preconditions as any re-seat above (`-Reliability` is met, DP10; a
+plain-language trial; the companion re-measured). `dev-node3` stays on
+`qwen3:8b` until `qwen3.5:9b` is probed on node3. Owner decision.
+
 **`asohav-05` and `asohav-06` retired (owner decision, 2026-10-03).** The
 manifest marks them `retired` (date, reason, evidence): they keep their ids,
 pins and rows, `test-tasks.ps1` and `run-tasks-batch.ps1` leave them out of

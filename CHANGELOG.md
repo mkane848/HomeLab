@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Light-seat overnight batch (2026-10-03/04): `qwen3:8b`, the main seat of
+  three of the four live profiles, and `qwen3.5:9b` on every active task each
+  had no graded row for. `qwen3:8b` passed 0 of 17 attempts (12 graded, 5
+  timeouts; 1 of 47 graded runs on the desktop overall), changing only tests,
+  leaving no net change, or repeating writes up to 108 times. `qwen3.5:9b`
+  passed 9 of 16, the same tasks `qwen3.6` passes and mostly in 1–2 minutes,
+  with 2 crashes from its chat template's `No user query found in messages`
+  error at 50–54k tokens of context, a known property of the seat. No prompt
+  was truncated. The roadmap's "Task set expansion II" records it and the
+  re-seat question it raises (owner decision); `tests/results/README.md`
+  notes that timeout transcripts have been kept since 2026-09-26.
+
 - Second `qwen3.6` run of the 16 active new tasks (2026-10-03 evening, same
   versions and config as the first, 1800 s cap): 11 of 15 graded runs pass;
   `kane-08` hit the cap with no edit (no row). Across both runs 10 tasks pass

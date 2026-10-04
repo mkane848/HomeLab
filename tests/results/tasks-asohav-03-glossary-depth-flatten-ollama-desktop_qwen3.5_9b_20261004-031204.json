@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-04T03:12:04",
+  "taskId": "asohav-03-glossary-depth-flatten",
+  "taskTitle": "ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "5c891936847a844bb23dd74b02aa1fa6f1525f84",
+  "promptSha256": "89DA8B3500EA",
+  "opencodeExit": 0,
+  "writes": 0,
+  "finishReason": "length",
+  "lastStepOutput": 4096,
+  "outputLimit": 4096,
+  "outputCapHit": true,
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "3003542385e2e83a862ff648b69ea0a8f9873da6",
+    "detail": "Tests  2 failed | 19 passed (21) - does not link past MAX_DEPTH (0 as of 0.25.0 ΓÇö one nested definition renders plain); flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets; (2 failed)"
+  },
+  "elapsedSec": 178.3,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-03-glossary-depth-flatten-ollama-desktop_qwen3.5_9b_20261004-031204.jsonl"
+}
