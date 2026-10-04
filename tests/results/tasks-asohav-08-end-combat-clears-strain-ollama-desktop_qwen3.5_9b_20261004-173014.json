@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-10-04T17:30:14",
+  "taskId": "asohav-08-end-combat-clears-strain",
+  "taskTitle": "ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "9afb9112b0e2596edac0e7fe4055149512ab3b62",
+  "promptSha256": "00B17B0AB757",
+  "opencodeExit": 0,
+  "writes": 9,
+  "finishReason": "stop",
+  "lastStepOutput": 305,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/server/src/routes/combat.test.ts",
+      "apps/server/src/routes/combat.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "d7696990b5e2551c9897e6ec255c70be213ca8b2",
+    "hash": null,
+    "detail": "Tests  20 passed (20)"
+  },
+  "elapsedSec": 284.5,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": {
+    "DATABASE_URL": null
+  },
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-08-end-combat-clears-strain-ollama-desktop_qwen3.5_9b_20261004-173014.jsonl"
+}

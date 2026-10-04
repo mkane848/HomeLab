@@ -277,3 +277,17 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-10-04T03:14:17	asohav-04-neutral-status-polarity	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f15a58cb9ef29c3b511caa0d88949a7b10686874	0	4	PASS	PASS	PASS	SKIP	123.7
 2026-10-04T03:15:56	asohav-07-rapport-clamp	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d73d6c978f478e3aca5fb836683fcfe639debd43	0	2	PASS	PASS	PASS	SKIP	88.7
 2026-10-04T03:27:12	asohav-09-seed-virtue-conformance	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	8686bf41c9ac130bd521f05e056460ca777f43bf	0	0	FAIL	PASS	FAIL	SKIP	429.5
+2026-10-04T16:01:57	kane-07-find-qualifier-type	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	10889539112089dcd122014f934520f9f11cf558	0	12	PASS	FAIL	SKIP	SKIP	929.2
+2026-10-04T16:22:21	kane-09-colour-filter-subset	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f0abf087f92323e69a0a706e14c22b427fb80d31	0	31	FAIL	FAIL	SKIP	SKIP	987.4
+2026-10-04T16:23:32	kane-10-combo-permalink-scheme	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	605a2e080cfddee855337f1b3d0b9cf7e48ddd6e	0	2	PASS	PASS	PASS	SKIP	60.6
+2026-10-04T16:24:47	kane-11-useauth-session-reject	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	605a2e080cfddee855337f1b3d0b9cf7e48ddd6e	0	2	PASS	PASS	PASS	SKIP	62.2
+2026-10-04T16:26:10	kane-12-error-handler-400	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	605a2e080cfddee855337f1b3d0b9cf7e48ddd6e	0	3	PASS	PASS	PASS	SKIP	75.8
+2026-10-04T16:28:24	kane-13-front-face-field	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	605a2e080cfddee855337f1b3d0b9cf7e48ddd6e	0	4	PASS	PASS	PASS	SKIP	127.6
+2026-10-04T16:46:04	kane-14-undo-toast-timer	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	605a2e080cfddee855337f1b3d0b9cf7e48ddd6e	0	39	PASS	FAIL	SKIP	SKIP	1045.5
+2026-10-04T16:47:44	lfc-04-admin-manage-server-permission	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	e644702a6ce9753b69ca3291e1bdc388e2d1a7d3	0	3	PASS	PASS	PASS	SKIP	81.9
+2026-10-04T17:00:16	lfc-05-digest-allowed-mentions	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef	0	24	PASS	PASS	PASS	SKIP	713.2
+2026-10-04T17:15:17	lfc-07-digest-split	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d6a5338d809407d181b7d74eef064bbd0d81ffa2	0	23	PASS	FAIL	SKIP	SKIP	864.7
+2026-10-04T17:19:41	asohav-03-glossary-depth-flatten	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	5c891936847a844bb23dd74b02aa1fa6f1525f84	0	5	PASS	PASS	PASS	SKIP	253.5
+2026-10-04T17:23:54	asohav-04-neutral-status-polarity	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f15a58cb9ef29c3b511caa0d88949a7b10686874	0	5	PASS	FAIL	SKIP	SKIP	243.9
+2026-10-04T17:25:16	asohav-07-rapport-clamp	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d73d6c978f478e3aca5fb836683fcfe639debd43	0	2	PASS	PASS	PASS	SKIP	67.6
+2026-10-04T17:30:14	asohav-08-end-combat-clears-strain	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	9afb9112b0e2596edac0e7fe4055149512ab3b62	0	9	PASS	PASS	PASS	SKIP	284.5

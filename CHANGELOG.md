@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Results: `qwen3.5:9b`'s second run of the 16 guided tasks (9 of 16 again; 18
+  of 32 attempts against `qwen3.6`'s 22 of 31; all four crashes are the
+  template error at 50–54k tokens), and runs 2 and 3 of the three real-prompt
+  documentation tasks (`qwen3.6` 7/9, `qwen3.5:9b` 3/9). `docs/roadmap.md` →
+  "The light seat overnight" and "Real-use tasks".
+
 - Multi-turn tasks. A manifest task's `followUps` (fixed later turns, such as
   the owner's "go ahead" after a plan) are each sent with
   `opencode run --session <id>` into the same session and transcript.

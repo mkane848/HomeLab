@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-10-04T16:01:57",
+  "taskId": "kane-07-find-qualifier-type",
+  "taskTitle": "KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "10889539112089dcd122014f934520f9f11cf558",
+  "promptSha256": "1A842FA4FF31",
+  "opencodeExit": 0,
+  "writes": 12,
+  "finishReason": "stop",
+  "lastStepOutput": 137,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/commander-recommender/server/src/services/signals.test.ts",
+      "apps/commander-recommender/server/src/services/signals.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "731e98508f53528647418403133c63c437307313",
+    "hash": null,
+    "detail": "Tests  1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)"
+  },
+  "elapsedSec": 929.2,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-07-find-qualifier-type-ollama-desktop_qwen3.5_9b_20261004-160157.jsonl"
+}

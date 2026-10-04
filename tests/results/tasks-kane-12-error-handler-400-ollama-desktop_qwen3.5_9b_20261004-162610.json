@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-10-04T16:26:10",
+  "taskId": "kane-12-error-handler-400",
+  "taskTitle": "KaneEnabler: a malformed JSON request body must be answered with 400, not 500",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+  "promptSha256": "38B82B03CC84",
+  "opencodeExit": 0,
+  "writes": 3,
+  "finishReason": "stop",
+  "lastStepOutput": 134,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/commander-recommender/server/src/errorHandler.test.ts",
+      "apps/commander-recommender/server/src/errorHandler.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+    "hash": null,
+    "detail": "Tests  5 passed (5)"
+  },
+  "elapsedSec": 75.8,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-12-error-handler-400-ollama-desktop_qwen3.5_9b_20261004-162610.jsonl"
+}

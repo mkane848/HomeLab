@@ -7,3 +7,15 @@ timestamp	taskId	model	opencodeVersion	engine	engineVersion	scope	suite	acceptan
 2026-10-04T12:54:20	real-03	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	b379cd63e2b2	56.6
 2026-10-04T13:58:14	real-01	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	174.8
 2026-10-04T14:00:17	real-01	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	83.6
+2026-10-04T15:17:52	real-01	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	158.1
+2026-10-04T15:24:21	real-02	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	63dd09f74812	372
+2026-10-04T15:26:43	real-03	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	b379cd63e2b2	128.5
+2026-10-04T15:28:38	real-01	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	88.8
+2026-10-04T15:34:59	real-02	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	63dd09f74812	366.9
+2026-10-04T15:36:47	real-03	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	b379cd63e2b2	94.9
+2026-10-04T15:38:49	real-01	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	83.7
+2026-10-04T15:40:30	real-02	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	63dd09f74812	85.6
+2026-10-04T15:41:51	real-03	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	b379cd63e2b2	67.4
+2026-10-04T15:43:12	real-01	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	55.3
+2026-10-04T15:45:17	real-02	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	63dd09f74812	109.4
+2026-10-04T15:46:05	real-03	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	b379cd63e2b2	34.4
