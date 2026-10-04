@@ -33,6 +33,16 @@ nothing**, because the flag was initialised to true before the guard that runs
 model's test, and the suite must now go red. A test that stays green on broken
 code is the PR #82 trap (`docs/review-gate/testing.md`) and fails here.
 
+**`failsOnOld` is `SKIP` when the suite is already red with the model's change**
+(from 2026-10-03, after `asohav-07`'s second `qwen3.6` run). A suite that fails
+with the fix fails with it reverted too, whatever the test checks: that run left
+a test file that does not parse, and the revert "failed" it. **30 rows written
+before the change read `suite: FAIL, failsOnOld: PASS`** — that `PASS` measured
+nothing; read it as "not measured". None of them is a pass (the suite gate
+already fails them), so no tally of passes changes. Any parser over the TSV must
+now tolerate `SKIP` in `failsOnOld` as well as `typecheck`
+(`tests/test-fails-on-old.ps1` guards it).
+
 **In 107 recorded rows there are 22 genuine passes**, 17 of them from the
 2026-09-23 gap-fill batch (new executor candidates on the post-fix harness) and
 1 from the 2026-09-23 evening rerun lane (`asohav-01`, `qwen3.6`):

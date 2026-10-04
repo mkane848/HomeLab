@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T20:21:52",
+  "taskId": "kane-09-colour-filter-subset",
+  "taskTitle": "KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection)",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "f0abf087f92323e69a0a706e14c22b427fb80d31",
+  "promptSha256": "B2665D080FD1",
+  "opencodeExit": 0,
+  "writes": 4,
+  "finishReason": "stop",
+  "lastStepOutput": 357,
+  "outputLimit": 8192,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "e0ef290365bc43031357ecc454e7e5e7554f3e99",
+    "detail": "Tests  17 passed (17)"
+  },
+  "elapsedSec": 130.6,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-09-colour-filter-subset-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-202152.jsonl"
+}

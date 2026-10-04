@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-03T20:46:48",
+  "taskId": "kane-14-undo-toast-timer",
+  "taskTitle": "KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "605a2e080cfddee855337f1b3d0b9cf7e48ddd6e",
+  "promptSha256": "B20669CCDD6B",
+  "opencodeExit": 0,
+  "writes": 17,
+  "finishReason": "stop",
+  "lastStepOutput": 264,
+  "outputLimit": 8192,
+  "outputCapHit": false,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "271636f41a6e31f24d88f2a8cd8101935b02e76e",
+    "detail": "Tests  111 passed (111)"
+  },
+  "elapsedSec": 977.3,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-14-undo-toast-timer-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-204648.jsonl"
+}

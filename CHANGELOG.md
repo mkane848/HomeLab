@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Second `qwen3.6` run of the 16 active new tasks (2026-10-03 evening, same
+  versions and config as the first, 1800 s cap): 11 of 15 graded runs pass;
+  `kane-08` hit the cap with no edit (no row). Across both runs 10 tasks pass
+  twice, `asohav-07` and `asohav-09` once, and `kane-07`, `kane-08`, `kane-14`
+  and `lfc-07` never. Recorded in the roadmap's "Task set expansion II".
+- `failsOnOld` is now `SKIP` when the suite is already red with the model's
+  change, and the source is not reverted: a suite that fails either way
+  measures nothing. `asohav-07`'s second run left a test file that does not
+  parse and recorded `failsOnOld: PASS` for it; 30 rows in all read
+  `suite: FAIL, failsOnOld: PASS` that way (none is a pass; documented in
+  `tests/results/README.md`). TSV parsers must tolerate `SKIP` in that column.
+  New guard `tests/test-fails-on-old.ps1` (9 checks, PowerShell 7 and 5.1;
+  fails 4 of them against the previous harness).
+
 - Retire `asohav-05-library-write-validation` and `asohav-06-bond-cap-setting`
   (owner decision 2026-10-03). Their pins carry the asohav repo's ~280 KB
   `CLAUDE.md`, a file that existed for two days before the owner trimmed it to
