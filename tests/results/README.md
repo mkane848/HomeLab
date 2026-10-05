@@ -56,6 +56,25 @@ transcripts.
 - Runs with `nudges.sent` 0 were never assisted. They are kept here because
   the folder is the diagnostic's record, not the corpus's.
 
+## Plugin runs: `compaction-plugin/`
+
+The 2026-10-05 trial of `opencode/plugins/compaction-continue.js`, loaded
+through an `OPENCODE_CONFIG` overlay (`docs/roadmap.md` → "Context
+overflow"). It has 5 graded runs, in this folder's own `tasks-summary.tsv`:
+`kane-07` × `qwen3.6` three times and `kane-09` × `qwen3.5:9b` twice.
+- **Nothing was sent into these sessions.** The plugin changed what the model
+  was sent after a compaction, and the compaction prompt. Its idle continue
+  did not exist yet; the harness now turns it off for every run.
+- **They are a different client configuration**, recorded in each run JSON as
+  `opencodePlugins`, so they stay out of `tests/results/tasks-summary.tsv`.
+  `compactionPluginRewrites` counts the model calls that carried the
+  rewritten message.
+- **Run 13:19:12 predates the `-CommandTimeout` fix (PR #91).** Its suite
+  looped on the model's edit and was ended by hand after 2 h 20 min. Its
+  acceptance run was ended by a watchdog after 303 s. Both verdicts, FAIL,
+  are what a 300 s timeout gives; its `elapsedSec` doesn't include either
+  wait.
+
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.

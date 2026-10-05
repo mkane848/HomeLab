@@ -11,7 +11,14 @@
 # What it does:
 #   - tests/test-compaction-plugin.mjs under node: the module shape opencode
 #     1.18.34's loader needs, recognising the continue message, the original
-#     request, the rewrite, and the compaction context;
+#     request, the rewrite, the compaction context, and when a session that
+#     went idle gets the idle continue (against a fake client);
+#   - tests/test-compaction-plugin-live.mjs: the plugin inside the real
+#     `opencode serve` with a scripted stand-in model that compacts and then
+#     stops on a recap - one idle continue, sent as is, and no more (about
+#     30 s; SKIP if opencode cannot start);
+#   - the real test-tasks.ps1 with a stand-in opencode: plugins recorded per
+#     run, rewrites counted, the idle continue switched off under opencode run;
 #   - the plugin's CONTINUE_TEXT equals test-tasks.ps1's
 #     $script:CompactionNudgeText (the diagnostic and the plugin say the same);
 #   - the installed opencode is the version the hooks were read at
@@ -83,7 +90,7 @@ $a = @($args)
 if ($a[0] -eq '--version') { '9.9.9-fixture'; exit 0 }
 if ($a[0] -eq 'debug') { if ($env:FIXTURE_PLUGINS) { '{"plugin":["file:///x/opencode/plugins/compaction-continue.js"]}' } else { '{}' }; exit 0 }
 if ($a[0] -ne 'run') { exit 2 }
-Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("log=" + $env:HOMELAB_COMPACTION_PLUGIN_LOG)
+Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("log=" + $env:HOMELAB_COMPACTION_PLUGIN_LOG + "|idle=" + $env:HOMELAB_COMPACTION_IDLE_CONTINUE)
 if ($env:HOMELAB_COMPACTION_PLUGIN_LOG) {
     Add-Content -LiteralPath $env:HOMELAB_COMPACTION_PLUGIN_LOG -Value '{"message":"loaded"}'
     Add-Content -LiteralPath $env:HOMELAB_COMPACTION_PLUGIN_LOG -Value '{"message":"rewrote the post-compaction continue message","sessionID":"s"}'
@@ -106,6 +113,7 @@ exit 0
         $withOut = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
         Remove-Item Env:FIXTURE_PLUGINS
         $leaked = [Environment]::GetEnvironmentVariable("HOMELAB_COMPACTION_PLUGIN_LOG")
+        $leakedIdle = [Environment]::GetEnvironmentVariable("HOMELAB_COMPACTION_IDLE_CONTINUE")
         $null = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
@@ -116,22 +124,35 @@ exit 0
         Write-Host $withOut
         throw "fixture run did not start"
     }
-    $seen = @(Get-Content -LiteralPath (Join-Path $tmp "seen.txt"))
+    $seenRaw = @(Get-Content -LiteralPath (Join-Path $tmp "seen.txt"))
+    $seen = @($seenRaw | ForEach-Object { ($_ -split '\|')[0] })
     $jWith = Get-ChildItem (Join-Path $tmp "with") -Filter "tasks-fx-plugin-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
     $jWithout = Get-ChildItem (Join-Path $tmp "without") -Filter "tasks-fx-plugin-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
     Check "with the plugin: opencodePlugins recorded"            (@($jWith.opencodePlugins) -join ',') "file:///x/opencode/plugins/compaction-continue.js"
     Check "...the run got an evidence log path"                  ($seen[0] -match '^log=.+ccplugin-.+\.jsonl$') "True"
     Check "...compactionPluginRewrites counts the rewrite lines" $jWith.compactionPluginRewrites 2
     Check "...the header names the plugin"                       ($withOut -match 'opencode plugins: file:///x/opencode/plugins/compaction-continue.js') "True"
+    Check "...the idle continue is off under opencode run"       ($seenRaw[0] -replace '^.*\|', '') "idle=off"
     Check "...the log variable does not outlive the run"         ([string]::IsNullOrEmpty($leaked)) "True"
+    Check "...nor the idle switch"                               ([string]::IsNullOrEmpty($leakedIdle)) "True"
     Check "...the evidence log is removed"                       (Test-Path -LiteralPath ($seen[0] -replace '^log=', '')) "False"
     Check "without: no plugins recorded"                         @($jWithout.opencodePlugins).Count 0
     Check "...no evidence log"                                   $seen[1] "log="
+    Check "...no idle switch either"                             ($seenRaw[1] -replace '^.*\|', '') "idle="
     Check "...compactionPluginRewrites null"                     ($null -eq $jWithout.compactionPluginRewrites) "True"
 } finally {
     if (Test-Path (Join-Path $tmp "repo")) { git -C (Join-Path $tmp "repo") worktree prune 2>$null }
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
+
+Write-Host "-- live: the plugin inside the real opencode serve, against a scripted stand-in model"
+$prev = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+$live = & node (Join-Path $PSScriptRoot "test-compaction-plugin-live.mjs") $PluginPath 2>&1
+$liveExit = $LASTEXITCODE
+$ErrorActionPreference = $prev
+$live | ForEach-Object { Write-Host $_ }
+$script:fail += @($live | Where-Object { "$_" -match '^FAIL ' }).Count
+if ($liveExit -ne 0 -and @($live | Where-Object { "$_" -match '^FAIL ' }).Count -eq 0) { Write-Host "FAIL live check exited $liveExit"; $script:fail++ }
 
 Write-Host "-- the opencode these hooks were read at"
 $prev = $ErrorActionPreference; $ErrorActionPreference = "Continue"

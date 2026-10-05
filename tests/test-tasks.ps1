@@ -1617,11 +1617,15 @@ foreach ($tk in $tasksToRun) {
     # has to be one the gates can run (opencode inherits this process's env).
     $savedEnv = Set-TaskTestEnv $tk
     # compaction-continue.js writes one JSON line per model call it rewrote to
-    # this file (opencode inherits the env); counted after the run.
+    # this file (opencode inherits the env); counted after the run. Its idle
+    # continue stays off here: `opencode run` exits when the session goes idle,
+    # so a message sent then would land in a session nobody answers (and in the
+    # next follow-up's). -NudgeAfterCompaction is what measures that behaviour.
     $pluginLog = $null
     if ($compactionPluginOn) {
         $pluginLog = Join-Path ([System.IO.Path]::GetTempPath()) ("ccplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
         $env:HOMELAB_COMPACTION_PLUGIN_LOG = $pluginLog
+        $env:HOMELAB_COMPACTION_IDLE_CONTINUE = "off"
     }
     $runStart = [DateTimeOffset]::Now
     try {
@@ -1673,7 +1677,7 @@ foreach ($tk in $tasksToRun) {
         }
     } finally {
         Restore-TaskTestEnv $savedEnv
-        if ($pluginLog) { Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG -ErrorAction SilentlyContinue }
+        if ($pluginLog) { Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue }
     }
     # Model calls that carried the plugin's rewritten continue message (every
     # step after a compaction carries it, so this counts calls, not compactions).

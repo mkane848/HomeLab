@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- opencode plugin `opencode/plugins/compaction-continue.js`, which keeps a
+  session working after an automatic compaction without the owner having to
+  type "continue". It is not installed in the live config; that is the
+  owner's call.
+  - **Rewrite:** the model is sent the nudge text plus the original request in
+    place of opencode's "…or stop and ask" message.
+  - **Summary:** the compaction prompt is asked to keep the original request.
+  - **Idle continue:** a session that goes idle after a compaction, ending on
+    prose with no tool call, error or question, gets the nudge text as a new
+    message. Once per compaction, at most three per session, and never after
+    the owner has written.
+  - `test-tasks.ps1` records `opencodePlugins` and `compactionPluginRewrites`
+    per run, and turns the idle continue off under `opencode run`.
+  - New guard `tests/test-compaction-plugin.ps1`: node unit checks, the
+    harness end to end, and a live check in the real `opencode serve` against
+    a scripted stand-in model. It is pinned to opencode 1.18.34.
+  - Trial of the rewrite and summary alone (5 runs,
+    `tests/results/compaction-plugin/`): `kane-09` × `qwen3.5:9b` 2 of 2,
+    `kane-07` × `qwen3.6` 0 of 3. Two of those three still stalled, which is
+    why the idle continue exists.
+
 - Fix: `-CommandTimeout` is enforced. Grading commands (test suite,
   acceptance tests, scoped typecheck) run through `Run-NativeTimed`, which
   ends the whole process tree at the limit (default 300 s). A hung suite is a
@@ -32,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     3 passes. The common stall is a recap several steps after compacting, which
     the first trigger (within two steps) missed. The next limit is
     `limit.output`.
-  - Next: an opencode plugin that does this inside the session, unassisted.
+  - Next: an opencode plugin that does this inside the session, unassisted
+    (above).
 
 - Context overflow found and recorded. `qwen3.5:9b`'s "No user query found
   in messages" crash is a request over `num_ctx`, not a template bug:

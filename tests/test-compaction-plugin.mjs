@@ -36,8 +36,8 @@ check("default export has server()", typeof mod.default.server, "function")
 const logFile = join(mkdtempSync(join(tmpdir(), "ccplugin-")), "log.jsonl")
 process.env.HOMELAB_COMPACTION_PLUGIN_LOG = logFile
 const hooksFromServer = await mod.default.server({})
-check("server() returns the three hooks", Object.keys(hooksFromServer).sort(),
-  ["chat.message", "experimental.chat.messages.transform", "experimental.session.compacting"])
+check("server() returns the four hooks", Object.keys(hooksFromServer).sort(),
+  ["chat.message", "event", "experimental.chat.messages.transform", "experimental.session.compacting"])
 check("server() logs 'loaded' to HOMELAB_COMPACTION_PLUGIN_LOG", readFileSync(logFile, "utf8").includes('"message":"loaded"'), true)
 await hooksFromServer["experimental.chat.messages.transform"]({}, { messages: [opencodeContinue("sL")] })
 check("a rewrite is logged with its session", readFileSync(logFile, "utf8").includes('"sessionID":"sL"'), true)
@@ -114,6 +114,79 @@ check("a tool part is not it", isContinuePart({ type: "tool", tool: "read" }), f
   const none = { context: [] }
   await h["experimental.session.compacting"]({ sessionID: "unknown" }, none)
   check("unknown session: nothing added", none.context.length, 0)
+}
+
+// --- the idle continue: when a stopped session gets CONTINUE_TEXT ---
+const { idleDecision, asksOwner, isIdleContinueMessage, IDLE_CONTINUE_MAX } = mod
+const U = (text, extra = {}) => ({ info: { role: "user", agent: "build", model: { providerID: "p", modelID: "m" } }, parts: [{ type: "text", text, ...extra }] })
+const CONT = () => ({ info: { role: "user", agent: "build", model: { providerID: "ollama-desktop", modelID: "qwen3.6" } },
+  parts: [{ type: "text", synthetic: true, metadata: { compaction_continue: true }, text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed." }] })
+const SUMMARY = () => ({ info: { role: "assistant", summary: true, finish: "stop" }, parts: [{ type: "text", text: "## Goal ..." }] })
+const A = (text, extra = {}) => ({ info: { role: "assistant", finish: "stop", ...extra }, parts: text === null ? [] : [{ type: "text", text }] })
+const TOOL = () => ({ info: { role: "assistant", finish: "tool-calls" }, parts: [{ type: "tool", tool: "read" }] })
+const NUDGE = () => U(CONTINUE_TEXT, { metadata: { homelab_idle_continue: true } })
+const stalled = [U("fix the digest split"), TOOL(), U("", { type: "compaction" }), SUMMARY(), CONT(), TOOL(), TOOL(), A("Now I have the full picture. The bug: findQualifier walks ALL words.")]
+{
+  const d = idleDecision(stalled)
+  check("recap-stop after a compaction: continue", d.send, true)
+  check("...in the compacted turn's agent and model", [d.agent, d.model.modelID], ["build", "qwen3.6"])
+  check("an empty reply after a compaction: continue", idleDecision([...stalled.slice(0, -1), A(null)]).send, true)
+  check("no compaction: nothing", idleDecision([U("hi"), A("done")]).reason, "no auto-continued compaction")
+  check("a manual /compact (no continue message): nothing", idleDecision([U("hi"), A("x"), U("", { type: "compaction" }), SUMMARY()]).send, false)
+  check("last step called a tool: nothing", idleDecision([...stalled, TOOL()]).reason, "the last step called a tool")
+  check("ends on a question to the owner: nothing", idleDecision([...stalled.slice(0, -1), A("I found two options.\n\nShould I change the parser or the caller?")]).reason, "the model asked a question")
+  check("a question earlier, a statement last: continue", idleDecision([...stalled.slice(0, -1), A("Is it the parser? Yes.\n\nThe fix goes in parser.ts.")]).send, true)
+  check("error or stopped by the owner: nothing", idleDecision([...stalled.slice(0, -1), A("partial", { error: { name: "MessageAbortedError" } })]).send, false)
+  check("the owner wrote after the compaction: nothing", idleDecision([...stalled.slice(0, -1), U("stop, use the other branch"), A("OK.")]).reason, "the owner has written since the compaction")
+  check("already continued after this compaction: nothing", idleDecision([...stalled, NUDGE(), A("Still reading.")]).reason, "already continued after this compaction")
+  check("a later compaction: continue again", idleDecision([...stalled, NUDGE(), TOOL(), U("", { type: "compaction" }), SUMMARY(), CONT(), A("Recap.")]).send, true)
+  const capped = [U("task")]
+  for (let i = 0; i < IDLE_CONTINUE_MAX; i++) capped.push(CONT(), A("recap"), NUDGE(), TOOL())
+  capped.push(CONT(), A("recap"))
+  check(`at most ${IDLE_CONTINUE_MAX} per session`, idleDecision(capped).send, false)
+  check("compaction still running (summary last): nothing", idleDecision([U("t"), CONT(), SUMMARY()]).send, false)
+  check("continue message not answered yet: nothing", idleDecision([U("t"), A("x"), CONT()]).send, false)
+  check("asksOwner: trailing question", asksOwner("Done.\n\nWant me to commit?"), true)
+  check("asksOwner: empty", asksOwner(""), false)
+  check("the owner typing CONTINUE_TEXT by hand counts as a continue", isIdleContinueMessage(U(CONTINUE_TEXT)), true)
+}
+{
+  // The event hook against a fake opencode client.
+  const calls = []
+  const fakeClient = (messages, session = { id: "s" }) => ({
+    session: {
+      get: async () => ({ data: session }),
+      messages: async () => ({ data: messages }),
+      promptAsync: async (opts) => { calls.push(opts); return { data: undefined } },
+    },
+  })
+  const logs = []
+  const h = createHooks(undefined, (m, e) => logs.push([m, e]), fakeClient(stalled))
+  await Promise.all([
+    h.event({ event: { type: "session.status", properties: { sessionID: "s", status: { type: "idle" } } } }),
+    h.event({ event: { type: "session.idle", properties: { sessionID: "s" } } }),
+  ])
+  check("idle after a stall: one message for the two idle events", calls.length, 1)
+  check("...CONTINUE_TEXT, marked as the plugin's", [calls[0].body.parts[0].text === CONTINUE_TEXT, calls[0].body.parts[0].metadata.homelab_idle_continue], [true, true])
+  check("...to that session, agent and model", [calls[0].path.id, calls[0].body.agent, calls[0].body.model.modelID], ["s", "build", "qwen3.6"])
+  check("...logged", logs.some(([m]) => m === "sent the idle continue message"), true)
+  calls.length = 0
+  await h.event({ event: { type: "session.status", properties: { sessionID: "s", status: { type: "busy" } } } })
+  check("busy status: nothing", calls.length, 0)
+  const sub = createHooks(undefined, () => {}, fakeClient(stalled, { id: "c", parentID: "s" }))
+  await sub.event({ event: { type: "session.idle", properties: { sessionID: "c" } } })
+  check("a subagent's session: nothing", calls.length, 0)
+  process.env.HOMELAB_COMPACTION_IDLE_CONTINUE = "off"
+  const off = createHooks(undefined, () => {}, fakeClient(stalled))
+  await off.event({ event: { type: "session.idle", properties: { sessionID: "s" } } })
+  delete process.env.HOMELAB_COMPACTION_IDLE_CONTINUE
+  check("HOMELAB_COMPACTION_IDLE_CONTINUE=off: nothing", calls.length, 0)
+  const noClient = createHooks()
+  await noClient.event({ event: { type: "session.idle", properties: { sessionID: "s" } } })
+  check("no client: nothing, no throw", calls.length, 0)
+  const broken = createHooks(undefined, (m, e) => logs.push([m, e]), { session: { get: async () => { throw new Error("down") } } })
+  await broken.event({ event: { type: "session.idle", properties: { sessionID: "s" } } })
+  check("a client error is logged, never thrown", logs.some(([m, e]) => m === "idle continue: error" && e.error === "down"), true)
 }
 
 console.log("CONTINUE_TEXT=" + JSON.stringify(CONTINUE_TEXT))
