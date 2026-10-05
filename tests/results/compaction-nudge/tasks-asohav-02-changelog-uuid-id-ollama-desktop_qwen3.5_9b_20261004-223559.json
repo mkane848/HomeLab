@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-10-04T22:35:59",
+  "taskId": "asohav-02-changelog-uuid-id",
+  "taskTitle": "ASoHaVCompanionApp: stop generating a non-UUID id for a column the database already defaults to a real UUID",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "d83381ad650b3474a50310e0dd3441a03cd89706",
+  "promptSha256": "15771B923DC9",
+  "opencodeExit": 0,
+  "writes": 12,
+  "finishReason": "stop",
+  "lastStepOutput": 47,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "turns": 1,
+  "nudges": {
+    "sent": 0,
+    "max": 2,
+    "textSha256": "103716FADD36"
+  },
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/server/src/repo.ts",
+      "apps/server/src/repo.changelog.test.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "hash": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 481.2,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "contextEvents": {
+    "compactions": 0,
+    "endedAfterCompaction": false,
+    "frontDrops": [],
+    "peakPromptTokens": 59085,
+    "compactionConfig": {
+      "limitContext": 65536,
+      "limitInput": null,
+      "limitOutput": 4096,
+      "reserved": null,
+      "threshold": 61440
+    }
+  },
+  "testEnv": {
+    "DATABASE_URL": null
+  },
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_qwen3.5_9b_20261004-223559.jsonl"
+}

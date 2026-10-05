@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-10-04T21:41:25",
+  "taskId": "kane-09-colour-filter-subset",
+  "taskTitle": "KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection)",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "modelLabel": "ollama-desktop/qwen3.5:9b",
+  "baseCommit": "f0abf087f92323e69a0a706e14c22b427fb80d31",
+  "promptSha256": "B2665D080FD1",
+  "opencodeExit": 0,
+  "writes": 9,
+  "finishReason": "stop",
+  "lastStepOutput": 287,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "turns": 2,
+  "nudges": {
+    "sent": 1,
+    "max": 2,
+    "textSha256": "103716FADD36"
+  },
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "PASS"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/commander-recommender/client/src/lib/filters.test.ts",
+      "apps/commander-recommender/client/src/lib/filters.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "PASS",
+    "ref": "upstream-fix",
+    "commit": "e0ef290365bc43031357ecc454e7e5e7554f3e99",
+    "hash": null,
+    "detail": "Tests  17 passed (17)"
+  },
+  "elapsedSec": 738.1,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "contextEvents": {
+    "compactions": 1,
+    "endedAfterCompaction": true,
+    "frontDrops": [],
+    "peakPromptTokens": 61372,
+    "compactionConfig": {
+      "limitContext": 65536,
+      "limitInput": null,
+      "limitOutput": 4096,
+      "reserved": null,
+      "threshold": 61440
+    }
+  },
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-09-colour-filter-subset-ollama-desktop_qwen3.5_9b_20261004-214125.jsonl"
+}

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Compaction-nudge diagnostic. `test-tasks.ps1 -NudgeAfterCompaction`
+  sends a fixed continue message into the session of a run that stopped on
+  prose after a compaction, at most one per compaction and two per run. The
+  message keeps the owner's approvals.
+  - Nudged runs are assisted: they are refused into `tests/results/` and
+    recorded as `nudges`.
+  - `Get-ContextEvents` adds `endedWithoutToolCall`.
+  - New guard `tests/test-compaction-nudge.ps1` (26 checks).
+  - Result (13 runs, in `tests/results/compaction-nudge/`): all 4 genuine
+    stalls resumed once nudged. `qwen3.6` on `kane-07` went from 0 of 4 to 2 of
+    3 passes. The common stall is a recap several steps after compacting, which
+    the first trigger (within two steps) missed. The next limit is
+    `limit.output`.
+  - Next: an opencode plugin that does this inside the session, unassisted.
+
 - Context overflow found and recorded. `qwen3.5:9b`'s "No user query found
   in messages" crash is a request over `num_ctx`, not a template bug:
   - opencode 1.18.34 decides to compact before counting the tool output a step

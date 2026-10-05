@@ -1532,8 +1532,62 @@ two settings barely apply in a harness run anyway: opencode keeps whole
 the framing. They chat in one window and never switch models or settings,
 and approvals in the chat are wanted (for now, more rather than fewer). A
 stall after compaction is therefore a defect even though "they could just
-type continue". The diagnostic, `-NudgeAfterCompaction`, is on its own
-branch.
+type continue".
+
+**Compaction nudge diagnostic (2026-10-04/05): a plain automatic "continue"
+rescues the stall.** `test-tasks.ps1 -NudgeAfterCompaction` sends one fixed
+message into the same session (`opencode run --session`) when a run ends
+after a compaction. It sends at most one per compaction and two per run. The
+message keeps the owner's approvals:
+
+> Your context was just compacted; the summary above is what you have. Carry
+> on with the original task now: use your tools to make the change and check
+> it, instead of describing next steps. Stop and ask only for a decision that
+> is mine to make: approving a plan, a requirement that is unclear, or
+> anything destructive or hard to undo (deleting files, force-pushing,
+> secrets, dependencies, CI).
+
+The cells were those where a current seat's graded run had failed by stopping
+after compaction. Default config. Nudged runs are *assisted*, so their 13
+runs live in `tests/results/compaction-nudge/` and never in
+`tasks-summary.tsv`.
+
+| what happened after compacting | runs | outcome |
+|---|---|---|
+| kept working | `asohav-01` ×2, `asohav-02`, `lfc-07` ×2 (`qwen3.5:9b`) | 2 PASS, 3 timeouts |
+| had already finished; nudged, confirmed done | `kane-09` (`qwen3.5:9b`) | PASS |
+| **stalled; nudged; resumed** | `kane-09` (`qwen3.5:9b`) | correct source fix (the upstream fix's tests pass), but its own test left the suite red and a stray `.bak` file failed scope |
+| **stalled; nudged; resumed** | `kane-07` ×3 (`qwen3.6`) | **2 PASS** (all gates and the upstream tests); 1 resumed, then ended on a step that used all 8,192 output tokens with no output |
+| stalled; not nudged (first, narrow trigger) | `kane-07` ×2 (`qwen3.6`) | FAIL, 0 edits |
+| no compaction | `asohav-02` (`qwen3.5:9b`) | suite FAIL |
+
+- **All 4 genuine stalls resumed once nudged, and `kane-07` went from 0 of 4
+  to 2 of 3 passes.** So the stall is cheap to fix. It is not the summary
+  losing the task. These are assisted runs, and the sample is small.
+- **The common stall comes late.** `qwen3.6` re-reads for a few steps after
+  compacting, then stops on a recap ("So far I've been working on fixing
+  `findQualifier`…"). The first trigger, "stopped within two steps of the
+  compaction", missed both such runs. It now fires on any prose-only stop
+  after a compaction (`contextEvents.endedWithoutToolCall`). The three
+  2026-10-05 runs used the new trigger.
+- **The next limit is `limit.output`.** Two `kane-07` runs spent a whole
+  step's 8,192 tokens with no output after the nudge. One recovered, one
+  ended there. Worth measuring separately; the earlier note that `asohav-09`
+  passed once it stopped hitting the 8192 cap points the same way.
+
+**Next: an opencode plugin that does this unassisted.** The diagnostic's
+nudge only comes after a run has ended; the owner's real experience needs it
+inside the session. opencode 1.18.34 exposes the hooks, all marked
+experimental ([`compaction.ts`][oc-compaction]):
+- `experimental.compaction.autocontinue`;
+- `experimental.chat.messages.transform`, which can replace the "or stop and
+  ask" message;
+- `experimental.session.compacting`, which can add the original request to
+  the summary.
+
+The late recap-stall also needs a check when the session goes idle after a
+compaction, and that check must not override a real question to the owner.
+Measure the plugin unassisted on the same cells.
 
 **Is this OpenCode, or the plan? (2026-10-05, recorded, not pursued yet)**
 

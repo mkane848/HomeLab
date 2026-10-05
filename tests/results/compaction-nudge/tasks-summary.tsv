@@ -1,0 +1,11 @@
+timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	failsOnOld	typecheck	elapsedSec
+2026-10-04T21:08:18	asohav-01-library-write-reporting	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	18	PASS	PASS	PASS	SKIP	735.3
+2026-10-04T21:41:25	kane-09-colour-filter-subset	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f0abf087f92323e69a0a706e14c22b427fb80d31	0	9	PASS	PASS	PASS	SKIP	738.1
+2026-10-04T22:14:32	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	0	FAIL	PASS	FAIL	SKIP	752
+2026-10-04T22:27:48	asohav-01-library-write-reporting	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	28	PASS	PASS	PASS	SKIP	773.3
+2026-10-04T22:35:59	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d83381ad650b3474a50310e0dd3441a03cd89706	0	12	PASS	FAIL	SKIP	SKIP	481.2
+2026-10-04T22:51:59	kane-09-colour-filter-subset	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f0abf087f92323e69a0a706e14c22b427fb80d31	0	34	FAIL	FAIL	SKIP	SKIP	947.8
+2026-10-04T23:25:13	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	0	FAIL	PASS	FAIL	SKIP	775
+2026-10-05T07:26:21	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	0	FAIL	PASS	FAIL	SKIP	1053.8
+2026-10-05T07:45:03	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	2	PASS	PASS	PASS	SKIP	1114.1
+2026-10-05T08:03:55	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	4	PASS	PASS	PASS	SKIP	1124.4

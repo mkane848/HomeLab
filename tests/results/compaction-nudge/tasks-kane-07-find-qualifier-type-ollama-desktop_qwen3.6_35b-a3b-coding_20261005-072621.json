@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-10-05T07:26:21",
+  "taskId": "kane-07-find-qualifier-type",
+  "taskTitle": "KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "10889539112089dcd122014f934520f9f11cf558",
+  "promptSha256": "1A842FA4FF31",
+  "opencodeExit": 0,
+  "writes": 0,
+  "finishReason": "length",
+  "lastStepOutput": 8192,
+  "outputLimit": 8192,
+  "outputCapHit": true,
+  "grading": "gates",
+  "turns": 2,
+  "nudges": {
+    "sent": 1,
+    "max": 2,
+    "textSha256": "103716FADD36"
+  },
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "731e98508f53528647418403133c63c437307313",
+    "hash": null,
+    "detail": "Tests  1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)"
+  },
+  "elapsedSec": 1053.8,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "contextEvents": {
+    "compactions": 1,
+    "endedAfterCompaction": false,
+    "endedWithoutToolCall": true,
+    "frontDrops": [],
+    "peakPromptTokens": 59880,
+    "compactionConfig": {
+      "limitContext": 65536,
+      "limitInput": null,
+      "limitOutput": 8192,
+      "reserved": null,
+      "threshold": 57344
+    }
+  },
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-07-find-qualifier-type-ollama-desktop_qwen3.6_35b-a3b-coding_20261005-072621.jsonl"
+}
