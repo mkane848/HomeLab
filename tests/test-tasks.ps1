@@ -959,6 +959,27 @@ function Get-ModelCompactionConfig {
     }
 }
 
+function Get-OpencodePlugins {
+    # The `plugin` entries of the RESOLVED opencode config (`opencode debug
+    # config`, including an OPENCODE_CONFIG overlay). A plugin can change what
+    # the model is sent - opencode/plugins/compaction-continue.js rewrites the
+    # post-compaction message - so it is part of what a run measured. Empty
+    # when none or unreadable.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
+        if ($cfg.PSObject.Properties["plugin"]) {
+            return @($cfg.plugin | ForEach-Object { if ($_ -is [string]) { $_ } else { $_ | ConvertTo-Json -Compress -Depth 4 } })
+        }
+    } catch {
+        # fall through
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    return @()
+}
+
 function Get-OllamaPromptTruncation {
     # Ollama's "truncating input prompt" warnings logged between $Since and
     # $Until. When a request is longer than the served num_ctx, Ollama keeps
@@ -1386,6 +1407,13 @@ $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($o
 $outputLimit = Get-ModelOutputLimit -ModelId $Model
 # When opencode compacts this seat's session (Get-CompactionThreshold).
 $compactionConfig = Get-ModelCompactionConfig -ModelId $Model
+# opencode plugins in effect (Get-OpencodePlugins); compaction-continue.js
+# gets an evidence log per run (HOMELAB_COMPACTION_PLUGIN_LOG).
+$opencodePlugins = @(Get-OpencodePlugins)
+$compactionPluginOn = @($opencodePlugins | Where-Object { $_ -match 'compaction-continue' }).Count -gt 0
+if ($opencodePlugins.Count -gt 0) {
+    Write-Host ("opencode plugins: {0}" -f ($opencodePlugins -join ', ')) -ForegroundColor DarkGray
+}
 # -NudgeAfterCompaction: which message the nudged runs got.
 $nudgeTextSha = $null
 if ($NudgeAfterCompaction) {
@@ -1491,6 +1519,13 @@ foreach ($tk in $tasksToRun) {
     # The model's own shell gets the pinned environment too: a test it sees pass
     # has to be one the gates can run (opencode inherits this process's env).
     $savedEnv = Set-TaskTestEnv $tk
+    # compaction-continue.js writes one JSON line per model call it rewrote to
+    # this file (opencode inherits the env); counted after the run.
+    $pluginLog = $null
+    if ($compactionPluginOn) {
+        $pluginLog = Join-Path ([System.IO.Path]::GetTempPath()) ("ccplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
+        $env:HOMELAB_COMPACTION_PLUGIN_LOG = $pluginLog
+    }
     $runStart = [DateTimeOffset]::Now
     try {
         $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
@@ -1541,6 +1576,14 @@ foreach ($tk in $tasksToRun) {
         }
     } finally {
         Restore-TaskTestEnv $savedEnv
+        if ($pluginLog) { Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG -ErrorAction SilentlyContinue }
+    }
+    # Model calls that carried the plugin's rewritten continue message (every
+    # step after a compaction carries it, so this counts calls, not compactions).
+    $pluginRewrites = $null
+    if ($pluginLog) {
+        $pluginRewrites = if (Test-Path -LiteralPath $pluginLog) { @(Select-String -LiteralPath $pluginLog -Pattern '"message":"rewrote').Count } else { 0 }
+        Remove-Item -LiteralPath $pluginLog -ErrorAction SilentlyContinue
     }
     # A run whose prompt Ollama truncated never showed the model the whole
     # system prompt, tool list and task, so whatever it did measures the task's
@@ -1824,6 +1867,8 @@ foreach ($tk in $tasksToRun) {
         outputCapHit    = $capHit
         grading         = $(if ($gradeByAcceptance) { "acceptance" } else { "gates" })
         turns           = $turnsRun
+        opencodePlugins = @($opencodePlugins)
+        compactionPluginRewrites = $pluginRewrites
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
