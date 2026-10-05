@@ -65,7 +65,7 @@ Write-Host "Tests  2 passed (2)"; exit 0
             prompt = "fix src.txt"
         }
     }
-    @{ tasks = @((New-Task "fx-stop"), (New-Task "fx-twice"), (New-Task "fx-again"), (New-Task "fx-plain")) } |
+    @{ tasks = @((New-Task "fx-stop"), (New-Task "fx-twice"), (New-Task "fx-again"), (New-Task "fx-plain"), (New-Task "fx-late")) } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $tmp "tests/tasks/manifest.json")
 
     # Stand-in opencode. Per task, the Nth call (1 = the opener) does:
@@ -73,6 +73,8 @@ Write-Host "Tests  2 passed (2)"; exit 0
     #   fx-twice: 1 compact+stop, 2 compact+stop, 3 fix
     #   fx-again: 1 compact+stop, 2 prose stop (no new compaction)
     #   fx-plain: 1 prose stop, no compaction
+    #   fx-late : 1 compact, three steps of reading, then a recap stop (the
+    #             qwen3.6 kane-07 stall), 2 fix
     @'
 $a = @($args)
 if ($a[0] -eq '--version') { '9.9.9-fixture'; exit 0 }
@@ -102,10 +104,19 @@ function Fix {
     Fin 300 9000
 }
 function Prose { '{"type":"text"' + $sid + ',"part":{"text":"I would set src.txt to fixed."}}'; Fin 9500 0 }
+function CompactReadRecap {
+    CompactStop | Select-Object -SkipLast 2
+    '{"type":"tool_use"' + $sid + ',"part":{"tool":"read","state":{"status":"completed","output":"code"}}}'
+    Fin 9000 0
+    foreach ($i in 1..3) { '{"type":"tool_use"' + $sid + ',"part":{"tool":"grep","state":{"status":"completed","output":"hit"}}}'; Fin 300 (9000 + 100 * $i) }
+    '{"type":"text"' + $sid + ',"part":{"text":"So far I have been working on fixing src.txt."}}'
+    Fin 300 9500
+}
 switch ("$id/$n") {
     "fx-stop/1"  { CompactStop }  "fx-stop/2"  { Fix }
     "fx-twice/1" { CompactStop }  "fx-twice/2" { CompactStop }  "fx-twice/3" { Fix }
     "fx-again/1" { CompactStop }  "fx-again/2" { Prose }
+    "fx-late/1"  { CompactReadRecap }  "fx-late/2" { Fix }
     default      { Prose }
 }
 exit 0
@@ -126,7 +137,7 @@ exit 0
 
         Write-Host "-- nudged runs"
         $nr = Join-Path $tmp "nudge-results"
-        $null = & $tt -Task fx-stop, fx-twice, fx-again, fx-plain @common -NudgeAfterCompaction -MaxNudges 2 -ResultsDir $nr *>&1 | Out-String
+        $null = & $tt -Task fx-stop, fx-twice, fx-again, fx-plain, fx-late @common -NudgeAfterCompaction -MaxNudges 2 -ResultsDir $nr *>&1 | Out-String
         $calls = @(Get-Content -LiteralPath $env:FIXTURE_CALLS)
         Remove-Item -LiteralPath $env:FIXTURE_CALLS
 
@@ -160,6 +171,9 @@ exit 0
     Check "...never fixed: acceptance FAIL"            (Row fx-again).acceptance "FAIL"
     Check "fx-plain: no compaction, never nudged"      (Calls fx-plain).Count 1
     Check "...JSON: nudges.sent 0"                     (Json $nr fx-plain).nudges.sent 0
+    Check "fx-late: a recap stop steps after compacting is nudged" (Calls fx-late).Count 2
+    Check "...and the fix after it passes"            (Row fx-late).acceptance "PASS"
+    Check "...JSON: it was not 'right after' the compaction" (Json $nr fx-late).contextEvents.endedAfterCompaction "False"
     Check "without the switch: one call"               $plainCalls.Count 1
     Check "...JSON: nudges null"                       ($null -eq (Json $pr fx-stop).nudges) "True"
     Check "...stopped after compacting: FAIL"          (@(Import-Csv (Join-Path $pr "real-tasks-summary.tsv") -Delimiter "`t")[0]).acceptance "FAIL"
