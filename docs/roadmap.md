@@ -1632,8 +1632,11 @@ exactly one idle continue, the model is sent it as is, and nothing follows
 once it has finished. A control, with the idle continue disabled, fails those
 checks. All of this is in `tests/test-compaction-plugin.ps1`.
 
-**Not installed in the live config.** It loads through an `OPENCODE_CONFIG`
-overlay or a `plugin` entry. Installing it for daily use is the owner's call.
+**Installed for daily use (2026-10-05, the owner's call).** It's a `plugin`
+entry in the global config template. From then on, every desktop session has
+it, harness runs included, with the idle continue switched off for those. So
+benchmark rows from then on are a new era: their run JSON's
+`opencodePlugins` names the plugin.
 
 Still open: `limit.output` for `qwen3.6`, which is the remaining limit on
 `kane-07` (two diagnostic runs and one plugin run hit it).

@@ -17,6 +17,17 @@
 
   "shell": "pwsh",
 
+  // Keeps a session working after an automatic compaction (installed
+  // 2026-10-05; docs/roadmap.md -> "Context overflow"). Referenced in place
+  // from the desktop's main checkout, like the project skill paths, so it
+  // follows whatever branch M:\Projects\dev-docs has checked out. It rests on
+  // EXPERIMENTAL opencode hooks read at 1.18.34: after `opencode upgrade`, run
+  // tests/test-compaction-plugin.ps1 before trusting it. To take it out, delete
+  // this entry and re-run sync-opencode.ps1 -Template. The path is the
+  // desktop's; on another host the plugin fails to load (opencode reports it
+  // and carries on).
+  "plugin": ["file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js"],
+
   // ---------------------------------------------------------------------
   // MODEL ENTRY SCHEMA - read this before adding a model.
   //
