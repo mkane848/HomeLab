@@ -70,6 +70,8 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | opencode-overflow | opencode `packages/opencode/src/session/overflow.ts` at v1.18.34 (`aec0b9a`, read 2026-10-04) — when a session compacts: the last step's tokens against `limit.context − limit.output`, or `limit.input − compaction.reserved` when `limit.input` is set | <https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/overflow.ts> |
 | opencode-compaction | opencode `packages/opencode/src/session/compaction.ts` at v1.18.34 — the hard-coded follow-up after an automatic compaction ("Continue if you have next steps, or stop and ask for clarification…") | <https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/compaction.ts> |
 | ollama-prompt | Ollama `server/prompt.go` at v0.34.3 (`6383a0f`, read 2026-10-04) — `chatPrompt` drops messages from the front until a request fits `num_ctx`, keeping system messages, logged at debug level | <https://github.com/ollama/ollama/blob/6383a0fa9cbf97494b847226e189f6e36b401a08/server/prompt.go> |
+| ollama-claude-code | Ollama docs, "Claude Code" integration (read 2026-10-05) — Claude Code against Ollama's Anthropic-compatible API via `ANTHROPIC_BASE_URL`; 64k context or more advised for larger repositories | <https://docs.ollama.com/integrations/claude-code> |
+| ollama-openclaw | Ollama docs, "OpenClaw" integration (read 2026-10-05) — "a personal AI assistant" bridging messaging apps to AI coding agents through a gateway; at least 64k context advised with local models | <https://docs.ollama.com/integrations/openclaw> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
@@ -78,7 +80,9 @@ Gotchas ("opencode upgrades itself…"), the addendum in
 [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), and the
 `autoupdate` comment in `opencode/global/opencode.jsonc`; `opencode-overflow`,
 `opencode-compaction` and `ollama-prompt` → `docs/roadmap.md` → "Context
-overflow" and `Get-ContextEvents` in `tests/test-tasks.ps1`. These are read at one
+overflow" and `Get-ContextEvents` in `tests/test-tasks.ps1`; `ollama-claude-code`
+and `ollama-openclaw` → the same section's "Is this OpenCode, or the plan?"
+(rendered docs pages, no commit to pin: re-read before acting on them). These are read at one
 commit: re-check them when opencode's major or minor version moves (Ollama's
 on any upgrade).
 
