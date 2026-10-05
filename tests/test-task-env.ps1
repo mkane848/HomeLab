@@ -50,7 +50,9 @@ function Import-Functions([string]$Path, [string[]]$Names) {
         Invoke-Expression ($fn.Extent.Text -replace '^function\s+', 'function script:')
     }
 }
-Import-Functions $ScriptPath @("Run-Native", "Set-TaskTestEnv", "Restore-TaskTestEnv", "Invoke-Test")
+Import-Functions $ScriptPath @("Run-Native", "ConvertTo-WindowsArgument", "Run-NativeTimed", "Set-TaskTestEnv", "Restore-TaskTestEnv", "Invoke-Test")
+# Invoke-Test passes -CommandTimeout, a test-tasks.ps1 parameter; give it the default.
+$CommandTimeout = 300
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -168,15 +170,15 @@ try {
     Check "a failing command still reports its exit code"         $r.ExitCode 7
     Check "the process is restored after a failing command"       (Env $A) "ambient"
 
-    # Run-Native runs under "Continue", so a missing command or directory does not throw out of it.
-    # To prove the restore sits in a `finally`, swap in a runner that does, call the real
-    # Invoke-Test, and put the real runner back.
-    function script:Run-Native { throw "boom" }
+    # The command runner (Run-NativeTimed since -CommandTimeout is enforced) does not throw for
+    # a failing command. To prove the restore sits in a `finally`, swap in a runner that does,
+    # call the real Invoke-Test, and put the real runner back.
+    function script:Run-NativeTimed { throw "boom" }
     $threw = $false
     try {
         Invoke-Test ([pscustomobject]@{ id = "t"; testDir = "."; testCmd = $print; testEnv = [pscustomobject]@{ $A = "pinned" } }) $wt | Out-Null
     } catch { $threw = $true }
-    Import-Functions $ScriptPath @("Run-Native")
+    Import-Functions $ScriptPath @("Run-NativeTimed")
     Check "an exception in the command runner propagates (the premise of the next check)" $threw "True"
     Check "the process is restored even when the runner throws"   (Env $A) "ambient"
 
