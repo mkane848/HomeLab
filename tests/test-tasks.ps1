@@ -280,6 +280,103 @@ function Run-Native {
     return [pscustomobject]@{ ExitCode = $code; Output = @($out | ForEach-Object { "$_" }) }
 }
 
+# One argument as the Windows C runtime (CommandLineToArgvW) will parse it back:
+# quoted when it has whitespace or a quote or is empty, backslashes doubled
+# only before a quote. Works on PS 5.1, which has no ProcessStartInfo.ArgumentList.
+# -ForCmd also quotes cmd.exe's metacharacters (& | < > ^ ( )), for a command
+# line that passes through a .cmd shim: unquoted, "a&b" splits the command.
+function ConvertTo-WindowsArgument {
+    param([string]$Arg, [switch]$ForCmd)
+    $needs = if ($ForCmd) { '[\s"&|<>^()]' } else { '[\s"]' }
+    if ($Arg -ne '' -and $Arg -notmatch $needs) { return $Arg }
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append('"')
+    $slashes = 0
+    foreach ($ch in $Arg.ToCharArray()) {
+        if ($ch -eq [char]'\') { $slashes++; continue }
+        if ($ch -eq [char]'"') { [void]$sb.Append('\' * ($slashes * 2 + 1)); [void]$sb.Append('"'); $slashes = 0; continue }
+        if ($slashes) { [void]$sb.Append('\' * $slashes); $slashes = 0 }
+        [void]$sb.Append($ch)
+    }
+    [void]$sb.Append('\' * ($slashes * 2))
+    [void]$sb.Append('"')
+    return $sb.ToString()
+}
+
+# Run-Native with a time limit, for grading commands (-CommandTimeout). Run-Native
+# waits forever: on 2026-10-05 a model's edit put an infinite loop in
+# signals.ts (`while (re.exec(...))` on a regex without the g flag), vitest spun
+# for 2 h 20 min and the batch behind it stood still, although -CommandTimeout
+# had always been documented. Here the command is its own process, its output is
+# read asynchronously (a full pipe cannot stall it), and on timeout the whole
+# tree is ended (taskkill /T) and the result is exit 124, TimedOut, with a line
+# saying so. npm-style shims resolve to their .cmd and run through cmd.exe.
+# Returns { ExitCode; Output; TimedOut }, Output being stdout then stderr.
+function Run-NativeTimed {
+    param([string]$FilePath, [string[]]$Arguments = @(), [string]$WorkingDir = "", [int]$TimeoutSec = 300)
+    $cmd = Get-Command $FilePath -CommandType Application, ExternalScript -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $cmd) { return Run-Native $FilePath $Arguments $WorkingDir }  # same "not found" behaviour as before
+    $path = $cmd.Source
+    if ($path -match '\.ps1$') {
+        $cmdShim = [System.IO.Path]::ChangeExtension($path, ".cmd")
+        if (Test-Path -LiteralPath $cmdShim) { $path = $cmdShim }
+    }
+    $viaCmd = $path -match '\.(cmd|bat)$'
+    $argLine = (@($Arguments) | ForEach-Object { ConvertTo-WindowsArgument $_ -ForCmd:$viaCmd }) -join ' '
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    if ($viaCmd) {
+        $psi.FileName = $env:ComSpec
+        $psi.Arguments = '/d /s /c "' + (ConvertTo-WindowsArgument $path) + ' ' + $argLine + '"'
+    } elseif ($path -match '\.ps1$') {
+        $psi.FileName = (Get-Process -Id $PID).Path
+        $psi.Arguments = '-NoProfile -ExecutionPolicy Bypass -File ' + (ConvertTo-WindowsArgument $path) + ' ' + $argLine
+    } else {
+        $psi.FileName = $path
+        $psi.Arguments = $argLine
+    }
+    $psi.WorkingDirectory = if ($WorkingDir) { $WorkingDir } else { (Get-Location).Path }
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    # An empty, closed stdin. Inherited, it is whatever this process has - inside
+    # a PowerShell background job that is the job's own channel to its parent,
+    # and a `pwsh -File` child reads redirected stdin to the end before running
+    # its script, so it waited forever (test-revert-source.ps1's two-worktree
+    # check). Grading commands never need input.
+    $psi.RedirectStandardInput = $true
+    $psi.CreateNoWindow = $true
+    $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+    $p = [System.Diagnostics.Process]::Start($psi)
+    try {
+        # On Windows PowerShell 5.1 (.NET Framework) the stdin writer has already
+        # sent a UTF-8 byte-order mark when it was created, so a child that reads
+        # stdin there sees 3 bytes and then end of input; on PS 7, nothing. Either
+        # way it never waits. Grading commands do not read stdin.
+        $p.StandardInput.Close()
+        $outTask = $p.StandardOutput.ReadToEndAsync()
+        $errTask = $p.StandardError.ReadToEndAsync()
+        $timedOut = -not $p.WaitForExit([int][math]::Min([int]::MaxValue, [double]$TimeoutSec * 1000))
+        if ($timedOut) {
+            Run-Native "taskkill" @("/PID", "$($p.Id)", "/T", "/F") | Out-Null
+            [void]$p.WaitForExit(15000)
+        } else {
+            $p.WaitForExit()  # lets the async readers reach end of stream
+        }
+        [void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]@($outTask, $errTask), 15000)
+        $text = @()
+        foreach ($t in @($outTask, $errTask)) { if ($t.IsCompleted -and -not $t.IsFaulted) { $text += $t.Result } }
+        $lines = @((($text -join "`n") -split "`r?`n") | Where-Object { $_ -ne '' })
+        if ($timedOut) {
+            $lines += "[test-tasks] timed out after $TimeoutSec s (-CommandTimeout): process tree ended"
+            return [pscustomobject]@{ ExitCode = 124; Output = $lines; TimedOut = $true }
+        }
+        return [pscustomobject]@{ ExitCode = $p.ExitCode; Output = $lines; TimedOut = $false }
+    } finally {
+        $p.Dispose()
+    }
+}
+
 function Get-HeadCommit {
     param([string]$Repo, [string]$Branch)
     $r = Run-Native "git" @("-C", $Repo, "rev-parse", "refs/heads/$Branch")
@@ -584,7 +681,7 @@ function Invoke-Test {
     $testDir = Join-Path $WtPath $Task.testDir
     $savedEnv = Set-TaskTestEnv $Task
     try {
-        return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+        return Run-NativeTimed $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir $CommandTimeout
     } finally {
         Restore-TaskTestEnv $savedEnv
     }
@@ -1653,7 +1750,12 @@ foreach ($tk in $tasksToRun) {
         Write-Result $tk.id "suite" "PASS" "green after change ($($suiteLine.Line.Trim()))"
     } else {
         $failed = Get-FailedTestNames -Output $suite.Output
-        Write-Result $tk.id "suite" "FAIL" "suite fails after change: $($failed -join '; ')"
+        if ($suite.TimedOut) {
+            # A hang is a failure of the change (an infinite loop in the model's code, say), not infrastructure.
+            Write-Result $tk.id "suite" "FAIL" "suite timed out after $CommandTimeout s (-CommandTimeout) and was ended - a hang counts as a failure$(if ($failed) { ': ' + ($failed -join '; ') })"
+        } else {
+            Write-Result $tk.id "suite" "FAIL" "suite fails after change: $($failed -join '; ')"
+        }
         $overallPass = $false
     }
 
@@ -1743,7 +1845,7 @@ foreach ($tk in $tasksToRun) {
         }
         Set-Content -LiteralPath $tcFile -Value ($tcCfg | ConvertTo-Json -Depth 5) -Encoding utf8
         try {
-            $tc = Run-Native "pnpm" @("exec", "tsc", "--noEmit", "-p", "_bench-typecheck.json") $tcDir
+            $tc = Run-NativeTimed "pnpm" @("exec", "tsc", "--noEmit", "-p", "_bench-typecheck.json") $tcDir $CommandTimeout
             if ($tc.ExitCode -eq 0) {
                 $typecheckStatus = "PASS"
                 Write-Result $tk.id "typecheck (scoped)" "PASS" "touched module graph compiles"

@@ -37,8 +37,9 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $allFns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-$names = @("Run-Native", "Set-TaskTestEnv", "Restore-TaskTestEnv", "Invoke-Test", "Save-SourceFiles", "Restore-SourceFiles", "Invoke-WithSourceReverted")
-$fnBlock = ""
+$names = @("Run-Native", "ConvertTo-WindowsArgument", "Run-NativeTimed", "Set-TaskTestEnv", "Restore-TaskTestEnv", "Invoke-Test", "Save-SourceFiles", "Restore-SourceFiles", "Invoke-WithSourceReverted")
+# Invoke-Test passes -CommandTimeout, a test-tasks.ps1 parameter: the default, here and in the job below.
+$fnBlock = "`$script:CommandTimeout = 300`n"
 foreach ($name in $names) {
     $fn = $allFns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }

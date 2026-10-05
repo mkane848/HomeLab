@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix: `-CommandTimeout` is enforced. Grading commands (test suite,
+  acceptance tests, scoped typecheck) run through `Run-NativeTimed`, which
+  ends the whole process tree at the limit (default 300 s). A hung suite is a
+  FAIL ("suite timed out … a hang counts as a failure"), not a batch that
+  stands still.
+  - Found 2026-10-05, when a model's infinite loop in `signals.ts` kept vitest
+    spinning for 2 h 20 min.
+  - The child gets an empty stdin, and `cmd` metacharacters are quoted for
+    `.cmd` shims.
+  - New guard `tests/test-command-timeout.ps1` (19 checks).
+  - `test-revert-source.ps1` and `test-task-env.ps1` load the new functions.
+
 - Compaction-nudge diagnostic. `test-tasks.ps1 -NudgeAfterCompaction`
   sends a fixed continue message into the session of a run that stopped on
   prose after a compaction, at most one per compaction and two per run. The
