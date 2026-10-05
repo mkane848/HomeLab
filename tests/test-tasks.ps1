@@ -149,7 +149,16 @@ param(
     # also get a -ResultsDir outside the repo, so no prompt or transcript lands
     # in tests/results/. acceptance.dir paths resolve against its folder.
     [string]$TaskManifest = "",
-    [string]$ResultsDir = ""
+    [string]$ResultsDir = "",
+    # Diagnostic (docs/roadmap.md -> "Context overflow"): when a run ends on a
+    # prose-only step after an automatic compaction (Get-ContextEvents:
+    # EndedWithoutToolCall with a compaction not yet nudged for),
+    # send $script:CompactionNudgeText into the same session, up to
+    # -MaxNudges times, once per new compaction. A nudged run is ASSISTED: the
+    # run JSON records `nudges`, and its rows must not join the unassisted
+    # tests/results/tasks-summary.tsv, so -ResultsDir is required.
+    [switch]$NudgeAfterCompaction,
+    [int]$MaxNudges = 2
 )
 
 $ErrorActionPreference = "Stop"
@@ -181,6 +190,10 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 $privateRun = -not (Test-UnderPath $manifestPath $repoRoot)
 if ($privateRun -and (Test-UnderPath $resultsDir $repoRoot)) {
     Write-Host "ERROR: $manifestPath is outside this repo (a private manifest), so its results must be too. Pass -ResultsDir <a folder outside $repoRoot> - tests/results/ is published." -ForegroundColor Red
+    exit 1
+}
+if ($NudgeAfterCompaction -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '/') -eq [System.IO.Path]::GetFullPath($publicResultsDir).TrimEnd('\', '/'))) {
+    Write-Host "ERROR: -NudgeAfterCompaction makes assisted runs; they must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
     exit 1
 }
 if (-not (Test-Path -LiteralPath $resultsDir)) {
@@ -993,6 +1006,13 @@ function Get-OllamaPromptTruncation {
 # `--format json` transcript, which has no compaction event of its own.
 $script:CompactionContinueText = "Continue if you have next steps, or stop and ask for clarification"
 
+# -NudgeAfterCompaction's message: what an auto-continue plugin would send
+# instead of opencode's own. It keeps the owner's approvals (owner, 2026-10-04:
+# while tuning is early, more approvals rather than fewer) and drops the open
+# invitation to stop. Changing it changes what a nudged run measured; the run
+# JSON records its hash.
+$script:CompactionNudgeText = "Your context was just compacted; the summary above is what you have. Carry on with the original task now: use your tools to make the change and check it, instead of describing next steps. Stop and ask only for a decision that is mine to make: approving a plan, a requirement that is unclear, or anything destructive or hard to undo (deleting files, force-pushing, secrets, dependencies, CI)."
+
 function Get-ContextEvents {
     # What happened to the session's context window, from the raw opencode JSONL
     # (docs/roadmap.md -> "Context overflow"):
@@ -1001,6 +1021,10 @@ function Get-ContextEvents {
     # - EndedAfterCompaction: the run stopped within two steps of the last
     #   compaction with at most one tool call after it. Under `opencode run`
     #   the "or stop and ask" half of that message ends the run.
+    # - EndedWithoutToolCall: the last step was prose only. After a compaction
+    #   that is also the later stall: a few steps of re-reading, then a recap
+    #   ("So far I've been working on...") and a stop (qwen3.6 on kane-07,
+    #   2026-10-04, both runs).
     # - FrontDrops: requests longer than num_ctx. opencode 1.18.34 checks for
     #   compaction against the last step's tokens, not the tool output that step
     #   added, so one large read can carry the next request past num_ctx; Ollama
@@ -1016,7 +1040,7 @@ function Get-ContextEvents {
     #   messages"), which opencode surfaces as an error.
     param([string]$Path, $NumCtx)
 
-    $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0 }
+    $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; EndedWithoutToolCall = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0 }
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $ev }
     $steps = New-Object System.Collections.Generic.List[object]
     $tools = 0; $chars = 0; $isContinue = $false
@@ -1051,6 +1075,10 @@ function Get-ContextEvents {
     # there) still happened.
     $unfinishedCompaction = $isContinue
     if ($steps.Count -eq 0) { if ($unfinishedCompaction) { $ev.Compactions = 1 }; return $ev }
+    # The last finished step made no tool call: the run ended on prose (a
+    # recap, a plan, a question) - not necessarily a stall; a done model ends
+    # this way too.
+    $ev.EndedWithoutToolCall = ($steps[$steps.Count - 1].Tools -eq 0)
 
     $compactionStep = @{}
     $lastContinue = -1
@@ -1358,6 +1386,13 @@ $opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($o
 $outputLimit = Get-ModelOutputLimit -ModelId $Model
 # When opencode compacts this seat's session (Get-CompactionThreshold).
 $compactionConfig = Get-ModelCompactionConfig -ModelId $Model
+# -NudgeAfterCompaction: which message the nudged runs got.
+$nudgeTextSha = $null
+if ($NudgeAfterCompaction) {
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try { $nudgeTextSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:CompactionNudgeText))) -replace '-', '').Substring(0, 12) } finally { $sha256.Dispose() }
+    Write-Host ("compaction nudge: on (up to {0} per run, text sha256 {1}); rows go to {2} only" -f $MaxNudges, $nudgeTextSha, $resultsDir) -ForegroundColor DarkGray
+}
 Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
@@ -1479,6 +1514,30 @@ foreach ($tk in $tasksToRun) {
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
+        }
+        # -NudgeAfterCompaction: a run that ended on a prose-only step after an
+        # automatic compaction gets $script:CompactionNudgeText in the same
+        # session, once per new compaction, up to -MaxNudges. Same mechanics as
+        # a follow-up. "Right after" was too narrow: the common stall comes
+        # several steps later (2026-10-04 diagnostic).
+        $nudgesSent = 0
+        $nudgedAtCompaction = 0
+        while ($NudgeAfterCompaction -and $run.ExitCode -eq 0 -and $nudgesSent -lt $MaxNudges) {
+            $nudgeEvents = Get-ContextEvents -Path $run.TranscriptPath -NumCtx $numCtx
+            if (-not $nudgeEvents.EndedWithoutToolCall -or $nudgeEvents.Compactions -le $nudgedAtCompaction) { break }
+            $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
+            if (-not $sessionId) {
+                $run.ExitCode = -4
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("compaction nudge {0} could not start: no sessionID in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($nudgesSent + 1), $promptHashes[$tk.id])
+                break
+            }
+            Write-Host ("    nudge {0}: the run ended on prose after compaction {1}; continuing session {2}" -f ($nudgesSent + 1), $nudgeEvents.Compactions, $sessionId) -ForegroundColor DarkGray
+            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $script:CompactionNudgeText -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
+            $run = $next
+            $turnsRun++
+            $nudgesSent++
+            $nudgedAtCompaction = $nudgeEvents.Compactions
         }
     } finally {
         Restore-TaskTestEnv $savedEnv
@@ -1765,6 +1824,7 @@ foreach ($tk in $tasksToRun) {
         outputCapHit    = $capHit
         grading         = $(if ($gradeByAcceptance) { "acceptance" } else { "gates" })
         turns           = $turnsRun
+        nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
@@ -1778,6 +1838,7 @@ foreach ($tk in $tasksToRun) {
         contextEvents   = [pscustomobject]@{
             compactions          = $ctxEvents.Compactions
             endedAfterCompaction = $ctxEvents.EndedAfterCompaction
+            endedWithoutToolCall = $ctxEvents.EndedWithoutToolCall
             frontDrops           = @($ctxEvents.FrontDrops)
             peakPromptTokens     = $ctxEvents.PeakPromptTokens
             compactionConfig     = $compactionConfig

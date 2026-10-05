@@ -1520,17 +1520,111 @@ Five runs, with no overflow and no crash:
 - A template crash's `_INFRA_` detail names the overflow.
 - Grading is unchanged.
 
-**Open (owner):**
-- Should a front-drop run stay graded? Today it is graded on its end state,
-  as in a real session. The alternative is to treat it like truncation:
-  ungraded, no row. Unlike truncation, though, it is what the seat and client
-  really do mid-session.
-- Compaction is the bigger problem. Possible next measurements:
-  - keeping more of the session verbatim (`preserve_recent_tokens`,
-    `tail_turns`);
-  - whether "stops after compaction" happens only under `opencode run`. In
-    the TUI the owner would just answer.
+**Decided (owner, 2026-10-04): a front-drop run stays graded** on its end
+state, as in a real session. Unlike truncation, it is what the seat and
+client really do mid-session; `contextEvents` marks it.
 
+**Compaction is the bigger problem. Owner's choice (2026-10-04): first test
+whether a plain automatic "continue" rescues a run that stalls after
+compaction**, before tuning `preserve_recent_tokens` or `tail_turns`. Those
+two settings barely apply in a harness run anyway: opencode keeps whole
+*turns*, and a single-prompt run is one turn. The owner's standard settles
+the framing. They chat in one window and never switch models or settings,
+and approvals in the chat are wanted (for now, more rather than fewer). A
+stall after compaction is therefore a defect even though "they could just
+type continue".
+
+**Compaction nudge diagnostic (2026-10-04/05): a plain automatic "continue"
+rescues the stall.** `test-tasks.ps1 -NudgeAfterCompaction` sends one fixed
+message into the same session (`opencode run --session`) when a run ends
+after a compaction. It sends at most one per compaction and two per run. The
+message keeps the owner's approvals:
+
+> Your context was just compacted; the summary above is what you have. Carry
+> on with the original task now: use your tools to make the change and check
+> it, instead of describing next steps. Stop and ask only for a decision that
+> is mine to make: approving a plan, a requirement that is unclear, or
+> anything destructive or hard to undo (deleting files, force-pushing,
+> secrets, dependencies, CI).
+
+The cells were those where a current seat's graded run had failed by stopping
+after compaction. Default config. Nudged runs are *assisted*, so their 13
+runs live in `tests/results/compaction-nudge/` and never in
+`tasks-summary.tsv`.
+
+| what happened after compacting | runs | outcome |
+|---|---|---|
+| kept working | `asohav-01` ×2, `asohav-02`, `lfc-07` ×2 (`qwen3.5:9b`) | 2 PASS, 3 timeouts |
+| had already finished; nudged, confirmed done | `kane-09` (`qwen3.5:9b`) | PASS |
+| **stalled; nudged; resumed** | `kane-09` (`qwen3.5:9b`) | correct source fix (the upstream fix's tests pass), but its own test left the suite red and a stray `.bak` file failed scope |
+| **stalled; nudged; resumed** | `kane-07` ×3 (`qwen3.6`) | **2 PASS** (all gates and the upstream tests); 1 resumed, then ended on a step that used all 8,192 output tokens with no output |
+| stalled; not nudged (first, narrow trigger) | `kane-07` ×2 (`qwen3.6`) | FAIL, 0 edits |
+| no compaction | `asohav-02` (`qwen3.5:9b`) | suite FAIL |
+
+- **All 4 genuine stalls resumed once nudged, and `kane-07` went from 0 of 4
+  to 2 of 3 passes.** So the stall is cheap to fix. It is not the summary
+  losing the task. These are assisted runs, and the sample is small.
+- **The common stall comes late.** `qwen3.6` re-reads for a few steps after
+  compacting, then stops on a recap ("So far I've been working on fixing
+  `findQualifier`…"). The first trigger, "stopped within two steps of the
+  compaction", missed both such runs. It now fires on any prose-only stop
+  after a compaction (`contextEvents.endedWithoutToolCall`). The three
+  2026-10-05 runs used the new trigger.
+- **The next limit is `limit.output`.** Two `kane-07` runs spent a whole
+  step's 8,192 tokens with no output after the nudge. One recovered, one
+  ended there. Worth measuring separately; the earlier note that `asohav-09`
+  passed once it stopped hitting the 8192 cap points the same way.
+
+**Next: an opencode plugin that does this unassisted.** The diagnostic's
+nudge only comes after a run has ended; the owner's real experience needs it
+inside the session. opencode 1.18.34 exposes the hooks, all marked
+experimental ([`compaction.ts`][oc-compaction]):
+- `experimental.compaction.autocontinue`;
+- `experimental.chat.messages.transform`, which can replace the "or stop and
+  ask" message;
+- `experimental.session.compacting`, which can add the original request to
+  the summary.
+
+The late recap-stall also needs a check when the session goes idle after a
+compaction, and that check must not override a real question to the owner.
+Measure the plugin unassisted on the same cells.
+
+**Is this OpenCode, or the plan? (2026-10-05, recorded, not pursued yet)**
+
+The failures here come from four layers, and only one is OpenCode's:
+
+| layer | whose | would another client fix it? |
+|---|---|---|
+| a 64k window against repo files of thousands of lines (two reads of `signals.ts`, ~40k tokens) | hardware and model size | no: every client has the same window until more VRAM joins (the server's 4070 Ti Super, node3) |
+| over-long requests silently cut from the front | Ollama ([`server/prompt.go`][ollama-prompt]) | partly: Ollama does it to any client, but a client that keeps requests under `num_ctx` never triggers it |
+| when and how a session compacts: too late (new tool output uncounted), a summary built from tool results cut to 2,000 characters, the "or stop and ask" follow-up | OpenCode ([`overflow.ts`][oc-overflow], [`compaction.ts`][oc-compaction]) | possibly: this is where clients differ |
+| carrying on after a compaction | the model | partly: prompting or a nudge helps, but a 9–35B local model is weaker at it than a hosted one |
+
+So the plan, one chat window with the fleet supplying the models, is not
+what fails. Candidate clients noted for a later comparison:
+
+- **Claude Code on local models.** Ollama serves an Anthropic-compatible API,
+  so Claude Code can be pointed at it with `ANTHROPIC_BASE_URL`; Ollama's page
+  advises 64k context or more for larger repositories ([Ollama: Claude
+  Code][ollama-claude-code]). That is the experience the north star
+  describes. Its system prompt and tool list are large and unmeasured here,
+  which matters on a 64k seat (see the preamble budget in AGENTS.md).
+- **OpenClaw** is "a personal AI assistant" that bridges messaging apps to AI
+  coding agents through a gateway, and wants at least 64k context with local
+  models ([Ollama: OpenClaw][ollama-openclaw]). It is a front end that
+  drives coding agents, not a replacement for one, so it does not change any
+  layer above.
+
+**How to decide, when it's time: measure, don't switch on impressions.** The
+harness grades the end state (tests, scope, acceptance), which doesn't
+depend on the client. Only how a run is launched and its transcript read is
+OpenCode-specific. Making the client a swappable part, as the serving engine
+already is, would let a candidate run the same tasks, starting with the
+context-heavy cells where OpenCode failed (`kane-07`/`-08`/`-09`,
+`asohav-02`, `lfc-07`). A different client is a new era for its rows.
+
+[ollama-claude-code]: https://docs.ollama.com/integrations/claude-code
+[ollama-openclaw]: https://docs.ollama.com/integrations/openclaw
 [oc-overflow]: https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/overflow.ts
 [oc-compaction]: https://github.com/sst/opencode/blob/aec0b9a6d8898f68f923aaf08b7306d931fd9d76/packages/opencode/src/session/compaction.ts
 [ollama-prompt]: https://github.com/ollama/ollama/blob/6383a0fa9cbf97494b847226e189f6e36b401a08/server/prompt.go

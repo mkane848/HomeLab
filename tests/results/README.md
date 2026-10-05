@@ -37,6 +37,25 @@ rows stay as history under their old fingerprint. So far: `real-01`'s
 to the owner's own fix and failed two correct answers. Its `7976ebded682`
 replacement is calibrated against other correct phrasings and near-misses.
 
+## Assisted runs: `compaction-nudge/`
+
+The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context
+overflow"). These are 13 runs of `test-tasks.ps1 -NudgeAfterCompaction`: 10
+graded rows in this folder's own `tasks-summary.tsv`, plus three `_TIMEOUT_`
+transcripts.
+- **A run whose JSON has `nudges.sent` > 0 was assisted.** The harness sent a
+  fixed continue message into its session after it stopped following a
+  compaction.
+- **Never add these rows to `tests/results/tasks-summary.tsv` or count them
+  in a seat's unassisted record.** The harness refuses to write a nudged run
+  there.
+- **Two triggers were used.** Runs stamped 2026-10-04 were nudged only when
+  they stopped within two steps of the compaction. Runs stamped 2026-10-05
+  were nudged on any prose-only stop after one. The message, recorded as
+  `nudges.textSha256`, was the same throughout.
+- Runs with `nudges.sent` 0 were never assisted. They are kept here because
+  the folder is the diagnostic's record, not the corpus's.
+
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.

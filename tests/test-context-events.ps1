@@ -84,6 +84,8 @@ try {
         (Ev-Text "## Objective ..."), (Ev-Fin 4000 0 900),
         (Ev-Text $cont), (Ev-Text "Next steps: ..."), (Ev-Fin 9000 0 200))) -NumCtx 65536
     CheckValue "a run that stops right after compacting"     $stopped.EndedAfterCompaction $true
+    CheckValue "...ended without a tool call"                $stopped.EndedWithoutToolCall $true
+    CheckValue "a run whose last step calls a tool"          (Get-ContextEvents -Path (New-Transcript @((Ev-Tool 100), (Ev-Fin 9000 0 50))) -NumCtx 65536).EndedWithoutToolCall $false
 
     # cut off (timeout) inside the continue step: no step_finish, still counted
     $cut = Get-ContextEvents -Path (New-Transcript @(
