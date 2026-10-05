@@ -1575,19 +1575,68 @@ runs live in `tests/results/compaction-nudge/` and never in
   ended there. Worth measuring separately; the earlier note that `asohav-09`
   passed once it stopped hitting the 8192 cap points the same way.
 
-**Next: an opencode plugin that does this unassisted.** The diagnostic's
-nudge only comes after a run has ended; the owner's real experience needs it
-inside the session. opencode 1.18.34 exposes the hooks, all marked
-experimental ([`compaction.ts`][oc-compaction]):
-- `experimental.compaction.autocontinue`;
-- `experimental.chat.messages.transform`, which can replace the "or stop and
-  ask" message;
-- `experimental.session.compacting`, which can add the original request to
-  the summary.
+**The plugin: `opencode/plugins/compaction-continue.js` (2026-10-05).** The
+diagnostic's nudge only comes after a run has ended. The owner's real
+experience needs it inside the session, so the plugin does it there. It uses
+opencode 1.18.34's hooks, all marked experimental
+([`compaction.ts`][oc-compaction]):
 
-The late recap-stall also needs a check when the session goes idle after a
-compaction, and that check must not override a real question to the owner.
-Measure the plugin unassisted on the same cells.
+1. **Rewrite.** `experimental.chat.messages.transform` replaces, in what the
+   model is sent, opencode's "Continue if you have next steps, or stop and
+   ask…" with the nudge text above plus the original request, verbatim. The
+   stored message is unchanged.
+2. **Summary.** `experimental.session.compacting` asks the summary to carry
+   the original request verbatim.
+3. **Idle continue.** The `event` hook watches for the session going idle.
+   It sends the nudge text as a new user message only when all of these hold:
+   - the last compaction auto-continued;
+   - the owner hasn't written since;
+   - the model's last step ended without a tool call or an error;
+   - the reply doesn't end on a question.
+
+   It sends once per compaction and at most three times per session. It skips
+   subagent sessions. `HOMELAB_COMPACTION_IDLE_CONTINUE=off` turns it off.
+
+**Trial of 1 and 2 alone, unassisted (5 runs, `tests/results/compaction-plugin/`).**
+The harness can't exercise 3: `opencode run` exits the moment the session
+goes idle. `test-tasks.ps1` therefore turns 3 off for its runs.
+
+| cell | runs | outcome |
+|---|---|---|
+| `kane-09` × `qwen3.5:9b` | 2 | **2 PASS**, one of them through a compaction (19 edits after it) |
+| `kane-07` × `qwen3.6` | 3 | **0 PASS** |
+
+The three `kane-07` runs:
+- **Run 1** kept working after compacting, then ended on a step that used all
+  8,192 output tokens with no output (`outputCapHit`).
+- **Run 2** made one edit, with a `while (re.exec(...))` on a regex without
+  the `g` flag. That's an infinite loop, and the suite FAILed on it. It then
+  re-read for 3 steps and stopped with an empty reply. Its suite hung for
+  2 h 20 min because `-CommandTimeout` was never enforced (fixed in PR #91);
+  the gate verdicts are unaffected.
+- **Run 3** re-read for 4 steps and stopped on a recap ("Now I have the full
+  picture. The bug: …") with no edit.
+
+The rewrite reached the model in every compacted run: 4 model calls each,
+counted from the plugin's evidence log. So **rewriting the message cut the
+stalls but didn't stop them**: 2 of 3 `kane-07` runs still stalled. A fresh
+"continue" after the stop is what worked in the diagnostic (2 of 3 passes).
+That is why the plugin has 3.
+
+**Evidence for 3.** The cells' numbers are the diagnostic's, because the
+harness's nudge is the same message, sent at the same moment, to the same
+session. The plugin's own mechanics are checked live: real `opencode serve`
+with the plugin, against a scripted stand-in model that compacts and then
+stops on a recap. The model gets the rewritten message, the session gets
+exactly one idle continue, the model is sent it as is, and nothing follows
+once it has finished. A control, with the idle continue disabled, fails those
+checks. All of this is in `tests/test-compaction-plugin.ps1`.
+
+**Not installed in the live config.** It loads through an `OPENCODE_CONFIG`
+overlay or a `plugin` entry. Installing it for daily use is the owner's call.
+
+Still open: `limit.output` for `qwen3.6`, which is the remaining limit on
+`kane-07` (two diagnostic runs and one plugin run hit it).
 
 **Is this OpenCode, or the plan? (2026-10-05, recorded, not pursued yet)**
 
