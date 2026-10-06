@@ -19,3 +19,6 @@ timestamp	taskId	model	opencodeVersion	engine	engineVersion	scope	suite	acceptan
 2026-10-04T15:43:12	real-01	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	55.3
 2026-10-04T15:45:17	real-02	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	63dd09f74812	109.4
 2026-10-04T15:46:05	real-03	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	b379cd63e2b2	34.4
+2026-10-05T21:00:52	real-01	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	7976ebded682	195.8
+2026-10-05T21:02:18	real-02	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	63dd09f74812	65.9
+2026-10-05T21:03:43	real-03	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	b379cd63e2b2	67.1

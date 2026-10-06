@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-10-05T20:15:36",
+  "taskId": "kane-08-aristocrats-false-positives",
+  "taskTitle": "KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs)",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "modelLabel": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "baseCommit": "45095ab148d27fdbe20765a112d1dd7d743e4fcd",
+  "promptSha256": "C1D53A7D43ED",
+  "opencodeExit": 0,
+  "writes": 0,
+  "finishReason": "length",
+  "lastStepOutput": 8192,
+  "outputLimit": 8192,
+  "outputCapHit": true,
+  "grading": "gates",
+  "turns": 2,
+  "opencodePlugins": [
+    "file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js"
+  ],
+  "compactionPluginRewrites": 9,
+  "nudges": {
+    "sent": 1,
+    "max": 2,
+    "textSha256": "103716FADD36"
+  },
+  "gates": {
+    "scope": "FAIL",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "FAIL",
+    "ref": "upstream-fix",
+    "commit": "e95219824e1c9d30da1f48ba160cf69560b40e14",
+    "hash": null,
+    "detail": "Tests  4 failed | 234 passed (238) - (4 failed); a \"would die ... instead\" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not \"your board dying\" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet"
+  },
+  "elapsedSec": 1858.6,
+  "ollamaVersion": "ollama version is 0.34.3",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.3",
+    "endpoint": "http://localhost:11434",
+    "provider": "ollama-desktop"
+  },
+  "opencodeVersion": "1.18.34",
+  "numCtx": 65536,
+  "promptTruncation": "checked Ollama server.log in C:\\Users\\mikek\\AppData\\Local\\Ollama - none during the run",
+  "contextEvents": {
+    "compactions": 1,
+    "endedAfterCompaction": false,
+    "endedWithoutToolCall": true,
+    "frontDrops": [
+      {
+        "step": 2,
+        "promptBefore": 49943,
+        "promptAfter": 47560,
+        "cacheRead": 0,
+        "estimatedRequest": 88547
+      }
+    ],
+    "peakPromptTokens": 57103,
+    "compactionConfig": {
+      "limitContext": 65536,
+      "limitInput": null,
+      "limitOutput": 8192,
+      "reserved": null,
+      "threshold": 57344
+    }
+  },
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.6_35b-a3b-coding_20261005-201536.jsonl"
+}
