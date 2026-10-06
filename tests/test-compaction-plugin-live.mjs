@@ -17,7 +17,7 @@
 // Usage: node test-compaction-plugin-live.mjs <plugin.js> [opencode command]
 import { createServer } from "node:http"
 import { spawn, execSync } from "node:child_process"
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
@@ -123,14 +123,33 @@ writeFileSync(overlay, JSON.stringify({
     },
   },
 }))
-const port = 40000 + Math.floor(Math.random() * 20000)
-const env = { ...process.env, OPENCODE_CONFIG: overlay, HOMELAB_COMPACTION_PLUGIN_LOG: pluginLog }
+// An empty config home: the owner's global config (which installs the plugin
+// itself since 2026-10-05) must not load a second copy or change the setup;
+// only the overlay counts. opencode reads the global config from
+// XDG_CONFIG_HOME/opencode.
+const configHome = join(work, "config-home")
+mkdirSync(join(configHome, "opencode"), { recursive: true })
+const env = { ...process.env, OPENCODE_CONFIG: overlay, HOMELAB_COMPACTION_PLUGIN_LOG: pluginLog, XDG_CONFIG_HOME: configHome }
 delete env.HOMELAB_COMPACTION_IDLE_CONTINUE
-const server = spawn(`${opencodeCmd} serve --port ${port} --hostname 127.0.0.1`, { cwd: project, env, shell: true, windowsHide: true })
+// A random port can be taken ("Unexpected error ServeError", 2026-10-06), so up
+// to three ports are tried; only an opencode that cannot run at all is a SKIP.
+let server = null
 let serverOut = ""
-server.stdout.on("data", (d) => (serverOut += d))
-server.stderr.on("data", (d) => (serverOut += d))
-const base = `http://127.0.0.1:${port}`
+let base = ""
+function start() {
+  const port = 40000 + Math.floor(Math.random() * 20000)
+  serverOut = ""
+  server = spawn(`${opencodeCmd} serve --port ${port} --hostname 127.0.0.1`, { cwd: project, env, shell: true, windowsHide: true })
+  server.stdout.on("data", (d) => (serverOut += d))
+  server.stderr.on("data", (d) => (serverOut += d))
+  base = `http://127.0.0.1:${port}`
+}
+function killServer() {
+  try {
+    if (process.platform === "win32") execSync(`taskkill /T /F /PID ${server.pid}`, { stdio: "ignore" })
+    else server.kill("SIGKILL")
+  } catch {}
+}
 const q = `directory=${encodeURIComponent(project)}`
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function api(method, path, body) {
@@ -141,22 +160,25 @@ async function api(method, path, body) {
   return t ? JSON.parse(t) : null
 }
 function stop() {
-  try {
-    if (process.platform === "win32") execSync(`taskkill /T /F /PID ${server.pid}`, { stdio: "ignore" })
-    else server.kill("SIGKILL")
-  } catch {}
+  killServer()
   fake.close()
 }
 
 try {
   let up = false
-  for (let i = 0; i < 60 && !up; i++) {
-    try { await api("GET", "/session"); up = true } catch { await sleep(500) }
+  for (let attempt = 1; attempt <= 3 && !up; attempt++) {
+    start()
+    for (let i = 0; i < 60 && !up; i++) {
+      try { await api("GET", "/session"); up = true } catch { await sleep(500) }
+    }
+    if (!up) killServer()
   }
   if (!up) {
-    console.log("SKIP opencode serve did not start: " + serverOut.slice(0, 300).replace(/\s+/g, " "))
+    let installed = true
+    try { execSync(`${opencodeCmd} --version`, { stdio: "ignore" }) } catch { installed = false }
+    console.log((installed ? "FAIL" : "SKIP") + " opencode serve did not start on 3 ports: " + serverOut.slice(0, 300).replace(/\s+/g, " "))
     stop()
-    process.exit(0)
+    process.exit(installed ? 1 : 0)
   }
   const session = await api("POST", "/session", {})
   await api("POST", `/session/${session.id}/prompt_async`, {
@@ -177,6 +199,7 @@ try {
   const log = existsSync(pluginLog) ? readFileSync(pluginLog, "utf8") : ""
   const idleMsgs = messages.filter((m) => m.info.role === "user" && m.parts.some((p) => p.metadata && p.metadata.homelab_idle_continue))
   check("the plugin loaded inside opencode serve", log.includes('"message":"loaded"') && log.includes('"idleContinue":true'), true)
+  check("...only the copy under test: the global config stayed out", log.includes("duplicate copy skipped"), false)
   check("the task step ran, then opencode compacted", [seen.task, seen.compaction >= 1], [1, true])
   check("...the compaction prompt carried the original request", seen.compactionHadOriginal, true)
   check("...a summary message was stored", messages.some((m) => m.info.role === "assistant" && m.info.summary === true), true)

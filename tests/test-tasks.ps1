@@ -32,6 +32,9 @@
 #                exact commit used); the TSV schema is unchanged. Under -DryRun
 #                the same tests run on the untouched base and must FAIL.
 #
+# Checklist tasks (`grading: "checklist"`) run the same way but have no hidden
+# tests: their verdict is a person's, against the task's `checklist` file, so
+# the row records acceptance MANUAL (tests/test-checklist-grading.ps1).
 # Real-prompt tasks (`grading: "acceptance"`, built from the owner's own
 # sessions; docs/roadmap.md -> "Real-use tasks") are graded differently, because
 # the prompt is what the owner typed: it names no files and rarely asks for a
@@ -674,6 +677,36 @@ function Restore-TaskTestEnv {
     param($Saved)
     if (-not $Saved) { return }
     foreach ($name in @($Saved.Keys)) { [Environment]::SetEnvironmentVariable($name, $Saved[$name]) }
+}
+
+# The model's process must never publish anything. A task worktree is a
+# checkout of the owner's real repo with `origin` set, and this PC is signed in
+# to git and gh, so a model told "if there's anything worth PRing, do it" (the
+# stretch-v06 replay, 2026-10-06) could push a branch or open a pull request
+# on the real repo. For the opencode runs only, git gets every network push URL
+# rewritten to an unreachable host (`pushInsteadOf`, via git's GIT_CONFIG_*
+# environment, so no config file changes), and gh gets a token that GitHub
+# rejects. Fetches and local file:// pushes are untouched. Returns what
+# Restore-TaskTestEnv needs; tests/test-no-push.ps1 guards it.
+$script:NoPushHost = "https://push-disabled-by-test-tasks.invalid/"
+function Set-NoPushEnv {
+    $pairs = [ordered]@{}
+    $prefixes = @("https://", "http://", "ssh://", "git@")
+    $n = [int]("0" + [Environment]::GetEnvironmentVariable("GIT_CONFIG_COUNT"))
+    $pairs["GIT_CONFIG_COUNT"] = [string]($n + $prefixes.Count)
+    foreach ($p in $prefixes) {
+        $pairs["GIT_CONFIG_KEY_$n"] = "url.$($script:NoPushHost).pushInsteadOf"
+        $pairs["GIT_CONFIG_VALUE_$n"] = $p
+        $n++
+    }
+    $pairs["GH_TOKEN"] = "push-disabled-by-test-tasks"
+    $pairs["GITHUB_TOKEN"] = "push-disabled-by-test-tasks"
+    $saved = [ordered]@{}
+    foreach ($k in $pairs.Keys) {
+        $saved[$k] = [Environment]::GetEnvironmentVariable($k)
+        [Environment]::SetEnvironmentVariable($k, $pairs[$k])
+    }
+    return , $saved
 }
 
 function Invoke-Test {
@@ -1616,6 +1649,8 @@ foreach ($tk in $tasksToRun) {
     # The model's own shell gets the pinned environment too: a test it sees pass
     # has to be one the gates can run (opencode inherits this process's env).
     $savedEnv = Set-TaskTestEnv $tk
+    # ...and can push nothing anywhere (Set-NoPushEnv).
+    $savedPushEnv = Set-NoPushEnv
     # compaction-continue.js writes one JSON line per model call it rewrote to
     # this file (opencode inherits the env); counted after the run. Its idle
     # continue stays off here: `opencode run` exits when the session goes idle,
@@ -1676,6 +1711,7 @@ foreach ($tk in $tasksToRun) {
             $nudgedAtCompaction = $nudgeEvents.Compactions
         }
     } finally {
+        Restore-TaskTestEnv $savedPushEnv
         Restore-TaskTestEnv $savedEnv
         if ($pluginLog) { Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue }
     }
@@ -1770,6 +1806,12 @@ foreach ($tk in $tasksToRun) {
     $allowed = @($tk.allowFiles)
     $bad = @($changed | Where-Object { $_ -and ($allowed -notcontains $_) })
     $gradeByAcceptance = ($tk.grading -eq "acceptance")
+    # A checklist task (`grading: "checklist"`, e.g. a real feature rated by the
+    # owner against a written checklist) is graded like an acceptance task - guard
+    # rails, the suite, no owed test - but its verdict is a person's: the run is
+    # recorded with acceptance "MANUAL" and the checklist's path, for rating later.
+    $gradeByChecklist = ($tk.grading -eq "checklist")
+    $realGrading = $gradeByAcceptance -or $gradeByChecklist
     $guardrail = $null
     if ($tk.scope -eq "guardrails") {
         $stats = Get-ChangeStats $wt.Wt
@@ -1825,7 +1867,7 @@ foreach ($tk in $tasksToRun) {
     # for one (`requireTest`); otherwise the hidden tests are the whole verdict.
     $revertTask = $tk
     $changedForRevert = $changed
-    if ($gradeByAcceptance) {
+    if ($realGrading) {
         $changedForRevert = @((Get-ChangeStats $wt.Wt).Files)
         $atBase = @((Run-Native "git" (@("-C", $wt.Wt, "ls-tree", "-r", "--name-only", $wt.Head, "--") + $changedForRevert)).Output | Where-Object { $_ })
         $nonTest = @($changedForRevert | Where-Object { $_ -notmatch '(\.test\.|\.spec\.|(^|/)tests?/|__tests__)' -and $atBase -contains $_ })
@@ -1833,8 +1875,8 @@ foreach ($tk in $tasksToRun) {
         $revertTask | Add-Member -NotePropertyName srcRevertFiles -NotePropertyValue $nonTest -Force
     }
     $srcChanged = @($changedForRevert | Where-Object { $_ -and (@($revertTask.srcRevertFiles) -contains $_) })
-    if ($gradeByAcceptance -and -not $tk.requireTest) {
-        Write-Result $tk.id "fails-on-old" "SKIP" "not asked - the prompt did not ask for a test; the hidden tests decide"
+    if ($realGrading -and -not $tk.requireTest) {
+        Write-Result $tk.id "fails-on-old" "SKIP" $(if ($gradeByChecklist) { "not asked - the prompt did not ask for a test; the checklist decides" } else { "not asked - the prompt did not ask for a test; the hidden tests decide" })
         $failsOnOldSkipped = $true
     } elseif ($suite.ExitCode -ne 0) {
         Write-Result $tk.id "fails-on-old" "SKIP" "not measured - the suite is already red with the model's change, so it would fail with the source reverted whatever the test checks"
@@ -1912,7 +1954,10 @@ foreach ($tk in $tasksToRun) {
     # passes on scope + suite + acceptance.
     $accLabel = if ($gradeByAcceptance) { "acceptance (gate)" } else { "acceptance (informational)" }
     $acceptanceRecord = [pscustomobject]@{ status = "SKIP"; ref = $null; commit = $null; hash = $null; detail = "task defines no acceptance block" }
-    if (-not $tk.acceptance) {
+    if ($gradeByChecklist) {
+        $acceptanceRecord = [pscustomobject]@{ status = "MANUAL"; ref = "checklist"; commit = $null; hash = $null; detail = "rate against $($tk.checklist)" }
+        Write-Result $tk.id "checklist (manual)" "SKIP" "verdict pending: rate the transcript and diff against $($tk.checklist)"
+    } elseif (-not $tk.acceptance) {
         Write-Result $tk.id $accLabel $(if ($gradeByAcceptance) { "FAIL" } else { "SKIP" }) "task defines no acceptance block"
         if ($gradeByAcceptance) { $overallPass = $false; $acceptanceRecord.status = "ERROR" }
     } else {
@@ -1971,7 +2016,9 @@ foreach ($tk in $tasksToRun) {
         lastStepOutput  = $run.Ending.OutputTokens
         outputLimit     = $outputLimit
         outputCapHit    = $capHit
-        grading         = $(if ($gradeByAcceptance) { "acceptance" } else { "gates" })
+        grading         = $(if ($gradeByChecklist) { "checklist" } elseif ($gradeByAcceptance) { "acceptance" } else { "gates" })
+        checklist       = $(if ($gradeByChecklist) { $tk.checklist } else { $null })
+        pushGuard       = "on (Set-NoPushEnv: git network pushes rewritten to $($script:NoPushHost); gh token invalid)"
         turns           = $turnsRun
         opencodePlugins = @($opencodePlugins)
         compactionPluginRewrites = $pluginRewrites
@@ -2000,7 +2047,7 @@ foreach ($tk in $tasksToRun) {
     }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 
-    if ($gradeByAcceptance) {
+    if ($realGrading) {
         # Real-prompt rows never enter tasks-summary.tsv: a different verdict
         # (scope + suite + acceptance), so they would not compare.
         $realRows.Add((@($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
