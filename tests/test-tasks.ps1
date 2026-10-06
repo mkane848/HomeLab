@@ -1304,6 +1304,47 @@ function Get-TranscriptSessionId {
     return $null
 }
 
+# Token totals over a transcript's steps (every step_finish), across all turns.
+# Recorded in every run JSON as `usage`: a hosted seat bills by them, and a local
+# one's will be priced once its power draw is measured (docs/costs.md).
+function Get-TranscriptUsage {
+    param([string]$Path)
+    $u = [ordered]@{ input = 0; output = 0; reasoning = 0; cacheRead = 0; cacheWrite = 0; steps = 0 }
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return [pscustomobject]$u }
+    foreach ($line in [System.IO.File]::ReadLines($Path)) {
+        if ($line -notmatch '"step_finish"') { continue }
+        try { $e = $line | ConvertFrom-Json } catch { continue }
+        $t = $e.part.tokens
+        if (-not $t) { continue }
+        $u.steps++
+        $u.input += [double]$t.input
+        $u.output += [double]$t.output
+        $u.reasoning += [double]$t.reasoning
+        if ($t.cache) { $u.cacheRead += [double]$t.cache.read; $u.cacheWrite += [double]$t.cache.write }
+    }
+    return [pscustomobject]$u
+}
+
+# What a run cost in dollars of model access, from the dated rates in
+# costs/go-rates.tsv (USD per 1M tokens; a blank rate counts as 0). $null for
+# a model with no rate row - every local seat, today. Reasoning tokens are
+# billed as output, and opencode already counts them in `output`.
+function Get-RunCostEstimate {
+    param([string]$ModelId, $Usage, [string]$RatesPath = (Join-Path $repoRoot "costs\go-rates.tsv"))
+    if (-not $Usage -or -not (Test-Path -LiteralPath $RatesPath)) { return $null }
+    $rate = @(Import-Csv -LiteralPath $RatesPath -Delimiter "`t" | Where-Object { $_.model -eq $ModelId }) | Select-Object -First 1
+    if (-not $rate) { return $null }
+    $r = { param($v) if ([string]::IsNullOrWhiteSpace($v)) { 0.0 } else { [double]::Parse($v, [Globalization.CultureInfo]::InvariantCulture) } }
+    $usd = ($Usage.input * (& $r $rate.inputPerM) + $Usage.output * (& $r $rate.outputPerM) +
+            $Usage.cacheRead * (& $r $rate.cacheReadPerM) + $Usage.cacheWrite * (& $r $rate.cacheWritePerM)) / 1e6
+    return [pscustomobject]@{
+        usd         = [math]::Round($usd, 6)
+        rateModel   = $rate.model
+        rateChecked = $rate.checked
+        basis       = "costs/go-rates.tsv ($($rate.plan)$(if ($rate.tier) { ', ' + $rate.tier })): input $($rate.inputPerM), output $($rate.outputPerM), cache read $($rate.cacheReadPerM), cache write $(if ($rate.cacheWritePerM) { $rate.cacheWritePerM } else { '0' }) USD per 1M tokens"
+    }
+}
+
 function Invoke-OpencodeRun {
     # -SessionId continues an earlier turn (`opencode run --session`) and
     # -Transcript appends to that turn's transcript, so a multi-turn task keeps
@@ -2002,6 +2043,11 @@ foreach ($tk in $tasksToRun) {
         Write-Host "    (no transcript captured for this run)" -ForegroundColor DarkGray
     }
 
+    $runUsage = Get-TranscriptUsage -Path $(if ($transcriptFileField) { $transcriptDest } else { $run.TranscriptPath })
+    $runCost = Get-RunCostEstimate -ModelId $Model -Usage $runUsage
+    if ($runCost) {
+        Write-Host ("    model access: about `${0:N4} ({1:N0} input, {2:N0} cached, {3:N0} output tokens; rates checked {4})" -f $runCost.usd, $runUsage.input, $runUsage.cacheRead, $runUsage.output, $runCost.rateChecked) -ForegroundColor DarkGray
+    }
     $result = [pscustomobject]@{
         timestamp       = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
         taskId          = $tk.id
@@ -2044,6 +2090,8 @@ foreach ($tk in $tasksToRun) {
         testEnv        = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
         transcriptFile  = $transcriptFileField
+        usage           = $runUsage
+        costEstimate    = $runCost
     }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 

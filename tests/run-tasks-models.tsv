@@ -9,6 +9,15 @@
 # Columns: tag<TAB>hosts<TAB>desc. hosts = whitespace-separated provider host
 # tokens (desktop | node3 | server) matching the OLLAMA_<HOST>_BASE_URL env
 # each profile exports.
+# Hosted seats are the exception: host token `opencode-go` means the OpenCode Go
+# subscription (model id opencode-go/<tag>), billed per token. Those rows were
+# smoke-tested, NOT probed - test-toolcalls.ps1 is Ollama-only - each one wrote a
+# file through `opencode run --auto` on 2026-10-06, and the owner approved them
+# as seats. run-tasks-batch.ps1 offers one only when `opencode models
+# opencode-go` lists it, the API key file exists and the live config resolves;
+# never under 'all' (use -Models hosted, or name it), and never above its spend
+# cap (-SpendCapShare of the monthly allowance in costs/go-rates.tsv; a seat with
+# no rate row there is refused).
 tag	hosts	desc
 qwen3:8b	desktop node3	general light seat; measured PASS on desktop (0.34.1) and node3 (2026-09-20)
 qwen3:14b	desktop	main seat; measured PASS on desktop (0.34.1); deliberately absent from node3
@@ -23,3 +32,8 @@ qwen3.6:35b-a3b-coding	desktop	measured PASS on desktop (0.34.3), added by run-t
 lfm2.5:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
 ministral-3:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
 ornith:9b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+qwen3.7-plus	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+qwen3.8-max	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+kimi-k2.7-code	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+glm-5.2	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+deepseek-v4-pro	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed

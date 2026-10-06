@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Costs: what model access costs, recorded next to what it achieves (`docs/costs.md`).
+  - `costs/access.tsv`: what the owner pays, Claude Pro $20/month and OpenCode Go $10/month (checked 2026-10-06).
+  - `costs/go-rates.tsv`: dated per-token rates and monthly allowances for the five Go seats.
+  - Every run JSON records `usage` (tokens over all turns). A hosted run also records `costEstimate`.
+  - New guard `tests/test-run-cost.ps1`.
+- OpenCode Go seats: Qwen3.7 Plus, Qwen3.8 Max, Kimi K2.7 Code, GLM-5.2 and DeepSeek V4 Pro (owner's choice,
+  2026-10-06).
+  - All five passed a smoke test, a real file write through `opencode run --auto`
+    (`tests/results/hosted-smoke.tsv`).
+  - `run-tasks-batch.ps1 -Models hosted` runs them. A batch stops a model once it has spent 20% of its monthly
+    allowance (`-SpendCapShare`, owner's rule), and shows the caps before it starts.
+  - New guard `tests/test-hosted-seats.ps1`.
+
 - `test-tasks.ps1`: the model's process can no longer push or open pull requests. Task worktrees are
   checkouts of the owner's real repos, signed in to git and gh, and the new stretch task replays the
   owner's "if there's anything worth PRing, do it".
