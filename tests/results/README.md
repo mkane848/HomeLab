@@ -69,6 +69,10 @@ overflow"). It has 5 graded runs, in this folder's own `tasks-summary.tsv`:
   `opencodePlugins`, so they stay out of `tests/results/tasks-summary.tsv`.
   `compactionPluginRewrites` counts the model calls that carried the
   rewritten message.
+- **Since 2026-10-05 the plugin is in the global config**, so every desktop
+  run has it, including rows in `tests/results/tasks-summary.tsv`. Those rows
+  are a new era. Check `opencodePlugins` in a row's run JSON before comparing
+  it with earlier rows, as for an opencode version change.
 - **Run 13:19:12 predates the `-CommandTimeout` fix (PR #91).** Its suite
   looped on the model's edit and was ended by hand after 2 h 20 min. Its
   acceptance run was ended by a watchdog after 303 s. Both verdicts, FAIL,

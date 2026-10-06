@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Install the compaction-continue plugin for daily use: a `plugin` entry in
+  `opencode/global/opencode.jsonc`, deployed with `sync-opencode.ps1
+  -Template`.
+  - Every desktop session has it from now on, harness runs included, with
+    the idle continue off there. Benchmark rows from now on are a new era,
+    marked by `opencodePlugins` in the run JSON.
+  - Take it out by deleting the entry and re-syncing.
+
 - opencode plugin `opencode/plugins/compaction-continue.js`, which keeps a
   session working after an automatic compaction without the owner having to
   type "continue". It is not installed in the live config; that is the
