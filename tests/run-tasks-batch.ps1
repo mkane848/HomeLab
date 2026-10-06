@@ -54,6 +54,31 @@
 #     "autoupdate" is on) the batch stops rather than mix versions in a cell.
 #     The preflight says whether autoupdate is pinned (false / "notify" in
 #     opencode.jsonc, or OPENCODE_DISABLE_AUTOUPDATE=1).
+#
+# Hosted seats (OpenCode Go) - rows in run-tasks-models.tsv whose host is
+# `opencode-go`, run as `opencode-go/<tag>`. They cost the owner money per token:
+#   - Offered only when `opencode models opencode-go` lists the model, the API key
+#     file exists (~/.config/opencode/.secrets/opencode-go-api-key; checked, never
+#     read) and the live `opencode debug config` resolves. No /api/tags or Ollama
+#     version check, and no probe: test-toolcalls.ps1 is Ollama-only, so these
+#     seats were smoke-tested (`opencode run --auto` wrote a file, 2026-10-06),
+#     not probed. Probe mode never touches them and Both mode leaves them out.
+#   - Never picked by 'all'. Name them (-Models opencode-go/<tag>) or use the
+#     keyword 'hosted' (every hosted seat on offer): -Models all,hosted for both.
+#   - Spend cap: a batch may spend at most -SpendCapShare (default 0.2) of a
+#     model's monthly allowance (costs/go-rates.tsv monthlyLimitUsd). Go itself
+#     allows 20% per 5 hours, so 0.2 can never lock a model out for longer than
+#     one window. Each run's spend is the run JSON's costEstimate.usd, or, for a
+#     run with no JSON (_INFRA_/_TIMEOUT_/_TRUNCATED_), its transcript's tokens at
+#     the same rates: every run counts, graded or not. Before each run, a model
+#     whose spend has reached its cap is skipped for the rest of the batch; other
+#     models carry on. The check is before a run, so one run can overshoot the
+#     cap by that run's own cost. A model with no rate row is refused, since its
+#     spend cannot be estimated; -NoSpendCap runs it (and every hosted seat)
+#     uncapped. Local seats are untouched by all of this.
+#   One hosted batch, private real-prompt tasks:
+#     .\tests\run-tasks-batch.ps1 -SkipSetup -Mode Tasks -Models hosted -Tasks <ids> -Reps 1 -Yes `
+#         -TaskManifest M:\Projects\HomeLab-private\tasks\manifest.json -ResultsDir M:\Projects\HomeLab-private\results
 
 param(
     [switch]$SetupOnly,
@@ -82,7 +107,16 @@ param(
     # forwarded to test-tasks.ps1, which refuses a private manifest without a
     # private -ResultsDir. -OnlyMissing then reads that folder's summaries.
     [string]$TaskManifest = "",
-    [string]$ResultsDir = ""
+    [string]$ResultsDir = "",
+    # Hosted seats: the share of a model's monthly allowance one batch may spend
+    # (see the header). Must be > 0 and <= 1.
+    [double]$SpendCapShare = 0.2,
+    # Hosted seats run with no spend cap, and one with no rate row is allowed
+    # (its spend is then not estimated at all).
+    [switch]$NoSpendCap,
+    # Where the OpenCode Go API key file is expected. Its existence is checked;
+    # it is never read. Default ~/.config/opencode/.secrets/opencode-go-api-key.
+    [string]$GoKeyFile = ""
 )
 
 $scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -94,6 +128,13 @@ $probeLogPath = Join-Path $scriptDir "results\toolcalls-summary.tsv"
 $taskResultsDir = if ($ResultsDir) { [System.IO.Path]::GetFullPath($ResultsDir) } else { Join-Path $scriptDir "results" }
 $summaryPath  = Join-Path $taskResultsDir "tasks-summary.tsv"
 $realSummaryPath = Join-Path $taskResultsDir "real-tasks-summary.tsv"
+$goRatesPath  = Join-Path (Split-Path -Parent $scriptDir) "costs\go-rates.tsv"
+$goKeyPath    = if ($GoKeyFile) { $GoKeyFile } else { Join-Path $HOME ".config\opencode\.secrets\opencode-go-api-key" }
+
+if ($SpendCapShare -le 0 -or $SpendCapShare -gt 1) {
+    Write-Host "ERROR: -SpendCapShare must be > 0 and <= 1 (got $SpendCapShare). It is the share of a hosted model's monthly allowance one batch may spend." -ForegroundColor Red
+    exit 1
+}
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     Write-Host "ERROR: manifest not found at $manifestPath" -ForegroundColor Red
@@ -354,6 +395,7 @@ function Get-ProbeState {
 
 function Format-ProbeNote {
     param([string]$ModelId)
+    if (Test-HostedModelId $ModelId) { return "[hosted: smoke-tested, not probed; billed per token, spend-capped]" }
     $m   = Split-ModelId $ModelId
     $row = $probeLog["$($m.Host)/$($m.Tag)"]
     if (-not $row) { return "[probe: none logged]" }
@@ -437,6 +479,8 @@ function Get-RegisteredModelIds {
 function Get-AvailableModelSeats {
     # Registry rows intersected with live hosts: an option only if the host is
     # up and lists the tag. A down host or an unpulled model silently drops out.
+    # A hosted row (host `opencode-go`) is offered when Get-HostedSeatGate
+    # passes against $hostedState instead: no Ollama host is involved.
     $seats = [System.Collections.Generic.List[string]]::new()
     $rows = Get-RegistryRows
     if ($rows.Count -eq 0) {
@@ -445,6 +489,16 @@ function Get-AvailableModelSeats {
     }
     foreach ($r in $rows) {
         foreach ($hostName in $r.Hosts) {
+            if ($hostName -eq "opencode-go") {
+                $id = "opencode-go/$($r.Tag)"
+                $why = Get-HostedSeatGate -ModelId $id -State $hostedState
+                if ($why) {
+                    Write-Host ("  [skip] {0} - {1}" -f $id, $why) -ForegroundColor DarkGray
+                } elseif (-not $seats.Contains($id)) {
+                    $seats.Add($id)
+                }
+                continue
+            }
             $h = $ollamaHosts | Where-Object { $_.Label -eq $hostName }
             if (-not $h) {
                 Write-Host ("  [skip] ollama-{0} - OLLAMA_{1}_BASE_URL is not set in this shell (source a profile first)" -f $hostName, $hostName.ToUpper()) -ForegroundColor DarkGray
@@ -561,6 +615,221 @@ function Test-OpencodeAutoupdatePinned {
         if ($a -is [string] -and $a -eq "notify") { return $true }
     }
     return $false
+}
+
+# --- hosted seats (OpenCode Go) and the spend cap -----------------------------
+# See the header. None of these functions calls a model: listing models, testing
+# that the key file exists and resolving the config are all free.
+
+function Test-HostedModelId {
+    # A hosted seat: the OpenCode Go provider, billed per token, not host-scoped,
+    # never probed (test-toolcalls.ps1 drives Ollama's /api/chat only).
+    param([string]$ModelId)
+    return ($ModelId -match '^opencode-go/')
+}
+
+function Get-HostedModelList {
+    # `opencode models opencode-go` -> hashtable of the full ids it lists
+    # ("opencode-go/qwen3.8-max"), or $null when the command fails, and then no
+    # hosted seat is offered. It lists; it does not call a model.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = @(& opencode models opencode-go 2>$null)
+        if ($LASTEXITCODE -ne 0) { return $null }
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    $ids = @{}
+    foreach ($l in $out) {
+        $t = "$l".Trim()
+        if ($t -match '^opencode-go/\S+$') { $ids[$t] = $true }
+    }
+    return $ids
+}
+
+function Get-HostedState {
+    # The three facts a hosted seat is offered on, read once per batch.
+    # KeyExists only tests the path: the key file is never opened.
+    param([string]$KeyFile, [bool]$ConfigOk)
+    return [pscustomobject]@{
+        Listed    = Get-HostedModelList
+        KeyFile   = $KeyFile
+        KeyExists = [bool]($KeyFile -and (Test-Path -LiteralPath $KeyFile -PathType Leaf))
+        ConfigOk  = $ConfigOk
+    }
+}
+
+function Get-HostedSeatGate {
+    # Why a hosted seat cannot run, or $null when it can: opencode lists the
+    # model, the API key file exists, and the live config resolves.
+    param([string]$ModelId, $State)
+    if (-not $State) { return "hosted seats were not checked in this mode" }
+    if (-not $State.KeyExists) { return "no OpenCode Go API key file at $($State.KeyFile)" }
+    if ($null -eq $State.Listed) { return "``opencode models opencode-go`` failed, so it is unknown which Go models exist" }
+    if (-not $State.Listed.ContainsKey($ModelId)) { return "not listed by ``opencode models opencode-go``" }
+    if (-not $State.ConfigOk) { return "the live ``opencode debug config`` does not resolve" }
+    return $null
+}
+
+function ConvertTo-RateValue {
+    # A costs/go-rates.tsv number, read invariantly. Blank -> $Blank; not a number -> $null.
+    param($Value, $Blank = 0.0)
+    $s = "$Value".Trim()
+    if (-not $s) { return $Blank }
+    $d = 0.0
+    if ([double]::TryParse($s, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$d)) { return $d }
+    return $null
+}
+
+function Get-GoRates {
+    # costs/go-rates.tsv -> hashtable: full model id -> its row. Empty when the
+    # file is missing.
+    param([string]$Path)
+    $rates = @{}
+    if ($Path -and (Test-Path -LiteralPath $Path)) {
+        foreach ($row in (Import-Csv -LiteralPath $Path -Delimiter "`t")) {
+            if ($row.model) { $rates[$row.model.Trim()] = $row }
+        }
+    }
+    return $rates
+}
+
+function Get-SpendCap {
+    # One hosted model's cap for this batch: $Share x monthlyLimitUsd.
+    # { Usd; Monthly; Share; Refusal }. Refusal is set when the model cannot be
+    # held to a cap: no rate row, no input/output rate (its spend would read as
+    # $0 and never reach the cap), or no monthly allowance.
+    param([string]$ModelId, [hashtable]$Rates, [double]$Share)
+    $row = $Rates[$ModelId]
+    $refuse = { param($why) [pscustomobject]@{ Usd = $null; Monthly = $null; Share = $Share; Refusal = $why } }
+    if (-not $row) { return (& $refuse "no row in costs/go-rates.tsv, so its spend cannot be estimated or capped") }
+    foreach ($col in "inputPerM", "outputPerM") {
+        $v = ConvertTo-RateValue $row.$col -Blank $null
+        if ($null -eq $v) { return (& $refuse "its costs/go-rates.tsv row has no $col, so its spend cannot be estimated") }
+    }
+    $monthly = ConvertTo-RateValue $row.monthlyLimitUsd -Blank $null
+    if ($null -eq $monthly -or $monthly -le 0) { return (& $refuse "its costs/go-rates.tsv row has no monthlyLimitUsd, so there is no allowance to take a share of") }
+    return [pscustomobject]@{ Usd = [math]::Round($Share * $monthly, 6); Monthly = $monthly; Share = $Share; Refusal = $null }
+}
+
+function Get-TranscriptTokenUsage {
+    # Token totals over a transcript's step_finish events (part.tokens: input,
+    # output, reasoning, cache.read, cache.write), across every turn. The same
+    # sum test-tasks.ps1 records as a run JSON's `usage`; used here for a run
+    # that left no JSON, which may still have been billed.
+    param([string]$Path)
+    $u = [ordered]@{ input = 0.0; output = 0.0; reasoning = 0.0; cacheRead = 0.0; cacheWrite = 0.0; steps = 0 }
+    if ($Path -and (Test-Path -LiteralPath $Path)) {
+        foreach ($line in [System.IO.File]::ReadLines($Path)) {
+            if ($line -notmatch '"step_finish"') { continue }
+            try { $e = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+            $t = $e.part.tokens
+            if (-not $t) { continue }
+            $u.steps++
+            $u.input     += [double]$t.input
+            $u.output    += [double]$t.output
+            $u.reasoning += [double]$t.reasoning
+            if ($t.cache) { $u.cacheRead += [double]$t.cache.read; $u.cacheWrite += [double]$t.cache.write }
+        }
+    }
+    return [pscustomobject]$u
+}
+
+function Get-UsageCostUsd {
+    # Dollars for a usage block at one costs/go-rates.tsv row. The same formula
+    # as test-tasks.ps1's Get-RunCostEstimate: a blank rate counts as 0, and
+    # reasoning tokens are not added again (opencode already counts them in
+    # `output`). tests/test-hosted-seats.ps1 checks the two agree.
+    param($Usage, $Rate)
+    if (-not $Usage -or -not $Rate) { return 0.0 }
+    $usd = ($Usage.input * (ConvertTo-RateValue $Rate.inputPerM) + $Usage.output * (ConvertTo-RateValue $Rate.outputPerM) +
+            $Usage.cacheRead * (ConvertTo-RateValue $Rate.cacheReadPerM) + $Usage.cacheWrite * (ConvertTo-RateValue $Rate.cacheWritePerM)) / 1e6
+    return [math]::Round($usd, 6)
+}
+
+function Get-ResultFileNames {
+    # Names of the files in a results folder now, as a set (before a run, to
+    # tell the files that run leaves behind from everything else).
+    param([string]$Dir)
+    $set = @{}
+    if (Test-Path -LiteralPath $Dir) {
+        foreach ($f in (Get-ChildItem -LiteralPath $Dir -File)) { $set[$f.Name] = $true }
+    }
+    return $set
+}
+
+function Measure-RunSpend {
+    # What one test-tasks.ps1 invocation spent, from the files it left in the
+    # results folder: tasks-<task>-<label>_<stamp>.json + .jsonl for a graded
+    # run, tasks-<task>-<label>_<INFRA|TIMEOUT|TRUNCATED>_<stamp>.jsonl for one
+    # that was not. A transcript paired with a JSON that carries
+    # costEstimate.usd counts that number; any other transcript (no JSON, or a
+    # JSON with no estimate) counts its tokens at $Rate. Every run counts,
+    # graded or not: an infrastructure failure may still have been billed.
+    # Returns { Usd; Sources }.
+    param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel, $Rate)
+    $prefix = "tasks-{0}-{1}_" -f $TaskId, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_')
+    $new = @()
+    if (Test-Path -LiteralPath $ResultsDir) {
+        $new = @(Get-ChildItem -LiteralPath $ResultsDir -File | Where-Object { $_.Name.StartsWith($prefix) -and -not $Before.ContainsKey($_.Name) })
+    }
+    $jsonCost = @{}   # base name -> usd or $null
+    foreach ($f in ($new | Where-Object { $_.Extension -eq ".json" })) {
+        $usd = $null
+        try {
+            $j = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json -ErrorAction Stop
+            if ($j.costEstimate -and $null -ne $j.costEstimate.usd) { $usd = [double]$j.costEstimate.usd }
+        } catch { $usd = $null }
+        $jsonCost[$f.BaseName] = $usd
+    }
+    $total = 0.0
+    $sources = New-Object System.Collections.Generic.List[string]
+    $paired = @{}
+    foreach ($f in ($new | Where-Object { $_.Extension -eq ".jsonl" })) {
+        if ($jsonCost.ContainsKey($f.BaseName)) { $paired[$f.BaseName] = $true }
+        if ($jsonCost.ContainsKey($f.BaseName) -and $null -ne $jsonCost[$f.BaseName]) {
+            $total += $jsonCost[$f.BaseName]
+            $sources.Add("run JSON costEstimate")
+            continue
+        }
+        $total += Get-UsageCostUsd -Usage (Get-TranscriptTokenUsage -Path $f.FullName) -Rate $Rate
+        $sources.Add($(if ($f.Name -match '_(INFRA|TIMEOUT|TRUNCATED)_') { "$($Matches[1]) transcript tokens" }
+                       elseif ($jsonCost.ContainsKey($f.BaseName)) { "transcript tokens (its run JSON has no costEstimate)" }
+                       else { "transcript tokens (no run JSON)" }))
+    }
+    foreach ($base in $jsonCost.Keys) {
+        if ($paired.ContainsKey($base)) { continue }
+        if ($null -ne $jsonCost[$base]) { $total += $jsonCost[$base]; $sources.Add("run JSON costEstimate") }
+        else { $sources.Add("run JSON with no costEstimate and no transcript - not counted") }
+    }
+    if ($sources.Count -eq 0) { $sources.Add("no result files - nothing counted") }
+    return [pscustomobject]@{ Usd = [math]::Round($total, 6); Sources = @($sources) }
+}
+
+function Get-CapStatus {
+    # Before a run: $null when the model may run, else the message that skips
+    # it. Only hosted models with a cap are ever stopped.
+    param([string]$ModelId, [hashtable]$Caps, [hashtable]$Spend)
+    if (-not $Caps.ContainsKey($ModelId)) { return $null }
+    $cap = $Caps[$ModelId]
+    $spent = [double]$Spend[$ModelId]
+    if ($spent -lt $cap.Usd) { return $null }
+    return ("spent about {0} of its {1}" -f (Format-Usd $spent), (Format-SpendCap $cap))
+}
+
+function Format-Usd {
+    # "$1.2345" whatever the machine's culture, so logs and guards read the same.
+    param([double]$Usd, [int]$Digits = 4)
+    return '$' + $Usd.ToString("N$Digits", [Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Format-SpendCap {
+    # "$3.00 cap (20% of $15.00 monthly)"
+    param($Cap)
+    return ("{0} cap ({1}% of {2} monthly)" -f (Format-Usd $Cap.Usd 2), [math]::Round($Cap.Share * 100, 1).ToString([Globalization.CultureInfo]::InvariantCulture), (Format-Usd $Cap.Monthly 2))
 }
 
 # Chat models only - embedding models have no chat endpoint to probe.
@@ -701,13 +970,28 @@ if ($selectedTasks.Count -eq 0) {
 # un-probed model may silently no-op (liar mode) instead of failing loudly.
 Write-Host ""
 Write-Host "=== Select models ===" -ForegroundColor Cyan
+# Hosted seats (opencode-go): listed by opencode, key file present, config
+# resolves. Read once; Get-AvailableModelSeats and the filter below both use it.
+$hostedState = Get-HostedState -KeyFile $goKeyPath -ConfigOk ($null -ne (Get-OpencodeConfig))
+$goRates = Get-GoRates -Path $goRatesPath
 $available = @(Get-AvailableModelSeats)
+$availableLocal  = @($available | Where-Object { -not (Test-HostedModelId $_) })
+$availableHosted = @($available | Where-Object { Test-HostedModelId $_ })
 $selectedModels = New-Object System.Collections.Generic.List[string]
-if ($Mode -eq "Both" -or (((Split-IdList $Models) -join ",").ToLower() -eq "all")) {
-    # Every available seat; the probe filter below keeps only current-version PASSes.
-    foreach ($m in $available) { $selectedModels.Add($m) }
+if ($Mode -eq "Both") {
+    # Every available local seat; the probe filter below keeps only
+    # current-version PASSes. Hosted seats have no probe, so Both leaves them out.
+    foreach ($m in $availableLocal) { $selectedModels.Add($m) }
+    if ($availableHosted.Count -gt 0) {
+        Write-Host "  ($($availableHosted.Count) hosted seat(s) left out: Both mode runs probed seats only. Run them with -Mode Tasks -Models hosted.)" -ForegroundColor DarkGray
+    }
 } elseif ($Models) {
-    foreach ($m in (Split-IdList $Models)) { if (-not $selectedModels.Contains($m)) { $selectedModels.Add($m) } }
+    # 'all' = every available LOCAL seat; 'hosted' = every available hosted
+    # seat. A paid seat is never picked up by 'all'.
+    foreach ($tok in (Split-IdList $Models)) {
+        $pick = switch ($tok.ToLower()) { "all" { $availableLocal } "hosted" { $availableHosted } default { @($tok) } }
+        foreach ($m in $pick) { if (-not $selectedModels.Contains($m)) { $selectedModels.Add($m) } }
+    }
 } else {
     $modelOptions = @($available) + "(custom model id - type your own)"
     $labels = @($available | ForEach-Object { "{0,-46} {1}" -f $_, (Format-ProbeNote $_) }) + $modelOptions[-1]
@@ -731,7 +1015,32 @@ if ($Mode -eq "Both" -or (((Split-IdList $Models) -join ",").ToLower() -eq "all"
 # does not know (opencode run would exit non-zero -> an _INFRA_ run).
 $registeredIds = Get-RegisteredModelIds
 $kept = New-Object System.Collections.Generic.List[string]
+$hostedCaps = @{}   # hosted model id -> Get-SpendCap result; absent = uncapped
 foreach ($m in $selectedModels) {
+    if (Test-HostedModelId $m) {
+        # Hosted: none of the Ollama checks apply (no host, no probe). The gate
+        # and the spend cap do.
+        if ($Mode -eq "Both") {
+            Write-Host "  [drop] $m - hosted seats have no probe; Both mode runs probed seats only" -ForegroundColor Yellow
+            continue
+        }
+        $why = Get-HostedSeatGate -ModelId $m -State $hostedState
+        if ($why) {
+            Write-Host "  [drop] $m - $why" -ForegroundColor Yellow
+            continue
+        }
+        if (-not $NoSpendCap) {
+            $cap = Get-SpendCap -ModelId $m -Rates $goRates -Share $SpendCapShare
+            if ($cap.Refusal) {
+                Write-Host "  [drop] $m - $($cap.Refusal). No rate, no runs: add the row to costs/go-rates.tsv (rates and monthly allowance from the Go docs), or pass -NoSpendCap to run it uncapped." -ForegroundColor Yellow
+                continue
+            }
+            $hostedCaps[$m] = $cap
+        }
+        Write-Host "  note: $m is hosted - smoke-tested (opencode run --auto wrote a file, 2026-10-06), not probed: test-toolcalls.ps1 is Ollama-only." -ForegroundColor DarkGray
+        $kept.Add($m)
+        continue
+    }
     $state = Get-ProbeState $m
     if ($state -eq "FAIL" -or ($Mode -eq "Both" -and $state -ne "PASS")) {
         Write-Host "  [drop] $m - probe $state on this host's current Ollama version" -ForegroundColor Yellow
@@ -868,6 +1177,22 @@ foreach ($e in $preflight) {
         Write-Host ("  [FAIL] {0}  {1}" -f $e.Provider, $e.Detail) -ForegroundColor Red
     }
 }
+# Hosted seats were gated when selected (listed, key file present, config
+# resolves); here each one's spend cap in dollars.
+$hostedSelected = @($selectedModels | Where-Object { Test-HostedModelId $_ })
+if ($hostedSelected.Count -gt 0) {
+    Write-Host "  [PASS] opencode-go  key file present at $goKeyPath (not read); $($hostedSelected.Count) hosted seat(s) listed by opencode" -ForegroundColor Green
+    foreach ($m in $hostedSelected) {
+        if ($hostedCaps.ContainsKey($m)) {
+            $rate = $goRates[$m]
+            Write-Host ("  [CAP]  {0}  {1}; rates checked {2}" -f $m, (Format-SpendCap $hostedCaps[$m]), $rate.checked) -ForegroundColor Green
+        } elseif ($goRates.ContainsKey($m)) {
+            Write-Host "  [WARN] $m  -NoSpendCap: NO cap. Spend is still estimated and reported." -ForegroundColor Yellow
+        } else {
+            Write-Host "  [WARN] $m  -NoSpendCap and no rate row: NO cap, and its spend cannot be estimated." -ForegroundColor Yellow
+        }
+    }
+}
 # opencode installs patch releases by itself when a TUI starts, so opening
 # OpenCode on this machine mid-batch can swap the binary under it. Not a FAIL:
 # the drift check below stops the batch if it happens.
@@ -901,12 +1226,31 @@ if (-not $Yes) {
 $results = New-Object System.Collections.Generic.List[pscustomobject]
 $runNum = 0
 $stopped = $null
+$hostedSpend  = @{}   # hosted model id -> estimated USD this batch
+$hostedRan    = @{}   # hosted model id -> runs started
+$hostedCapped = @{}   # hosted model id -> runs skipped at the cap
 foreach ($run in $runList) {
     $runNum++
     $drift = Get-OpencodeVersionDrift -Expected $batchOpencode
     if ($drift) {
         $stopped = "$drift, before run $runNum of $total; $($total - $runNum + 1) run(s) not started. A cell must not straddle versions: pin autoupdate, then re-run the rest on one version."
         break
+    }
+    $isHosted = Test-HostedModelId $run.Model
+    if ($isHosted) {
+        $capMsg = Get-CapStatus -ModelId $run.Model -Caps $hostedCaps -Spend $hostedSpend
+        if ($capMsg) {
+            if (-not $hostedCapped.ContainsKey($run.Model)) {
+                $left = @($runList | Select-Object -Skip ($runNum - 1) | Where-Object { $_.Model -eq $run.Model }).Count
+                Write-Host ""
+                Write-Host "  [CAP] $($run.Model): $capMsg - skipping its remaining $left run(s). Other models carry on." -ForegroundColor Yellow
+                $hostedCapped[$run.Model] = 0
+            }
+            $hostedCapped[$run.Model]++
+            continue
+        }
+        $filesBefore = Get-ResultFileNames -Dir $taskResultsDir
+        $hostedRan[$run.Model] = [int]$hostedRan[$run.Model] + 1
     }
     Write-Host ""
     Write-Host ">>> [$runNum/$total] $($run.Task)  x  $($run.Model)  (rep $($run.Rep) of $repCount)" -ForegroundColor Cyan
@@ -930,6 +1274,19 @@ foreach ($run in $runList) {
         $code = "crash"
         Write-Host "  CRASH: $crash - continuing with the next run" -ForegroundColor Red
     }
+    # Hosted: count what this run spent, graded or not (a crashed or
+    # infrastructure run may still have been billed).
+    if ($isHosted) {
+        $rate = $goRates[$run.Model]
+        if ($rate) {
+            $spend = Measure-RunSpend -ResultsDir $taskResultsDir -Before $filesBefore -TaskId $run.Task -ModelLabel $run.Model -Rate $rate
+            $hostedSpend[$run.Model] = [double]$hostedSpend[$run.Model] + $spend.Usd
+            $ofCap = if ($hostedCaps.ContainsKey($run.Model)) { " of its " + (Format-SpendCap $hostedCaps[$run.Model]) } else { " (no cap)" }
+            Write-Host ("  spend: about {0} this run ({1}); {2} so far {3}{4}" -f (Format-Usd $spend.Usd), ($spend.Sources -join ", "), $run.Model, (Format-Usd $hostedSpend[$run.Model]), $ofCap) -ForegroundColor DarkGray
+        } else {
+            Write-Host "  spend: not estimated - $($run.Model) has no row in costs/go-rates.tsv (-NoSpendCap)" -ForegroundColor Yellow
+        }
+    }
     $results.Add([pscustomobject]@{
         Task     = $run.Task
         Model    = $run.Model
@@ -941,15 +1298,33 @@ foreach ($run in $runList) {
 Write-Host ""
 Write-Host $(if ($stopped) { "=== Batch STOPPED ===" } else { "=== Batch complete ===" }) -ForegroundColor $(if ($stopped) { "Red" } else { "Cyan" })
 $results | Format-Table -AutoSize
+$hostedInBatch = @($selectedModels | Where-Object { Test-HostedModelId $_ })
+if ($hostedInBatch.Count -gt 0) {
+    Write-Host "=== Hosted spend (estimated, this batch) ===" -ForegroundColor Cyan
+    foreach ($m in $hostedInBatch) {
+        $spentTxt = if ($goRates.ContainsKey($m)) { Format-Usd ([double]$hostedSpend[$m]) } else { "not estimated (no rate row)" }
+        $capTxt   = if ($hostedCaps.ContainsKey($m)) { "of its " + (Format-SpendCap $hostedCaps[$m]) } else { "no cap (-NoSpendCap)" }
+        $skipTxt  = if ($hostedCapped.ContainsKey($m)) { "; $($hostedCapped[$m]) skipped at the cap" } else { "" }
+        Write-Host ("  {0,-34} {1} {2}  - {3} run(s){4}" -f $m, $spentTxt, $capTxt, [int]$hostedRan[$m], $skipTxt)
+    }
+    Write-Host "  Estimates from costs/go-rates.tsv; the Go console is the bill." -ForegroundColor DarkGray
+    Write-Host ""
+}
 if ($stopped) {
     Write-Host $stopped -ForegroundColor Red
     exit 1
 }
 
+$cappedRuns = 0
+foreach ($n in $hostedCapped.Values) { $cappedRuns += $n }
+if ($cappedRuns -gt 0) {
+    Write-Host "$cappedRuns run(s) not started: their hosted model reached its spend cap (see above)." -ForegroundColor Yellow
+}
+$ranCount = $results.Count
 $fails = @($results | Where-Object { $_.ExitCode -ne 0 })
 if ($fails.Count -gt 0) {
-    Write-Host "$($fails.Count) of $total run(s) exited non-zero (test-tasks.ps1 exits 1 on any FAIL grade)." -ForegroundColor Yellow
+    Write-Host "$($fails.Count) of $ranCount run(s) exited non-zero (test-tasks.ps1 exits 1 on any FAIL grade)." -ForegroundColor Yellow
     Write-Host "Per-run detail is in $taskResultsDir and the appended rows in its tasks-summary.tsv / real-tasks-summary.tsv." -ForegroundColor Yellow
 } else {
-    Write-Host "All $total run(s) completed with exit 0 (no FAIL grade - a run can still carry a WARN)." -ForegroundColor Green
+    Write-Host "All $ranCount run(s) completed with exit 0 (no FAIL grade - a run can still carry a WARN)." -ForegroundColor Green
 }

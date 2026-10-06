@@ -72,6 +72,8 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | ollama-prompt | Ollama `server/prompt.go` at v0.34.3 (`6383a0f`, read 2026-10-04) — `chatPrompt` drops messages from the front until a request fits `num_ctx`, keeping system messages, logged at debug level | <https://github.com/ollama/ollama/blob/6383a0fa9cbf97494b847226e189f6e36b401a08/server/prompt.go> |
 | ollama-claude-code | Ollama docs, "Claude Code" integration (read 2026-10-05) — Claude Code against Ollama's Anthropic-compatible API via `ANTHROPIC_BASE_URL`; 64k context or more advised for larger repositories | <https://docs.ollama.com/integrations/claude-code> |
 | ollama-openclaw | Ollama docs, "OpenClaw" integration (read 2026-10-05) — "a personal AI assistant" bridging messaging apps to AI coding agents through a gateway; at least 64k context advised with local models | <https://docs.ollama.com/integrations/openclaw> |
+| opencode-go | OpenCode docs, "Go" (read 2026-10-06) — $10/month (Go) and $40/month (Go Plus); per-model monthly dollar allowances, of which at most 20% per 5 hours and 50% per week; per-token prices; data retention per model (0 days for most, 30 for Grok and GPT Luna, Muse Spark used for training) | <https://opencode.ai/docs/go> |
+| claude-pricing | Anthropic, "Pricing" (read 2026-10-06) — Claude Pro $20/month billed monthly, $17/month billed annually; Claude Code included in all paid plans | <https://claude.com/pricing> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented

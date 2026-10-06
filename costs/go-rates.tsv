@@ -1,0 +1,6 @@
+model	plan	tier	inputPerM	outputPerM	cacheReadPerM	cacheWritePerM	monthlyLimitUsd	checked	source
+opencode-go/qwen3.7-plus	go	requests <= 256K tokens	0.40	1.60	0.04	0.50	60	2026-10-06	https://opencode.ai/docs/go
+opencode-go/qwen3.8-max	go		2.00	6.00	0.25	2.50	15	2026-10-06	https://opencode.ai/docs/go
+opencode-go/kimi-k2.7-code	go		0.95	4.00	0.19		60	2026-10-06	https://opencode.ai/docs/go
+opencode-go/glm-5.2	go		1.40	4.40	0.26		60	2026-10-06	https://opencode.ai/docs/go
+opencode-go/deepseek-v4-pro	go	peak (estimates use peak: the higher of the two)	1.32	3.96	0.044		15	2026-10-06	https://opencode.ai/docs/go

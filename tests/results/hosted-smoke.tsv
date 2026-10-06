@@ -1,0 +1,6 @@
+date	model	opencodeVersion	exit	toolCall	fileWritten	seconds	inputTokens	cachedInputTokens	outputTokens	note
+2026-10-06	opencode-go/qwen3.7-plus	1.18.34	0	write	yes	12	12	18934	237	scratch repo, no remote; opencode run --auto; "create hello.txt containing hello"
+2026-10-06	opencode-go/qwen3.8-max	1.18.34	0	write	yes	11	12	19010	166	same
+2026-10-06	opencode-go/kimi-k2.7-code	1.18.34	0	write	yes	10	261	16384	90	same
+2026-10-06	opencode-go/glm-5.2	1.18.34	0	write	yes	9	9021	9189	114	same
+2026-10-06	opencode-go/deepseek-v4-pro	1.18.34	0	write	yes	10	1566	17408	127	same
