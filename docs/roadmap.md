@@ -1362,6 +1362,36 @@ preconditions as any re-seat above (`-Reliability` is met, DP10; a
 plain-language trial; the companion re-measured). `dev-node3` stays on
 `qwen3:8b` until `qwen3.5:9b` is probed on node3. Owner decision.
 
+**`qwen3.5:9b` on node3 (researched 2026-10-05; on hold until the server
+runs).**
+- **Memory.** The desktop's copy is a Q8_0 GGUF import (2026-09-18). At about
+  10.4 GiB at 64k it does not fit node3's 10 GB.
+- **The registry build.** `qwen3.5:9b-q4_K_M` (blob `02d45dc1cf45`, 5.63 GB
+  plus the vision projector) should fit fully on the GPU at 64k: about
+  7.3 GiB with q8_0 KV.
+  - The model is cheap on context: only 8 of its 32 layers hold KV, 1,088 MiB
+    at 64k (measured on the desktop).
+- **It is a different seat from the desktop's**, so the desktop rows don't
+  carry over:
+  - Q4 instead of Q8;
+  - Ollama's built-in `qwen3.5` renderer and parser instead of the GGUF's
+    Jinja template;
+  - the registry's sampling defaults.
+- **Its overflow will probably be silent.** The desktop's "No user query
+  found" crash comes from that Jinja template, so on node3 an overflow will
+  probably be silent task loss. The harness's log-based truncation check reads
+  only the local Ollama.
+- **Done so far (owner-approved, 2026-10-05):** pulled to node3 (6.55 GB,
+  digest verified).
+- **Not done yet:**
+  - bake `num_ctx 65536` and check the renderer survives;
+  - add an `ollama-node3` entry with `limit`;
+  - probe with `test-toolcalls.ps1 -HostLabel node3`;
+  - add a `run-tasks-models.tsv` row;
+  - give it its own task rows.
+- **Read node3's KV and flash-attention settings first.** Its log needs a
+  login: SSH has no key set up.
+
 **`qwen3.5:9b`'s second run of the same 16 (2026-10-04 15:46 – 17:34): 9 of 16
 again.** Same setup, after the PR #87 merge but on the pre-#87 harness (the
 change does not touch single-turn runs). 9 passes, 5 graded fails, 2 crashes,
@@ -1638,8 +1668,38 @@ it, harness runs included, with the idle continue switched off for those. So
 benchmark rows from then on are a new era: their run JSON's
 `opencodePlugins` names the plugin.
 
-Still open: `limit.output` for `qwen3.6`, which is the remaining limit on
-`kane-07` (two diagnostic runs and one plugin run hit it).
+**The daily configuration, measured (2026-10-05 evening, `tests/results/compaction-daily/`).**
+Setup: the installed plugin plus `-NudgeAfterCompaction`, `qwen3.6`, one run
+per context-heavy cell it has failed. The nudge stands in for the plugin's own
+idle continue: same text, same moment, same session. These are assisted runs.
+
+| cell | result | before (`qwen3.6`) |
+|---|---|---|
+| `kane-07` | **PASS**: two compactions, two stalls, resumed after each nudge, 7 edits | no help 0/2, nudge 2/5, plugin alone 0/3 |
+| `kane-07` | correct fix (the upstream fix's tests pass), but its own test also passes on the old source: `failsOnOld` FAIL | |
+| `asohav-02` | **PASS**, no compaction | 2/4 |
+| `kane-08` | FAIL, 0 edits: a front-drop, then after the nudge a step that spent all 8,192 output tokens with no output | 0/1 |
+| `lfc-07` | FAIL, 0 edits: an output-cap step five minutes in, no compaction | 0/2 |
+
+- **The plugin with the continue does what it was built for.** On `kane-07`,
+  every stalled run that got a fresh continue now resumes. In this batch both
+  produced the correct source fix.
+- **What's left isn't stalls.** It's the 8,192 `limit.output` (`lfc-07`,
+  `kane-08`) and Ollama's front-drop (`kane-08`, the control).
+- **The output limit (owner's question, 2026-10-05; parked).**
+  - Across all 68 `qwen3.6` transcripts, 11 of 676 steps hit the cap. Every
+    one was 3–5 minutes of hidden thinking with no visible output. 4 recovered;
+    7 ended their run, and 5 of those runs failed.
+  - Raising the limit is not free. opencode compacts at
+    `limit.context - limit.output` when no `limit.input` is set
+    ([`overflow.ts`][oc-overflow]), so 16,384 would compact at 49,152 instead
+    of 57,344. That is the direction of the earlier-compaction trial that was
+    rejected.
+  - Keeping the threshold with `limit.input` and `compaction.reserved` would
+    let a long prompt plus a long reply exceed `num_ctx`.
+  - Measure it before changing anything: a separate trial at 16,384 on the
+    cells where the cap ended a run, plus a look at the thinking text, to see
+    whether the capped steps are loops.
 
 **Is this OpenCode, or the plan? (2026-10-05, recorded, not pursued yet)**
 
@@ -1797,6 +1857,26 @@ owner's real fix, with LFCbot's full suite (83–125 tests) green at every base.
   guard rails) and a deployment doc instead; run 3 changed nothing.
 - `real-01`'s two first-run rows under the superseded check are not counted.
 
+**Run 4, the first with the plugin installed (2026-10-05 20:57 – 21:03):
+`qwen3.6` 0 of 3.** The runs came straight after the five long
+`compaction-daily` runs. They were short (1–3 minutes) and the model fumbled:
+- `real-01` added the rule, then deleted its own addition;
+- `real-02` hit one failed edit, then declared the file up to date;
+- `real-03` wrote one of the two pages.
+
+The plugin had no part in them: no compaction, no rewrite, and its idle
+continue is off under the harness. It was nonetheless the only recorded
+difference from runs 1–3, so it was tested directly.
+
+**A/B, the plugin on and off (`OPENCODE_PURE=1` skips external plugins for
+one process), 21:13 – 21:31.** `real-01` and `real-03`, alternating, twice
+each: **8 of 8 PASS, 4 with the plugin and 4 without.**
+- So the plugin is cleared, and run 4 was a bad draw: unexplained, possibly
+  the long sessions just before it.
+- These are diagnostic runs. They are in the private repo
+  (`results/plugin-ab/`), not in `real-tasks-public.tsv`, which keeps run 4's
+  three rows.
+
 **Two-turn support (built 2026-10-04).** A task's `followUps` are fixed later
 turns, sent with `opencode run --session` into the same session and transcript
 and graded on the end state (`tests/test-follow-ups.ps1`). In the one local
@@ -1810,9 +1890,24 @@ trailer. The owner will try to bring that session here (or copy its messages
 out) so the verbatim rule can hold. That one session drove nine slices, so its
 kickoff messages probably each cover several packages.
 
+**Checklists for the two large features: drafted 2026-10-05, awaiting the
+owner's review** (private repo, `reports/large-feature-checklists.md`). There
+are 10 observable-behaviour items per feature, 5 of them *must*, each with its
+source, the base and done commits, and a verdict rule: PASS if every *must*
+holds, PARTIAL if at least half do.
+- **Smaller than thought.** Each feature was one commit plus one or two
+  follow-ups within a day.
+- **Exact printings** has a verbatim opener that stands alone (82 words).
+- **Multi-card input** doesn't. Its opener points at a research document the
+  owner pasted in a later reply, so the owner decides whether to combine the
+  two, make it research-only, or drop it.
+- **Rating takes a manual session.** It needs the model's branch running
+  against a Discord test server, and a live Mana Pool link needs the owner's
+  API key.
+
 **Next:**
 - Collect that session and see how its kickoff messages map to packages.
-- Draft the checklists for the two large features.
+- The owner reviews the checklists.
 - Then the plan tasks' pilot.
 
 **TODO:**

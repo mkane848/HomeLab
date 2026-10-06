@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Results: the daily configuration measured. It is five assisted `qwen3.6`
+  runs with the installed plugin plus the compaction nudge, in
+  `tests/results/compaction-daily/`.
+  - `kane-07` PASS, plus a second run with the correct fix and a weak test;
+    `asohav-02` PASS.
+  - `kane-08` and `lfc-07` failed on the 8,192 output cap, not on stalls.
+  - The roadmap records the parked `limit.output` trade-off (it moves opencode's
+    compaction threshold).
+  - `real-tasks-public.tsv` gets three daily-config rows (`qwen3.6` 0/3). A
+    plugin on/off A/B, 8 of 8 PASS, cleared the plugin of that; it is kept
+    private.
+  - Also recorded: the `qwen3.5:9b` on node3 research (it fits only as the
+    registry Q4, a different seat), now pulled to node3; and the two
+    large-feature checklists drafted for the owner's review.
+
 - Install the compaction-continue plugin for daily use: a `plugin` entry in
   `opencode/global/opencode.jsonc`, deployed with `sync-opencode.ps1
   -Template`.

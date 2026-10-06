@@ -1,0 +1,6 @@
+timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	failsOnOld	typecheck	elapsedSec
+2026-10-05T19:44:28	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	7	PASS	PASS	PASS	SKIP	1759
+2026-10-05T20:15:36	kane-08-aristocrats-false-positives	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	45095ab148d27fdbe20765a112d1dd7d743e4fcd	0	0	FAIL	PASS	FAIL	SKIP	1858.6
+2026-10-05T20:21:34	lfc-07-digest-split	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d6a5338d809407d181b7d74eef064bbd0d81ffa2	0	0	FAIL	PASS	FAIL	SKIP	314.2
+2026-10-05T20:29:28	asohav-02-changelog-uuid-id	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	d83381ad650b3474a50310e0dd3441a03cd89706	0	6	PASS	PASS	PASS	SKIP	457.5
+2026-10-05T20:57:03	kane-07-find-qualifier-type	ollama-desktop/qwen3.6:35b-a3b-coding	ollama-desktop/qwen3.6:35b-a3b-coding	10889539112089dcd122014f934520f9f11cf558	0	2	PASS	PASS	FAIL	SKIP	1644.8

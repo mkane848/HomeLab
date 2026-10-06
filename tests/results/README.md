@@ -79,6 +79,20 @@ overflow"). It has 5 graded runs, in this folder's own `tasks-summary.tsv`:
   are what a 300 s timeout gives; its `elapsedSec` doesn't include either
   wait.
 
+## Assisted runs: `compaction-daily/`
+
+The 2026-10-05 evening measurement of the daily configuration
+(`docs/roadmap.md` → "Context overflow"): the installed plugin plus
+`-NudgeAfterCompaction` (standing in for the plugin's idle continue), with
+`qwen3.6` on `kane-07` ×2, `kane-08`, `lfc-07` and `asohav-02`. It has five
+graded rows in this folder's own `tasks-summary.tsv`.
+- Runs with `nudges.sent` > 0 were assisted, as in `compaction-nudge/`, so
+  never add them to `tests/results/tasks-summary.tsv`.
+- **Excluded from `real-tasks-public.tsv`:** the plugin on/off A/B runs on
+  `real-01` and `real-03` (2026-10-05 21:13 – 21:31), which were diagnostic.
+  They are only in the private repo. That file keeps the three daily-config
+  rows from 20:57 – 21:03.
+
 ## What counts as a pass
 
 A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.
