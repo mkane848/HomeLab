@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2026-10-06).
   - All five passed a smoke test, a real file write through `opencode run --auto`
     (`tests/results/hosted-smoke.tsv`).
+  - `run-tasks-batch.ps1 -Models hosted` runs them. A batch stops a model once it has spent 20% of its monthly
+    allowance (`-SpendCapShare`, owner's rule), and shows the caps before it starts.
+  - New guard `tests/test-hosted-seats.ps1`.
 
 - `test-tasks.ps1`: the model's process can no longer push or open pull requests. Task worktrees are
   checkouts of the owner's real repos, signed in to git and gh, and the new stretch task replays the
