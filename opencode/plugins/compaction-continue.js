@@ -235,10 +235,25 @@ export function fileLogger(path) {
   }
 }
 
+// One copy per project directory. Listed twice (the global config plus a
+// project or OPENCODE_CONFIG overlay, even from two checkouts), two copies
+// would each send an idle continue, and the session would get it twice
+// (2026-10-06: the live check against an installed plugin). opencode loads
+// plugins per directory instance, so the guard keys on the directory, not the
+// process.
+const LOADED_KEY = Symbol.for("homelab-compaction-continue.loaded")
+
 export default {
   id: "homelab-compaction-continue",
   server: async (input) => {
     const log = fileLogger(process.env.HOMELAB_COMPACTION_PLUGIN_LOG)
+    const loaded = (globalThis[LOADED_KEY] ??= new Set())
+    const dir = (input && input.directory) || ""
+    if (loaded.has(dir)) {
+      log("duplicate copy skipped", { directory: dir })
+      return {}
+    }
+    loaded.add(dir)
     const client = input && input.client
     const { state, ...hooks } = createHooks(undefined, log, client)
     log("loaded", { idleContinue: !!client && `${process.env.HOMELAB_COMPACTION_IDLE_CONTINUE || ""}`.toLowerCase() !== "off" })

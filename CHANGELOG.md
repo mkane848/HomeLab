@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: the model's process can no longer push or open pull requests. Task worktrees are
+  checkouts of the owner's real repos, signed in to git and gh, and the new stretch task replays the
+  owner's "if there's anything worth PRing, do it".
+  - For the opencode runs, network push URLs are rewritten to an unreachable host and gh gets an
+    invalid token, through the environment only. The run JSON records `pushGuard`.
+  - New guard `tests/test-no-push.ps1` (19 checks).
+- `test-tasks.ps1`: `grading: "checklist"` for real tasks that a person rates against a written
+  checklist: the large features and the stretch task built from the owner's real V0.6 opener.
+  - Such a task runs like an acceptance task. Its row reads acceptance `MANUAL`, and the run JSON
+    names the checklist.
+  - New guard `tests/test-checklist-grading.ps1` (11 checks).
+- The compaction-continue plugin loads once per project directory. Listed twice, for example in the
+  global config and an overlay, two copies each sent an idle continue.
+  - The live check runs opencode with an empty config home, so the installed copy stays out.
+  - It now tries up to three ports, and fails rather than skips when an installed opencode can't
+    start.
+
 - Results: the daily configuration measured. It is five assisted `qwen3.6`
   runs with the installed plugin plus the compaction nudge, in
   `tests/results/compaction-daily/`.

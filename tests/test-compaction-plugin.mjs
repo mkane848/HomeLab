@@ -44,6 +44,10 @@ check("a rewrite is logged with its session", readFileSync(logFile, "utf8").incl
 delete process.env.HOMELAB_COMPACTION_PLUGIN_LOG
 check("no log variable: no logging, no throw", typeof (await mod.default.server({})), "object")
 check("a log path that cannot be written does not throw", (fileLogger(join(logFile, "no", "such", "dir.jsonl"))("x", {}), true), true)
+// Listed twice for one directory (global config + an overlay), only the first copy acts.
+check("first copy for a directory: the hooks", Object.keys(await mod.default.server({ directory: "D:/dup" })).length, 4)
+check("a second copy for the same directory: no hooks", Object.keys(await mod.default.server({ directory: "D:/dup" })).length, 0)
+check("...a copy for another directory still loads", Object.keys(await mod.default.server({ directory: "D:/other" })).length, 4)
 
 // --- recognising opencode's continue message ---
 check("marked continue part", isContinuePart(opencodeContinue("s").parts[0]), true)
