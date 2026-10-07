@@ -1979,7 +1979,58 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
 **TODO:** have the harness flag writes outside the worktree. That needs the transcript's tool paths, since the
 repo's diff can't see them.
 
+**Decisions taken after these batches (owner, 2026-10-07):**
+- **`wp-5b` keeps both implied-rule tests in the grade.**
+- **Orchestrator shortlist: DeepSeek V4 Pro and Qwen3.7 Plus.** They are the two cheapest seats, and they passed
+  17 of 18 shared tasks. Everything measured so far is implementation. Planning a feature, splitting it into
+  briefs and reviewing an implementer's work is untested. The planning turns of `stretch-v06` are where to test
+  it, once a Go budget is set.
+- **The first hybrid is built in OpenCode** (per-agent model pins, the existing harness). Hermes Agent is
+  researched and parked (below).
+- **The Go budget is deferred.** No hosted batches until the owner sets one. The batch's plan-wide meters block
+  any that would go over in the meantime.
+
+**The question everything else waits on:** do the local seats pass the work packages? If qwen3.6 passes most
+of them, the split is proven (hosted orchestrator, local implementers on short file-scoped briefs), and the work
+on surviving long local sessions can drop in priority. If it doesn't, the briefs must get smaller, or the local
+seats review and assist rather than implement. Fixing the server for a second implementer GPU depends on that
+answer too.
+
+#### Hermes Agent: researched 2026-10-07, parked
+
+[Hermes Agent][hermes-agent] (Nous Research, MIT) is an open-source agent with a CLI/TUI, messaging front ends and
+a headless mode. This is from its docs as read on 2026-10-07; nothing was installed or run.
+- **The architecture fits the north star on paper.** Its `delegate_task` subagents can run on a different model
+  and endpoint from the main session: one delegation model shared by every child, not one per child.
+  [The delegation docs][hermes-delegation] pitch exactly the hybrid: pinning the delegation model to an
+  inexpensive model "while your main session stays on a frontier model keeps the planning quality where it
+  matters and cuts spend where the volume is".
+- **The providers fit.** Any OpenAI-compatible endpoint works, which covers Ollama and the Go endpoint. It doesn't
+  need Nous's own Hermes models.
+- **It could be benchmarked.** `--format stream-json` emits a JSONL event transcript for a `-q/--query` run, and
+  `-w/--worktree` starts in its own git worktree ([CLI reference][hermes-cli]). That's enough for an adapter in
+  the harness.
+- **Risks:**
+  - [A 64k context minimum][hermes-faq]: qwen3.6 just qualifies, node3's `qwen3:8b` doesn't.
+  - 70+ tools whose schemas may ride in every request: the 46k-token preamble problem again, unless `--toolsets`
+    is restricted.
+  - Compression starts at 50% of the context.
+  - The default approval mode spends a model call per risky command.
+  - Approvals inside subagents are undocumented.
+  - Releases every few days, so a pinned version and a new era.
+- **The smallest first experiment, if it's picked up:**
+  1. Install the CLI only and point it at local qwen3.6 with an explicit 64k context, minimal toolsets and manual
+     approvals.
+  2. Measure the fixed prompt size with "Reply with exactly: OK".
+  3. If that's small enough, run one benchmark task headlessly.
+
+  It needs no Go spending.
+
 [opencode-go-docs]: https://opencode.ai/docs/go
+[hermes-agent]: https://hermes-agent.nousresearch.com/
+[hermes-delegation]: https://hermes-agent.nousresearch.com/docs/user-guide/features/delegation
+[hermes-cli]: https://hermes-agent.nousresearch.com/docs/reference/cli-commands
+[hermes-faq]: https://hermes-agent.nousresearch.com/docs/reference/faq
 
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
