@@ -53,6 +53,45 @@ The 5-hour meter is checked as the trailing 5 hours at the conservative $4.46. T
 provider's first 402. With Extra Usage on and credit in the balance, Go would bill the balance past a limit
 instead of refusing, so the batch's stop is what keeps a batch inside the plan.
 
+## What a pass costs (2026-10-06/07)
+
+The first hosted batches ran the private real tasks, one run per task. Results are in `docs/roadmap.md` → "Hosted
+seats on the real tasks". Costs here are opencode's own per-message figures, which is what Go's meters count,
+summed over every run a seat made.
+
+Each seat stopped at a different point, so the fair comparison is the nine tasks four seats all finished: the
+three LFCbot tasks and the first six work packages.
+
+| seat | passed | cost | per pass | total time |
+|---|---|---|---|---|
+| DeepSeek V4 Pro | 9/9 | $0.52 | $0.06 | 14 min |
+| Qwen3.7 Plus | 8/9 | $0.53 | $0.07 | 18 min |
+| GLM-5.2 | 9/9 | $2.29 | $0.25 | 31 min |
+| Qwen3.8 Max | 9/9 | $3.80 | $0.42 | 44 min |
+| Kimi K2.7 Code | 3/3 (LFCbot only) | $0.33 | $0.11 | 5 min |
+
+Over every run, including the harder work packages and runs that weren't graded:
+
+| seat | passed | cost | per pass |
+|---|---|---|---|
+| Qwen3.7 Plus | 13 of 15 graded | $1.24 | $0.10 |
+| DeepSeek V4 Pro | 10 of 10 | $0.85 | $0.09 |
+| Kimi K2.7 Code | 3 of 3 | $0.33 | $0.11 |
+| Qwen3.8 Max | 9 of 9 | $4.00 | $0.44 |
+| GLM-5.2 | 12 of 12 | $6.17 | $0.51 |
+
+- **Runs that weren't graded still cost money.** GLM-5.2's two timeouts cost $1.91 between them, almost a third
+  of its total. Three runs refused partway had already billed $0.08–0.20 each before the refusal.
+- **Cheap and capable aren't in tension here.** The two cheapest seats passed 17 of 18 shared tasks. Price
+  separates them less than their timeouts do. With one run per cell, that's a signal, not a ranking.
+- **What the plan buys.** At Qwen3.7 Plus's $0.10 per pass, this month's estimated $22.30 limit covers roughly
+  200 passing tasks of this size, at most about half of them in any one week.
+- **The local seats cost no API money.** Their electricity isn't recorded yet (below). They have run only the
+  LFCbot tasks so far: qwen3.6 passed 7 of 13 runs, qwen3.5:9b 3 of 10.
+- **DeepSeek is overestimated.** Our own estimate, from `costs/go-rates.tsv` at the peak rate, comes to $1.49 for
+  DeepSeek against opencode's $0.85. The runs were inside Go's peak hours, so the gap is unexplained. The other
+  seats' estimates match opencode's within a few percent. The Go dashboard is the authority.
+
 ## Not recorded yet
 
 - **Electricity for the local seats.** It needs the owner's rate per kWh and a measured power draw. `qwen3.6` runs
