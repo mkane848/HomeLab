@@ -1325,6 +1325,47 @@ function Get-TranscriptUsage {
     return [pscustomobject]$u
 }
 
+# Writes the model made outside its worktree, from the transcript's file-tool
+# calls (write, edit, multiedit, patch). The scope gate and the guard rails see
+# only the repo's own diff, so a write to %TEMP% or to another checkout went
+# unnoticed (2026-10-07: a GLM-5.2 run wrote a vitest config to %TEMP%\opencode
+# while fighting the test setup). Recorded in every run JSON as
+# `outsideWrites` and warned about, never graded. A tool call that errored
+# wrote nothing and is skipped. Shell commands are not parsed, so a bash
+# redirect outside the worktree is not caught.
+function Get-OutsideWrites {
+    param([string]$Path, [string]$Worktree)
+    $hits = New-Object System.Collections.Generic.List[object]
+    if (-not $Path -or -not $Worktree -or -not (Test-Path -LiteralPath $Path)) { return , $hits }
+    $root = [IO.Path]::GetFullPath($Worktree).TrimEnd('\', '/')
+    $seen = @{}
+    foreach ($line in [System.IO.File]::ReadLines($Path)) {
+        if ($line -notmatch '"tool_use"') { continue }
+        try { $e = $line | ConvertFrom-Json } catch { continue }
+        if ($e.type -ne "tool_use" -or -not $e.part -or -not $e.part.state) { continue }
+        $tool = "$($e.part.tool)"
+        if ($tool -notin @("write", "edit", "multiedit", "patch", "notebookedit")) { continue }
+        if ("$($e.part.state.status)" -eq "error") { continue }
+        $in = $e.part.state.input
+        $targets = @()
+        if ($in.filePath) { $targets += "$($in.filePath)" }
+        if ($in.patchText) {
+            foreach ($m in [regex]::Matches("$($in.patchText)", '(?m)^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$')) { $targets += $m.Groups[1].Value }
+        }
+        foreach ($t in $targets) {
+            try {
+                $full = if ([IO.Path]::IsPathRooted($t)) { [IO.Path]::GetFullPath($t) } else { [IO.Path]::GetFullPath((Join-Path $root $t)) }
+            } catch { $full = $t }
+            $inside = $full.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+                      $full.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+            if ($inside -or $seen.ContainsKey("$tool|$full")) { continue }
+            $seen["$tool|$full"] = $true
+            $hits.Add([pscustomobject]@{ tool = $tool; path = $full })
+        }
+    }
+    return , $hits
+}
+
 # What a run cost in dollars of model access, from the dated rates in
 # costs/go-rates.tsv (USD per 1M tokens; a blank rate counts as 0). $null for
 # a model with no rate row - every local seat, today. Reasoning tokens are
@@ -2045,6 +2086,10 @@ foreach ($tk in $tasksToRun) {
 
     $runUsage = Get-TranscriptUsage -Path $(if ($transcriptFileField) { $transcriptDest } else { $run.TranscriptPath })
     $runCost = Get-RunCostEstimate -ModelId $Model -Usage $runUsage
+    $outsideWrites = Get-OutsideWrites -Path $(if ($transcriptFileField) { $transcriptDest } else { $run.TranscriptPath }) -Worktree $wt.Wt
+    if ($outsideWrites.Count -gt 0) {
+        Write-Host ("    WARN: {0} write(s) outside the worktree (recorded as outsideWrites, not graded): {1}" -f $outsideWrites.Count, (($outsideWrites | ForEach-Object { "$($_.tool) $($_.path)" }) -join "; ")) -ForegroundColor Yellow
+    }
     if ($runCost) {
         Write-Host ("    model access: about `${0:N4} ({1:N0} input, {2:N0} cached, {3:N0} output tokens; rates checked {4})" -f $runCost.usd, $runUsage.input, $runUsage.cacheRead, $runUsage.output, $runCost.rateChecked) -ForegroundColor DarkGray
     }
@@ -2074,6 +2119,9 @@ foreach ($tk in $tasksToRun) {
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
+        # The opencode run's time limit (-RunTimeout). A run that finished under it
+        # ends the same under any longer limit; only a timeout depends on it.
+        runTimeoutSec   = $RunTimeout
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
         opencodeVersion = $opencodeVersion
@@ -2092,6 +2140,9 @@ foreach ($tk in $tasksToRun) {
         transcriptFile  = $transcriptFileField
         usage           = $runUsage
         costEstimate    = $runCost
+        # .ToArray(), not @(): @() around an empty generic List inside a hashtable
+        # literal throws "Argument types do not match".
+        outsideWrites   = $outsideWrites.ToArray()
     }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 

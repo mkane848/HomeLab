@@ -177,6 +177,11 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
   - `run-tasks-batch.ps1`'s spend cap reads these numbers, so a wrong sum spends real money.
   - Covered: exact arithmetic on a synthetic transcript, a blank rate, a model without a rate, a comma-decimal culture, and the real harness end to end for a hosted and a local model id.
   - Run it after touching how a transcript is read or a cost is computed.
+- `.\tests\test-outside-writes.ps1` is the regression guard for `Get-OutsideWrites` in `test-tasks.ps1`. The scope gate and the guard rails see only the repo's diff, so a write outside the worktree went unnoticed (2026-10-07: a GLM-5.2 run wrote a vitest config to `%TEMP%\opencode`).
+  - Every run JSON now records `outsideWrites`: each write, edit, multiedit or patch call whose path resolves outside the worktree, once per path. The console warns. It is not graded.
+  - An errored call wrote nothing and is skipped. Reads and shell commands are never counted, so a bash redirect outside the worktree is still unseen.
+  - Covered: the real function on synthetic transcripts, and the real `test-tasks.ps1` end to end with a stand-in opencode. The transcripts include absolute and relative paths, `..` escapes, other casing and slashes, a sibling worktree sharing the name prefix, a patch's file headers, duplicates and an errored write. The end-to-end run also checks that a clean run records an empty list. A control with the check disabled fails.
+  - Run it after touching how a transcript is read or a run JSON is built.
 - `.\tests\test-hosted-seats.ps1` is the regression guard for the OpenCode Go seats and the batch spend cap in `run-tasks-batch.ps1` (`docs/costs.md`).
   - `-Models hosted` offers the five `opencode-go` rows of `run-tasks-models.tsv`; `-Models all` still means local seats only. A hosted seat is offered only when `opencode models opencode-go` lists it, the key file exists and the live config resolves it.
   - A batch stops a hosted model once it has spent `-SpendCapShare` (default 0.2) of that model's monthly allowance in `costs/go-rates.tsv`, so it never locks a model for longer than one 5-hour window. Without `-Yes` it shows each cap before the first run. `-NoSpendCap` lifts it.
