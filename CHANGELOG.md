@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: writes outside the worktree are flagged. Every run JSON records `outsideWrites`, the
+  write/edit/patch calls whose path resolves outside the task's worktree, and the console warns. It isn't graded.
+  The scope gate and the guard rails see only the repo's diff, so a GLM-5.2 run's stray config in `%TEMP%` went
+  unnoticed (2026-10-07). Shell commands aren't parsed. New guard `tests/test-outside-writes.ps1`.
+
 - Results: the first hosted batches on the private real tasks (2026-10-06/07). Five OpenCode Go seats ran 3 LFCbot
   tasks and 12 work-package tasks: 47 of 49 graded runs passed before the plan's weekly limit stopped them.
   - 49 rows in `tests/results/real-tasks-public.tsv` (opaque task ids and verdicts only).

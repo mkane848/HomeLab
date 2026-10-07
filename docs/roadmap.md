@@ -1976,8 +1976,9 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
 - Fill the hosted gaps (Kimi 12, DeepSeek 5, Qwen3.8 Max 6, GLM 3) when the plan's limits allow. The batch now
   checks the plan-wide meters first.
 
-**TODO:** have the harness flag writes outside the worktree. That needs the transcript's tool paths, since the
-repo's diff can't see them.
+**Done (2026-10-07): writes outside the worktree are now flagged.** `test-tasks.ps1` reads the transcript's
+file-tool calls and records each one outside the worktree in the run JSON's `outsideWrites`, with a warning. It
+isn't graded. Shell commands aren't parsed, so a redirect in a bash call still goes unseen.
 
 [opencode-go-docs]: https://opencode.ai/docs/go
 
