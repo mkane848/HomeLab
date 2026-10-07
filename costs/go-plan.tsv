@@ -1,0 +1,4 @@
+plan	meter	limitUsd	period	anchorUtc	checked	basis
+go	window	4.46	5h		2026-10-07	20% of the month (the Go docs' ratio). The dashboard's rolling meter read 48% when about $5.9 had been spent in its window, which does not fit, so this is a conservative stand-in, checked against the trailing 5 hours.
+go	week	12.60	7d	2026-10-11T23:00:00Z	2026-10-07	Dashboard: weekly meter at 100% after about $12.6 of use that week. Resets every 7 days from the anchor (dashboard on 2026-10-07 14:04Z: "resets in 4d 9h").
+go	month	22.30	1mo	2026-10-25T00:00:00Z	2026-10-07	Dashboard: monthly meter at 72% with $16.08 used since the plan renewed. Renews monthly from the anchor (dashboard on 2026-10-07 14:04Z: "renews in 17d 10h").

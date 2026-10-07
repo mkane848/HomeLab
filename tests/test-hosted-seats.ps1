@@ -48,6 +48,7 @@ function Get-Functions([string]$Path, [string[]]$Names, [switch]$Optional) {
 }
 foreach ($text in (Get-Functions $ScriptPath @("Test-HostedModelId", "Get-HostedSeatGate", "ConvertTo-RateValue", "Get-GoRates",
         "Get-SpendCap", "Get-TranscriptTokenUsage", "Get-UsageCostUsd", "Get-ResultFileNames", "Get-NewRunFiles", "Get-ProviderRefusal", "Measure-RunSpend",
+        "Get-GoPlan", "Get-MeterBounds", "Get-PlanStatus", "Format-PlanMeter", "Get-PlanStop",
         "Get-CapStatus", "Format-Usd", "Format-SpendCap", "Get-RegistryRows", "Get-AvailableModelSeats"))) {
     Invoke-Expression $text
 }
@@ -112,6 +113,24 @@ $gradedTranscript = (Step @{ input = 1000000; output = 0; reasoning = 0; read = 
 # in the shape of the real 2026-10-06 transcripts (headers trimmed).
 function ErrorEvent([string]$Status, [string]$Message) {
     return '{"type":"error","timestamp":1791338950835,"sessionID":"ses_fixture","error":{"name":"APIError","data":{"message":"' + $Message + '","statusCode":' + $Status + ',"isRetryable":false,"responseBody":"{\"error\":{\"type\":\"server_error\",\"message\":\"' + $Message + '\"}}","metadata":{"url":"https://opencode.ai/inference/go/openai/v1/chat/completions"}}}}'
+}
+# Plan meters (costs/go-plan.tsv). The default is roomy, so only the plan
+# scenarios below are ever stopped by it.
+function PlanTsv([double]$Window, [double]$Week, [double]$Month) {
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    return (@(
+        "plan`tmeter`tlimitUsd`tperiod`tanchorUtc`tchecked`tbasis",
+        ("go`twindow`t{0}`t5h`t`t2026-10-07`tfixture" -f $Window.ToString($inv)),
+        ("go`tweek`t{0}`t7d`t2026-10-11T23:00:00Z`t2026-10-07`tfixture" -f $Week.ToString($inv)),
+        ("go`tmonth`t{0}`t1mo`t2026-10-25T00:00:00Z`t2026-10-07`tfixture" -f $Month.ToString($inv))
+    ) -join "`n")
+}
+$planFixture = PlanTsv 900 900 900
+# `opencode db --format json` rows: each @(hours ago, usd).
+function UsageJson([object[]]$Rows) {
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+    $items = foreach ($r in $Rows) { '{"t":' + ($now - [long]([double]$r[0] * 3600000)) + ',"usd":' + ([double]$r[1]).ToString([Globalization.CultureInfo]::InvariantCulture) + '}' }
+    return "[" + (@($items) -join ",") + "]"
 }
 $refusedTranscript = @(
     (Step @{ input = 100000; output = 0; reasoning = 0; read = 0; write = 0 }),
@@ -243,6 +262,43 @@ try {
     Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-140000.jsonl") ('{"type":"error","error":{"name":"APIError","data":{"statusCode":402}}}')
     Check "a 402 with no message still stops"        (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha") "HTTP 402"
 
+    Write-Host "-- plan meters (Get-GoPlan, Get-MeterBounds, Get-PlanStatus, Get-PlanStop)"
+    $pf = Join-Path $tmp "go-plan.tsv"
+    Write-Fixture $pf ((PlanTsv 4.5 12.6 22.3) + "`ngo`tbad-period`t5`t3w`t`t2026-10-07`tx`ngo`tno-anchor`t5`t7d`t`t2026-10-07`tx`ngo`tzero`t0`t5h`t`t2026-10-07`tx")
+    $pm = Get-GoPlan -Path $pf
+    Check "reads the three meters, skips bad rows"    (($pm | ForEach-Object { "$($_.Meter)=$($_.LimitUsd)/$($_.Period)" }) -join " ") "window=4.5/5h week=12.6/7d month=22.3/1mo"
+    Check "no file: no meters"                        (Get-GoPlan -Path (Join-Path $tmp "none.tsv")).Count 0
+    $fmt = "yyyy-MM-ddTHH:mm"
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    $wkAnchor = [datetime]::SpecifyKind([datetime]"2026-10-11T23:00:00", "Utc")
+    $b = Get-MeterBounds -Period "7d" -Anchor $wkAnchor -Now ([datetime]::SpecifyKind([datetime]"2026-10-07T14:04:00", "Utc"))
+    Check "week: anchor ahead, the period now started 7 days before it" ("{0} {1}" -f $b[0].ToString($fmt, $inv), $b[1].ToString($fmt, $inv)) "2026-10-04T23:00 2026-10-11T23:00"
+    $b = Get-MeterBounds -Period "7d" -Anchor $wkAnchor -Now ([datetime]::SpecifyKind([datetime]"2026-10-27T01:00:00", "Utc"))
+    Check "week: two periods past the anchor"         $b[0].ToString($fmt, $inv) "2026-10-25T23:00"
+    $b = Get-MeterBounds -Period "7d" -Anchor $wkAnchor -Now $wkAnchor
+    Check "week: at the reset instant, a new period"  $b[0].ToString($fmt, $inv) "2026-10-11T23:00"
+    $moAnchor = [datetime]::SpecifyKind([datetime]"2026-10-25T00:00:00", "Utc")
+    $b = Get-MeterBounds -Period "1mo" -Anchor $moAnchor -Now ([datetime]::SpecifyKind([datetime]"2026-10-07T14:04:00", "Utc"))
+    Check "month: renews on the 25th"                 ("{0} {1}" -f $b[0].ToString($fmt, $inv), $b[1].ToString($fmt, $inv)) "2026-09-25T00:00 2026-10-25T00:00"
+    $b = Get-MeterBounds -Period "1mo" -Anchor $moAnchor -Now ([datetime]::SpecifyKind([datetime]"2027-01-03T00:00:00", "Utc"))
+    Check "month: across a year"                      ("{0} {1}" -f $b[0].ToString($fmt, $inv), $b[1].ToString($fmt, $inv)) "2026-12-25T00:00 2027-01-25T00:00"
+    $nowT = [datetime]::SpecifyKind([datetime]"2026-10-07T14:00:00", "Utc")
+    $b = Get-MeterBounds -Period "5h" -Anchor $null -Now $nowT
+    Check "5h: the trailing five hours, no reset"     ("{0} {1}" -f $b[0].ToString($fmt, $inv), ($null -eq $b[1])) "2026-10-07T09:00 True"
+    $recs = @(
+        [pscustomobject]@{ Time = $nowT.AddHours(-1); Usd = 1.0 },     # window, week, month
+        [pscustomobject]@{ Time = $nowT.AddHours(-6); Usd = 2.0 },     # week, month
+        [pscustomobject]@{ Time = $nowT.AddDays(-4); Usd = 4.0 },      # month only (before the 2026-10-04 23:00 reset)
+        [pscustomobject]@{ Time = $nowT.AddDays(-20); Usd = 8.0 },     # last month
+        [pscustomobject]@{ Time = $nowT.AddHours(1); Usd = 16.0 }      # in the future: never counted
+    )
+    $st = @(Get-PlanStatus -Meters $pm -Records $recs -Now $nowT)
+    Check "each meter counts only its own stretch"    (($st | ForEach-Object { "$($_.Meter)=$($_.UsedUsd)" }) -join " ") "window=1 week=3 month=7"
+    Check "room left: runs"                           ($null -eq (Get-PlanStop -Status $st -BatchUsd 0 -ReserveUsd 0.5)) "True"
+    Check "this batch's spend counts: window 1 + 3 + 0.5 reaches 4.5" (Get-PlanStop -Status $st -BatchUsd 3 -ReserveUsd 0.5) 'plan window $4.0000 of $4.50 (the trailing 5h) - within $0.50 of the limit'
+    Check "...one cent short: still runs"             ($null -eq (Get-PlanStop -Status $st -BatchUsd 2.99 -ReserveUsd 0.5)) "True"
+    Has   "the week names when it resets"             (Get-PlanStop -Status @($st[1]) -BatchUsd 9.2 -ReserveUsd 0.5) '^plan week \$12\.2000 of \$12\.60, resets \w{3} 2026-10-1[01] \d\d:\d\d - within \$0\.50'
+
     Write-Host "-- the real registry and rate table"
     $realReg = Get-Content -LiteralPath (Join-Path $PSScriptRoot "run-tasks-models.tsv")
     $realRateRows = Get-GoRates -Path (Join-Path $repoRoot "costs\go-rates.tsv")
@@ -304,6 +360,7 @@ echo %*>>"%FIXTURE_DIR%\opencode-calls.txt"
 if "%~1"=="--version" goto version
 if "%~1"=="models" goto models
 if "%~1"=="debug" goto debug
+if "%~1"=="db" goto db
 exit /b 2
 :version
 echo 9.9.9
@@ -315,6 +372,10 @@ exit /b 0
 :debug
 if not exist "%FIXTURE_DIR%\config.json" exit /b 1
 type "%FIXTURE_DIR%\config.json"
+exit /b 0
+:db
+if not exist "%FIXTURE_DIR%\usage.json" exit /b 1
+type "%FIXTURE_DIR%\usage.json"
 exit /b 0
 '@) -replace "`r?`n", "`r`n")
     # Driver: a stand-in Invoke-RestMethod for the local seat's Ollama (the
@@ -348,11 +409,14 @@ exit $LASTEXITCODE
         $saved[$v] = [Environment]::GetEnvironmentVariable($v)
     }
     $script:scn = 0
-    function Invoke-Batch([hashtable]$BatchArgs, [string[]]$GoList = @("alpha", "beta", "delta"), [switch]$NoGoList, [switch]$NoConfig, [string]$RefuseModel = "") {
+    function Invoke-Batch([hashtable]$BatchArgs, [string[]]$GoList = @("alpha", "beta", "delta"), [switch]$NoGoList, [switch]$NoConfig, [string]$RefuseModel = "",
+                          [string]$Plan = $planFixture, [string]$Usage = "[]", [switch]$NoPlan, [switch]$DbFails) {
         $script:scn++
         $rdir = Join-Path $tmp "results-$($script:scn)"
         New-Item -ItemType Directory -Path $rdir -Force | Out-Null
-        Remove-Item -LiteralPath (Join-Path $fx "go-models.txt"), (Join-Path $fx "config.json"), (Join-Path $fx "opencode-calls.txt") -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $fx "go-models.txt"), (Join-Path $fx "config.json"), (Join-Path $fx "opencode-calls.txt"), (Join-Path $fx "usage.json"), "$tree\costs\go-plan.tsv" -ErrorAction SilentlyContinue
+        if (-not $NoPlan) { Write-Fixture "$tree\costs\go-plan.tsv" $Plan }
+        if (-not $DbFails) { Write-Fixture (Join-Path $fx "usage.json") $Usage }
         if (-not $NoGoList) { Write-Fixture (Join-Path $fx "go-models.txt") ((@("opencode-go/zzz-other") + @($GoList | ForEach-Object { "opencode-go/$_" })) -join "`r`n") }
         if (-not $NoConfig) { Write-Fixture (Join-Path $fx "config.json") $configJson }
         $calls = Join-Path $tmp "calls-$($script:scn).txt"
@@ -425,6 +489,38 @@ exit $LASTEXITCODE
     $r = Invoke-Batch @{ Tasks = @("fx-infra", "t1", "t2"); Models = @("opencode-go/beta"); SpendCapShare = 1 }
     Lacks "an unreachable-host _INFRA_ run does not stop a model" $r.Out '\[REFUSED\]'
     Check "...it runs everything"                     (RunsOf $r "opencode-go/beta") "fx-infra,t1,t2"
+
+    Write-Host "   scenario: the plan's week has `$1.50 left (`$8.50 of `$10.00 used); each run costs `$1.00"
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha"); SpendCapShare = 1 } -Plan (PlanTsv 900 10 900) -Usage (UsageJson @(@(30, 8.0), @(2, 0.5), @(2000, 50)))
+    Check "exit 0"                                    $r.Exit 0
+    Has   "preflight: each meter, from opencode's records" $r.Out '\[PLAN\] opencode-go  week \$8\.5000 of \$10\.00, resets '
+    Has   "...the month leaves out last month's use"  $r.Out '\[PLAN\] opencode-go  month \$8\.5000 of \$900\.00'
+    Has   "...the window counts the trailing 5 hours" $r.Out '\[PLAN\] opencode-go  window \$0\.5000 of \$900\.00 \(the trailing 5h\)'
+    Check "alpha: t1 runs, then the week is full"     (RunsOf $r "opencode-go/alpha") "t1"
+    Has   "...the stop names the meter"               $r.Out '\[PLAN\] opencode-go: plan week \$9\.5000 of \$10\.00, resets .* - within \$0\.50 of the limit - skipping the 2 remaining hosted run\(s\)'
+    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2,t3"
+    Has   "summary: the week after this batch"        $r.Out 'plan: week \$9\.5000 of \$10\.00, resets .* \(estimated after this batch\)'
+    Has   "summary: the skipped runs, and when to fill them" $r.Out '2 hosted run\(s\) not started: a plan meter was within \$0\.50 of its limit'
+    $q = @($r.OpencodeCalls | Where-Object { $_ -match '^\s*db ' }) -join "`n"
+    Has   "usage is read from the message table"      $q 'FROM message WHERE'
+    Lacks "...and never from the account or credential tables" $q '(?i)account|credential'
+
+    Write-Host "   scenario: the 5-hour window is already full"
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -Plan (PlanTsv 4.46 900 900) -Usage (UsageJson @(, @(1, 5.0)))
+    Has   "preflight warns before anything runs"      $r.Out '\[WARN\] opencode-go  plan window \$5\.0000 of \$4\.46 .* every hosted run in this batch will be skipped'
+    Check "no hosted run starts"                      (@($r.Calls | Where-Object { $_ -match 'opencode-go/' }).Count) 0
+    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2"
+
+    Write-Host "   scenario: no plan file / no usage records"
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha") } -NoPlan
+    Has   "no plan file: hosted seats dropped, and why" $r.Out '\[drop\] opencode-go/alpha - no usable costs/go-plan\.tsv'
+    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha") } -DbFails
+    Has   "opencode db fails: hosted seats dropped, and why" $r.Out '\[drop\] opencode-go/alpha - `opencode db` could not read'
+    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("opencode-go/alpha"); NoSpendCap = $true } -DbFails -NoPlan
+    Has   "-NoSpendCap: the plan is not checked, and says so" $r.Out '\[WARN\] opencode-go  -NoSpendCap: the plan''s 5-hour, weekly and monthly limits are NOT checked'
+    Check "...and alpha runs"                         (RunsOf $r "opencode-go/alpha") "t1"
 
     Write-Host "   scenario: no key file"
     $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "hosted", "opencode-go/beta"); GoKeyFile = (Join-Path $fx "missing-key") }

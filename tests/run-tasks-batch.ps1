@@ -81,6 +81,14 @@
 #     stops that model for the rest of the batch; other models carry on. On
 #     2026-10-06 the batch kept starting runs after the first 402, and 28 of
 #     them failed within seconds. Re-run the gaps later with -OnlyMissing.
+#   - Plan-wide meters: Go meters all models together against one 5-hour, one
+#     weekly and one monthly limit (owner's dashboard, 2026-10-07), set in
+#     costs/go-plan.tsv in opencode's prices. The batch reads this machine's Go
+#     usage from opencode's own records (`opencode db`, the message table only;
+#     interactive use counts too), shows each meter before the batch, and stops
+#     every hosted seat once a meter is within -PlanReserveUsd (default $0.50)
+#     of its limit. No plan file or no usage records: no hosted runs.
+#     -NoSpendCap lifts this check too.
 #   One hosted batch, private real-prompt tasks:
 #     .\tests\run-tasks-batch.ps1 -SkipSetup -Mode Tasks -Models hosted -Tasks <ids> -Reps 1 -Yes `
 #         -TaskManifest M:\Projects\HomeLab-private\tasks\manifest.json -ResultsDir M:\Projects\HomeLab-private\results
@@ -119,6 +127,7 @@ param(
     # Hosted seats run with no spend cap, and one with no rate row is allowed
     # (its spend is then not estimated at all).
     [switch]$NoSpendCap,
+    [double]$PlanReserveUsd = 0.5,
     # Where the OpenCode Go API key file is expected. Its existence is checked;
     # it is never read. Default ~/.config/opencode/.secrets/opencode-go-api-key.
     [string]$GoKeyFile = ""
@@ -134,6 +143,7 @@ $taskResultsDir = if ($ResultsDir) { [System.IO.Path]::GetFullPath($ResultsDir) 
 $summaryPath  = Join-Path $taskResultsDir "tasks-summary.tsv"
 $realSummaryPath = Join-Path $taskResultsDir "real-tasks-summary.tsv"
 $goRatesPath  = Join-Path (Split-Path -Parent $scriptDir) "costs\go-rates.tsv"
+$goPlanPath   = Join-Path (Split-Path -Parent $scriptDir) "costs\go-plan.tsv"
 $goKeyPath    = if ($GoKeyFile) { $GoKeyFile } else { Join-Path $HOME ".config\opencode\.secrets\opencode-go-api-key" }
 
 if ($SpendCapShare -le 0 -or $SpendCapShare -gt 1) {
@@ -865,6 +875,124 @@ function Format-SpendCap {
     return ("{0} cap ({1}% of {2} monthly)" -f (Format-Usd $Cap.Usd 2), [math]::Round($Cap.Share * 100, 1).ToString([Globalization.CultureInfo]::InvariantCulture), (Format-Usd $Cap.Monthly 2))
 }
 
+function Get-GoPlan {
+    # costs/go-plan.tsv -> list of meters { Meter; LimitUsd; Period; Anchor; Checked }.
+    # Go's usage meters are plan-wide, one per period, not per model (owner's
+    # dashboard, 2026-10-07). Limits are in opencode's prices, the same figures
+    # Get-GoUsageRecords reads. A row with no positive limit, an unknown
+    # period, or a fixed period with no anchor is skipped. Empty when the file
+    # is missing.
+    param([string]$Path)
+    $meters = New-Object System.Collections.Generic.List[object]
+    if (-not ($Path -and (Test-Path -LiteralPath $Path))) { return , $meters }
+    foreach ($row in (Import-Csv -LiteralPath $Path -Delimiter "`t")) {
+        $name = "$($row.meter)".Trim()
+        $limit = ConvertTo-RateValue $row.limitUsd -Blank $null
+        $period = "$($row.period)".Trim()
+        if (-not $name -or $null -eq $limit -or $limit -le 0 -or $period -notmatch '^(\d+h|\d+d|1mo)$') { continue }
+        $anchor = $null
+        if ("$($row.anchorUtc)".Trim()) {
+            $anchor = [DateTimeOffset]::Parse("$($row.anchorUtc)".Trim(), [Globalization.CultureInfo]::InvariantCulture).UtcDateTime
+        } elseif ($period -notmatch 'h$') { continue }
+        $meters.Add([pscustomobject]@{ Meter = $name; LimitUsd = $limit; Period = $period; Anchor = $anchor; Checked = $row.checked })
+    }
+    return , $meters
+}
+
+function Get-MeterBounds {
+    # The stretch of time a meter counts at $Now, as @(start, end) in UTC.
+    # "<n>h" is checked as the trailing n hours (end $null): Go's window starts
+    # at the first request and resets n hours later, and the trailing n hours
+    # always hold at least what that window does, so this can stop early but
+    # never late. "<n>d" and "1mo" reset at $Anchor, any past or future reset.
+    param([string]$Period, $Anchor, [datetime]$Now)
+    if ($Period -match '^(\d+)h$') { return @($Now.AddHours(-[int]$Matches[1]), $null) }
+    if ($Period -match '^(\d+)d$') {
+        $span = [TimeSpan]::FromDays([int]$Matches[1])
+        $k = [math]::Floor(($Now - $Anchor).Ticks / [double]$span.Ticks)
+        $start = $Anchor.AddTicks([long]($k * $span.Ticks))
+        return @($start, $start.Add($span))
+    }
+    $months = ($Now.Year - $Anchor.Year) * 12 + ($Now.Month - $Anchor.Month)
+    $start = $Anchor.AddMonths($months)
+    if ($start -gt $Now) { $months--; $start = $Anchor.AddMonths($months) }
+    return @($start, $Anchor.AddMonths($months + 1))
+}
+
+function Get-GoUsageRecords {
+    # Every OpenCode Go reply opencode has recorded on this machine since
+    # $Since: { Time (UTC); Usd }, opencode's own per-message cost, read with
+    # `opencode db` (a SELECT on the message table). That covers interactive use
+    # as well as harness runs, which is what Go's meters count. Only the message
+    # table is read: the account and credential tables hold tokens and are
+    # never queried. $null when the query fails.
+    param([datetime]$Since)
+    $ms = [DateTimeOffset]::new([datetime]::SpecifyKind($Since, [DateTimeKind]::Utc)).ToUnixTimeMilliseconds()
+    # BETWEEN rather than >=: no character cmd.exe could read as a redirect
+    # when opencode is a .cmd shim.
+    $q = "SELECT time_created AS t, json_extract(data,'$.cost') AS usd FROM message WHERE json_extract(data,'$.providerID')='opencode-go' AND json_extract(data,'$.role')='assistant' AND time_created BETWEEN $ms AND 99999999999999"
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = & opencode db $q --format json 2>$null
+        $code = $LASTEXITCODE
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    if ($code -ne 0) { return $null }
+    $text = ($out | Out-String).Trim()
+    # The leading comma keeps an empty list a list: an unrolled @() would reach
+    # the caller as $null, which means "could not read".
+    $records = New-Object System.Collections.Generic.List[object]
+    if (-not $text) { return , $records }
+    # Not @($text | ConvertFrom-Json): Windows PowerShell 5.1 emits a JSON array
+    # as one object, which @() would nest. A foreach statement unrolls it on both.
+    try { $rows = $text | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+    foreach ($r in $rows) {
+        if ($null -eq $r -or $null -eq $r.t) { continue }
+        $records.Add([pscustomobject]@{ Time = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$r.t).UtcDateTime; Usd = [double]$r.usd })
+    }
+    return , $records
+}
+
+function Get-PlanStatus {
+    # Each meter's use at $Now: { Meter; UsedUsd; LimitUsd; Start; End; Period }.
+    param($Meters, $Records, [datetime]$Now)
+    foreach ($m in $Meters) {
+        $b = Get-MeterBounds -Period $m.Period -Anchor $m.Anchor -Now $Now
+        $used = 0.0
+        foreach ($r in $Records) { if ($r.Time -ge $b[0] -and $r.Time -le $Now) { $used += $r.Usd } }
+        [pscustomobject]@{ Meter = $m.Meter; UsedUsd = [math]::Round($used, 6); LimitUsd = $m.LimitUsd; Start = $b[0]; End = $b[1]; Period = $m.Period }
+    }
+}
+
+function Format-PlanMeter {
+    # "week $12.6000 of $12.60, resets Sun 2026-10-11 19:00" (local time).
+    param($Status)
+    $when = if ($Status.End) { ", resets " + $Status.End.ToLocalTime().ToString("ddd yyyy-MM-dd HH:mm", [Globalization.CultureInfo]::InvariantCulture) }
+            else { " (the trailing $($Status.Period))" }
+    return ("{0} {1} of {2}{3}" -f $Status.Meter, (Format-Usd $Status.UsedUsd), (Format-Usd $Status.LimitUsd 2), $when)
+}
+
+function Get-PlanStop {
+    # Before a hosted run: $null when it may start, else the message that stops
+    # every hosted seat for the rest of the batch. A meter stops runs once its
+    # use, plus what this batch has spent since the meters were read
+    # ($BatchUsd), is within $ReserveUsd of its limit, so the next run has
+    # room. A run can still overshoot by more than the reserve.
+    param($Status, [double]$BatchUsd, [double]$ReserveUsd)
+    foreach ($s in $Status) {
+        $used = $s.UsedUsd + $BatchUsd
+        if ($used + $ReserveUsd -ge $s.LimitUsd) {
+            $now = [pscustomobject]@{ Meter = $s.Meter; UsedUsd = $used; LimitUsd = $s.LimitUsd; Start = $s.Start; End = $s.End; Period = $s.Period }
+            return ("plan {0} - within {1} of the limit" -f (Format-PlanMeter $now), (Format-Usd $ReserveUsd 2))
+        }
+    }
+    return $null
+}
+
 # Chat models only - embedding models have no chat endpoint to probe.
 $EMBED_PATTERN = 'embed|bge-|nomic|mxbai'
 
@@ -1088,6 +1216,33 @@ foreach ($m in $selectedModels) {
     }
     $kept.Add($m)
 }
+# Plan-wide meters (costs/go-plan.tsv): Go meters every model's use against
+# one 5-hour, weekly and monthly limit, so the per-model caps above are not
+# what binds. Read this machine's Go usage once, here. If either is missing,
+# no hosted seat runs: spend that cannot be checked is not spent.
+$planStatus = $null
+$hostedKept = @($kept | Where-Object { Test-HostedModelId $_ })
+if ($hostedKept.Count -gt 0 -and -not $NoSpendCap) {
+    $planMeters = Get-GoPlan -Path $goPlanPath
+    $planWhy = $null
+    if ($planMeters.Count -eq 0) {
+        $planWhy = "no usable costs/go-plan.tsv, so the plan's 5-hour, weekly and monthly limits cannot be checked"
+    } else {
+        $nowUtc = [datetime]::UtcNow
+        $usage = Get-GoUsageRecords -Since $nowUtc.AddDays(-35)
+        if ($null -eq $usage) {
+            $planWhy = "``opencode db`` could not read opencode's usage records, so the plan's limits cannot be checked"
+        } else {
+            $planStatus = @(Get-PlanStatus -Meters $planMeters -Records $usage -Now $nowUtc)
+        }
+    }
+    if ($planWhy) {
+        foreach ($m in $hostedKept) {
+            Write-Host "  [drop] $m - $planWhy. Pass -NoSpendCap to run hosted seats unchecked." -ForegroundColor Yellow
+            [void]$kept.Remove($m)
+        }
+    }
+}
 $selectedModels = $kept
 if ($selectedModels.Count -eq 0) {
     Write-Host "No models selected - nothing to do." -ForegroundColor Yellow
@@ -1225,6 +1380,19 @@ if ($hostedSelected.Count -gt 0) {
             Write-Host "  [WARN] $m  -NoSpendCap and no rate row: NO cap, and its spend cannot be estimated." -ForegroundColor Yellow
         }
     }
+    if ($planStatus) {
+        foreach ($s in $planStatus) {
+            Write-Host ("  [PLAN] opencode-go  {0}" -f (Format-PlanMeter $s)) -ForegroundColor Green
+        }
+        $planNow = Get-PlanStop -Status $planStatus -BatchUsd 0 -ReserveUsd $PlanReserveUsd
+        if ($planNow) {
+            Write-Host "  [WARN] opencode-go  $planNow - every hosted run in this batch will be skipped." -ForegroundColor Yellow
+        } else {
+            Write-Host ("         The batch stops every hosted seat once a meter is within {0} of its limit (-PlanReserveUsd). Past a limit, Go bills the account balance if Extra Usage is on." -f (Format-Usd $PlanReserveUsd 2)) -ForegroundColor DarkGray
+        }
+    } elseif ($NoSpendCap) {
+        Write-Host "  [WARN] opencode-go  -NoSpendCap: the plan's 5-hour, weekly and monthly limits are NOT checked." -ForegroundColor Yellow
+    }
 }
 # opencode installs patch releases by itself when a TUI starts, so opening
 # OpenCode on this machine mid-batch can swap the binary under it. Not a FAIL:
@@ -1264,6 +1432,8 @@ $hostedRan    = @{}   # hosted model id -> runs started
 $hostedCapped = @{}   # hosted model id -> runs skipped at the cap
 $hostedRefused = @{}  # hosted model id -> the provider's refusal message
 $hostedRefusedSkipped = @{}   # hosted model id -> runs skipped after it
+$planStopped = $null  # the message once a plan meter is (nearly) full
+$planSkipped = 0      # hosted runs skipped after it
 foreach ($run in $runList) {
     $runNum++
     $drift = Get-OpencodeVersionDrift -Expected $batchOpencode
@@ -1277,6 +1447,21 @@ foreach ($run in $runList) {
         # fails the same way, so starting the run only costs its setup time.
         if ($hostedRefused.ContainsKey($run.Model)) {
             $hostedRefusedSkipped[$run.Model] = [int]$hostedRefusedSkipped[$run.Model] + 1
+            continue
+        }
+        # The plan's meters are shared, so one full meter stops every hosted seat.
+        if ($planStatus -and -not $planStopped) {
+            $batchUsd = 0.0
+            foreach ($v in $hostedSpend.Values) { $batchUsd += [double]$v }
+            $planStopped = Get-PlanStop -Status $planStatus -BatchUsd $batchUsd -ReserveUsd $PlanReserveUsd
+            if ($planStopped) {
+                $left = @($runList | Select-Object -Skip ($runNum - 1) | Where-Object { Test-HostedModelId $_.Model }).Count
+                Write-Host ""
+                Write-Host "  [PLAN] opencode-go: $planStopped - skipping the $left remaining hosted run(s). Local seats carry on." -ForegroundColor Yellow
+            }
+        }
+        if ($planStopped) {
+            $planSkipped++
             continue
         }
         $capMsg = Get-CapStatus -ModelId $run.Model -Caps $hostedCaps -Spend $hostedSpend
@@ -1357,7 +1542,15 @@ if ($hostedInBatch.Count -gt 0) {
         if ($hostedRefused.ContainsKey($m)) { $skipTxt += "; refused by the provider, $([int]$hostedRefusedSkipped[$m]) skipped after" }
         Write-Host ("  {0,-34} {1} {2}  - {3} run(s){4}" -f $m, $spentTxt, $capTxt, [int]$hostedRan[$m], $skipTxt)
     }
-    Write-Host "  Estimates from costs/go-rates.tsv; the Go console is the bill." -ForegroundColor DarkGray
+    if ($planStatus) {
+        $batchUsd = 0.0
+        foreach ($v in $hostedSpend.Values) { $batchUsd += [double]$v }
+        foreach ($s in $planStatus) {
+            $after = [pscustomobject]@{ Meter = $s.Meter; UsedUsd = $s.UsedUsd + $batchUsd; LimitUsd = $s.LimitUsd; Start = $s.Start; End = $s.End; Period = $s.Period }
+            Write-Host ("  plan: {0} (estimated after this batch)" -f (Format-PlanMeter $after))
+        }
+    }
+    Write-Host "  Estimates from costs/go-rates.tsv and costs/go-plan.tsv; the Go console is the bill." -ForegroundColor DarkGray
     Write-Host ""
 }
 if ($stopped) {
@@ -1369,6 +1562,9 @@ $cappedRuns = 0
 foreach ($n in $hostedCapped.Values) { $cappedRuns += $n }
 if ($cappedRuns -gt 0) {
     Write-Host "$cappedRuns run(s) not started: their hosted model reached its spend cap (see above)." -ForegroundColor Yellow
+}
+if ($planSkipped -gt 0) {
+    Write-Host "$planSkipped hosted run(s) not started: a plan meter was within $(Format-Usd $PlanReserveUsd 2) of its limit (see above). Re-run them after it resets with -OnlyMissing." -ForegroundColor Yellow
 }
 $refusedRuns = 0
 foreach ($n in $hostedRefusedSkipped.Values) { $refusedRuns += $n }

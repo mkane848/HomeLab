@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `run-tasks-batch.ps1`: hosted batches now respect OpenCode Go's plan-wide limits. Go meters every model together
+  against one 5-hour, one weekly and one monthly limit; the owner's dashboard showed the week at 100% after the
+  2026-10-06/07 batches.
+  - `costs/go-plan.tsv`: the three limits, calibrated from the dashboard, in opencode's prices.
+  - The batch reads this machine's Go use from opencode's records (`opencode db`, message table only), shows each
+    meter before it starts, and stops every hosted seat once a meter is within `-PlanReserveUsd` ($0.50) of its
+    limit. With no plan file or no readable usage, no hosted seat runs.
+  - `docs/costs.md` → "Usage limits as observed": what the dashboard showed, including why the 402 reads
+    "Insufficient account funds" (Extra Usage on, $0 credit).
+  - Covered in `tests/test-hosted-seats.ps1`.
+
 - `run-tasks-batch.ps1`: a hosted model refused by the provider (HTTP 402, OpenCode Go's "Insufficient account
   funds") is stopped for the rest of the batch; other models carry on. On 2026-10-06 the batch kept starting runs
   after the first refusal and 28 failed within seconds each. Covered in `tests/test-hosted-seats.ps1`.
