@@ -19,6 +19,20 @@ How the Go plan bills:
 - `run-tasks-batch.ps1` stops a hosted model once a batch has spent 20% of its allowance (owner's rule, 2026-10-06),
   so a batch never locks a model for longer than one 5-hour window.
 
+## Usage limits as observed
+
+On 2026-10-06 OpenCode Go began refusing requests with HTTP 402, "Upstream request failed: Insufficient account
+funds", partway through a batch. Times are US Eastern, costs are opencode's own per-step figures:
+- The first refusal came at 22:09, after about $3.84 of spend across all five models since the first request at
+  17:48.
+- GLM-5.2 and Kimi K2.7 Code were refused on their first request, although each had used under $0.50 that day.
+- Qwen3.8 Max worked again from 22:48, five hours after the first request, and was refused at 23:26 after about $3
+  more.
+
+That fits one limit shared by every model, of about $4 per 5 hours, better than the per-model limits the
+[Go docs][opencode-go] describe (20% of each model's monthly allowance per 5 hours). It's one night of data, and the
+Go console is the authority. Since then the batch stops a model at its first 402 (`run-tasks-batch.ps1`).
+
 ## Not recorded yet
 
 - **Electricity for the local seats.** It needs the owner's rate per kWh and a measured power draw. `qwen3.6` runs
