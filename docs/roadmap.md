@@ -1965,7 +1965,7 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
 - **`wp-5b` is the hardest work package.** Qwen3.7 Plus failed two of its hidden tests, GLM-5.2 timed out
   still working, and DeepSeek was refused before finishing. The two rules Qwen3.7 Plus missed are input checks
   that the slice's contract doc comments imply but don't state. So the task partly measures reading between the
-  lines; the owner decides whether that stays in the grade.
+  lines. The owner kept both tests in the grade (2026-10-07).
 - **Writes outside the worktree go unchecked.** One GLM run wrote a test config to a temp folder outside the
   worktree while fighting the test setup. The guard rails check only the repo's diff. Harmless here, but it's a
   gap (TODO below).
@@ -1975,7 +1975,6 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
   like-for-like hosted-against-local comparison on orchestrator-sized work.
 - Fill the hosted gaps (Kimi 12, DeepSeek 5, Qwen3.8 Max 6, GLM 3) when the plan's limits allow. The batch now
   checks the plan-wide meters first.
-- The owner decides on `wp-5b`'s implied rules.
 
 **TODO:** have the harness flag writes outside the worktree. That needs the transcript's tool paths, since the
 repo's diff can't see them.
