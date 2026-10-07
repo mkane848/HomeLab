@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `run-tasks-batch.ps1`: a hosted model refused by the provider (HTTP 402, OpenCode Go's "Insufficient account
+  funds") is stopped for the rest of the batch; other models carry on. On 2026-10-06 the batch kept starting runs
+  after the first refusal and 28 failed within seconds each. Covered in `tests/test-hosted-seats.ps1`.
+  - Observed that night (`docs/costs.md` → "Usage limits as observed"): the refusals looked like one limit shared by
+    all five models, not the per-model limits Go's docs describe.
+
 - Costs: what model access costs, recorded next to what it achieves (`docs/costs.md`).
   - `costs/access.tsv`: what the owner pays, Claude Pro $20/month and OpenCode Go $10/month (checked 2026-10-06).
   - `costs/go-rates.tsv`: dated per-token rates and monthly allowances for the five Go seats.

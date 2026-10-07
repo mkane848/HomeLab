@@ -47,7 +47,7 @@ function Get-Functions([string]$Path, [string[]]$Names, [switch]$Optional) {
     return $found
 }
 foreach ($text in (Get-Functions $ScriptPath @("Test-HostedModelId", "Get-HostedSeatGate", "ConvertTo-RateValue", "Get-GoRates",
-        "Get-SpendCap", "Get-TranscriptTokenUsage", "Get-UsageCostUsd", "Get-ResultFileNames", "Measure-RunSpend",
+        "Get-SpendCap", "Get-TranscriptTokenUsage", "Get-UsageCostUsd", "Get-ResultFileNames", "Get-NewRunFiles", "Get-ProviderRefusal", "Measure-RunSpend",
         "Get-CapStatus", "Format-Usd", "Format-SpendCap", "Get-RegistryRows", "Get-AvailableModelSeats"))) {
     Invoke-Expression $text
 }
@@ -108,6 +108,15 @@ $infraTranscript = @(
 ) -join "`n"
 # A graded run's transcript: 1M input tokens (alpha $2.00, beta $1.00).
 $gradedTranscript = (Step @{ input = 1000000; output = 0; reasoning = 0; read = 0; write = 0 })
+# A run the provider refused partway: one billed step, then OpenCode Go's 402,
+# in the shape of the real 2026-10-06 transcripts (headers trimmed).
+function ErrorEvent([string]$Status, [string]$Message) {
+    return '{"type":"error","timestamp":1791338950835,"sessionID":"ses_fixture","error":{"name":"APIError","data":{"message":"' + $Message + '","statusCode":' + $Status + ',"isRetryable":false,"responseBody":"{\"error\":{\"type\":\"server_error\",\"message\":\"' + $Message + '\"}}","metadata":{"url":"https://opencode.ai/inference/go/openai/v1/chat/completions"}}}}'
+}
+$refusedTranscript = @(
+    (Step @{ input = 100000; output = 0; reasoning = 0; read = 0; write = 0 }),
+    (ErrorEvent "402" "Upstream request failed: Insufficient account funds")
+) -join "`n"
 
 try {
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
@@ -212,6 +221,28 @@ try {
     $s = Measure-RunSpend -ResultsDir $rd -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha" -Rate $rates["opencode-go/alpha"]
     Check "no new files (e.g. a baseline failure): nothing counted" ("{0} / {1}" -f $s.Usd, ($s.Sources -join ";")) "0 / no result files - nothing counted"
 
+    Write-Host "-- provider refusal (Get-ProviderRefusal)"
+    $rr = Join-Path $tmp "results-refusal"
+    New-Item -ItemType Directory -Path $rr -Force | Out-Null
+    Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-090000.jsonl") $refusedTranscript   # an earlier run
+    $before = Get-ResultFileNames -Dir $rr
+    Check "nothing new: no refusal"                   ($null -eq (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha")) "True"
+    Write-Fixture (Join-Path $rr "tasks-t1-opencode-go_beta_INFRA_20261006-100000.jsonl") $refusedTranscript   # another model
+    Write-Fixture (Join-Path $rr "tasks-t2-${lab}_INFRA_20261006-100000.jsonl") $refusedTranscript            # another task
+    Check "another model's or task's 402: not this run's" ($null -eq (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha")) "True"
+    Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-110000.jsonl") $infraTranscript
+    Check "an unreachable host is not a refusal"      ($null -eq (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha")) "True"
+    $before = Get-ResultFileNames -Dir $rr
+    Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-120000.jsonl") (@((Step @{ input = 1; output = 1; reasoning = 0 }), (ErrorEvent "429" "Rate limited"), (ErrorEvent "500" "Insufficient 402 words in a 500")) -join "`n")
+    Check "a 429 or a 500 is not a refusal"           ($null -eq (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha")) "True"
+    $before = Get-ResultFileNames -Dir $rr
+    Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-130000.jsonl") $refusedTranscript
+    Check "a 402 partway through a run: the provider's message" (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha") "Upstream request failed: Insufficient account funds"
+    Check "...and the step before it still counts as spend" (Measure-RunSpend -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha" -Rate $rates["opencode-go/alpha"]).Usd 0.2
+    $before = Get-ResultFileNames -Dir $rr
+    Write-Fixture (Join-Path $rr "tasks-t1-${lab}_INFRA_20261006-140000.jsonl") ('{"type":"error","error":{"name":"APIError","data":{"statusCode":402}}}')
+    Check "a 402 with no message still stops"        (Get-ProviderRefusal -ResultsDir $rr -Before $before -TaskId "t1" -ModelLabel "opencode-go/alpha") "HTTP 402"
+
     Write-Host "-- the real registry and rate table"
     $realReg = Get-Content -LiteralPath (Join-Path $PSScriptRoot "run-tasks-models.tsv")
     $realRateRows = Get-GoRates -Path (Join-Path $repoRoot "costs\go-rates.tsv")
@@ -231,7 +262,7 @@ try {
     Write-Fixture "$tree\tests\run-tasks-models.tsv" (($registryFixture -split "`n" | Where-Object { $_ -notmatch '^qwen3:14b' }) -join "`n")
     Write-Fixture "$tree\costs\go-rates.tsv" $ratesFixture
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
-    $manifest = @{ tasks = @(foreach ($id in "fx-infra", "t1", "t2", "t3") { [ordered]@{ id = $id; title = "fixture $id" } }) }
+    $manifest = @{ tasks = @(foreach ($id in "fx-infra", "t1", "t2", "t3", "t4") { [ordered]@{ id = $id; title = "fixture $id" } }) }
     Write-Fixture "$tree\tests\tasks\manifest.json" ($manifest | ConvertTo-Json -Depth 5)
 
     # Stand-in test-tasks.ps1: names files exactly as the real one does.
@@ -250,6 +281,11 @@ $enc = New-Object System.Text.UTF8Encoding $false
 if ($t -eq 'fx-infra') {
     [IO.File]::WriteAllText((Join-Path $ResultsDir ("tasks-{0}-{1}_INFRA_{2}.jsonl" -f $t, $label, $stamp)), $env:FIXTURE_INFRA_TRANSCRIPT, $enc)
     Write-Host "  [FAIL] opencode run - fixture infrastructure failure"
+    exit 1
+}
+if ($env:FIXTURE_REFUSE_MODEL -and $Model -eq $env:FIXTURE_REFUSE_MODEL -and $t -ne 't1') {
+    [IO.File]::WriteAllText((Join-Path $ResultsDir ("tasks-{0}-{1}_INFRA_{2}.jsonl" -f $t, $label, $stamp)), $env:FIXTURE_REFUSED_TRANSCRIPT, $enc)
+    Write-Host "  [FAIL] opencode run - fixture provider refusal"
     exit 1
 }
 $usd = if ($t -eq 't3' -or $Model -notmatch '^opencode-go/') { $null } else { 1.0 }
@@ -306,12 +342,13 @@ exit $LASTEXITCODE
     $psExe = (Get-Process -Id $PID).Path
 
     $saved = @{}
-    foreach ($v in "PATH", "FIXTURE_DIR", "FIXTURE_CALLS", "FIXTURE_INFRA_TRANSCRIPT", "FIXTURE_GRADED_TRANSCRIPT", "OLLAMA_DESKTOP_BASE_URL",
+    foreach ($v in "PATH", "FIXTURE_DIR", "FIXTURE_CALLS", "FIXTURE_INFRA_TRANSCRIPT", "FIXTURE_GRADED_TRANSCRIPT",
+                   "FIXTURE_REFUSED_TRANSCRIPT", "FIXTURE_REFUSE_MODEL", "OLLAMA_DESKTOP_BASE_URL",
                    "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") {
         $saved[$v] = [Environment]::GetEnvironmentVariable($v)
     }
     $script:scn = 0
-    function Invoke-Batch([hashtable]$BatchArgs, [string[]]$GoList = @("alpha", "beta", "delta"), [switch]$NoGoList, [switch]$NoConfig) {
+    function Invoke-Batch([hashtable]$BatchArgs, [string[]]$GoList = @("alpha", "beta", "delta"), [switch]$NoGoList, [switch]$NoConfig, [string]$RefuseModel = "") {
         $script:scn++
         $rdir = Join-Path $tmp "results-$($script:scn)"
         New-Item -ItemType Directory -Path $rdir -Force | Out-Null
@@ -329,6 +366,8 @@ exit $LASTEXITCODE
         $env:FIXTURE_CALLS = $calls
         $env:FIXTURE_INFRA_TRANSCRIPT = $infraTranscript
         $env:FIXTURE_GRADED_TRANSCRIPT = $gradedTranscript
+        $env:FIXTURE_REFUSED_TRANSCRIPT = $refusedTranscript
+        $env:FIXTURE_REFUSE_MODEL = $RefuseModel
         $env:OLLAMA_DESKTOP_BASE_URL = "http://fixture.invalid:11434/v1"
         foreach ($v in "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") { [Environment]::SetEnvironmentVariable($v, $null) }
         $prevEap = $ErrorActionPreference
@@ -372,6 +411,20 @@ exit $LASTEXITCODE
     Has   "preflight shows the larger cap"            $r.Out '\[CAP\]  opencode-go/alpha  \$5\.00 cap \(50% of \$10\.00 monthly\)'
     Check "alpha runs everything (`$3.20 before t3)"  (RunsOf $r "opencode-go/alpha") "fx-infra,t1,t2,t3"
     Has   "summary: `$5.20, one run's overshoot is possible" $r.Out 'opencode-go/alpha\s+\$5\.2000 of its \$5\.00 cap'
+
+    Write-Host "   scenario: the provider refuses beta (HTTP 402) from t2 on"
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3", "t4"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -RefuseModel "opencode-go/beta"
+    Check "exit 0"                                    $r.Exit 0
+    Check "beta: t1, then the refused t2, then nothing" (RunsOf $r "opencode-go/beta") "t1,t2"
+    Has   "...the stop names the provider's message"  $r.Out '\[REFUSED\] opencode-go/beta: the provider refused the request \(HTTP 402: Upstream request failed: Insufficient account funds\) - skipping its remaining 2 run\(s\)'
+    Check "alpha carries on: every run"               (RunsOf $r "opencode-go/alpha") "t1,t2,t3,t4"
+    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2,t3,t4"
+    Has   "summary: beta's refused run still counts as spend (1 + 0.1)" $r.Out 'opencode-go/beta\s+\$1\.1000 of its .* 2 run\(s\); refused by the provider, 2 skipped after'
+    Lacks "summary: alpha was not refused"            $r.Out 'opencode-go/alpha\s+[^\r\n]*refused'
+    Has   "the skipped runs are reported, with how to fill them" $r.Out '1 hosted model\(s\) refused by the provider \(HTTP 402\); 2 run\(s\) not started\. Re-run them later with -OnlyMissing'
+    $r = Invoke-Batch @{ Tasks = @("fx-infra", "t1", "t2"); Models = @("opencode-go/beta"); SpendCapShare = 1 }
+    Lacks "an unreachable-host _INFRA_ run does not stop a model" $r.Out '\[REFUSED\]'
+    Check "...it runs everything"                     (RunsOf $r "opencode-go/beta") "fx-infra,t1,t2"
 
     Write-Host "   scenario: no key file"
     $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "hosted", "opencode-go/beta"); GoKeyFile = (Join-Path $fx "missing-key") }

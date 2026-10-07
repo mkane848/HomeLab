@@ -76,6 +76,11 @@
 #     cap by that run's own cost. A model with no rate row is refused, since its
 #     spend cannot be estimated; -NoSpendCap runs it (and every hosted seat)
 #     uncapped. Local seats are untouched by all of this.
+#   - Provider refusal: a run whose transcript holds an HTTP 402 error (Go's
+#     "Insufficient account funds", its answer once a usage limit is reached)
+#     stops that model for the rest of the batch; other models carry on. On
+#     2026-10-06 the batch kept starting runs after the first 402, and 28 of
+#     them failed within seconds. Re-run the gaps later with -OnlyMissing.
 #   One hosted batch, private real-prompt tasks:
 #     .\tests\run-tasks-batch.ps1 -SkipSetup -Mode Tasks -Models hosted -Tasks <ids> -Reps 1 -Yes `
 #         -TaskManifest M:\Projects\HomeLab-private\tasks\manifest.json -ResultsDir M:\Projects\HomeLab-private\results
@@ -761,21 +766,49 @@ function Get-ResultFileNames {
     return $set
 }
 
+function Get-NewRunFiles {
+    # The files one test-tasks.ps1 invocation left in the results folder:
+    # tasks-<task>-<label>_<stamp>.json + .jsonl for a graded run,
+    # tasks-<task>-<label>_<INFRA|TIMEOUT|TRUNCATED>_<stamp>.jsonl for one that
+    # was not. $Before is Get-ResultFileNames from before the run.
+    param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
+    $prefix = "tasks-{0}-{1}_" -f $TaskId, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_')
+    if (-not (Test-Path -LiteralPath $ResultsDir)) { return @() }
+    return @(Get-ChildItem -LiteralPath $ResultsDir -File | Where-Object { $_.Name.StartsWith($prefix) -and -not $Before.ContainsKey($_.Name) })
+}
+
+function Get-ProviderRefusal {
+    # The provider's own "no more" in what one run left behind: an error event
+    # with HTTP 402 in its transcript. OpenCode Go answers 402 "Upstream request
+    # failed: Insufficient account funds" once a usage limit is reached
+    # (2026-10-06: every later request to that model failed the same way within
+    # seconds, 28 runs in a row). Returns the provider's message, or $null.
+    # Other errors (an unreachable host, a 429 rate limit, a 500) are not
+    # refusals: they may pass, and the run is already recorded as _INFRA_.
+    param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
+    foreach ($f in (Get-NewRunFiles -ResultsDir $ResultsDir -Before $Before -TaskId $TaskId -ModelLabel $ModelLabel)) {
+        if ($f.Extension -ne ".jsonl") { continue }
+        foreach ($line in [System.IO.File]::ReadLines($f.FullName)) {
+            if ($line -notmatch '"type"\s*:\s*"error"' -or $line -notmatch '402') { continue }
+            try { $e = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+            if ($e.type -ne "error" -or -not $e.error -or -not $e.error.data) { continue }
+            if ("$($e.error.data.statusCode)" -ne "402") { continue }
+            $msg = "$($e.error.data.message)".Trim()
+            return $(if ($msg) { $msg } else { "HTTP 402" })
+        }
+    }
+    return $null
+}
+
 function Measure-RunSpend {
     # What one test-tasks.ps1 invocation spent, from the files it left in the
-    # results folder: tasks-<task>-<label>_<stamp>.json + .jsonl for a graded
-    # run, tasks-<task>-<label>_<INFRA|TIMEOUT|TRUNCATED>_<stamp>.jsonl for one
-    # that was not. A transcript paired with a JSON that carries
-    # costEstimate.usd counts that number; any other transcript (no JSON, or a
-    # JSON with no estimate) counts its tokens at $Rate. Every run counts,
-    # graded or not: an infrastructure failure may still have been billed.
-    # Returns { Usd; Sources }.
+    # results folder (Get-NewRunFiles). A transcript paired with a JSON that
+    # carries costEstimate.usd counts that number; any other transcript (no
+    # JSON, or a JSON with no estimate) counts its tokens at $Rate. Every run
+    # counts, graded or not: an infrastructure failure may still have been
+    # billed. Returns { Usd; Sources }.
     param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel, $Rate)
-    $prefix = "tasks-{0}-{1}_" -f $TaskId, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_')
-    $new = @()
-    if (Test-Path -LiteralPath $ResultsDir) {
-        $new = @(Get-ChildItem -LiteralPath $ResultsDir -File | Where-Object { $_.Name.StartsWith($prefix) -and -not $Before.ContainsKey($_.Name) })
-    }
+    $new = Get-NewRunFiles -ResultsDir $ResultsDir -Before $Before -TaskId $TaskId -ModelLabel $ModelLabel
     $jsonCost = @{}   # base name -> usd or $null
     foreach ($f in ($new | Where-Object { $_.Extension -eq ".json" })) {
         $usd = $null
@@ -1229,6 +1262,8 @@ $stopped = $null
 $hostedSpend  = @{}   # hosted model id -> estimated USD this batch
 $hostedRan    = @{}   # hosted model id -> runs started
 $hostedCapped = @{}   # hosted model id -> runs skipped at the cap
+$hostedRefused = @{}  # hosted model id -> the provider's refusal message
+$hostedRefusedSkipped = @{}   # hosted model id -> runs skipped after it
 foreach ($run in $runList) {
     $runNum++
     $drift = Get-OpencodeVersionDrift -Expected $batchOpencode
@@ -1238,6 +1273,12 @@ foreach ($run in $runList) {
     }
     $isHosted = Test-HostedModelId $run.Model
     if ($isHosted) {
+        # Refused by the provider earlier in this batch: every further request
+        # fails the same way, so starting the run only costs its setup time.
+        if ($hostedRefused.ContainsKey($run.Model)) {
+            $hostedRefusedSkipped[$run.Model] = [int]$hostedRefusedSkipped[$run.Model] + 1
+            continue
+        }
         $capMsg = Get-CapStatus -ModelId $run.Model -Caps $hostedCaps -Spend $hostedSpend
         if ($capMsg) {
             if (-not $hostedCapped.ContainsKey($run.Model)) {
@@ -1286,6 +1327,14 @@ foreach ($run in $runList) {
         } else {
             Write-Host "  spend: not estimated - $($run.Model) has no row in costs/go-rates.tsv (-NoSpendCap)" -ForegroundColor Yellow
         }
+        $refusal = Get-ProviderRefusal -ResultsDir $taskResultsDir -Before $filesBefore -TaskId $run.Task -ModelLabel $run.Model
+        if ($refusal) {
+            $hostedRefused[$run.Model] = $refusal
+            $left = @($runList | Select-Object -Skip $runNum | Where-Object { $_.Model -eq $run.Model }).Count
+            Write-Host ""
+            Write-Host "  [REFUSED] $($run.Model): the provider refused the request (HTTP 402: $refusal) - skipping its remaining $left run(s). Other models carry on." -ForegroundColor Yellow
+            Write-Host "            Usually a usage limit: check the provider's console, then re-run the gaps with -OnlyMissing." -ForegroundColor Yellow
+        }
     }
     $results.Add([pscustomobject]@{
         Task     = $run.Task
@@ -1305,6 +1354,7 @@ if ($hostedInBatch.Count -gt 0) {
         $spentTxt = if ($goRates.ContainsKey($m)) { Format-Usd ([double]$hostedSpend[$m]) } else { "not estimated (no rate row)" }
         $capTxt   = if ($hostedCaps.ContainsKey($m)) { "of its " + (Format-SpendCap $hostedCaps[$m]) } else { "no cap (-NoSpendCap)" }
         $skipTxt  = if ($hostedCapped.ContainsKey($m)) { "; $($hostedCapped[$m]) skipped at the cap" } else { "" }
+        if ($hostedRefused.ContainsKey($m)) { $skipTxt += "; refused by the provider, $([int]$hostedRefusedSkipped[$m]) skipped after" }
         Write-Host ("  {0,-34} {1} {2}  - {3} run(s){4}" -f $m, $spentTxt, $capTxt, [int]$hostedRan[$m], $skipTxt)
     }
     Write-Host "  Estimates from costs/go-rates.tsv; the Go console is the bill." -ForegroundColor DarkGray
@@ -1319,6 +1369,11 @@ $cappedRuns = 0
 foreach ($n in $hostedCapped.Values) { $cappedRuns += $n }
 if ($cappedRuns -gt 0) {
     Write-Host "$cappedRuns run(s) not started: their hosted model reached its spend cap (see above)." -ForegroundColor Yellow
+}
+$refusedRuns = 0
+foreach ($n in $hostedRefusedSkipped.Values) { $refusedRuns += $n }
+if ($hostedRefused.Count -gt 0) {
+    Write-Host "$($hostedRefused.Count) hosted model(s) refused by the provider (HTTP 402); $refusedRuns run(s) not started. Re-run them later with -OnlyMissing." -ForegroundColor Yellow
 }
 $ranCount = $results.Count
 $fails = @($results | Where-Object { $_.ExitCode -ne 0 })
