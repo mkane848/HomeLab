@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Results: the first hosted batches on the private real tasks (2026-10-06/07). Five OpenCode Go seats ran 3 LFCbot
+  tasks and 12 work-package tasks: 47 of 49 graded runs passed before the plan's weekly limit stopped them.
+  - 49 rows in `tests/results/real-tasks-public.tsv` (opaque task ids and verdicts only).
+  - `docs/roadmap.md` → "Hosted seats on the real tasks": results next to the local seats, and what the failures
+    show. No hosted run compacted. The local LFCbot failures were early stops and incomplete surveys, not
+    context loss. `wp-5b`'s hidden tests enforce rules the contract only implies. Writes outside the worktree
+    go unchecked (TODO).
+  - `docs/costs.md` → "What a pass costs": cost per pass on the tasks four seats shared, from $0.06 (DeepSeek V4
+    Pro) to $0.42 (Qwen3.8 Max).
+
 - `run-tasks-batch.ps1`: hosted batches now respect OpenCode Go's plan-wide limits. Go meters every model together
   against one 5-hour, one weekly and one monthly limit; the owner's dashboard showed the week at 100% after the
   2026-10-06/07 batches.

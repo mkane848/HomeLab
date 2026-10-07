@@ -1920,6 +1920,68 @@ holds, PARTIAL if at least half do.
 - Optional: the claude.ai data export, if chat history matters.
 - Later: a multi-turn design, informed by how the owner corrects agents.
 
+### Hosted seats on the real tasks: the first batches (2026-10-06/07)
+
+Five [OpenCode Go][opencode-go-docs] seats ran the private real tasks, one run per task, on opencode 1.18.34 with
+the compaction plugin installed. The tasks:
+- **3 LFCbot tasks** (`real-01`–`03`), each the owner's own prompt, graded by hidden tests.
+- **12 work-package tasks** (`wp-*`). Each is an orchestrator's real brief for one slice of the A Story of Heroes
+  and Villains V0.6 revision, graded by that slice's contract tests.
+
+Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/costs.md` → "What a pass costs".
+
+| seat | LFCbot | work packages | not graded |
+|---|---|---|---|
+| Qwen3.7 Plus | 2/3 | 11/12 | — |
+| DeepSeek V4 Pro | 3/3 | 7/7 | 5 refused at the plan limit (1 mid-run) |
+| GLM-5.2 | 3/3 | 9/9 | 2 timed out, 1 refused |
+| Qwen3.8 Max | 3/3 | 6/6 | 1 refused mid-run, 5 not run |
+| Kimi K2.7 Code | 3/3 | — | 12 refused at the plan limit |
+| *qwen3.6 (local)* | *7/13 (four batches)* | *not run* | |
+| *qwen3.5:9b (local)* | *3/10* | *not run* | |
+
+- **47 of 49 graded hosted runs passed.** The batches stopped when the Go plan's weekly limit was reached
+  (`docs/costs.md` → "Usage limits as observed"). Hosted cells are one run each, so these are signals, not
+  standings.
+- **The local seats have never run the work packages.** The only like-for-like comparison so far is the three
+  LFCbot tasks. Filling that in costs no money.
+
+**What the failures show** (transcripts in the private repo):
+- **No hosted run compacted.** Go serves these models with up to 1M tokens of context. The biggest request was
+  119k tokens, about twice what the local seats hold before they compact. The local failure this roadmap has
+  chased (losing the task after a compaction) never arose. The hosted runs avoid it rather than survive it.
+- **The local LFCbot failures weren't context failures either.** The runs that recorded it peaked at 11–16k
+  tokens. Two other patterns show instead:
+  - **Stopping early and claiming success.** On 2026-10-05 qwen3.6 failed all three tasks in 3–5 steps each,
+    against 7 of 10 the day before. One run added the requested section, re-read the file, deleted its own
+    addition as a "duplicate" and reported success. One stopped after a failed edit without retrying. One wrote
+    one of the two pages asked for. The plugin was ruled out earlier (8 of 8 with it switched off), so this is
+    run-to-run variance. It's the kind a single run hides.
+  - **Incomplete surveys.** `real-02` asks for a document brought up to date with the repo. The hidden tests
+    check that the newer modules and environment variables are covered. It failed for qwen3.6 3 times in 4,
+    qwen3.5 3 in 3 and Qwen3.7 Plus once. Apart from one early stop, each failure missed some of them.
+  - **qwen3.5:9b misread `real-03`.** It wrote deployment notes instead of the two pages asked for, and once
+    edited `.env.example`, which the guard rails deny.
+- **`wp-5b` is the hardest work package.** Qwen3.7 Plus failed two of its hidden tests, GLM-5.2 timed out
+  still working, and DeepSeek was refused before finishing. The two rules Qwen3.7 Plus missed are input checks
+  that the slice's contract doc comments imply but don't state. So the task partly measures reading between the
+  lines; the owner decides whether that stays in the grade.
+- **Writes outside the worktree go unchecked.** One GLM run wrote a test config to a temp folder outside the
+  worktree while fighting the test setup. The guard rails check only the repo's diff. Harmless here, but it's a
+  gap (TODO below).
+
+**Next:**
+- Run the local seats (qwen3.6, qwen3.5:9b) on the 12 work packages. It's free, and it gives the first
+  like-for-like hosted-against-local comparison on orchestrator-sized work.
+- Fill the hosted gaps (Kimi 12, DeepSeek 5, Qwen3.8 Max 6, GLM 3) when the plan's limits allow. The batch now
+  checks the plan-wide meters first.
+- The owner decides on `wp-5b`'s implied rules.
+
+**TODO:** have the harness flag writes outside the worktree. That needs the transcript's tool paths, since the
+repo's diff can't see them.
+
+[opencode-go-docs]: https://opencode.ai/docs/go
+
 ### Node3's `qwen3:8b` "liar mode" was never liar mode: the runs never reached Ollama (corrected 2026-09-21)
 
 **Superseding the context-budget explanation previously recorded here.** That
