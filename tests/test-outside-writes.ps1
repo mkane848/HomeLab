@@ -127,6 +127,7 @@ exit 0
     Check "...with its full path"                            (@($jo.outsideWrites)[0].path) (Join-Path $outDir "stray.config.ts")
     Check "the console warns"                                ($log -match 'WARN: 1 write\(s\) outside the worktree') "True"
     Check "it is not graded: the scope gate still passes"    $jo.gates.scope "PASS"
+    Check "the run JSON records the run's time limit"       "$($jo.runTimeoutSec)|$($ji.runTimeoutSec)" "120|120"
     Check "a clean run records an empty list"                ("{0}|{1}" -f ($null -ne $ji.PSObject.Properties["outsideWrites"]), @($ji.outsideWrites).Count) "True|0"
 } finally {
     Get-ChildItem -LiteralPath $tmp -Recurse -Directory -Filter repo -ErrorAction SilentlyContinue | ForEach-Object { git -C $_.FullName worktree prune 2>$null }

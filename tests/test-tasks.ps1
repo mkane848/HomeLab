@@ -2119,6 +2119,9 @@ foreach ($tk in $tasksToRun) {
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
         elapsedSec      = $run.ElapsedSec
+        # The opencode run's time limit (-RunTimeout). A run that finished under it
+        # ends the same under any longer limit; only a timeout depends on it.
+        runTimeoutSec   = $RunTimeout
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
         opencodeVersion = $opencodeVersion

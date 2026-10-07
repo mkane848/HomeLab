@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write/edit/patch calls whose path resolves outside the task's worktree, and the console warns. It isn't graded.
   The scope gate and the guard rails see only the repo's diff, so a GLM-5.2 run's stray config in `%TEMP%` went
   unnoticed (2026-10-07). Shell commands aren't parsed. New guard `tests/test-outside-writes.ps1`.
+- `test-tasks.ps1`: every run JSON records `runTimeoutSec`, the opencode run's time limit. The owner chose 45 minutes
+  for the local seats on the work packages (2026-10-07): a slower right answer counts. A run that finished under
+  15 minutes ends the same either way, so the hosted comparison holds.
 
 - Results: the first hosted batches on the private real tasks (2026-10-06/07). Five OpenCode Go seats ran 3 LFCbot
   tasks and 12 work-package tasks: 47 of 49 graded runs passed before the plan's weekly limit stopped them.
