@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     go unchecked (TODO).
   - `docs/costs.md` → "What a pass costs": cost per pass on the tasks four seats shared, from $0.06 (DeepSeek V4
     Pro) to $0.42 (Qwen3.8 Max).
+  - The owner's decisions after the batches: `wp-5b` keeps its implied-rule tests; the orchestrator shortlist is
+    DeepSeek V4 Pro and Qwen3.7 Plus; the first hybrid is built in OpenCode; the Go budget is deferred. The next
+    deciding experiment is the local seats on the work packages.
+  - Hermes Agent researched from its docs and parked (`docs/roadmap.md`, sources in `docs/references.md`).
 
 - `run-tasks-batch.ps1`: hosted batches now respect OpenCode Go's plan-wide limits. Go meters every model together
   against one 5-hour, one weekly and one monthly limit; the owner's dashboard showed the week at 100% after the

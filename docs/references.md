@@ -74,6 +74,10 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | ollama-openclaw | Ollama docs, "OpenClaw" integration (read 2026-10-05) — "a personal AI assistant" bridging messaging apps to AI coding agents through a gateway; at least 64k context advised with local models | <https://docs.ollama.com/integrations/openclaw> |
 | opencode-go | OpenCode docs, "Go" (read 2026-10-06) — $10/month (Go) and $40/month (Go Plus); per-model monthly dollar allowances, of which at most 20% per 5 hours and 50% per week; per-token prices; data retention per model (0 days for most, 30 for Grok and GPT Luna, Muse Spark used for training) | <https://opencode.ai/docs/go> |
 | claude-pricing | Anthropic, "Pricing" (read 2026-10-06) — Claude Pro $20/month billed monthly, $17/month billed annually; Claude Code included in all paid plans | <https://claude.com/pricing> |
+| hermes-agent | Nous Research, Hermes Agent home and docs (read 2026-10-07) — open-source (MIT) agent: CLI/TUI, messaging gateway, headless mode, any OpenAI-compatible endpoint | <https://hermes-agent.nousresearch.com/> |
+| hermes-delegation | Hermes Agent docs, "Delegation" (read 2026-10-07) — `delegate_task` subagents on a delegation model/provider/`base_url` separate from the main session (one setting for every child); only a child's summary returns to the parent | <https://hermes-agent.nousresearch.com/docs/user-guide/features/delegation> |
+| hermes-cli | Hermes Agent docs, "CLI commands" (read 2026-10-07) — `-z`/`--oneshot`, `--format stream-json` (for `-q/--query` runs), `-w/--worktree`, `--toolsets`, `--ignore-user-config`, exit codes | <https://hermes-agent.nousresearch.com/docs/reference/cli-commands> |
+| hermes-faq | Hermes Agent docs, FAQ (read 2026-10-07) — 64,000-token context minimum; set the context length by hand for Ollama, whose `/api/show` reports the model's maximum | <https://hermes-agent.nousresearch.com/docs/reference/faq> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
@@ -83,7 +87,8 @@ Gotchas ("opencode upgrades itself…"), the addendum in
 `autoupdate` comment in `opencode/global/opencode.jsonc`; `opencode-overflow`,
 `opencode-compaction` and `ollama-prompt` → `docs/roadmap.md` → "Context
 overflow" and `Get-ContextEvents` in `tests/test-tasks.ps1`; `ollama-claude-code`
-and `ollama-openclaw` → the same section's "Is this OpenCode, or the plan?"
+and `ollama-openclaw` → the same section's "Is this OpenCode, or the plan?"; `hermes-*` →
+`docs/roadmap.md` → "Hermes Agent: researched 2026-10-07, parked"
 (rendered docs pages, no commit to pin: re-read before acting on them). These are read at one
 commit: re-check them when opencode's major or minor version moves (Ollama's
 on any upgrade).
