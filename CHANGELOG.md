@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `docs/roadmap.md`: "Local qwen3.6 on the work packages (2026-10-07)". qwen3.6 passed 7 of 12 with a 45-minute
+  limit, 3 within 15 minutes, against Qwen3.7 Plus's 11 of 12. Four passes compacted and still finished. Three of
+  the five failures stopped with work undone. A local-first split would have halved the Go bill for the same 11.
+  `docs/costs.md` updated to match.
 - `test-tasks.ps1`: writes outside the worktree are flagged. Every run JSON records `outsideWrites`, the
   write/edit/patch calls whose path resolves outside the task's worktree, and the console warns. It isn't graded.
   The scope gate and the guard rails see only the repo's diff, so a GLM-5.2 run's stray config in `%TEMP%` went
