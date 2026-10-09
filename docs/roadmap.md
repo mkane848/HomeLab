@@ -1937,14 +1937,14 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
 | GLM-5.2 | 3/3 | 9/9 | 2 timed out, 1 refused |
 | Qwen3.8 Max | 3/3 | 6/6 | 1 refused mid-run, 5 not run |
 | Kimi K2.7 Code | 3/3 | — | 12 refused at the plan limit |
-| *qwen3.6 (local)* | *7/13 (four batches)* | *not run* | |
+| *qwen3.6 (local)* | *7/13 (four batches)* | *7/11 (45-min limit)* | *1 timed out at 45 min* |
 | *qwen3.5:9b (local)* | *3/10* | *not run* | |
 
 - **47 of 49 graded hosted runs passed.** The batches stopped when the Go plan's weekly limit was reached
   (`docs/costs.md` → "Usage limits as observed"). Hosted cells are one run each, so these are signals, not
   standings.
-- **The local seats have never run the work packages.** The only like-for-like comparison so far is the three
-  LFCbot tasks. Filling that in costs no money.
+- **qwen3.6 ran the work packages on 2026-10-07, with a 45-minute limit** (below, "Local qwen3.6 on the work
+  packages"). `qwen3.5:9b` hasn't run them yet.
 
 **What the failures show** (transcripts in the private repo):
 - **No hosted run compacted.** Go serves these models with up to 1M tokens of context. The biggest request was
@@ -1971,8 +1971,8 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
   gap (TODO below).
 
 **Next:**
-- Run the local seats (qwen3.6, qwen3.5:9b) on the 12 work packages. It's free, and it gives the first
-  like-for-like hosted-against-local comparison on orchestrator-sized work.
+- ~~Run the local seats on the 12 work packages.~~ qwen3.6 done 2026-10-07 (below); `qwen3.5:9b` still to
+  run.
 - Fill the hosted gaps (Kimi 12, DeepSeek 5, Qwen3.8 Max 6, GLM 3) when the plan's limits allow. The batch now
   checks the plan-wide meters first.
 
@@ -1995,7 +1995,63 @@ isn't graded. Shell commands aren't parsed, so a redirect in a bash call still g
 of them, the split is proven (hosted orchestrator, local implementers on short file-scoped briefs), and the work
 on surviving long local sessions can drop in priority. If it doesn't, the briefs must get smaller, or the local
 seats review and assist rather than implement. Fixing the server for a second implementer GPU depends on that
-answer too.
+answer too. **First answer (2026-10-07), below: most of them, given time.**
+
+#### Local qwen3.6 on the work packages (2026-10-07)
+
+`qwen3.6:35b-a3b-coding` ran the 12 work packages once each, in small batches through the day. The setup was
+the same as the hosted batches: opencode 1.18.34 with the compaction plugin, 64k context. The difference is the
+time limit. A local run's time limit was 45 minutes (`-RunTimeout 2700`), against 15 for the hosted runs. The
+owner chose 45 because a local model that gets the right answer more slowly is a result worth having. Every run
+records its elapsed time, so both limits can be read off the same runs: a run that finished within 15 minutes
+ends the same under either. From the second batch on, the run JSONs record the limit itself (`runTimeoutSec`).
+
+| | qwen3.6 (local) | Qwen3.7 Plus (hosted), same 12 |
+|---|---|---|
+| passed within 15 min | 3 of 12 | 11 of 12 |
+| passed within 45 min | 7 of 12 | 11 of 12 |
+| time per pass | 7–28 min, median 16 | 1–7 min, median 3 |
+| time for the whole set | about 3 h 4 min | 49 min |
+| cost | $0 | $1.17 ($0.11 per pass) |
+
+- **Every pass beyond 15 minutes compacted.** Four of the seven passes (`wp-3a`, `wp-3b`, `wp-4a`, `wp-5a`, 16–28
+  min) compacted once or twice and finished correctly. Each compaction loses the prompt cache, and each later step
+  pays for re-reading the whole context. That costs time, not the task. Before the compaction plugin
+  (2026-10-05), losing the task after compacting was the main local failure (above, "Context overflow"). On
+  these runs it never happened. Four runs aren't proof, but it's the first evidence that the plugin carries the
+  task through.
+- **The three passes under 15 minutes never compacted** (`wp-9a`, `wp-0a`, `wp-1a`, 7–12 min). On the seven
+  tasks both passed, qwen3.6 took 3–10 times as long as Qwen3.7 Plus (median 5×).
+- **Five failures, four different ways:**
+  - **`wp-5b` ran out of time while still working.** It compacted three times, kept editing after each, and was on
+    its last file at 45 minutes. Every hosted seat that tried it also failed or didn't finish.
+  - **`wp-6a` stopped after two correct edits.** Its last message was the made-up line "[Response interrupted by
+    admin]". Nothing interrupted it.
+  - **`wp-6f` stopped after reading 11 files,** with no edit and no closing message.
+  - **`wp-7a` hit the output limit.** After reading five files it produced 8,192 tokens in one step without
+    finishing a text or tool call (`outputCapHit`). That's the configured `limit.output`.
+  - **`wp-2b` lost its brief.** It read three large files in one step, and the next request went past the 64k
+    context: the front-drop (above, "Context overflow").
+
+  Three of the five (`wp-6a`, `wp-6f`, `wp-7a`) stopped with work undone, not with wrong work. In one window the
+  owner would answer that with "keep going". The "check your work" variants of the LFCbot tasks (`real-01c`–`03c`)
+  test whether one fixed follow-up recovers it.
+- **A local-first split would have cost half as much.** Run qwen3.6 first and hand only its five failures to
+  Qwen3.7 Plus, and the set ends at 11 of 12, the same as Qwen3.7 Plus alone. Go would bill $0.63 instead of
+  $1.17, and the work would take about 3½ hours instead of 49 minutes. This assumes something notices each
+  failure. Here the hidden tests did; in real use it would be the orchestrator's review, whose cost isn't
+  counted.
+- **One run per task.** These are signals, not standings. The LFCbot runs showed qwen3.6 swinging from 7 of 10
+  to 0 of 3 between days.
+
+**What this changes:** the split looks workable for time-tolerant work. The hosted orchestrator plans and
+reviews, the local seat implements, and the hosted seat takes over what the local one leaves unfinished. The
+local work that matters most is now stopping early, not losing the task. Next:
+- the "check your work" pair, on the LFCbot tasks first;
+- a second qwen3.6 run of the four failures that weren't timeouts, to tell variance from a pattern;
+- `qwen3.5:9b` on the same 12;
+- a decision on raising qwen3.6's `limit.output` above 8,192 (`wp-7a`). That would start a new era for its rows,
+  so it waits until these runs are in.
 
 #### Hermes Agent: researched 2026-10-07, parked
 
