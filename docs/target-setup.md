@@ -1,5 +1,13 @@
 # Target setup (the "server is back" end state)
 
+> **Status (2026-10-10).** The server is the owner's top priority again: milestone 6, "Server back", now heads
+> [roadmap.md](roadmap.md) → "Next up". Since this doc was written:
+> - the executor seat is `qwen3.6:35b-a3b-coding` with the stop nudge, which passes 11 of 12 real work packages,
+>   not the 2026-09-23 starting build below;
+> - the planning side is still the hosted orchestrator shortlist (roadmap → "Hosted seats on the real tasks");
+> - the dispatcher and the harness should run on the server, which needs the harness ported to Linux (roadmap
+>   step 5).
+
 What the fleet should look like once the server POSTs, derived from how the
 owner actually wants to work (recorded 2026-09-22). This is the concrete shape
 of the north star in [roadmap.md](roadmap.md) → "End goal". It is a plan, not

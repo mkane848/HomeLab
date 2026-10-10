@@ -2,10 +2,83 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
-## Next up (ordered, as of 2026-09-23)
+## Next up (ordered, as of 2026-10-10): server first
 
-The rest of this file is the full backlog by theme. This is the short list of
-what to actually pick up next, highest value first.
+The rest of this file is the full backlog by theme. This is the short list of what to pick up next.
+
+**Owner, 2026-10-10: getting the server back is the top priority, and it becomes where things run from.** That
+means more test runs, more time on the "real" configuration, and real tasks the owner drives. The owner is
+attempting the hardware fix the weekend of 2026-10-10/11. Also decided that day: no Qwen Code trial. The client and
+engine research stays on file (below, "Alternatives to OpenCode" and "Replacing Ollama").
+
+**Where things stand.**
+- **The work packages are solved locally.** With the stop nudge, `qwen3.6` passes 11 of 12 on the desktop at $0.
+  That's the hosted Qwen3.7 Plus's score, about five times slower (below, "Round 3 and the stop nudge").
+- **The failures left are lost briefs and early stops.** Lost briefs come from Ollama's silent front-drop, and the
+  nudge repairs both after the fact.
+- **The harness is ready for another client.** Its OpenCode-specific code sits behind one adapter.
+- **The desktop is the wrong long-term host.** It's the owner's planning and gaming machine, and it holds about
+  8.6 of `qwen3.6`'s 21 GB in system RAM (AGENTS.md). [target-setup.md](target-setup.md) already has the server as the main executor
+  host and the dispatcher.
+
+1. **The server POSTs** (owner, hardware).
+2. **Day-one bring-up.** It extends "Post-server-upgrade validation" below.
+   - **Hardware and runtime:** `nvidia-smi`, Docker with the NVIDIA container toolkit
+     ([troubleshooting.md](troubleshooting.md)), `./server/scripts/status.sh`.
+   - **Align its Ollama with the desktop's measured setup before any measurement.** Today
+     `server/docker/docker-compose.yml` differs in five ways:
+
+     | setting | server today | desktop (measured) |
+     |---|---|---|
+     | Ollama version | 0.34.1 | 0.34.3 |
+     | flash attention, KV cache | off, f16 | on, `q8_0` |
+     | `OLLAMA_CONTEXT_LENGTH` | 16384 | per-model bakes, 65536 for `qwen3.6` and `qwen3.5:9b` |
+     | `OLLAMA_NUM_PARALLEL` | 4 | 1 (four KV slots of a 64k 35B seat don't fit) |
+     | keep-alive | 5 min | 4 h |
+
+     Bake `num_ctx` under the same tags as the desktop. `install-model.sh --ctx` makes `<tag>-Nk` names instead,
+     and one `run-tasks-models.tsv` row should cover both hosts.
+   - **OpenCode:** the `ollama-server` provider in `opencode/global/opencode.jsonc` lists only the old 16k models.
+     Add the current seats with the desktop's limits.
+   - **Probe tool calling.** The server has never run `tests/test-toolcalls.ps1`. Probe it there, add the PASS
+     rows to `tests/run-tasks-models.tsv` with host `server`, and seat nothing until then.
+   - **Profile:** bring `dev-workflow-server` back from `profiles/parked/` and run
+     `test-profiles.ps1 -Profile dev-workflow-server`.
+   - **Document SSH access** (target-setup's open gap).
+3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
+   drives a remote Ollama, and its truncation check records "not checked" for a remote host.
+   - Measure `qwen3.6`'s placement on 16 GB of CUDA plus 32 GB of RAM, and its speed against the desktop. The
+     3700X is the fleet's weakest CPU, and a MoE's spill runs on it.
+   - **One nudged round of the 15 real tasks on the server's `qwen3.6`.** A new era (host). Compare it with the
+     desktop's 11 of 12. This replaces the second nudged round on the desktop.
+4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
+   speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
+   Ollama"). It runs after step 3, so there's a baseline.
+5. **Make the server where things run.**
+   - **The harness on Linux.** PowerShell 7 runs there, but the harness has Windows-only pieces:
+     - `taskkill` and `Win32_Process` for timeouts and orphans;
+     - `.cmd` stand-ins in the guards;
+     - the Ollama log path;
+     - Windows paths.
+
+     Port them and run every guard on Linux. This can start before the server is back, in a Linux container on
+     the desktop.
+   - **On the server:** the task repos, the private repo, Node and pnpm, and gh auth (the no-push guard covers
+     runs).
+   - **Batches run there, unattended,** and the desktop stays free.
+6. **Real use.** The owner drives real tasks in the daily setup against the server's models. That's OpenCode for
+   now: the client choice is open and its research on file. Here it gets decided whether the stop nudge joins
+   daily use. OpenCode's plugin is the quick route; a client's own stop hook is the portable one.
+7. **Later or parked:**
+   - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.
+   - **`qwen3.5:9b`:** retire it, or fix it with an engine; step 4 tests the overflow.
+   - **node3's Q4 `qwen3.5:9b`.**
+   - **The client choice:** Goose and Hermes stay on file.
+   - **Unsloth fine-tuning.**
+
+## Next up (ordered, as of 2026-09-23; superseded 2026-10-10 by the list above)
+
+Kept as written for the record.
 
 > **Status (2026-09-30).** This is the 2026-09-23 plan, kept as written. Since
 > then: the control rematch (item 2a) has run, `qwen3.5:9b` is at N≥3 on six of
@@ -570,6 +643,9 @@ Decide its fate:
 - **Second standalone node** (8 GB — only 7–9B `fit` models), adding another `ollama-*` provider + profile.
 
 ## Post-server-upgrade validation (do after hardware lands)
+
+Since 2026-10-10 this is part of step 2 of "Next up". That step adds aligning the server's Ollama with the
+desktop's measured setup, the OpenCode provider, the tool-call probe and the profile.
 
 - [ ] `nvidia-smi` → confirms `RTX 4070 Ti SUPER 16 GB`.
 - [ ] `./server/scripts/status.sh` → GPU section + catalog "installed vs planned" full.
@@ -2199,6 +2275,23 @@ seconds on four finished ones and made no difference once, so that trigger stays
   13 edits, and was still debugging when time ran out. One thing it found: the server tests load
   `@asohav/shared` from its built `dist`, so edits to the shared source don't show until the package is rebuilt.
   Several runs hit the same trap. Worth checking whether the brief, or the task's setup, should say so.
+
+**Replication (2026-10-10, one more nudged run each of `wp-2b`, `wp-5a` and `wp-1a`): 3 passed, and all 4 nudges
+did work.**
+
+| task | nudges | what happened | time |
+|---|---|---|---|
+| `wp-2b` | asked for its task | lost its brief at step 2, at the same 51,680-token request as all three plain runs; the re-sent request led to the fix and a test run | 20.8 min |
+| `wp-5a` | announced a next step, then asked for its task | stopped after "Let me start by reading…"; after "keep going" it read four files and lost its brief, which a compaction restored. It lost it again later and asked what to do; the re-sent request led to 13 edits. | 39.4 min |
+| `wp-1a` | empty ending | made one edit after "Let me implement the three function bodies" and stopped; after the nudge, four more edits and two test runs (it failed in plain round 3) | 7.7 min |
+
+- **The lost-brief rescue reproduces.** `wp-2b` is 0 of 3 plain and 2 of 2 nudged. It loses its brief at the same
+  step every time, so the failure and the cure are both deterministic.
+- **Every trigger has now fired and rescued a run.** "Announced a next step" fired for the first time here.
+- **Across both nudged batches:** 7 runs rescued, 4 confirmed in seconds, 1 made no difference, 0 harmed.
+- **A lost brief is the commonest failure, and its cause is upstream.** One large read pushes the next request past
+  64k, and Ollama drops the front silently. The nudge repairs it after the fact; `llama-server` would refuse the
+  request with an error instead (below, "Replacing Ollama").
 
 **Next:**
 - Run a second nudged round of qwen3.6 on the same 15 tasks to confirm the 11 of 12.
