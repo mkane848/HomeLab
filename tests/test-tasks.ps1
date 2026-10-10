@@ -161,7 +161,21 @@ param(
     # run JSON records `nudges`, and its rows must not join the unassisted
     # tests/results/tasks-summary.tsv, so -ResultsDir is required.
     [switch]$NudgeAfterCompaction,
-    [int]$MaxNudges = 2
+    [int]$MaxNudges = 2,
+    # Diagnostic (docs/roadmap.md -> "Follow-up runs (2026-10-09)"): when a run
+    # stops with no tool call in its last step and that step (Get-StopKind)
+    #   - asks what the task is: send $script:LostTaskNudgeText plus the
+    #     original prompt (the prompt had dropped out of the model's context);
+    #   - announces a next step ("Let me implement all changes:") or is empty:
+    #     send $script:StopNudgeText;
+    # into the same session, up to -MaxStopNudges times. Measured on the graded
+    # runs of 2026-09-21..10-09: endings that ask failed 6 of 6, that announce
+    # 16 of 17, that are empty 76 of 110 (qwen3.5:9b often ends a finished run
+    # silently); any other closing text is never nudged. ASSISTED like
+    # -NudgeAfterCompaction: the run JSON records `stopNudges` with the kind of
+    # each, and the rows need their own -ResultsDir.
+    [switch]$NudgeOnStop,
+    [int]$MaxStopNudges = 2
 )
 
 $ErrorActionPreference = "Stop"
@@ -195,12 +209,33 @@ if ($privateRun -and (Test-UnderPath $resultsDir $repoRoot)) {
     Write-Host "ERROR: $manifestPath is outside this repo (a private manifest), so its results must be too. Pass -ResultsDir <a folder outside $repoRoot> - tests/results/ is published." -ForegroundColor Red
     exit 1
 }
-if ($NudgeAfterCompaction -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '/') -eq [System.IO.Path]::GetFullPath($publicResultsDir).TrimEnd('\', '/'))) {
-    Write-Host "ERROR: -NudgeAfterCompaction makes assisted runs; they must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
+# Assisted runs (a nudge switch) never share a results folder with unassisted
+# ones: their rows would read as the model's own, to a reader and to the
+# batch's -OnlyMissing. A folder that has held assisted rows carries an
+# ASSISTED marker file; an assisted run needs that marker or an empty folder,
+# an unassisted run refuses a folder that has it. Assisted runs of a private
+# manifest are not mirrored to tests/results/real-tasks-public.tsv either.
+$assistedRun = [bool]($NudgeAfterCompaction -or $NudgeOnStop)
+$assistedSwitches = (@($(if ($NudgeAfterCompaction) { "-NudgeAfterCompaction" }), $(if ($NudgeOnStop) { "-NudgeOnStop" })) | Where-Object { $_ }) -join " and "
+$assistedMarker = Join-Path $resultsDir "ASSISTED"
+if ($assistedRun -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '/') -eq [System.IO.Path]::GetFullPath($publicResultsDir).TrimEnd('\', '/'))) {
+    Write-Host "ERROR: $assistedSwitches makes assisted runs; they must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
+    exit 1
+}
+$hasRows = (Test-Path -LiteralPath $summaryTsv) -or (Test-Path -LiteralPath $realSummaryTsv)
+if ($assistedRun -and $hasRows -and -not (Test-Path -LiteralPath $assistedMarker)) {
+    Write-Host "ERROR: $assistedSwitches makes assisted runs, and $resultsDir already holds unassisted rows. Pass -ResultsDir <a folder of its own>, e.g. a subfolder." -ForegroundColor Red
+    exit 1
+}
+if (-not $assistedRun -and (Test-Path -LiteralPath $assistedMarker)) {
+    Write-Host "ERROR: $resultsDir holds assisted (nudged) runs ($assistedMarker); an unassisted run's rows don't belong there. Pass another -ResultsDir." -ForegroundColor Red
     exit 1
 }
 if (-not (Test-Path -LiteralPath $resultsDir)) {
     New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
+}
+if ($assistedRun -and -not (Test-Path -LiteralPath $assistedMarker)) {
+    Set-Content -LiteralPath $assistedMarker -Value "Rows in this folder come from assisted runs ($assistedSwitches): the harness sent extra messages into the session. Don't compare them with unassisted rows as if the model ran alone."
 }
 if (-not (Test-Path -LiteralPath $wtRoot)) {
     New-Item -ItemType Directory -Path $wtRoot -Force | Out-Null
@@ -1164,6 +1199,63 @@ $script:CompactionContinueText = "Continue if you have next steps, or stop and a
 # JSON records its hash.
 $script:CompactionNudgeText = "Your context was just compacted; the summary above is what you have. Carry on with the original task now: use your tools to make the change and check it, instead of describing next steps. Stop and ask only for a decision that is mine to make: approving a plan, a requirement that is unclear, or anything destructive or hard to undo (deleting files, force-pushing, secrets, dependencies, CI)."
 
+# -NudgeOnStop's messages: what the owner says in one window when a run stops
+# early. The stop message also fits a run that had finished (an empty ending
+# often has), so it asks for a one-line confirmation instead of more work. The
+# lost-task message is followed by the task's original prompt. Same approvals as
+# the compaction nudge. The run JSON records both hashes.
+$script:StopNudgeText = "If the task isn't finished, carry on with it now: use your tools to make the change and check it, instead of describing next steps. If it is finished and checked, say so in one line. Stop and ask only for a decision that is mine to make: approving a plan, a requirement that is unclear, or anything destructive or hard to undo (deleting files, force-pushing, secrets, dependencies, CI)."
+$script:LostTaskNudgeText = "Your last message asked what the task is: the original request dropped out of your context. Here it is again. Carry on with it now, using your tools to make the change and check it."
+
+# Get-ContextEvents' AskedForTask and Get-StopKind: the model's own text asking
+# what its task is. "What would you like to do next?" is left out: a model that
+# has finished may ask it too.
+$script:AskedForTaskPattern = "(?i)\b(haven'?t (specified|provided|mentioned|given|told me)|you(?:'ve| have) shared|how can i help|what would you like (me )?to do(?! next)|i don'?t see (a|any) (specific )?(task|question|request))"
+# Get-StopKind: a last sentence that announces a next step instead of taking it
+# ("Now I have everything. Let me implement all changes:"). "Let me know" is
+# a sign-off, not a step.
+$script:AnnouncedStepPattern = "(?i)(:\s*$|\b(let me(?! know)|let's|i'll|i will|i need to|i should|now i|next,? i|i'm going to|going to)\b)"
+
+function Get-StopKind {
+    # How a run's last finished step ended, for -NudgeOnStop: "ask" (the model
+    # asked what its task is), "announce" (its last sentence announces a next
+    # step), "empty" (no tool call and no text), or $null (a tool call, or any
+    # other closing text). opencode's compaction continue message isn't the
+    # model's text and is skipped.
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
+    $tools = 0
+    $text = New-Object System.Text.StringBuilder
+    $last = $null
+    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
+    try {
+        while ($null -ne ($line = $reader.ReadLine())) {
+            if (-not $line.Trim()) { continue }
+            try { $e = $line | ConvertFrom-Json } catch { continue }
+            switch ($e.type) {
+                "tool_use" { $tools++ }
+                "text" {
+                    $t = [string]$e.part.text
+                    if (-not $t.TrimStart().StartsWith($script:CompactionContinueText)) { [void]$text.Append($t).Append(" ") }
+                }
+                "step_finish" {
+                    $last = [pscustomobject]@{ Tools = $tools; Text = $text.ToString().Trim() }
+                    $tools = 0
+                    [void]$text.Clear()
+                }
+            }
+        }
+    } finally {
+        $reader.Dispose()
+    }
+    if (-not $last -or $last.Tools -gt 0) { return $null }
+    if ($last.Text -match $script:AskedForTaskPattern) { return "ask" }
+    if (-not $last.Text) { return "empty" }
+    $sentence = @([regex]::Split($last.Text, '(?<=[.!?:])\s+') | Where-Object { $_.Trim() })[-1]
+    if ($sentence -match $script:AnnouncedStepPattern) { return "announce" }
+    return $null
+}
+
 function Get-ContextEvents {
     # What happened to the session's context window, from the raw opencode JSONL
     # (docs/roadmap.md -> "Context overflow"):
@@ -1195,12 +1287,11 @@ function Get-ContextEvents {
     #   2026-10-09 a rerun of wp-2b lost its brief exactly as the first run had,
     #   but Ollama's prompt cache still held the first run's identical prompt, so
     #   the cache test above read it as no drop. It also catches a compaction
-    #   summary that lost the task. "What would you like to do next?" is left
-    #   out: a model that has finished may ask it too. Each hit records its step
-    #   and the matched words only, never the surrounding text.
+    #   summary that lost the task. The words are $script:AskedForTaskPattern.
+    #   Each hit records its step and the matched words only, never the
+    #   surrounding text.
     param([string]$Path, $NumCtx)
 
-    $askedPattern = "(?i)\b(haven'?t (specified|provided|mentioned|given|told me)|you(?:'ve| have) shared|how can i help|what would you like (me )?to do(?! next)|i don'?t see (a|any) (specific )?(task|question|request))"
     $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; EndedWithoutToolCall = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0; AskedForTask = @() }
     $asked = @()
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $ev }
@@ -1217,7 +1308,7 @@ function Get-ContextEvents {
                     $txt = [string]$e.part.text
                     if ($txt.TrimStart().StartsWith($script:CompactionContinueText)) { $isContinue = $true }
                     else {
-                        $m = [regex]::Match($txt, $askedPattern)
+                        $m = [regex]::Match($txt, $script:AskedForTaskPattern)
                         if ($m.Success) { $asked += [pscustomobject]@{ step = $steps.Count + 1; phrase = $m.Value.ToLowerInvariant() } }
                     }
                 }
@@ -1652,6 +1743,17 @@ if ($NudgeAfterCompaction) {
     try { $nudgeTextSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:CompactionNudgeText))) -replace '-', '').Substring(0, 12) } finally { $sha256.Dispose() }
     Write-Host ("compaction nudge: on (up to {0} per run, text sha256 {1}); rows go to {2} only" -f $MaxNudges, $nudgeTextSha, $resultsDir) -ForegroundColor DarkGray
 }
+# -NudgeOnStop: which messages the nudged runs got.
+$stopNudgeSha = $null
+$lostTaskNudgeSha = $null
+if ($NudgeOnStop) {
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $stopNudgeSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:StopNudgeText))) -replace '-', '').Substring(0, 12)
+        $lostTaskNudgeSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:LostTaskNudgeText))) -replace '-', '').Substring(0, 12)
+    } finally { $sha256.Dispose() }
+    Write-Host ("stop nudge: on (up to {0} per run; stop text sha256 {1}, lost-task text {2}); rows go to {3} only" -f $MaxStopNudges, $stopNudgeSha, $lostTaskNudgeSha, $resultsDir) -ForegroundColor DarkGray
+}
 Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
@@ -1810,6 +1912,27 @@ foreach ($tk in $tasksToRun) {
             $turnsRun++
             $nudgesSent++
             $nudgedAtCompaction = $nudgeEvents.Compactions
+        }
+        # -NudgeOnStop: a run whose last step asked for its task, announced a
+        # next step, or was empty gets one more message in the same session,
+        # up to -MaxStopNudges. Same mechanics as a follow-up.
+        $stopNudgeKinds = New-Object System.Collections.Generic.List[string]
+        while ($NudgeOnStop -and $run.ExitCode -eq 0 -and $stopNudgeKinds.Count -lt $MaxStopNudges) {
+            $stopKind = Get-StopKind -Path $run.TranscriptPath
+            if (-not $stopKind) { break }
+            $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
+            if (-not $sessionId) {
+                $run.ExitCode = -4
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("stop nudge {0} could not start: no sessionID in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($stopNudgeKinds.Count + 1), $promptHashes[$tk.id])
+                break
+            }
+            $nudgeMessage = if ($stopKind -eq "ask") { $script:LostTaskNudgeText + "`n`n" + $prompt } else { $script:StopNudgeText }
+            Write-Host ("    stop nudge {0}: the run stopped ({1}); continuing session {2}" -f ($stopNudgeKinds.Count + 1), $stopKind, $sessionId) -ForegroundColor DarkGray
+            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $nudgeMessage -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
+            $run = $next
+            $turnsRun++
+            $stopNudgeKinds.Add($stopKind)
         }
     } finally {
         Restore-TaskTestEnv $savedPushEnv
@@ -2137,6 +2260,7 @@ foreach ($tk in $tasksToRun) {
         opencodePlugins = @($opencodePlugins)
         compactionPluginRewrites = $pluginRewrites
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
+        stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
@@ -2176,9 +2300,10 @@ foreach ($tk in $tasksToRun) {
         $realRows.Add((@($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
                          $gateSummary.scope, $gateSummary.suite, $acceptanceRecord.status, $acceptanceRecord.hash, $gateSummary.failsOnOld,
                          $result.elapsedSec) -join "`t"))
-        if ($privateRun) {
+        if ($privateRun -and -not $assistedRun) {
             # The public mirror: opaque id, model, versions, verdicts. No commit,
-            # prompt, path or test detail.
+            # prompt, path or test detail. Assisted runs aren't mirrored: the
+            # public file has no column to say a run was nudged.
             $publicRealRows.Add((@($result.timestamp, $tk.id, $Model, $opencodeVersion, $servingEngine.name,
                                    $servingEngine.version, $gateSummary.scope, $gateSummary.suite,
                                    $acceptanceRecord.status, $acceptanceRecord.hash, $result.elapsedSec) -join "`t"))

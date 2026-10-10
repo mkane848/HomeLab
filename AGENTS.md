@@ -206,6 +206,20 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
   - The 2026-10-04/05 runs are in `tests/results/compaction-nudge/`.
   - The guard runs the real `test-tasks.ps1` end to end with a stand-in `opencode`. Covered: a stop right after compacting, a late recap-stop, two compactions (two nudges), stopping again with no new compaction (no second nudge), no compaction (never nudged), the switch off, and the refusal.
   - Run it after touching the nudge or `Get-ContextEvents`.
+- `.\tests\test-stop-nudge.ps1` is the regression guard for `test-tasks.ps1 -NudgeOnStop [-MaxStopNudges 2] -ResultsDir <folder>` (also on `run-tasks-batch.ps1`), a diagnostic for runs that stop with work undone (`docs/roadmap.md` → "Follow-up runs (2026-10-09)"). `Get-StopKind` reads the last finished step. If it made no tool call and:
+  - asked what the task is (`$script:AskedForTaskPattern`, shared with `askedForTask`), the switch sends `$script:LostTaskNudgeText` followed by the original prompt;
+  - announced a next step ("Let me implement all changes:") or was empty, it sends `$script:StopNudgeText`, which also asks a finished model to confirm in one line;
+  - ended on any other text, it sends nothing.
+
+  On the graded runs of 2026-09-21..10-09, endings that ask failed 6 of 6, endings that announce 16 of 17, and empty endings 76 of 110.
+  - A nudged run is **assisted**. Its JSON records `stopNudges` (sent, max, the kind of each, both text hashes).
+  - **Assisted rows stay apart** (both nudge switches):
+    - a results folder that holds them carries an `ASSISTED` marker file;
+    - an assisted run is refused in `tests/results/` and in a folder of unassisted rows;
+    - an unassisted run is refused in a marked folder;
+    - assisted runs of a private manifest are not mirrored to `real-tasks-public.tsv`.
+  - Covered: the real `Get-StopKind` on synthetic and committed transcripts, then the real harness end to end with a private manifest and a stand-in `opencode`. The end-to-end cases are each kind of nudge, a summary never nudged, the `-MaxStopNudges` cap, the marker, the three refusals and the public mirror. Controls with the loop or the mirror fix removed fail 15 and 2 checks.
+  - Run it after touching the nudge, `Get-StopKind` or where results are written.
 - `.\tests\test-compaction-plugin.ps1` is the regression guard for `opencode/plugins/compaction-continue.js` (`docs/roadmap.md` → "Context overflow"). After an automatic compaction the plugin does three things:
   - it sends the model the nudge text plus the original request in place of opencode's "…or stop and ask" message;
   - it asks the summary to keep the original request;

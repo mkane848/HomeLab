@@ -121,6 +121,11 @@ param(
     # private -ResultsDir. -OnlyMissing then reads that folder's summaries.
     [string]$TaskManifest = "",
     [string]$ResultsDir = "",
+    # Assisted diagnostic, forwarded to test-tasks.ps1: nudge a run that stops
+    # with work undone (see test-tasks.ps1's -NudgeOnStop). Its rows need a
+    # -ResultsDir of their own, which test-tasks.ps1 enforces.
+    [switch]$NudgeOnStop,
+    [int]$MaxStopNudges = 0,
     # Hosted seats: the share of a model's monthly allowance one batch may spend
     # (see the header). Must be > 0 and <= 1.
     [double]$SpendCapShare = 0.2,
@@ -1486,6 +1491,8 @@ foreach ($run in $runList) {
     if ($IncludeRetired) { $taskArgs['IncludeRetired'] = $true }
     if ($TaskManifest) { $taskArgs['TaskManifest'] = $manifestPath }
     if ($ResultsDir) { $taskArgs['ResultsDir'] = $taskResultsDir }
+    if ($NudgeOnStop) { $taskArgs['NudgeOnStop'] = $true }
+    if ($MaxStopNudges -gt 0) { $taskArgs['MaxStopNudges'] = $MaxStopNudges }
     # One run's uncaught exception must not end an unattended batch: on
     # 2026-10-02 a dead job host in run 1 of 16 threw out of test-tasks.ps1 and
     # the other 15 never started. Record the run as crashed and move on.

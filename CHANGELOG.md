@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1 -NudgeOnStop [-MaxStopNudges 2]` (also on `run-tasks-batch.ps1`): an assisted diagnostic for
+  runs that stop with work undone. It acts when the last step made no tool call:
+  - if the model asked what its task is, it re-sends the original prompt after a short note;
+  - if the last step announced a next step or was empty, it sends a "keep going, or confirm you're done" message;
+  - after any other closing text, it sends nothing.
+
+  Endings like these failed 6 of 6, 16 of 17 and 76 of 110 of the graded runs so far. New guard
+  `tests/test-stop-nudge.ps1`.
+- `test-tasks.ps1`: assisted rows now stay apart from the model's own, for both nudge switches:
+  - a results folder holding them is marked `ASSISTED`;
+  - an assisted run is refused in a folder of unassisted rows, and an unassisted run is refused in a marked one;
+  - assisted runs of a private manifest are no longer mirrored to `tests/results/real-tasks-public.tsv`. They
+    were before, which would have mixed nudged verdicts into the public table. No nudged run of the private
+    tasks had happened yet.
+
+  `tests/results/compaction-nudge/` and `compaction-daily/` get the marker.
+
 - `docs/roadmap.md`: "Follow-up runs (2026-10-09)". "Check your work" didn't change any outcome. qwen3.6's
   rerun passed `wp-6a` and failed the other three again, so stopping with work undone is a pattern, not a
   one-off. `wp-2b` loses its brief every time, while `wp-3b` got its brief back from a compaction. `qwen3.5:9b`
