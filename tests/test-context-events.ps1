@@ -13,7 +13,8 @@
 # What it does: pulls the REAL functions out of test-tasks.ps1 and runs them on
 #   - synthetic transcripts: a clean run, a compaction, a run that stops right
 #     after one, a front-drop, a cache miss that is NOT a drop (a reload with
-#     the request under num_ctx), a drop without a numeric num_ctx, the crash;
+#     the request under num_ctx), a drop without a numeric num_ctx, the crash,
+#     a drop a warm prompt cache hides, the model asking what its task is;
 #   - real transcripts committed under tests/results/ that the 2026-10-04 audit
 #     classified;
 #   - Get-CompactionThreshold against opencode 1.18.34's formula.
@@ -122,6 +123,22 @@ try {
         (Ev-Text "?"), (Ev-Fin 46576 0 77))) -NumCtx "unset (server default)"
     CheckValue "no numeric num_ctx: shrink + cache collapse"  $noCtx.FrontDrops.Count 1
 
+    # wp-2b's rerun (2026-10-09): the same three-file read overflowed again, but
+    # Ollama's prompt cache still held the first run's identical prompt, so the
+    # token test reads it as no drop. The model's own question gives it away.
+    $warm = Get-ContextEvents -Path (New-Transcript @(
+        (Ev-Tool 158837), (Ev-Fin 15596 0 255),
+        (Ev-Text "You've shared two files but haven't specified a task. What would you like me to do?"), (Ev-Fin 13792 37888 106))) -NumCtx 65536
+    CheckValue "warm-cache drop: the token test misses it"    $warm.FrontDrops.Count 0
+    CheckValue "warm-cache drop: the model asked for its task" $warm.AskedForTask.Count 1
+    CheckValue "...at the step it asked in"                   ($warm.AskedForTask | Select-Object -First 1).step 2
+    CheckValue "...recording only the matched words"          ($warm.AskedForTask | Select-Object -First 1).phrase "you've shared"
+    $asks = @("How can I help you with these files?", "I don't see a specific task in your message.", "What would you like me to do with this file?", "You haven't provided a request.")
+    CheckValue "each lost-task phrasing is caught"            (@($asks | Where-Object { (Get-ContextEvents -Path (New-Transcript @((Ev-Text $_), (Ev-Fin 9000 0 50))) -NumCtx 65536).AskedForTask.Count -eq 1 }).Count) $asks.Count
+    $fine = @("Done. What would you like to do next?", "All tests pass; the change is in combat.ts.", "$script:CompactionContinueText if you are unsure how to proceed.")
+    CheckValue "a finished run's question, a recap, the continue text: none" (@($fine | Where-Object { (Get-ContextEvents -Path (New-Transcript @((Ev-Text $_), (Ev-Fin 9000 0 50))) -NumCtx 65536).AskedForTask.Count -gt 0 }).Count) 0
+    CheckValue "clean run: never asked"                       $clean.AskedForTask.Count 0
+
     $crash = Get-ContextEvents -Path (New-Transcript @((Ev-Tool 57782), (Ev-Fin 40393 9500 128), (Ev-Crash))) -NumCtx 65536
     CheckValue "template crash"                               $crash.TemplateCrash $true
     CheckValue "missing transcript: nothing, no throw"        (Get-ContextEvents -Path (Join-Path $tmpRoot "nope.jsonl") -NumCtx 65536).Compactions 0
@@ -129,16 +146,19 @@ try {
     Write-Host "-- real transcripts (tests/results, classified 2026-10-04)"
     $real = @(
         # qwen3.6 lost the task: "I see you've shared the signals.test.ts file..."
-        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-172716.jsonl"; ctx = 65536; drops = 1; comp = 0; crash = $false },
-        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.6_35b-a3b-coding_TIMEOUT_20261003-201912.jsonl"; ctx = 65536; drops = 3; comp = 2; crash = $false },
-        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.5_9b_INFRA_20261004-021319.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $true },
-        @{ f = "tasks-asohav-08-end-combat-clears-strain-ollama-desktop_qwen3.5_9b_INFRA_20261004-031952.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $true },
+        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.6_35b-a3b-coding_20261003-172716.jsonl"; ctx = 65536; drops = 1; comp = 0; crash = $false; asked = 1 },
+        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.6_35b-a3b-coding_TIMEOUT_20261003-201912.jsonl"; ctx = 65536; drops = 3; comp = 2; crash = $false; asked = 0 },
+        @{ f = "tasks-kane-08-aristocrats-false-positives-ollama-desktop_qwen3.5_9b_INFRA_20261004-021319.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $true; asked = 0 },
+        @{ f = "tasks-asohav-08-end-combat-clears-strain-ollama-desktop_qwen3.5_9b_INFRA_20261004-031952.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $true; asked = 0 },
         # 32k: a laguna drop at step 21 (cache reuse fell to the system prompt)
-        @{ f = "tasks-kane-02-multiword-creature-type-ollama-desktop_laguna-xs-2.1_20260926-221645.jsonl"; ctx = 32768; drops = 1; comp = 2; crash = $false },
+        @{ f = "tasks-kane-02-multiword-creature-type-ollama-desktop_laguna-xs-2.1_20260926-221645.jsonl"; ctx = 32768; drops = 1; comp = 2; crash = $false; asked = 0 },
         # qwen3:8b compacting every other step on asohav-03 (19k-token CLAUDE.md)
-        @{ f = "tasks-asohav-03-glossary-depth-flatten-ollama-desktop_qwen3_8b_TIMEOUT_20261004-010408.jsonl"; ctx = 32768; drops = 0; comp = 14; crash = $false },
+        @{ f = "tasks-asohav-03-glossary-depth-flatten-ollama-desktop_qwen3_8b_TIMEOUT_20261004-010408.jsonl"; ctx = 32768; drops = 0; comp = 14; crash = $false; asked = 0 },
         # a clean pass
-        @{ f = "tasks-kane-10-combo-permalink-scheme-ollama-desktop_qwen3.5_9b_20261004-162332.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $false }
+        @{ f = "tasks-kane-10-combo-permalink-scheme-ollama-desktop_qwen3.5_9b_20261004-162332.jsonl"; ctx = 65536; drops = 0; comp = 0; crash = $false; asked = 0 },
+        # qwen3.6 asked twice what to do ("What would you like me to do with this
+        # test file...?"); the token test saw no drop (found 2026-10-09)
+        @{ f = "tasks-kane-02-multiword-creature-type-ollama-desktop_qwen3.6_35b-a3b-coding_20260926-233030.jsonl"; ctx = 32768; drops = 0; comp = 1; crash = $false; asked = 2 }
     )
     foreach ($r in $real) {
         $p = Join-Path $ResultsDir $r.f
@@ -148,6 +168,7 @@ try {
         CheckValue "$short : front-drops"   $ev.FrontDrops.Count $r.drops
         CheckValue "$short : compactions"   $ev.Compactions $r.comp
         CheckValue "$short : template crash" $ev.TemplateCrash $r.crash
+        CheckValue "$short : asked for task" $ev.AskedForTask.Count $r.asked
     }
 
     Write-Host "-- Get-CompactionThreshold (opencode 1.18.34 session/overflow.ts)"

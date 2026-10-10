@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `test-tasks.ps1`: every run JSON's `contextEvents` records `askedForTask`, each time the model's own text asks
+  what its task is ("You've shared two files but haven't specified a task"), with a WARN. It isn't graded. The
+  token test for a front-drop missed `wp-2b`'s rerun (2026-10-09): Ollama still had the first run's identical
+  prompt cached, so the drop looked like a cache hit. Over the 523 committed and private transcripts the new check
+  finds 9 lost prompts, 4 of which the token test missed, and no false alarms. `tests/test-context-events.ps1`
+  covers it.
 - `docs/roadmap.md`: "Local qwen3.6 on the work packages (2026-10-07)". qwen3.6 passed 7 of 12 with a 45-minute
   limit, 3 within 15 minutes, against Qwen3.7 Plus's 11 of 12. Four passes compacted and still finished. Three of
   the five failures stopped with work undone. A local-first split would have halved the Go bill for the same 11.

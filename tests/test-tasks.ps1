@@ -1189,9 +1189,20 @@ function Get-ContextEvents {
     # - TemplateCrash: the same overflow on a model whose template refuses a
     #   conversation with no user message (qwen3.5:9b: "No user query found in
     #   messages"), which opencode surfaces as an error.
+    # - AskedForTask: the model's own text asks what the task is ("You've shared
+    #   two files but haven't specified a task"). That is a lost prompt seen from
+    #   the model's side, and it catches drops the token arithmetic can't: on
+    #   2026-10-09 a rerun of wp-2b lost its brief exactly as the first run had,
+    #   but Ollama's prompt cache still held the first run's identical prompt, so
+    #   the cache test above read it as no drop. It also catches a compaction
+    #   summary that lost the task. "What would you like to do next?" is left
+    #   out: a model that has finished may ask it too. Each hit records its step
+    #   and the matched words only, never the surrounding text.
     param([string]$Path, $NumCtx)
 
-    $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; EndedWithoutToolCall = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0 }
+    $askedPattern = "(?i)\b(haven'?t (specified|provided|mentioned|given|told me)|you(?:'ve| have) shared|how can i help|what would you like (me )?to do(?! next)|i don'?t see (a|any) (specific )?(task|question|request))"
+    $ev = [pscustomobject]@{ Compactions = 0; EndedAfterCompaction = $false; EndedWithoutToolCall = $false; FrontDrops = @(); TemplateCrash = $false; PeakPromptTokens = 0; AskedForTask = @() }
+    $asked = @()
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $ev }
     $steps = New-Object System.Collections.Generic.List[object]
     $tools = 0; $chars = 0; $isContinue = $false
@@ -1202,7 +1213,14 @@ function Get-ContextEvents {
             try { $e = $line | ConvertFrom-Json } catch { continue }
             switch ($e.type) {
                 "tool_use" { $tools++; $chars += ([string]$e.part.state.output).Length }
-                "text"     { if (([string]$e.part.text).TrimStart().StartsWith($script:CompactionContinueText)) { $isContinue = $true } }
+                "text"     {
+                    $txt = [string]$e.part.text
+                    if ($txt.TrimStart().StartsWith($script:CompactionContinueText)) { $isContinue = $true }
+                    else {
+                        $m = [regex]::Match($txt, $askedPattern)
+                        if ($m.Success) { $asked += [pscustomobject]@{ step = $steps.Count + 1; phrase = $m.Value.ToLowerInvariant() } }
+                    }
+                }
                 "error"    { if ($line -match 'No user query found in messages') { $ev.TemplateCrash = $true } }
                 "step_finish" {
                     $t = $e.part.tokens
@@ -1222,6 +1240,7 @@ function Get-ContextEvents {
     } finally {
         $reader.Dispose()
     }
+    $ev.AskedForTask = $asked
     # A compaction whose continue step never finished (the run was cut off
     # there) still happened.
     $unfinishedCompaction = $isContinue
@@ -1879,6 +1898,10 @@ foreach ($tk in $tasksToRun) {
         $fd = $ctxEvents.FrontDrops[0]
         Write-Result $tk.id "context" "WARN" ("a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3}); Ollama dropped the oldest messages, the task prompt with them, and the model carried on without it. Recorded in contextEvents, not graded." -f $ctxEvents.FrontDrops.Count, $fd.step, $fd.estimatedRequest, $numCtx)
     }
+    if ($ctxEvents.AskedForTask.Count -gt 0) {
+        $af = $ctxEvents.AskedForTask[0]
+        Write-Result $tk.id "context" "WARN" ("the model asked what its task was {0} time(s) (first at step {1}: `"{2}`"): it had lost the prompt, to a front-drop or a compaction. Recorded in contextEvents, not graded." -f $ctxEvents.AskedForTask.Count, $af.step, $af.phrase)
+    }
     if ($ctxEvents.Compactions -gt 0) {
         Write-Host ("    context: {0} compaction(s), peak prompt {1} tokens{2}" -f $ctxEvents.Compactions, $ctxEvents.PeakPromptTokens, $(if ($ctxEvents.EndedAfterCompaction) { "; the run ended right after the last one" } else { "" })) -ForegroundColor DarkGray
     }
@@ -2132,6 +2155,7 @@ foreach ($tk in $tasksToRun) {
             endedAfterCompaction = $ctxEvents.EndedAfterCompaction
             endedWithoutToolCall = $ctxEvents.EndedWithoutToolCall
             frontDrops           = @($ctxEvents.FrontDrops)
+            askedForTask         = @($ctxEvents.AskedForTask)
             peakPromptTokens     = $ctxEvents.PeakPromptTokens
             compactionConfig     = $compactionConfig
         }
