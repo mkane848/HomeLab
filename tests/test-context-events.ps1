@@ -31,12 +31,15 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "Get-ContextEvents", "Get-CompactionThreshold") {
+foreach ($name in "Get-ContextEvents") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
-foreach ($var in '$script:CompactionContinueText', '$script:AskedForTaskPattern') {
+# The OpenCode adapter: Read-AgentEvents (which marks opencode's compaction
+# continue message), $script:CompactionContinueText and Get-CompactionThreshold.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
+foreach ($var in '$script:AskedForTaskPattern') {
     $assign = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $var }, $true)) | Select-Object -First 1
     if (-not $assign) { Write-Host "FAIL: $var not found in $ScriptPath"; exit 2 }
     Invoke-Expression $assign.Extent.Text

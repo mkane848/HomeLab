@@ -28,6 +28,8 @@ $fn = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.F
     Where-Object { $_.Name -eq "Get-TranscriptSessionId" } | Select-Object -First 1
 if (-not $fn) { Write-Host "FAIL: Get-TranscriptSessionId not found in $ScriptPath"; exit 2 }
 Invoke-Expression $fn.Extent.Text
+# The OpenCode adapter's Read-AgentEvents, which Get-TranscriptSessionId reads.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -51,6 +53,7 @@ try {
     Write-Host "-- end to end: the real test-tasks.ps1, a fixture repo, a stand-in opencode"
     foreach ($d in @("tests/tasks/hidden/fx-twoturn", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $tmp $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $tmp "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $tmp "tests") -Recurse -Force
     Set-Content -LiteralPath (Join-Path $tmp "tests/tasks/hidden/fx-twoturn/hidden.txt") -Value "hidden test"
     $repo = Join-Path $tmp "repo"
     git -C $repo init -q
@@ -139,7 +142,7 @@ exit 2
     Check "the follow-ups are part of the prompt hash"   ((Json fx-single).promptSha256 -ne $j.promptSha256) "True"
     Check "fx-nosession: no follow-up attempted"         @($calls | Where-Object { $_ -like 'fx-nosession|*' }).Count 1
     Check "...infrastructure: no row"                    @($rows | Where-Object taskId -eq "fx-nosession").Count 0
-    Check "...the output says why"                       ($out -match 'follow-up turn 2 could not start: no sessionID') "True"
+    Check "...the output says why"                       ($out -match 'follow-up turn 2 could not start: no session id') "True"
     Check "...transcript kept as _INFRA_"                @(Get-ChildItem $results -Filter "tasks-fx-nosession-*_INFRA_*.jsonl").Count 1
     Check "fx-turn2fails: infrastructure, no row"        @($rows | Where-Object taskId -eq "fx-turn2fails").Count 0
     Check "...transcript kept as _INFRA_"                @(Get-ChildItem $results -Filter "tasks-fx-turn2fails-*_INFRA_*.jsonl").Count 1

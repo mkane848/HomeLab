@@ -84,6 +84,7 @@ try {
     foreach ($d in @("e2e/tests/tasks", "e2e/bin", "e2e/repo")) { New-Item -ItemType Directory -Path (Join-Path $tmp $d) -Force | Out-Null }
     $e2e = Join-Path $tmp "e2e"
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $e2e "tests") -Recurse -Force
     $repo = Join-Path $e2e "repo"
     git -C $repo init -q
     git -C $repo config user.email "t@example.invalid"

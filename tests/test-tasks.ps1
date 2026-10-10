@@ -1,6 +1,11 @@
 # test-tasks.ps1 - Task-veracity benchmark: real tasks through the real OpenCode
 # tool loop, graded mechanically.
 #
+# The agent is pluggable (-Agent, default opencode): tests/agents/<name>.ps1 is
+# its adapter, the only code that knows how a run is started and continued and
+# how its transcript reads. Everything here reads the adapter's neutral events.
+# Where this header says "opencode run", read "the agent's run".
+#
 # Why this exists (see docs/roadmap.md "review-gate run 2 follow-ups" and the
 # benchmark plan agreed 2026-09-19): the fleet harness (test-profiles.ps1,
 # test-toolcalls.ps1) proves a model CAN call tools and WHAT it measures about
@@ -175,10 +180,21 @@ param(
     # -NudgeAfterCompaction: the run JSON records `stopNudges` with the kind of
     # each, and the rows need their own -ResultsDir.
     [switch]$NudgeOnStop,
-    [int]$MaxStopNudges = 2
+    [int]$MaxStopNudges = 2,
+    # The agent that runs each task: tests/agents/<name>.ps1 is its adapter
+    # (how a run is started and continued, and how its transcript reads). Every
+    # grade and analysis below is client-neutral. Today only opencode exists.
+    [string]$Agent = "opencode"
 )
 
 $ErrorActionPreference = "Stop"
+
+$agentAdapter = Join-Path $PSScriptRoot ("agents\{0}.ps1" -f $Agent)
+if (-not (Test-Path -LiteralPath $agentAdapter)) {
+    Write-Host "ERROR: no adapter for agent '$Agent' (expected $agentAdapter)." -ForegroundColor Red
+    exit 1
+}
+. $agentAdapter
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot   = Split-Path -Parent $scriptDir
@@ -1001,49 +1017,55 @@ function Invoke-Acceptance {
     return $result
 }
 
+# --- reading a run: client-neutral ---------------------------------------------
+# Everything below reads the events the agent adapter's Read-AgentEvents returns
+# (tests/agents/<agent>.ps1), never an agent's own transcript format.
+
 function Get-FirstTranscriptError {
-    # opencode writes a JSONL event stream; a provider-level failure shows up as
-    # a single {"type":"error",...} line and nothing else (the six node3 runs of
-    # 2026-09-20/21 were 307-byte transcripts holding exactly that). Surface its
-    # message so the console says "Cannot connect to API" instead of "exit 1".
+    # A provider-level failure shows up as a single error event and nothing else
+    # (the six node3 runs of 2026-09-20/21 were 307-byte transcripts holding
+    # exactly that). Surface its message so the console says "Cannot connect to
+    # API" instead of "exit 1".
     param([string]$Path)
 
-    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
-    foreach ($line in [System.IO.File]::ReadLines($Path)) {
-        if (-not $line.Trim()) { continue }
-        try { $e = $line | ConvertFrom-Json } catch { continue }
-        if ($e.type -ne "error") { continue }
-        $text = (@($e.error.name, $e.error.data.message) | Where-Object { $_ }) -join ": "
-        $url  = $e.error.data.metadata.url
-        if ($url) { $text = "$text [$url]" }
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -ne "error") { continue }
+        $text = (@($e.Name, $e.Message) | Where-Object { $_ }) -join ": "
+        if ($e.Url) { $text = "$text [$($e.Url)]" }
         if ($text) { return $text }
     }
     return $null
 }
 
 function Get-TranscriptEnding {
-    # How the run's LAST step ended, from the raw opencode JSONL: the finish
-    # reason and output-token count of the final step_finish, and whether that
-    # step put any text or tool call in the transcript. Everything resets at each
-    # step_start, so an earlier step that hit the cap and was followed by a
-    # normal one does not count.
+    # How the run's LAST step ended: the finish reason and output-token count of
+    # the final step, and whether that step put any text or tool call in the
+    # transcript. Everything resets at each step start, so an earlier step that
+    # hit the cap and was followed by a normal one does not count.
     param([string]$Path)
 
     $end = [pscustomobject]@{ FinishReason = $null; OutputTokens = $null; LastStepHadContent = $false }
-    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $end }
-    foreach ($line in [System.IO.File]::ReadLines($Path)) {
-        if (-not $line.Trim()) { continue }
-        try { $e = $line | ConvertFrom-Json } catch { continue }
-        if ($e.type -eq "step_start") {
-            $end.FinishReason = $null; $end.OutputTokens = $null; $end.LastStepHadContent = $false
-        } elseif ($e.type -eq "text" -or $e.type -eq "tool_use") {
-            $end.LastStepHadContent = $true
-        } elseif ($e.type -eq "step_finish") {
-            $end.FinishReason = $e.part.reason
-            $end.OutputTokens = $e.part.tokens.output
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        switch ($e.Kind) {
+            "step-start" { $end.FinishReason = $null; $end.OutputTokens = $null; $end.LastStepHadContent = $false }
+            "text"       { $end.LastStepHadContent = $true }
+            "tool"       { $end.LastStepHadContent = $true }
+            "step-end"   { $end.FinishReason = $e.Finish; $end.OutputTokens = $e.Output }
         }
     }
     return $end
+}
+
+function Get-WriteCount {
+    # File-writing tool calls in a run, every turn: what the writes gate counts
+    # (0 on an exit-0 run is liar mode, or an output-cap hit).
+    param([string]$Path)
+    # A foreach, not a pipeline: Read-AgentEvents returns its list as one object.
+    $n = 0
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -eq "tool" -and $e.Tool -in @("write", "edit", "Patch", "NotebookEdit")) { $n++ }
+    }
+    return $n
 }
 
 function Test-OutputCapHit {
@@ -1057,92 +1079,6 @@ function Test-OutputCapHit {
 
     if ($null -eq $Limit -or $null -eq $Ending.OutputTokens) { return $false }
     return ($Ending.FinishReason -eq "length" -and -not $Ending.LastStepHadContent -and [int]$Ending.OutputTokens -ge [int]$Limit)
-}
-
-function Get-ModelOutputLimit {
-    # limit.output for -ModelId in the RESOLVED opencode config (`opencode debug
-    # config`, the same source test-profiles.ps1 checks). $null when it cannot be
-    # read - opencode missing, config invalid, model not registered - so the gate
-    # degrades to "cannot confirm a cap" instead of failing the run.
-    param([string]$ModelId)
-
-    $prev = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
-        $provider, $name = $ModelId -split '/', 2
-        $lim = $cfg.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit
-        if ($lim -and $lim.output) { return [int]$lim.output }
-    } catch {
-        # fall through to $null
-    } finally {
-        $ErrorActionPreference = $prev
-    }
-    return $null
-}
-
-function Get-CompactionThreshold {
-    # The prompt size at which opencode 1.18.34 compacts a session for
-    # -ModelId, from a resolved config object (session/overflow.ts `usable`):
-    #   reserved  = compaction.reserved, else min(20000, maxOutput)
-    #   threshold = limit.input - reserved   when limit.input is set,
-    #               limit.context - maxOutput otherwise (reserved unused)
-    # where maxOutput = min(limit.output, 32000). It is part of what a run
-    # measured: a lower threshold compacts earlier, so it is recorded per run.
-    param($Config, [string]$ModelId)
-    $provider, $name = $ModelId -split '/', 2
-    $lim = $null
-    try { $lim = $Config.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit } catch { }
-    if (-not $lim -or -not $lim.context) { return $null }
-    $maxOut = if ($lim.output) { [Math]::Min([int]$lim.output, 32000) } else { 32000 }
-    $cfgReserved = $null
-    if ($Config.PSObject.Properties["compaction"] -and $null -ne $Config.compaction.reserved) { $cfgReserved = [int]$Config.compaction.reserved }
-    $reserved = if ($null -ne $cfgReserved) { $cfgReserved } else { [Math]::Min(20000, $maxOut) }
-    $threshold = if ($lim.input) { [Math]::Max(0, [int]$lim.input - $reserved) } else { [Math]::Max(0, [int]$lim.context - $maxOut) }
-    return [pscustomobject]@{
-        limitContext = [int]$lim.context
-        limitInput   = $(if ($lim.input) { [int]$lim.input } else { $null })
-        limitOutput  = $(if ($lim.output) { [int]$lim.output } else { $null })
-        reserved     = $(if ($lim.input) { $reserved } else { $null })
-        threshold    = $threshold
-    }
-}
-
-function Get-ModelCompactionConfig {
-    # Get-CompactionThreshold on the RESOLVED config (`opencode debug config`,
-    # which includes an OPENCODE_CONFIG overlay). $null when unreadable.
-    param([string]$ModelId)
-    $prev = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
-        return Get-CompactionThreshold -Config $cfg -ModelId $ModelId
-    } catch {
-        return $null
-    } finally {
-        $ErrorActionPreference = $prev
-    }
-}
-
-function Get-OpencodePlugins {
-    # The `plugin` entries of the RESOLVED opencode config (`opencode debug
-    # config`, including an OPENCODE_CONFIG overlay). A plugin can change what
-    # the model is sent - opencode/plugins/compaction-continue.js rewrites the
-    # post-compaction message - so it is part of what a run measured. Empty
-    # when none or unreadable.
-    $prev = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
-        if ($cfg.PSObject.Properties["plugin"]) {
-            return @($cfg.plugin | ForEach-Object { if ($_ -is [string]) { $_ } else { $_ | ConvertTo-Json -Compress -Depth 4 } })
-        }
-    } catch {
-        # fall through
-    } finally {
-        $ErrorActionPreference = $prev
-    }
-    return @()
 }
 
 function Get-OllamaPromptTruncation {
@@ -1187,11 +1123,6 @@ function Get-OllamaPromptTruncation {
     return $hits
 }
 
-# opencode's synthetic user message after an automatic compaction
-# (session/compaction.ts in 1.18.34, hard-coded). It marks a compaction in a
-# `--format json` transcript, which has no compaction event of its own.
-$script:CompactionContinueText = "Continue if you have next steps, or stop and ask for clarification"
-
 # -NudgeAfterCompaction's message: what an auto-continue plugin would send
 # instead of opencode's own. It keeps the owner's approvals (owner, 2026-10-04:
 # while tuning is early, more approvals rather than fewer) and drops the open
@@ -1220,33 +1151,23 @@ function Get-StopKind {
     # How a run's last finished step ended, for -NudgeOnStop: "ask" (the model
     # asked what its task is), "announce" (its last sentence announces a next
     # step), "empty" (no tool call and no text), or $null (a tool call, or any
-    # other closing text). opencode's compaction continue message isn't the
+    # other closing text). The agent's own post-compaction message isn't the
     # model's text and is skipped.
     param([string]$Path)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
     $tools = 0
     $text = New-Object System.Text.StringBuilder
     $last = $null
-    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
-    try {
-        while ($null -ne ($line = $reader.ReadLine())) {
-            if (-not $line.Trim()) { continue }
-            try { $e = $line | ConvertFrom-Json } catch { continue }
-            switch ($e.type) {
-                "tool_use" { $tools++ }
-                "text" {
-                    $t = [string]$e.part.text
-                    if (-not $t.TrimStart().StartsWith($script:CompactionContinueText)) { [void]$text.Append($t).Append(" ") }
-                }
-                "step_finish" {
-                    $last = [pscustomobject]@{ Tools = $tools; Text = $text.ToString().Trim() }
-                    $tools = 0
-                    [void]$text.Clear()
-                }
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        switch ($e.Kind) {
+            "tool" { $tools++ }
+            "text" { if (-not $e.CompactionContinue) { [void]$text.Append($e.Text).Append(" ") } }
+            "step-end" {
+                $last = [pscustomobject]@{ Tools = $tools; Text = $text.ToString().Trim() }
+                $tools = 0
+                [void]$text.Clear()
             }
         }
-    } finally {
-        $reader.Dispose()
     }
     if (-not $last -or $last.Tools -gt 0) { return $null }
     if ($last.Text -match $script:AskedForTaskPattern) { return "ask" }
@@ -1257,10 +1178,11 @@ function Get-StopKind {
 }
 
 function Get-ContextEvents {
-    # What happened to the session's context window, from the raw opencode JSONL
+    # What happened to the session's context window, from the run's events
     # (docs/roadmap.md -> "Context overflow"):
-    # - Compactions: opencode's automatic compactions (the summary step, then
-    #   the step that opens with $script:CompactionContinueText).
+    # - Compactions: the agent's automatic compactions (the summary step, then
+    #   the step that opens with the agent's continue message, which the
+    #   adapter marks CompactionContinue).
     # - EndedAfterCompaction: the run stopped within two steps of the last
     #   compaction with at most one tool call after it. Under `opencode run`
     #   the "or stop and ask" half of that message ends the run.
@@ -1297,39 +1219,30 @@ function Get-ContextEvents {
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $ev }
     $steps = New-Object System.Collections.Generic.List[object]
     $tools = 0; $chars = 0; $isContinue = $false
-    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
-    try {
-        while ($null -ne ($line = $reader.ReadLine())) {
-            if (-not $line.Trim()) { continue }
-            try { $e = $line | ConvertFrom-Json } catch { continue }
-            switch ($e.type) {
-                "tool_use" { $tools++; $chars += ([string]$e.part.state.output).Length }
-                "text"     {
-                    $txt = [string]$e.part.text
-                    if ($txt.TrimStart().StartsWith($script:CompactionContinueText)) { $isContinue = $true }
-                    else {
-                        $m = [regex]::Match($txt, $script:AskedForTaskPattern)
-                        if ($m.Success) { $asked += [pscustomobject]@{ step = $steps.Count + 1; phrase = $m.Value.ToLowerInvariant() } }
-                    }
-                }
-                "error"    { if ($line -match 'No user query found in messages') { $ev.TemplateCrash = $true } }
-                "step_finish" {
-                    $t = $e.part.tokens
-                    $cacheRead = [int]$t.cache.read
-                    $steps.Add([pscustomobject]@{
-                        Prompt    = [int]$t.input + $cacheRead + [int]$t.cache.write
-                        CacheRead = $cacheRead
-                        Out       = [int]$t.output
-                        Tools     = $tools
-                        Chars     = $chars
-                        Continue  = $isContinue
-                    })
-                    $tools = 0; $chars = 0; $isContinue = $false
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        switch ($e.Kind) {
+            "tool" { $tools++; $chars += [int]$e.OutputChars }
+            "text" {
+                if ($e.CompactionContinue) { $isContinue = $true }
+                else {
+                    $m = [regex]::Match($e.Text, $script:AskedForTaskPattern)
+                    if ($m.Success) { $asked += [pscustomobject]@{ step = $steps.Count + 1; phrase = $m.Value.ToLowerInvariant() } }
                 }
             }
+            "error" { if ($e.Line -match 'No user query found in messages') { $ev.TemplateCrash = $true } }
+            "step-end" {
+                $cacheRead = [int]$e.CacheRead
+                $steps.Add([pscustomobject]@{
+                    Prompt    = [int]$e.Input + $cacheRead + [int]$e.CacheWrite
+                    CacheRead = $cacheRead
+                    Out       = [int]$e.Output
+                    Tools     = $tools
+                    Chars     = $chars
+                    Continue  = $isContinue
+                })
+                $tools = 0; $chars = 0; $isContinue = $false
+            }
         }
-    } finally {
-        $reader.Dispose()
     }
     $ev.AskedForTask = $asked
     # A compaction whose continue step never finished (the run was cut off
@@ -1375,68 +1288,40 @@ function Get-ContextEvents {
     return $ev
 }
 
-function Stop-OrphanOpencode {
-    # Stop-Job does not take the native `opencode run` child with it, and a job
-    # whose PowerShell died leaves it running too - it orphans and keeps driving
-    # the model (and, on a hosted provider, spending the key). Kill every
-    # opencode process pointed at this worktree, whole tree, so the run really
-    # ends and the transcript file is released for archiving.
-    param([string]$WtPath)
-    $orphans = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'opencode%'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -and $_.CommandLine.Contains($WtPath) })
-    foreach ($o in $orphans) {
-        Run-Native "taskkill" @("/PID", "$($o.ProcessId)", "/T", "/F") | Out-Null
-    }
-    if ($orphans.Count -gt 0) {
-        Write-Host "    killed $($orphans.Count) orphaned opencode process(es) still running against $WtPath" -ForegroundColor Yellow
-    }
-}
-
-# The opencode session a transcript belongs to: every `--format json` event
-# carries a top-level sessionID. $null when the transcript has none (a run that
-# never emitted an event).
+# The agent session a transcript belongs to: the first event that carries a
+# session id. $null when the transcript has none (a run that never emitted an
+# event). Read-AgentEvents closes the file before this returns; the next turn
+# appends to this very file (test-follow-ups.ps1 caught a reader left open).
 function Get-TranscriptSessionId {
     param([string]$Path)
-    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
-    # An explicit reader, closed in finally: returning from inside a foreach
-    # over File.ReadLines leaves the file open until garbage collection, and the
-    # next turn appends to this very file (test-follow-ups.ps1 caught that).
-    $reader = New-Object System.IO.StreamReader((New-Object System.IO.FileStream($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)))
-    try {
-        while ($null -ne ($line = $reader.ReadLine())) {
-            if (-not $line.Trim()) { continue }
-            try { $e = $line | ConvertFrom-Json } catch { continue }
-            if ($e.sessionID) { return [string]$e.sessionID }
-        }
-    } finally {
-        $reader.Dispose()
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.SessionId) { return [string]$e.SessionId }
     }
     return $null
 }
 
-# Token totals over a transcript's steps (every step_finish), across all turns.
-# Recorded in every run JSON as `usage`: a hosted seat bills by them, and a local
-# one's will be priced once its power draw is measured (docs/costs.md).
+# Token totals over a transcript's steps (every step end that carries tokens),
+# across all turns. Recorded in every run JSON as `usage`: a hosted seat bills by
+# them, and a local one's will be priced once its power draw is measured
+# (docs/costs.md).
 function Get-TranscriptUsage {
     param([string]$Path)
     $u = [ordered]@{ input = 0; output = 0; reasoning = 0; cacheRead = 0; cacheWrite = 0; steps = 0 }
-    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return [pscustomobject]$u }
-    foreach ($line in [System.IO.File]::ReadLines($Path)) {
-        if ($line -notmatch '"step_finish"') { continue }
-        try { $e = $line | ConvertFrom-Json } catch { continue }
-        $t = $e.part.tokens
-        if (-not $t) { continue }
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -ne "step-end" -or -not $e.HasTokens) { continue }
         $u.steps++
-        $u.input += [double]$t.input
-        $u.output += [double]$t.output
-        $u.reasoning += [double]$t.reasoning
-        if ($t.cache) { $u.cacheRead += [double]$t.cache.read; $u.cacheWrite += [double]$t.cache.write }
+        $u.input += [double]$e.Input
+        $u.output += [double]$e.Output
+        $u.reasoning += [double]$e.Reasoning
+        $u.cacheRead += [double]$e.CacheRead
+        $u.cacheWrite += [double]$e.CacheWrite
     }
     return [pscustomobject]$u
 }
 
-# Writes the model made outside its worktree, from the transcript's file-tool
-# calls (write, edit, multiedit, patch). The scope gate and the guard rails see
+# Writes the model made outside its worktree, from the run's file-tool calls
+# (write, edit, multiedit, patch; the adapter lists each call's Paths, patch
+# headers included). The scope gate and the guard rails see
 # only the repo's own diff, so a write to %TEMP% or to another checkout went
 # unnoticed (2026-10-07: a GLM-5.2 run wrote a vitest config to %TEMP%\opencode
 # while fighting the test setup). Recorded in every run JSON as
@@ -1449,20 +1334,12 @@ function Get-OutsideWrites {
     if (-not $Path -or -not $Worktree -or -not (Test-Path -LiteralPath $Path)) { return , $hits }
     $root = [IO.Path]::GetFullPath($Worktree).TrimEnd('\', '/')
     $seen = @{}
-    foreach ($line in [System.IO.File]::ReadLines($Path)) {
-        if ($line -notmatch '"tool_use"') { continue }
-        try { $e = $line | ConvertFrom-Json } catch { continue }
-        if ($e.type -ne "tool_use" -or -not $e.part -or -not $e.part.state) { continue }
-        $tool = "$($e.part.tool)"
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -ne "tool") { continue }
+        $tool = $e.Tool
         if ($tool -notin @("write", "edit", "multiedit", "patch", "notebookedit")) { continue }
-        if ("$($e.part.state.status)" -eq "error") { continue }
-        $in = $e.part.state.input
-        $targets = @()
-        if ($in.filePath) { $targets += "$($in.filePath)" }
-        if ($in.patchText) {
-            foreach ($m in [regex]::Matches("$($in.patchText)", '(?m)^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$')) { $targets += $m.Groups[1].Value }
-        }
-        foreach ($t in $targets) {
+        if ($e.Status -eq "error") { continue }
+        foreach ($t in @($e.Paths)) {
             try {
                 $full = if ([IO.Path]::IsPathRooted($t)) { [IO.Path]::GetFullPath($t) } else { [IO.Path]::GetFullPath((Join-Path $root $t)) }
             } catch { $full = $t }
@@ -1494,150 +1371,6 @@ function Get-RunCostEstimate {
         rateChecked = $rate.checked
         basis       = "costs/go-rates.tsv ($($rate.plan)$(if ($rate.tier) { ', ' + $rate.tier })): input $($rate.inputPerM), output $($rate.outputPerM), cache read $($rate.cacheReadPerM), cache write $(if ($rate.cacheWritePerM) { $rate.cacheWritePerM } else { '0' }) USD per 1M tokens"
     }
-}
-
-function Invoke-OpencodeRun {
-    # -SessionId continues an earlier turn (`opencode run --session`) and
-    # -Transcript appends to that turn's transcript, so a multi-turn task keeps
-    # one transcript and Writes counts every turn (see the follow-ups below).
-    param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec,
-          [string]$SessionId = "", [string]$Transcript = "")
-
-    $promptFile = Join-Path $env:TEMP ("task-prompt-{0}.md" -f ([guid]::NewGuid().ToString("N")))
-    [System.IO.File]::WriteAllText($promptFile, $Prompt, (New-Object System.Text.UTF8Encoding($false)))
-    if ($Transcript) {
-        $out = $Transcript
-    } else {
-        $out = Join-Path $env:TEMP ("task-run-{0}.jsonl" -f ([guid]::NewGuid().ToString("N")))
-        # Create the transcript up front: the job only appends per event, so a run
-        # that emits nothing before the timeout (north-mini on 2026-09-26, stuck
-        # re-prefilling) otherwise leaves no file and vanishes without a trace. An
-        # empty _TIMEOUT_ transcript is the evidence that it never got a step out.
-        [System.IO.File]::WriteAllText($out, "")
-    }
-
-    $job = Start-Job -ScriptBlock {
-        param($Dir, $ModelId, $PromptFile, $Out, $SessionId)
-        # The canary pattern: run through the real opencode tool layer, JSONL
-        # events on stdout, and let the (inherited) process env resolve the
-        # provider baseURLs from the sourced profile.
-        # Each event is appended to $Out as it arrives, not buffered until exit:
-        # a run killed at the timeout used to leave no transcript at all (the
-        # whole stream sat in a variable), so a timeout was a pure unknown.
-        # The job's own PID first, so the caller can tell a dead job host from a
-        # slow run (PowerShell 7 leaves such a job "Running" forever).
-        [pscustomobject]@{ JobPid = $PID }
-        $prev = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        try {
-            $msg = Get-Content -LiteralPath $PromptFile -Raw
-            $enc = New-Object System.Text.UTF8Encoding($false)
-            # opencode writes UTF-8; without this the job decodes its stdout
-            # with the OEM codepage and every non-ASCII char in the transcript
-            # is mojibake (an em dash became "ΓÇö" in the 2026-09-26 runs).
-            [Console]::OutputEncoding = $enc
-            $sessionArgs = if ($SessionId) { @("--session", $SessionId) } else { @() }
-            & opencode run --dir $Dir --model $ModelId --format json --auto @sessionArgs $msg 2>$null |
-                ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
-        } finally {
-            $ErrorActionPreference = $prev
-        }
-        return $LASTEXITCODE
-    } -ArgumentList $WtPath, $ModelId, $promptFile, $out, $SessionId
-
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    # Wait in slices of up to 5 s, checking between them that the job's
-    # PowerShell process is still alive. Windows PowerShell 5.1 marks a job
-    # whose process died as Failed and Wait-Job returns; PowerShell 7 leaves it
-    # "Running" forever, so without this a dead host sat out the whole timeout
-    # and was recorded as a TIMEOUT.
-    $finished = $false
-    $jobPid = $null
-    $hostGone = $false
-    while ($true) {
-        $left = $TimeoutSec - $sw.Elapsed.TotalSeconds
-        if ($left -le 0) { break }
-        if (Wait-Job $job -Timeout ([int][math]::Max(1, [math]::Min(5, [math]::Ceiling($left))))) { $finished = $true; break }
-        if (-not $jobPid) {
-            try {
-                $marker = @(Receive-Job $job -Keep -ErrorAction SilentlyContinue | Where-Object { $_ -and $_.PSObject.Properties.Name -contains "JobPid" }) | Select-Object -First 1
-                if ($marker) { $jobPid = [int]$marker.JobPid }
-            } catch { }
-        }
-        if ($jobPid -and -not (Get-Process -Id $jobPid -ErrorAction SilentlyContinue)) { $hostGone = $true; break }
-    }
-    if (-not $finished -and -not $hostGone) {
-        Stop-Job $job -ErrorAction SilentlyContinue
-        Remove-Job $job -Force -ErrorAction SilentlyContinue
-        Stop-OrphanOpencode -WtPath $WtPath
-        Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
-        # $out is NOT deleted here - whatever the model did before being killed
-        # is evidence, not noise. The caller rescues it into tests/results/.
-        return [pscustomobject]@{ ExitCode = -1; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "opencode run timed out after $TimeoutSec s (prompt sha $PromptHash)"; TranscriptPath = $out }
-    }
-    # The job's own PowerShell process can die under the run (2026-10-02, the
-    # first run of a batch: "The background process closed or ended abnormally",
-    # PSSessionStateBroken). Receive-Job then raises an error that the script's
-    # "Stop" made terminating, and it took the whole batch down. A dead job is
-    # infrastructure: report it as such (ExitCode -2; -1 means timeout to the
-    # caller) and let the batch move on.
-    $jobErrs = @()
-    $jobBroken = $null
-    if ($hostGone) {
-        $jobBroken = "its PowerShell process (PID $jobPid) exited before the job finished"
-        $jobResult = @()
-        # Remove-Job below takes ~57 s on such a job in PowerShell 7 (a fixed
-        # transport timeout, measured 2026-10-03; Stop-Job costs the same). Paid
-        # once, only on a dead host, and far short of the run timeout.
-    } else {
-        try {
-            $jobResult = @(Receive-Job $job -ErrorAction SilentlyContinue -ErrorVariable jobErrs |
-                Where-Object { -not ($_ -and $_.PSObject.Properties.Name -contains "JobPid") })
-        } catch {
-            $jobResult = @()
-            $jobBroken = $_.Exception.Message
-        }
-    }
-    if (-not $jobBroken) {
-        $transport = @($jobErrs | Where-Object { $_.Exception -is [System.Management.Automation.Remoting.PSRemotingTransportException] })
-        if ($transport.Count -gt 0) {
-            $jobBroken = $transport[0].Exception.Message
-        } elseif ($job.State -eq "Failed") {
-            $jobBroken = if ($job.JobStateInfo.Reason) { $job.JobStateInfo.Reason.Message } else { "job state Failed" }
-        }
-    }
-    Remove-Job $job -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $promptFile -Force -ErrorAction SilentlyContinue
-    $sw.Stop()
-    if ($jobBroken) {
-        Stop-OrphanOpencode -WtPath $WtPath
-        return [pscustomobject]@{ ExitCode = -2; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "the background job running opencode ended abnormally ($jobBroken) (prompt sha $PromptHash). Infrastructure failure, NOT model behaviour: not graded, no summary row."; TranscriptPath = $out }
-    }
-
-    $code = -1
-    if ($jobResult.Count -ge 1) {
-        $first = $jobResult[0]
-        if ($first -is [psobject] -and $first.PSObject.Properties.Name -contains "value") {
-            $code = [int]$first.value
-        } else {
-            $code = [int]$first
-        }
-    }
-
-    $writes = 0
-    if (Test-Path -LiteralPath $out) {
-        foreach ($line in [System.IO.File]::ReadLines($out)) {
-            if (-not $line.Trim()) { continue }
-            try { $e = $line | ConvertFrom-Json } catch { continue }
-            if ($e.type -ne "tool_use") { continue }
-            if ($e.part.tool -in @("write", "edit", "Patch", "NotebookEdit")) { $writes++ }
-        }
-        # $out is NOT deleted here - the caller moves the raw transcript into
-        # tests/results/ next to the graded JSON, so a run's "why" is auditable
-        # later instead of stranded in %TEMP% (the round-2 mistake this repo's
-        # own review-gate work already learned from - see r3-protocol.md).
-    }
-    return [pscustomobject]@{ ExitCode = $code; Writes = $writes; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); TranscriptPath = $out; Ending = (Get-TranscriptEnding -Path $out) }
 }
 
 # --- main loop ---------------------------------------------------------------
@@ -1722,19 +1455,22 @@ $truncCheck = if ($truncLogDir -and (Test-Path -LiteralPath $truncLogDir)) {
 } else {
     "not checked (no truncation detector for engine '$($servingEngine.name)', provider $providerId)"
 }
-$ovOpencode = Run-Native "opencode" @("--version")
-$opencodeVersion = if ($ovOpencode.ExitCode -eq 0 -and $ovOpencode.Output) { ($ovOpencode.Output -join ' ').Trim() } else { "unknown (opencode --version exit $($ovOpencode.ExitCode))" }
-# limit.output of the seat, from the resolved opencode config: what the writes
-# gate compares the last step's output tokens against to call an output-cap hit.
-$outputLimit = Get-ModelOutputLimit -ModelId $Model
-# When opencode compacts this seat's session (Get-CompactionThreshold).
-$compactionConfig = Get-ModelCompactionConfig -ModelId $Model
-# opencode plugins in effect (Get-OpencodePlugins); compaction-continue.js
-# gets an evidence log per run (HOMELAB_COMPACTION_PLUGIN_LOG).
-$opencodePlugins = @(Get-OpencodePlugins)
-$compactionPluginOn = @($opencodePlugins | Where-Object { $_ -match 'compaction-continue' }).Count -gt 0
-if ($opencodePlugins.Count -gt 0) {
-    Write-Host ("opencode plugins: {0}" -f ($opencodePlugins -join ', ')) -ForegroundColor DarkGray
+# The agent and its version, recorded in every run JSON as `agent`. Rows from
+# another agent are a new era. `opencodeVersion` stays for the rows' continuity
+# (null under another agent).
+$agentVersionRaw = Get-AgentVersion
+$agentVersion = if ($agentVersionRaw) { $agentVersionRaw } else { "unknown ($script:AgentName --version gave no version)" }
+$opencodeVersion = if ($script:AgentName -eq "opencode") { $agentVersion } else { $null }
+# How the agent treats this seat (Get-AgentModelSettings): limit.output, what the
+# writes gate compares the last step's output tokens against to call an
+# output-cap hit; when it compacts the session; and its plugins in effect
+# (compaction-continue.js gets an evidence log per run, Start-AgentRunEnv).
+$agentSettings = Get-AgentModelSettings -ModelId $Model
+$outputLimit = $agentSettings.OutputLimit
+$compactionConfig = $agentSettings.Compaction
+$agentPlugins = @($agentSettings.Plugins)
+if ($agentPlugins.Count -gt 0) {
+    Write-Host ("{0} plugins: {1}" -f $script:AgentName, ($agentPlugins -join ', ')) -ForegroundColor DarkGray
 }
 # -NudgeAfterCompaction: which message the nudged runs got.
 $nudgeTextSha = $null
@@ -1754,7 +1490,7 @@ if ($NudgeOnStop) {
     } finally { $sha256.Dispose() }
     Write-Host ("stop nudge: on (up to {0} per run; stop text sha256 {1}, lost-task text {2}); rows go to {3} only" -f $MaxStopNudges, $stopNudgeSha, $lostTaskNudgeSha, $resultsDir) -ForegroundColor DarkGray
 }
-Write-Host ("ollama: {0} | opencode: {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $opencodeVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
+Write-Host ("ollama: {0} | $($script:AgentName): {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $agentVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
@@ -1854,20 +1590,13 @@ foreach ($tk in $tasksToRun) {
     $savedEnv = Set-TaskTestEnv $tk
     # ...and can push nothing anywhere (Set-NoPushEnv).
     $savedPushEnv = Set-NoPushEnv
-    # compaction-continue.js writes one JSON line per model call it rewrote to
-    # this file (opencode inherits the env); counted after the run. Its idle
-    # continue stays off here: `opencode run` exits when the session goes idle,
-    # so a message sent then would land in a session nobody answers (and in the
-    # next follow-up's). -NudgeAfterCompaction is what measures that behaviour.
-    $pluginLog = $null
-    if ($compactionPluginOn) {
-        $pluginLog = Join-Path ([System.IO.Path]::GetTempPath()) ("ccplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
-        $env:HOMELAB_COMPACTION_PLUGIN_LOG = $pluginLog
-        $env:HOMELAB_COMPACTION_IDLE_CONTINUE = "off"
-    }
+    # The agent's own per-run environment (Start-AgentRunEnv: for opencode, the
+    # compaction plugin's evidence log, with its idle continue off).
+    $agentRunEnv = Start-AgentRunEnv -Plugins $agentPlugins
+    $pluginRewrites = $null
     $runStart = [DateTimeOffset]::Now
     try {
-        $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+        $run = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
         # Follow-up turns (`followUps`: fixed messages, e.g. the owner's "go
         # ahead" after a plan): each continues the same opencode session and
         # appends to the same transcript, with its own -RunTimeout. The run is
@@ -1880,11 +1609,11 @@ foreach ($tk in $tasksToRun) {
             $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
             if (-not $sessionId) {
                 $run.ExitCode = -4
-                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("follow-up turn {0} could not start: no sessionID in turn {1}'s transcript (prompt sha {2}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($turnsRun + 1), $turnsRun, $promptHashes[$tk.id])
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("follow-up turn {0} could not start: no session id in turn {1}'s transcript (prompt sha {2}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($turnsRun + 1), $turnsRun, $promptHashes[$tk.id])
                 break
             }
             Write-Host ("    turn {0}: follow-up in session {1}" -f ($turnsRun + 1), $sessionId) -ForegroundColor DarkGray
-            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $fu -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $fu -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1902,11 +1631,11 @@ foreach ($tk in $tasksToRun) {
             $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
             if (-not $sessionId) {
                 $run.ExitCode = -4
-                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("compaction nudge {0} could not start: no sessionID in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($nudgesSent + 1), $promptHashes[$tk.id])
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("compaction nudge {0} could not start: no session id in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($nudgesSent + 1), $promptHashes[$tk.id])
                 break
             }
             Write-Host ("    nudge {0}: the run ended on prose after compaction {1}; continuing session {2}" -f ($nudgesSent + 1), $nudgeEvents.Compactions, $sessionId) -ForegroundColor DarkGray
-            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $script:CompactionNudgeText -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $script:CompactionNudgeText -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1923,12 +1652,12 @@ foreach ($tk in $tasksToRun) {
             $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
             if (-not $sessionId) {
                 $run.ExitCode = -4
-                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("stop nudge {0} could not start: no sessionID in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($stopNudgeKinds.Count + 1), $promptHashes[$tk.id])
+                $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("stop nudge {0} could not start: no session id in the transcript (prompt sha {1}). Infrastructure failure, NOT model behaviour: not graded, no summary row." -f ($stopNudgeKinds.Count + 1), $promptHashes[$tk.id])
                 break
             }
             $nudgeMessage = if ($stopKind -eq "ask") { $script:LostTaskNudgeText + "`n`n" + $prompt } else { $script:StopNudgeText }
             Write-Host ("    stop nudge {0}: the run stopped ({1}); continuing session {2}" -f ($stopNudgeKinds.Count + 1), $stopKind, $sessionId) -ForegroundColor DarkGray
-            $next = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $nudgeMessage -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $nudgeMessage -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1937,14 +1666,10 @@ foreach ($tk in $tasksToRun) {
     } finally {
         Restore-TaskTestEnv $savedPushEnv
         Restore-TaskTestEnv $savedEnv
-        if ($pluginLog) { Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue }
-    }
-    # Model calls that carried the plugin's rewritten continue message (every
-    # step after a compaction carries it, so this counts calls, not compactions).
-    $pluginRewrites = $null
-    if ($pluginLog) {
-        $pluginRewrites = if (Test-Path -LiteralPath $pluginLog) { @(Select-String -LiteralPath $pluginLog -Pattern '"message":"rewrote').Count } else { 0 }
-        Remove-Item -LiteralPath $pluginLog -ErrorAction SilentlyContinue
+        # Model calls that carried the plugin's rewritten continue message
+        # (every step after a compaction carries it, so this counts calls, not
+        # compactions); $null without the plugin.
+        $pluginRewrites = Stop-AgentRunEnv -State $agentRunEnv
     }
     # A run whose prompt Ollama truncated never showed the model the whole
     # system prompt, tool list and task, so whatever it did measures the task's
@@ -1977,12 +1702,12 @@ foreach ($tk in $tasksToRun) {
         } else {
             $firstErr  = Get-FirstTranscriptError -Path $run.TranscriptPath
             $errSuffix = if ($firstErr) { " - $firstErr" } else { "" }
-            $runDetail = "opencode exited $($run.ExitCode) without a gradable run$errSuffix (prompt sha $($promptHashes[$tk.id])). Infrastructure failure, NOT model behaviour: not graded, no summary row."
+            $runDetail = "$($script:AgentName) exited $($run.ExitCode) without a gradable run$errSuffix (prompt sha $($promptHashes[$tk.id])). Infrastructure failure, NOT model behaviour: not graded, no summary row."
         }
         if ($ctxEvents.TemplateCrash) {
             $runDetail += " Cause: a context overflow. The request was longer than num_ctx, so Ollama dropped the oldest messages, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
         }
-        Write-Result $tk.id "opencode run" "FAIL" $runDetail
+        Write-Result $tk.id "$($script:AgentName) run" "FAIL" $runDetail
         $overallPass = $false
         if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
             $failStamp      = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -1997,7 +1722,7 @@ foreach ($tk in $tasksToRun) {
         continue
     }
 
-    Write-Result $tk.id "opencode run" "PASS" ("exit {0}, {1} write/edit tool calls" -f $run.ExitCode, $run.Writes)
+    Write-Result $tk.id "$($script:AgentName) run" "PASS" ("exit {0}, {1} write/edit tool calls" -f $run.ExitCode, $run.Writes)
     $capHit = Test-OutputCapHit -Ending $run.Ending -Limit $outputLimit
     if ($run.Writes -eq 0) {
         if ($capHit) {
@@ -2257,7 +1982,7 @@ foreach ($tk in $tasksToRun) {
         checklist       = $(if ($gradeByChecklist) { $tk.checklist } else { $null })
         pushGuard       = "on (Set-NoPushEnv: git network pushes rewritten to $($script:NoPushHost); gh token invalid)"
         turns           = $turnsRun
-        opencodePlugins = @($opencodePlugins)
+        opencodePlugins = @($agentPlugins)
         compactionPluginRewrites = $pluginRewrites
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
         stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
@@ -2272,6 +1997,9 @@ foreach ($tk in $tasksToRun) {
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
         opencodeVersion = $opencodeVersion
+        # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
+        # Rows before 2026-10-10 have no such field; they are all opencode.
+        agent           = [pscustomobject]@{ name = $script:AgentName; version = $agentVersion }
         numCtx          = $numCtx
         promptTruncation = $(if ($truncLogDir) { "$truncCheck - none during the run" } else { $truncCheck })
         contextEvents   = [pscustomobject]@{
@@ -2284,7 +2012,7 @@ foreach ($tk in $tasksToRun) {
             compactionConfig     = $compactionConfig
         }
         testEnv        = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
-        samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
+        samplingControl = $script:AgentSamplingNote
         transcriptFile  = $transcriptFileField
         usage           = $runUsage
         costEstimate    = $runCost

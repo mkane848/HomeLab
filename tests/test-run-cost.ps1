@@ -26,6 +26,8 @@ foreach ($name in "Get-TranscriptUsage", "Get-RunCostEstimate") {
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
+# The OpenCode adapter's Read-AgentEvents, which Get-TranscriptUsage reads.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -80,6 +82,7 @@ try {
     $e2e = Join-Path $tmp "e2e"
     foreach ($d in @("tests/tasks", "bin", "repo", "costs")) { New-Item -ItemType Directory -Path (Join-Path $e2e $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $e2e "tests") -Recurse -Force
     Copy-Item -LiteralPath $rates -Destination (Join-Path $e2e "costs/go-rates.tsv")
     $repo = Join-Path $e2e "repo"
     git -C $repo init -q

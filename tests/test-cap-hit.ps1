@@ -28,11 +28,14 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit", "Get-ModelOutputLimit") {
+foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
+# The OpenCode adapter: Read-AgentEvents, which Get-TranscriptEnding reads, and
+# Get-ModelOutputLimit.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cap-hit-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Path $tmpRoot -Force | Out-Null

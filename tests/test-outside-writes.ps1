@@ -28,6 +28,8 @@ if ($errs.Count) { $errs; exit 2 }
 $fn = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) | Where-Object { $_.Name -eq "Get-OutsideWrites" } | Select-Object -First 1
 if (-not $fn) { Write-Host "FAIL: Get-OutsideWrites not found in $ScriptPath"; exit 1 }
 Invoke-Expression $fn.Extent.Text
+# The OpenCode adapter's Read-AgentEvents, which Get-OutsideWrites reads.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -79,6 +81,7 @@ try {
     $e2e = Join-Path $tmp "e2e"
     foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $e2e $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $e2e "tests") -Recurse -Force
     $frepo = Join-Path $e2e "repo"
     git -C $frepo init -q
     git -C $frepo config user.email "t@example.invalid"

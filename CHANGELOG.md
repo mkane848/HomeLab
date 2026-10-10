@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Agent adapter boundary: everything OpenCode-specific in the task harness moved into one file,
+  `tests/agents/opencode.ps1`. That covers starting and continuing `opencode run`, reading its JSONL transcript,
+  `--version`, `debug config`, plugins and orphan cleanup.
+  - The transcript is read as neutral events (`Read-AgentEvents`), and every analysis now reads those: context
+    events, stop kinds, outside writes, usage, cap hits, writes and session ids.
+  - `test-tasks.ps1` and `run-tasks-batch.ps1` take `-Agent` (default `opencode`). Another agent is one sibling
+    adapter file.
+  - Every run JSON records `agent` (name, version). The `opencode*` fields stay for continuity: `opencodeVersion`
+    is null under another agent.
+  - The batch calls `opencode` directly only for the OpenCode Go provider.
+  - Owner, 2026-10-10: the daily client may move off OpenCode, so leaving it must stay cheap.
+  - New guard `tests/test-agent-adapter.ps1`. It checks the interface, the boundary in both scripts, the event
+    mapping, and a second, made-up agent run end to end.
+  - Behaviour is unchanged: every existing guard passes.
 - `test-tasks.ps1 -NudgeOnStop [-MaxStopNudges 2]` (also on `run-tasks-batch.ps1`): an assisted diagnostic for
   runs that stop with work undone. It acts when the last step made no tool call:
   - if the model asked what its task is, it re-sends the original prompt after a short note;

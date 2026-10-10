@@ -11,11 +11,11 @@
 #   2. opencode installs patch releases by itself when a TUI starts, so the corpus went
 #      1.18.31 -> .32 -> .33 in ten days and every mixed cell straddles two versions.
 #      The batch now reads the version once and stops if it changes
-#      (Get-OpencodeVersionDrift), and the preflight reports whether autoupdate is
-#      pinned (Test-OpencodeAutoupdatePinned).
+#      (Get-AgentVersionDrift), and the preflight reports whether autoupdate is
+#      pinned (Test-AgentAutoupdatePinned).
 #
-# What it does: pulls the REAL functions out of run-tasks-batch.ps1 (so it tests the
-# script as written, not a copy) and checks the run order, the version reading and
+# What it does: pulls the REAL functions out of run-tasks-batch.ps1 and loads the
+# REAL OpenCode adapter (so it tests the scripts as written, not a copy) and checks the run order, the version reading and
 # drift message (against a stand-in `opencode`), and the pin rule. Exit 1 on any
 # failure.
 #
@@ -27,11 +27,14 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "New-RunList", "Get-OpencodeVersion", "Get-OpencodeVersionDrift", "Test-OpencodeAutoupdatePinned") {
+foreach ($name in "New-RunList", "Get-AgentVersionDrift") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
+# The OpenCode adapter: Get-AgentVersion and Test-AgentAutoupdatePinned
+# (tests/agents/opencode.ps1, shared with test-tasks.ps1).
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -70,27 +73,27 @@ Check "without -OnlyMissing nothing is dropped"      ("{0} runs, skipped {1}" -f
 
 Write-Host "-- opencode version reading and drift (stand-in opencode)"
 function opencode { "1.18.33" }
-Check "reads the version"                            (Get-OpencodeVersion) "1.18.33"
-Check "no drift while it still reports the same"     ($null -eq (Get-OpencodeVersionDrift -Expected "1.18.33")) "True"
-Check "drift message names both versions"            (Get-OpencodeVersionDrift -Expected "1.18.32") "opencode changed from 1.18.32 to 1.18.33 during the batch"
-Check "no expected version: no claim"                ($null -eq (Get-OpencodeVersionDrift -Expected "")) "True"
+Check "reads the version"                            (Get-AgentVersion) "1.18.33"
+Check "no drift while it still reports the same"     ($null -eq (Get-AgentVersionDrift -Expected "1.18.33")) "True"
+Check "drift message names both versions"            (Get-AgentVersionDrift -Expected "1.18.32") "opencode changed from 1.18.32 to 1.18.33 during the batch"
+Check "no expected version: no claim"                ($null -eq (Get-AgentVersionDrift -Expected "")) "True"
 function opencode { "error: something went wrong" }
-Check "output that is not a version reads as unknown" ($null -eq (Get-OpencodeVersion)) "True"
-Check "cannot ask: no drift claim"                   ($null -eq (Get-OpencodeVersionDrift -Expected "1.18.33")) "True"
+Check "output that is not a version reads as unknown" ($null -eq (Get-AgentVersion)) "True"
+Check "cannot ask: no drift claim"                   ($null -eq (Get-AgentVersionDrift -Expected "1.18.33")) "True"
 function opencode { throw "opencode is not available" }
-Check "opencode failing reads as unknown"            ($null -eq (Get-OpencodeVersion)) "True"
-Check "opencode failing: no drift claim"             ($null -eq (Get-OpencodeVersionDrift -Expected "1.18.33")) "True"
+Check "opencode failing reads as unknown"            ($null -eq (Get-AgentVersion)) "True"
+Check "opencode failing: no drift claim"             ($null -eq (Get-AgentVersionDrift -Expected "1.18.33")) "True"
 
 Write-Host "-- autoupdate pin rule (opencode's own: false or 'notify' in config, or the flag is 1/true)"
 function Cfg($v) { [pscustomobject]@{ autoupdate = $v } }
-Check "autoupdate false is pinned"                   (Test-OpencodeAutoupdatePinned -Config (Cfg $false) -EnvValue "") "True"
-Check "autoupdate 'notify' is pinned"                (Test-OpencodeAutoupdatePinned -Config (Cfg "notify") -EnvValue "") "True"
-Check "autoupdate true is NOT pinned"                (Test-OpencodeAutoupdatePinned -Config (Cfg $true) -EnvValue "") "False"
-Check "autoupdate unset is NOT pinned (default on)"  (Test-OpencodeAutoupdatePinned -Config ([pscustomobject]@{ model = "x" }) -EnvValue "") "False"
-Check "no readable config is NOT pinned"            (Test-OpencodeAutoupdatePinned -Config $null -EnvValue "") "False"
-Check "OPENCODE_DISABLE_AUTOUPDATE=1 pins"           (Test-OpencodeAutoupdatePinned -Config (Cfg $true) -EnvValue "1") "True"
-Check "OPENCODE_DISABLE_AUTOUPDATE=TRUE pins"        (Test-OpencodeAutoupdatePinned -Config (Cfg $true) -EnvValue "TRUE") "True"
-Check "OPENCODE_DISABLE_AUTOUPDATE=0 does not"       (Test-OpencodeAutoupdatePinned -Config (Cfg $true) -EnvValue "0") "False"
-Check "OPENCODE_DISABLE_AUTOUPDATE=yes does not (not a truthy value to opencode)" (Test-OpencodeAutoupdatePinned -Config (Cfg $true) -EnvValue "yes") "False"
+Check "autoupdate false is pinned"                   (Test-AgentAutoupdatePinned -Config (Cfg $false) -EnvValue "") "True"
+Check "autoupdate 'notify' is pinned"                (Test-AgentAutoupdatePinned -Config (Cfg "notify") -EnvValue "") "True"
+Check "autoupdate true is NOT pinned"                (Test-AgentAutoupdatePinned -Config (Cfg $true) -EnvValue "") "False"
+Check "autoupdate unset is NOT pinned (default on)"  (Test-AgentAutoupdatePinned -Config ([pscustomobject]@{ model = "x" }) -EnvValue "") "False"
+Check "no readable config is NOT pinned"            (Test-AgentAutoupdatePinned -Config $null -EnvValue "") "False"
+Check "OPENCODE_DISABLE_AUTOUPDATE=1 pins"           (Test-AgentAutoupdatePinned -Config (Cfg $true) -EnvValue "1") "True"
+Check "OPENCODE_DISABLE_AUTOUPDATE=TRUE pins"        (Test-AgentAutoupdatePinned -Config (Cfg $true) -EnvValue "TRUE") "True"
+Check "OPENCODE_DISABLE_AUTOUPDATE=0 does not"       (Test-AgentAutoupdatePinned -Config (Cfg $true) -EnvValue "0") "False"
+Check "OPENCODE_DISABLE_AUTOUPDATE=yes does not (not a truthy value to opencode)" (Test-AgentAutoupdatePinned -Config (Cfg $true) -EnvValue "yes") "False"
 
 if ($script:fail) { Write-Host "RESULT: $($script:fail) check(s) failed"; exit 1 } else { Write-Host "RESULT: all checks passed" }

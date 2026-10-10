@@ -70,6 +70,7 @@ $psExe = (Get-Process -Id $PID).Path
 try {
     foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $tmp $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $tmp "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $tmp "tests") -Recurse -Force
     $repo = Join-Path $tmp "repo"
     git -C $repo init -q
     git -C $repo config user.email "t@example.invalid"

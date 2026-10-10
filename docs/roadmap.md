@@ -2133,6 +2133,21 @@ survey.
   `wp-7a` didn't hit it. Not urgent.
 - **Hosted gaps** wait for a Go budget.
 
+**Decision (owner, 2026-10-10): leaving OpenCode must stay cheap.** The preferred daily platform is "a chat
+window/CLI", not necessarily OpenCode. Since then:
+- **OpenCode is the measuring instrument, not the product.** Findings about models, Ollama and failure patterns
+  are kept client-neutral.
+- **Its specific code lives in one adapter, `tests/agents/opencode.ps1`.** That covers how a run starts and
+  continues, how its transcript reads, and its version and config. The grading and every analysis read neutral
+  events instead (`AGENTS.md` → `test-agent-adapter.ps1`). Another agent is one sibling file, and its results a
+  new era.
+- **New daily-use features that would not survive a client switch don't go into the OpenCode setup.** The
+  `-NudgeOnStop` result is the first test: if it's worth having day to day, it belongs in whatever drives the
+  chosen window, as a client-neutral wrapper that watches the last message. A larger OpenCode plugin is not the
+  place.
+- **Picking that window is open.** Hermes Agent (below) is one candidate with a headless JSON mode. Picking one
+  also gives the adapter its second real client.
+
 #### Hermes Agent: researched 2026-10-07, parked
 
 [Hermes Agent][hermes-agent] (Nous Research, MIT) is an open-source agent with a CLI/TUI, messaging front ends and

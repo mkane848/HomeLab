@@ -56,6 +56,9 @@ foreach ($text in (Get-Functions $ScriptPath @("Test-HostedModelId", "Get-Hosted
 # estimate must match it. Optional so this guard does not break if they move.
 $tt = @(Get-Functions (Join-Path $PSScriptRoot "test-tasks.ps1") @("Get-TranscriptUsage", "Get-RunCostEstimate") -Optional)
 foreach ($text in $tt) { Invoke-Expression $text }
+# The OpenCode adapter's Read-AgentEvents, which the transcript readers above
+# (Get-TranscriptTokenUsage, Get-ProviderRefusal, Get-TranscriptUsage) read.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -315,6 +318,7 @@ try {
     $fx   = Join-Path $tmp "fixture"
     foreach ($d in "$tree\tests\tasks", "$tree\tests\results", "$tree\costs", $bin, $fx) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination "$tree\tests\run-tasks-batch.ps1"
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
     Write-Fixture "$tree\tests\run-tasks-models.tsv" (($registryFixture -split "`n" | Where-Object { $_ -notmatch '^qwen3:14b' }) -join "`n")
     Write-Fixture "$tree\costs\go-rates.tsv" $ratesFixture
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
