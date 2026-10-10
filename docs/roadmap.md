@@ -2200,6 +2200,23 @@ seconds on four finished ones and made no difference once, so that trigger stays
   `@asohav/shared` from its built `dist`, so edits to the shared source don't show until the package is rebuilt.
   Several runs hit the same trap. Worth checking whether the brief, or the task's setup, should say so.
 
+**Replication (2026-10-10, one more nudged run each of `wp-2b`, `wp-5a` and `wp-1a`): 3 passed, and all 4 nudges
+did work.**
+
+| task | nudges | what happened | time |
+|---|---|---|---|
+| `wp-2b` | asked for its task | lost its brief at step 2, at the same 51,680-token request as all three plain runs; the re-sent request led to the fix and a test run | 20.8 min |
+| `wp-5a` | announced a next step, then asked for its task | stopped after "Let me start by reading…"; after "keep going" it read four files and lost its brief, which a compaction restored. It lost it again later and asked what to do; the re-sent request led to 13 edits. | 39.4 min |
+| `wp-1a` | empty ending | made one edit after "Let me implement the three function bodies" and stopped; after the nudge, four more edits and two test runs (it failed in plain round 3) | 7.7 min |
+
+- **The lost-brief rescue reproduces.** `wp-2b` is 0 of 3 plain and 2 of 2 nudged. It loses its brief at the same
+  step every time, so the failure and the cure are both deterministic.
+- **Every trigger has now fired and rescued a run.** "Announced a next step" fired for the first time here.
+- **Across both nudged batches:** 7 runs rescued, 4 confirmed in seconds, 1 made no difference, 0 harmed.
+- **A lost brief is the commonest failure, and its cause is upstream.** One large read pushes the next request past
+  64k, and Ollama drops the front silently. The nudge repairs it after the fact; `llama-server` would refuse the
+  request with an error instead (below, "Replacing Ollama").
+
 **Next:**
 - Run a second nudged round of qwen3.6 on the same 15 tasks to confirm the 11 of 12.
 - If it holds, the nudge belongs in daily use, in whichever client is chosen. The research below found clients
