@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `docs/roadmap.md`: "Round 3 and the stop nudge (2026-10-09/10)". With `-NudgeOnStop`, qwen3.6 passed 11 of 12
+  work packages, against 7 of 12 in each plain round. That matches hosted Qwen3.7 Plus, at $0.
+  - Four of the passes depended on a nudge, including both runs that had lost their brief, which the re-sent
+    request rescued.
+  - No nudge harmed a run.
+  - `qwen3.5:9b` stays at 6 of 12; its limit is overflow crashes, which a nudge can't reach.
+  - `tests/results/real-tasks-public.tsv` gains round 3's 24 unassisted rows; the nudged runs are private by
+    design.
+- `docs/roadmap.md`: "Alternatives to OpenCode: researched 2026-10-10". 13 agent clients measured against what the
+  adapter and daily use need, with sources in `docs/references.md`. Shortlist: Qwen Code, then Goose, then
+  Hermes. A trial of Qwen Code is proposed, not decided.
+- `docs/roadmap.md`: "Replacing Ollama: llama.cpp or Unsloth, researched 2026-10-10".
+  - Unsloth Studio serves GGUFs through `llama-server`, so it's a layer, not an engine. It fits fine-tuning and its
+    quants.
+  - `llama-server` would turn Ollama's silent front-drop into an explicit error, place the MoE experts on the CPU
+    (`--n-cpu-moe`), report cache use exactly, and manage models itself. The cost is a new era and about 147
+    Ollama references across 25 files.
+  - Proposed, not decided: a side-by-side trial with Ollama kept in place.
+
 - Agent adapter boundary: everything OpenCode-specific in the task harness moved into one file,
   `tests/agents/opencode.ps1`. That covers starting and continuing `opencode run`, reading its JSONL transcript,
   `--version`, `debug config`, plugins and orphan cleanup.
