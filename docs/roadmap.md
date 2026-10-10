@@ -2115,9 +2115,20 @@ survey.
 `wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`). `wp-2b`, `wp-5b`, `wp-6f` and `wp-7a` never did.
 
 **Next:**
-- **Owner's decision:** a conditional "keep going". Send it only when a run ends on an announced next step, and
-  re-send the original request when the model asks for its task. Measure it in the harness first, as assisted
-  runs in the private repo, before changing the daily setup. It would build on `-NudgeAfterCompaction`.
+- ~~**Owner's decision:** a conditional "keep going".~~ Approved and built 2026-10-09 as `test-tasks.ps1
+  -NudgeOnStop` (`AGENTS.md` → `test-stop-nudge.ps1`). The trigger was measured on every graded run before
+  it was written:
+
+  | how the last step ended | passed | failed | nudged with |
+  |---|---|---|---|
+  | asked what the task is | 0 | 6 | a note plus the original prompt |
+  | announced a next step | 1 | 16 | "keep going, or confirm you're done" |
+  | empty (no text, no tool call) | 34 | 76 | the same |
+  | any other text | 176 | 101 | nothing |
+
+  Empty endings are mixed because `qwen3.5:9b` often ends a finished run silently, so the run JSON records which
+  kind each nudge was and they can be judged apart. The runs go to their own folder in the private repo, which
+  is marked `ASSISTED`. A rescue rate worth having comes before any change to the daily setup.
 - **The `limit.output` decision for qwen3.6** (`wp-7a`'s first run). One cap hit in 16 runs; the second run of
   `wp-7a` didn't hit it. Not urgent.
 - **Hosted gaps** wait for a Go budget.

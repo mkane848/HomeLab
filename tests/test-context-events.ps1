@@ -36,9 +36,11 @@ foreach ($name in "Get-ContextEvents", "Get-CompactionThreshold") {
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
-$marker = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$script:CompactionContinueText' }, $true)) | Select-Object -First 1
-if (-not $marker) { Write-Host "FAIL: `$script:CompactionContinueText not found in $ScriptPath"; exit 2 }
-Invoke-Expression $marker.Extent.Text
+foreach ($var in '$script:CompactionContinueText', '$script:AskedForTaskPattern') {
+    $assign = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $var }, $true)) | Select-Object -First 1
+    if (-not $assign) { Write-Host "FAIL: $var not found in $ScriptPath"; exit 2 }
+    Invoke-Expression $assign.Extent.Text
+}
 
 $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("ctx-events-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
 New-Item -ItemType Directory -Path $tmpRoot -Force | Out-Null

@@ -1,0 +1,1 @@
+Rows in this folder come from assisted runs (-NudgeAfterCompaction): the harness sent extra messages into the session. Don't compare them with unassisted rows as if the model ran alone.
