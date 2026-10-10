@@ -71,3 +71,32 @@ timestamp	taskId	model	opencodeVersion	engine	engineVersion	scope	suite	acceptan
 2026-10-07T08:35:22	wp-5a	opencode-go/glm-5.2	1.18.34	unknown		PASS	PASS	PASS	af38bd0f9f38	425.8
 2026-10-07T08:56:19	wp-6a	opencode-go/glm-5.2	1.18.34	unknown		PASS	PASS	PASS	45e700937e7d	318.1
 2026-10-07T09:22:10	wp-7a	opencode-go/glm-5.2	1.18.34	unknown		PASS	PASS	PASS	610ec87a2bc4	628.5
+2026-10-07T13:44:10	wp-9a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	83860d32f28e	425.6
+2026-10-07T13:51:08	wp-0a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	891885557328	405.3
+2026-10-07T13:59:08	wp-2b	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	fae0e72d5b4b	464.3
+2026-10-07T17:13:10	wp-3a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	5690e6049ae2	936.7
+2026-10-07T17:41:43	wp-3b	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	32e15c8510be	1694.9
+2026-10-07T17:59:25	wp-4a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	b24df2cfa2cb	1048.3
+2026-10-07T18:56:02	wp-1a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	cd48a502ed85	712.7
+2026-10-07T19:05:45	wp-6a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	45e700937e7d	570.4
+2026-10-07T19:44:53	wp-5a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	af38bd0f9f38	1143.4
+2026-10-07T19:49:45	wp-6f	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	6328de31fa98	275
+2026-10-07T20:52:03	wp-7a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	610ec87a2bc4	663.8
+2026-10-09T13:53:41	real-01	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	346.3
+2026-10-09T14:04:18	real-01c	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	7976ebded682	598
+2026-10-09T14:09:43	real-02	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	63dd09f74812	303.1
+2026-10-09T14:24:08	real-02c	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	63dd09f74812	839.4
+2026-10-09T14:29:32	real-03	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	b379cd63e2b2	303.9
+2026-10-09T14:37:27	real-03c	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	b379cd63e2b2	451.2
+2026-10-09T16:37:12	wp-2b	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	FAIL	PASS	FAIL	fae0e72d5b4b	664
+2026-10-09T17:08:59	wp-6a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	PASS	45e700937e7d	1895.4
+2026-10-09T17:24:10	wp-6f	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	6328de31fa98	893.8
+2026-10-09T18:01:27	wp-7a	ollama-desktop/qwen3.6:35b-a3b-coding	1.18.34	ollama	0.34.3	PASS	PASS	FAIL	610ec87a2bc4	2226.2
+2026-10-09T18:16:20	wp-9a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	83860d32f28e	279.7
+2026-10-09T18:18:17	wp-0a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	891885557328	101.6
+2026-10-09T18:28:35	wp-3a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	FAIL	FAIL	5690e6049ae2	500.3
+2026-10-09T19:35:13	wp-1a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	cd48a502ed85	843.1
+2026-10-09T19:39:50	wp-6a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	PASS	PASS	45e700937e7d	267.2
+2026-10-09T19:49:02	wp-5a	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	FAIL	FAIL	af38bd0f9f38	535.5
+2026-10-09T19:59:49	wp-6f	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	FAIL	FAIL	6328de31fa98	622.4
+2026-10-09T20:42:35	wp-5b	ollama-desktop/qwen3.5:9b	1.18.34	ollama	0.34.3	PASS	FAIL	FAIL	5581bfe9c3bf	2358.8
