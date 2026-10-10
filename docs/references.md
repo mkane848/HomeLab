@@ -78,6 +78,33 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | hermes-delegation | Hermes Agent docs, "Delegation" (read 2026-10-07) — `delegate_task` subagents on a delegation model/provider/`base_url` separate from the main session (one setting for every child); only a child's summary returns to the parent | <https://hermes-agent.nousresearch.com/docs/user-guide/features/delegation> |
 | hermes-cli | Hermes Agent docs, "CLI commands" (read 2026-10-07) — `-z`/`--oneshot`, `--format stream-json` (for `-q/--query` runs), `-w/--worktree`, `--toolsets`, `--ignore-user-config`, exit codes | <https://hermes-agent.nousresearch.com/docs/reference/cli-commands> |
 | hermes-faq | Hermes Agent docs, FAQ (read 2026-10-07) — 64,000-token context minimum; set the context length by hand for Ollama, whose `/api/show` reports the model's maximum | <https://hermes-agent.nousresearch.com/docs/reference/faq> |
+| hermes-quickstart | Hermes Agent docs, "Quickstart" (read 2026-10-10) — "VLLM, SGLang, Ollama, or any OpenAI-compatible API"; rejects models under 64,000 tokens of context at startup | <https://hermes-agent.nousresearch.com/docs/getting-started/quickstart> |
+| hermes-hooks | Hermes Agent docs, "Hooks" (read 2026-10-10) — no general stop-blocking hook; `pre_verify` can continue a run only after code edits | <https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks> |
+| qwen-code-repo | QwenLM, Qwen Code repository (read 2026-10-10) — Apache-2.0 CLI agent, a fork of Gemini CLI; PowerShell installer, Node 22+, MCP | <https://github.com/QwenLM/qwen-code> |
+| qwen-code-headless | Qwen Code docs, "Headless mode" (read 2026-10-10) — `-p`, `-o json\|stream-json` (`system`, `assistant` with `usage`, `result` with `stats`), `--resume <id>`, exit codes 53/55/130 | <https://qwenlm.github.io/qwen-code-docs/en/users/features/headless/> |
+| qwen-code-providers | Qwen Code docs, "Model providers" (read 2026-10-10) — `modelProviders.openai[]` with `baseUrl` (e.g. Ollama's `/v1`), per-model `contextWindowSize` and `max_tokens` | <https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/configuration/model-providers.md> |
+| qwen-code-hooks | Qwen Code docs, "Hooks" (read 2026-10-10) — `Stop` with `decision: "block"` + `reason` continues the agent, in `-p` mode too; input incl. `last_assistant_message`, `context_usage`; cap of 8 consecutive blocks; PowerShell hooks | <https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/features/hooks.md> |
+| qwen-code-settings | Qwen Code docs, "Settings" (read 2026-10-10) — `context.autoCompactThreshold`, `general.enableAutoUpdate`, approval modes | <https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/configuration/settings.md> |
+| goose-cli | Goose docs, "CLI commands" (read 2026-10-10) — `goose run -t/-i`, `--output-format json\|stream-json`, `--max-turns`, named sessions and `--resume` | <https://goose-docs.ai/docs/guides/goose-cli-commands> |
+| goose-config | Goose docs, "Config files" (read 2026-10-10) — `GOOSE_INPUT_LIMIT` (Ollama `num_ctx`), `GOOSE_MAX_TOKENS`, `GOOSE_AUTO_COMPACT_THRESHOLD`, `GOOSE_MODE` | <https://goose-docs.ai/docs/guides/config-files> |
+| goose-install | Goose docs, "Installation" (read 2026-10-10) — native Windows recommended for the CLI; pin a version at install with `GOOSE_VERSION` | <https://goose-docs.ai/docs/getting-started/installation> |
+| goose-hooks | Goose docs, "Hooks" (read 2026-10-10) — `Stop` with `decision: "block"` "forces the turn to keep going", capped by `GOOSE_STOP_HOOK_BLOCK_CAP`; hooks run via `sh -c` | <https://goose-docs.ai/docs/guides/context-engineering/hooks/> |
+| codex-cli-ref | OpenAI Codex docs, "CLI reference" (read 2026-10-10) — `codex exec --json`, `exec resume <id>`, `--oss --local-provider ollama`, read-only sandbox by default | <https://learn.chatgpt.com/docs/cli/reference> |
+| codex-hooks | OpenAI Codex docs, "Hooks" (read 2026-10-10) — `Stop` with `decision: "block"` + `reason` makes Codex continue; whether hooks fire under `exec` is not stated | <https://learn.chatgpt.com/docs/hooks> |
+| codex-config | OpenAI Codex docs, "Config reference" (read 2026-10-10) — `wire_api`: "`responses` is the only supported value"; `model_context_window`, `model_auto_compact_token_limit` | <https://learn.chatgpt.com/docs/config-file/config-reference> |
+| ollama-openai-compat | Ollama docs, "OpenAI compatibility" (read 2026-10-10) — `/v1/responses` since v0.13.3, stateless only | <https://docs.ollama.com/api/openai-compatibility> |
+| cline-cli-ref | Cline docs, "CLI reference" (read 2026-10-10) — `--json` events (`agent_event`, `run_result`), `--id` to resume, `--compaction agentic\|basic\|off` | <https://docs.cline.bot/cline-cli/cli-reference> |
+| cline-releases | Cline releases (read 2026-10-10) — CLI v3.0.70 (2026-10-08) removed options, so scripts passing them now fail | <https://github.com/cline/cline/releases> |
+| kilo-cli-ref | Kilo docs, "CLI reference" (read 2026-10-10) — an OpenCode fork: `kilo run --format json --dir -m --auto`, `-s/--session` | <https://kilo.ai/docs/code-with-ai/platforms/cli-reference> |
+| crush-repo | Charm, Crush repository (read 2026-10-10) — FSL-1.1-MIT licence; PowerShell and WSL | <https://github.com/charmbracelet/crush> |
+| crush-hooks | Crush docs, "Hooks" (read 2026-10-10) — `PreToolUse` only; no Stop event | <https://raw.githubusercontent.com/charmbracelet/crush/main/docs/hooks/README.md> |
+| aider-edit-formats | Aider docs, "Edit formats" (read 2026-10-10) — the model writes edits as text (whole, diff, udiff, architect) that Aider applies; not tool calls | <https://aider.chat/docs/more/edit-formats.html> |
+| gemini-cli-repo | Google, Gemini CLI repository (read 2026-10-10) — authentication by Google login, Gemini API key or Vertex AI only | <https://github.com/google-gemini/gemini-cli> |
+| continue-readme | Continue README (read 2026-10-10) — "no longer actively maintained and is read-only"; final 2.0.0 release | <https://raw.githubusercontent.com/continuedev/continue/main/README.md> |
+| openhands-cli-readme | OpenHands CLI README (read 2026-10-10) — "This project is no longer actively maintained" | <https://raw.githubusercontent.com/OpenHands/OpenHands-CLI/main/README.md> |
+| claude-code-headless | Claude Code docs, "Headless" (read 2026-10-10) — `-p`, `--output-format stream-json`, `--resume`, exit codes | <https://code.claude.com/docs/en/headless> |
+| claude-code-hooks | Claude Code docs, "Hooks" (read 2026-10-10) — a blocking `Stop` hook "sends Claude back to keep working"; PreCompact and PostCompact | <https://code.claude.com/docs/en/hooks> |
+| claude-code-llm-gateway | Claude Code docs, "LLM gateway" (read 2026-10-10) — routing Claude Code to non-Claude models through a gateway is not supported | <https://code.claude.com/docs/en/llm-gateway> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
@@ -88,7 +115,12 @@ Gotchas ("opencode upgrades itself…"), the addendum in
 `opencode-compaction` and `ollama-prompt` → `docs/roadmap.md` → "Context
 overflow" and `Get-ContextEvents` in `tests/test-tasks.ps1`; `ollama-claude-code`
 and `ollama-openclaw` → the same section's "Is this OpenCode, or the plan?"; `hermes-*` →
-`docs/roadmap.md` → "Hermes Agent: researched 2026-10-07, parked"
+`docs/roadmap.md` → "Hermes Agent: researched 2026-10-07, parked"; `qwen-code-*`, `goose-*`, `codex-*`,
+`cline-*`, `kilo-*`, `crush-*`, `aider-*`, `gemini-*`, `continue-*`, `openhands-*`, `claude-code-*`,
+`ollama-openai-compat`, `hermes-quickstart`, `hermes-hooks` (and `ollama-claude-code`, re-read 2026-10-10) →
+`docs/roadmap.md` → "Alternatives to OpenCode: researched 2026-10-10". The 2026-10-10 rows were read by three
+research agents in this repo's working session, from the docs as they stood that day. Clients this young change
+weekly, so re-read before acting on them
 (rendered docs pages, no commit to pin: re-read before acting on them). These are read at one
 commit: re-check them when opencode's major or minor version moves (Ollama's
 on any upgrade).

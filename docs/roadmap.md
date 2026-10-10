@@ -2145,8 +2145,156 @@ window/CLI", not necessarily OpenCode. Since then:
   `-NudgeOnStop` result is the first test: if it's worth having day to day, it belongs in whatever drives the
   chosen window, as a client-neutral wrapper that watches the last message. A larger OpenCode plugin is not the
   place.
-- **Picking that window is open.** Hermes Agent (below) is one candidate with a headless JSON mode. Picking one
-  also gives the adapter its second real client.
+- **Picking that window is open.** The candidates were researched on 2026-10-10 (below, "Alternatives to
+  OpenCode"). Picking one also gives the adapter its second real client.
+
+#### Round 3 and the stop nudge (2026-10-09/10)
+
+Two batches, both one run per task, on the same 15 tasks (12 work packages, 3 LFCbot), with a 45-minute limit:
+- **Round 3, plain.** It was meant to run with the nudge, but the main checkout didn't have `-NudgeOnStop` yet,
+  so it became a third unassisted round. Rows are in `tests/results/real-tasks-public.tsv`.
+- **The nudge batch,** `-NudgeOnStop`. Assisted runs, kept in the private repo only.
+
+| work packages | qwen3.6, round 1 (10-07) | qwen3.6, round 3 | **qwen3.6, nudged** | qwen3.5:9b, round 2 | qwen3.5:9b, nudged | Qwen3.7 Plus (hosted) |
+|---|---|---|---|---|---|---|
+| passed within 45 min | 7 of 12 | 7 of 12 | **11 of 12** | 6 of 12 | 6 of 12 | 11 of 12 |
+| ...within 15 min | 3 | 6 | 6 | 5 | 5 | 11 |
+| crashed (overflow) | 0 | 0 | 0 | 6 | 6 | 0 |
+| failed | 5 (1 timeout) | 5 | 1 (`wp-5b`, timeout) | 0 graded | 0 graded | 1 (`wp-5b`) |
+
+On the LFCbot tasks, in these two batches, every local run passed `real-01` and failed `real-02` (the incomplete
+survey, above). `real-03` passed except for the nudged `qwen3.5:9b` run.
+
+**What the nudge did.** It fired 11 times in 9 of the 24 graded runs. Whether each nudge rescued anything was
+read from the turn after it, by counting that turn's edits and test runs:
+
+| outcome | runs | detail |
+|---|---|---|
+| rescued | 4, all qwen3.6 | `wp-2b` and `wp-4a` asked what their task was in their first two steps (the brief lost to a front-drop); the re-sent request got the work done. `wp-3a` (two empty endings, tests still failing) and `wp-5a` (stopped right after "Let me add the test changes") carried on and passed. |
+| confirmed only | 4 | the work was done; the model answered "Done, all tests pass" in under 15 seconds |
+| no help | 1, `qwen3.5:9b` on `real-03` | it had made no edits before the nudge; after two it edited the wrong file, its known misreading |
+| harmed a run | 0 | no run that had finished went wrong after a nudge |
+
+The "announced a next step" trigger never fired in this batch. The empty-ending nudges rescued two runs, cost
+seconds on four finished ones and made no difference once, so that trigger stays.
+
+**What this shows:**
+- **The nudge took qwen3.6 from 7 of 12 to 11 of 12 on the work packages.** Four of the eleven passes depended
+  on a nudge. The other seven needed none, the same 7-in-12 as each plain round. That's the hosted Qwen3.7 Plus's
+  score, at $0, in about 4 hours against 49 minutes. Both missed the same task (`wp-5b`). It is one run per task,
+  so a second nudged round should confirm it before it counts.
+- **Losing the brief at the start is common, and re-sending it fixes it.** `wp-2b` had failed that way 3 times
+  out of 3. `wp-4a`, which passed both plain rounds, lost its brief this time. Both passed once the request was
+  re-sent. A large first read is enough to push the task out.
+- **Single plain runs mostly measure noise.** qwen3.6's per-task results flipped between rounds:
+  - `wp-1a` and `wp-3b` went from pass to fail;
+  - `wp-6f` passed on its third try;
+  - `wp-7a` passed for the first time in the nudged batch, without needing a nudge.
+
+  The round-level rate held at about 7 of 12.
+- **`qwen3.5:9b` is limited by overflow, not by stopping.** Half its work-package runs crashed on context
+  overflow ("No user query found in messages") in both rounds. A crash ends in an error, which the nudge can't
+  reach. Its passes are fast (2–17 min), so the fix to look for is in how the client fills the context.
+- **`wp-5b` is still open for every seat.** The nudged qwen3.6 run worked for 42 minutes through four compactions,
+  13 edits, and was still debugging when time ran out. One thing it found: the server tests load
+  `@asohav/shared` from its built `dist`, so edits to the shared source don't show until the package is rebuilt.
+  Several runs hit the same trap. Worth checking whether the brief, or the task's setup, should say so.
+
+**Next:**
+- Run a second nudged round of qwen3.6 on the same 15 tasks to confirm the 11 of 12.
+- If it holds, the nudge belongs in daily use, in whichever client is chosen. The research below found clients
+  whose own Stop hook does exactly this.
+- `qwen3.5:9b`: either retire it as an implementer, or test whether a client that compacts earlier stops the
+  overflow crashes.
+- `wp-5b`: check the build trap, then decide whether one run with a 60-minute limit is worth it.
+
+#### Alternatives to OpenCode: researched 2026-10-10
+
+Three research agents read the docs, READMEs and source of 13 agent clients on 2026-10-10. Nothing was installed
+or run. They measured each against what the adapter needs:
+- **adapter needs:** a headless run with a prompt, a folder and a model; continuing a session by id; a
+  machine-readable event stream with tool calls, text, per-step tokens, finish reasons and errors; meaningful
+  exit codes;
+- **daily-use needs:** a local Ollama or OpenAI-compatible endpoint with per-model limits, native Windows, a
+  **Stop hook that can make the agent keep going** (the nudge), control over compaction, approval modes, MCP,
+  licence, and version pinning.
+
+**Two gaps every candidate shares:**
+- None reports a per-step finish reason. The output-cap check (`outputCapHit`, cap hit vs liar mode) can't be
+  ported as it is.
+- None detects Ollama silently cutting the front of an overlong request. The harness's check of Ollama's own
+  server log stays necessary whichever client runs the task.
+
+**The shortlist:**
+
+| | adapter fit | daily use with local models | Stop hook that continues | main risks |
+|---|---|---|---|---|
+| **[Qwen Code][qwen-code-repo]** (Apache-2.0, 0.25.0) | Good. `-p`, `-o stream-json` with `usage` on each assistant message, `--resume <id>`, exit codes 53, 55 and 130 ([headless][qwen-code-headless]). | Best. Talks Chat Completions to Ollama's `/v1`, the same path OpenCode uses, with context and output limits per model ([providers][qwen-code-providers]). | Yes, and it runs in `-p` mode. `decision: "block"` plus `reason` sends the reason to the model. Its input carries `last_assistant_message` and `context_usage`. It can run in PowerShell ([hooks][qwen-code-hooks]). | No finish reason. No working-directory flag (it uses the process folder). The default approval mode lets a model approve actions, so set it explicitly. It updates itself unless `general.enableAutoUpdate` is off. Its compaction settings were reworked this year ([settings][qwen-code-settings]). |
+| **[Goose][goose-cli]** (Apache-2.0, 1.54.0, now under AAIF) | Fair. `goose run --output-format stream-json`, but tokens come only in the final event, there's no session id in the stream, and exit codes aren't documented. | Very good. A native Ollama provider whose input limit sets `num_ctx`; `GOOSE_AUTO_COMPACT_THRESHOLD`; native Windows ([config][goose-config], [install][goose-install]). | Yes: `Stop` with `decision: "block"` "forces the turn to keep going" ([hooks][goose-hooks]). | Hooks run through `sh -c`, which is undocumented on Windows. |
+| **[Hermes Agent][hermes-cli]** (MIT, 0.21.6) | Easiest. `stream-json` carries the session id, tool calls and results, and a final `result` whose `exit_code` is the process's own. | Weaker. A general assistant with a large preamble, and it won't start under 64k context, which rules out `qwen3:8b` ([quickstart][hermes-quickstart]). | No general one. `pre_verify` continues only after code edits ([hooks][hermes-hooks]). | Preamble size against a 64k window. |
+
+**Not shortlisted:**
+- **Codex CLI.** Best-specified events (`codex exec --json`, `exec resume`) and a Stop hook that continues
+  ([CLI][codex-cli-ref], [hooks][codex-hooks]). But it speaks only the Responses API ([config][codex-config]),
+  and Ollama's Responses layer is stateless ([Ollama][ollama-openai-compat]). Nobody has measured Qwen's tool
+  calling through it. Stable releases come about daily, and it's undocumented whether hooks fire under `exec`.
+- **Cline CLI.** Rich JSON and switchable compaction ([CLI][cline-cli-ref]), but a release removed options
+  scripts were passing, which now fail ([releases][cline-releases]). Windows support for the CLI isn't documented.
+- **Kilo CLI.** An OpenCode fork with the same `run --format json` flags ([CLI][kilo-cli-ref]). Nearly free to
+  adopt, but it doesn't move off OpenCode.
+- **Crush.** No Stop event, only `PreToolUse` ([hooks][crush-hooks]). `run` prints plain text, so the transcript
+  needs a second command. Licensed FSL-1.1, which is source-available, not open source ([repo][crush-repo]).
+- **Aider.** Not a tool-calling agent: the model writes edits as text and Aider applies them
+  ([edit formats][aider-edit-formats]). The harness's gates have nothing to read. (It could use the
+  `qwen2.5-coder` models that fail the tool probe.)
+- **Gemini CLI.** Only Google sign-in, a Gemini key or Vertex AI ([repo][gemini-cli-repo]). No local models.
+- **Continue CLI and OpenHands CLI.** Both no longer maintained ([Continue][continue-readme],
+  [OpenHands][openhands-cli-readme]).
+- **Claude Code.** The reference design: `-p --output-format stream-json`, `--resume`, and a Stop hook that
+  "sends Claude back to keep working" ([headless][claude-code-headless], [hooks][claude-code-hooks]). Ollama
+  documents pointing it at a local model ([Ollama][ollama-claude-code]). But Anthropic doesn't support routing it
+  to non-Claude models ([gateway][claude-code-llm-gateway]), and it's proprietary.
+
+**Recommendation (to deliberate, not decided):**
+- **Trial Qwen Code first.** Install a pinned version with auto-update off, and point it at local `qwen3.6`.
+  Then:
+  1. measure its fixed preamble with "Reply with exactly: OK";
+  2. check that tool calling works;
+  3. look at what its stream really carries, including whether a finish reason shows up in practice;
+  4. test its Stop hook continuing a headless run on Windows;
+  5. if those hold, write `tests/agents/qwen-code.ps1` and run the work packages as a new era.
+- **Goose is the fallback** if Qwen Code's events or hooks disappoint.
+- **Hermes stays parked.**
+- The trial needs a global npm install, so it waits for the owner's go-ahead. It costs no Go budget.
+
+[qwen-code-repo]: https://github.com/QwenLM/qwen-code
+[qwen-code-headless]: https://qwenlm.github.io/qwen-code-docs/en/users/features/headless/
+[qwen-code-providers]: https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/configuration/model-providers.md
+[qwen-code-hooks]: https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/features/hooks.md
+[qwen-code-settings]: https://raw.githubusercontent.com/QwenLM/qwen-code/main/docs/users/configuration/settings.md
+[goose-cli]: https://goose-docs.ai/docs/guides/goose-cli-commands
+[goose-config]: https://goose-docs.ai/docs/guides/config-files
+[goose-install]: https://goose-docs.ai/docs/getting-started/installation
+[goose-hooks]: https://goose-docs.ai/docs/guides/context-engineering/hooks/
+[hermes-quickstart]: https://hermes-agent.nousresearch.com/docs/getting-started/quickstart
+[hermes-hooks]: https://hermes-agent.nousresearch.com/docs/user-guide/features/hooks
+[codex-cli-ref]: https://learn.chatgpt.com/docs/cli/reference
+[codex-hooks]: https://learn.chatgpt.com/docs/hooks
+[codex-config]: https://learn.chatgpt.com/docs/config-file/config-reference
+[ollama-openai-compat]: https://docs.ollama.com/api/openai-compatibility
+[cline-cli-ref]: https://docs.cline.bot/cline-cli/cli-reference
+[cline-releases]: https://github.com/cline/cline/releases
+[kilo-cli-ref]: https://kilo.ai/docs/code-with-ai/platforms/cli-reference
+[crush-hooks]: https://raw.githubusercontent.com/charmbracelet/crush/main/docs/hooks/README.md
+[crush-repo]: https://github.com/charmbracelet/crush
+[aider-edit-formats]: https://aider.chat/docs/more/edit-formats.html
+[gemini-cli-repo]: https://github.com/google-gemini/gemini-cli
+[continue-readme]: https://raw.githubusercontent.com/continuedev/continue/main/README.md
+[openhands-cli-readme]: https://raw.githubusercontent.com/OpenHands/OpenHands-CLI/main/README.md
+[claude-code-headless]: https://code.claude.com/docs/en/headless
+[claude-code-hooks]: https://code.claude.com/docs/en/hooks
+[claude-code-llm-gateway]: https://code.claude.com/docs/en/llm-gateway
+[ollama-claude-code]: https://docs.ollama.com/integrations/claude-code
 
 #### Hermes Agent: researched 2026-10-07, parked
 
