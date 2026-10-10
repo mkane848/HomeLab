@@ -135,10 +135,19 @@ param(
     [double]$PlanReserveUsd = 0.5,
     # Where the OpenCode Go API key file is expected. Its existence is checked;
     # it is never read. Default ~/.config/opencode/.secrets/opencode-go-api-key.
-    [string]$GoKeyFile = ""
+    [string]$GoKeyFile = "",
+    # The agent that runs each task: tests/agents/<name>.ps1 is its adapter,
+    # shared with test-tasks.ps1 (forwarded to it). Today only opencode exists.
+    [string]$Agent = "opencode"
 )
 
 $scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
+$agentAdapter = Join-Path $scriptDir ("agents\{0}.ps1" -f $Agent)
+if (-not (Test-Path -LiteralPath $agentAdapter)) {
+    Write-Host "ERROR: no adapter for agent '$Agent' (expected $agentAdapter)." -ForegroundColor Red
+    exit 1
+}
+. $agentAdapter
 $manifestPath = if ($TaskManifest) { [System.IO.Path]::GetFullPath($TaskManifest) } else { Join-Path $scriptDir "tasks\manifest.json" }
 $testTasksPs1 = Join-Path $scriptDir "test-tasks.ps1"
 $toolcallsPs1 = Join-Path $scriptDir "test-toolcalls.ps1"
@@ -483,17 +492,10 @@ function Add-RegistrySeat {
 }
 
 function Get-RegisteredModelIds {
-    # Model ids the RESOLVED live opencode config knows. `opencode run` cannot
-    # drive anything else - it would exit non-zero and burn a run as _INFRA_.
-    # $null when `opencode debug config` fails, and then nothing is filtered.
-    try {
-        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
-    } catch { return $null }
-    $ids = @{}
-    foreach ($prov in $cfg.provider.PSObject.Properties) {
-        foreach ($mod in $prov.Value.models.PSObject.Properties) { $ids["$($prov.Name)/$($mod.Name)"] = $true }
-    }
-    return $ids
+    # Model ids the agent can drive (its adapter's Get-AgentModelIds). Anything
+    # else would exit non-zero and burn a run as _INFRA_. $null when the agent's
+    # config cannot be read, and then nothing is filtered.
+    return Get-AgentModelIds
 }
 
 function Get-AvailableModelSeats {
@@ -584,62 +586,27 @@ function New-RunList {
     return [pscustomobject]@{ Runs = $runs; Skipped = $skipped }
 }
 
-function Get-OpencodeVersion {
-    # `opencode --version`, trimmed - the string test-tasks.ps1 stamps into every
-    # run JSON as opencodeVersion. $null when opencode is missing or prints
-    # something that is not a version.
-    $prev = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $out = (& opencode --version 2>$null | Out-String).Trim()
-        if ($out -match '^\d+\.\d+\.\d+') { return $out }
-    } catch {
-        # fall through to $null
-    } finally {
-        $ErrorActionPreference = $prev
-    }
-    return $null
-}
-
-function Get-OpencodeVersionDrift {
-    # $null while opencode still reports $Expected, or when it cannot be asked
-    # (no claim is better than a false one); otherwise the message that stops the
-    # batch. A batch that straddles two versions cannot compare its own replicates.
+function Get-AgentVersionDrift {
+    # $null while the agent still reports $Expected (Get-AgentVersion), or when
+    # it cannot be asked (no claim is better than a false one); otherwise the
+    # message that stops the batch. A batch that straddles two versions cannot
+    # compare its own replicates.
     param([string]$Expected)
 
     if (-not $Expected) { return $null }
-    $now = Get-OpencodeVersion
+    $now = Get-AgentVersion
     if (-not $now -or $now -eq $Expected) { return $null }
-    return "opencode changed from $Expected to $now during the batch"
-}
-
-function Get-OpencodeConfig {
-    # The RESOLVED opencode config (`opencode debug config`) as an object, or $null.
-    try {
-        return ((& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop)
-    } catch { return $null }
-}
-
-function Test-OpencodeAutoupdatePinned {
-    # True when opencode will not upgrade itself: the global config sets
-    # autoupdate to false or "notify", or OPENCODE_DISABLE_AUTOUPDATE is "1" or
-    # "true" (opencode's own rule for boolean flags, case-insensitive). Unset
-    # means ON - patch releases install themselves when a TUI starts (never from
-    # `opencode run`), which is how the corpus went 1.18.31 -> .32 -> .33 in ten days.
-    param($Config, [string]$EnvValue = $env:OPENCODE_DISABLE_AUTOUPDATE)
-
-    if ($EnvValue -and @("true", "1") -contains $EnvValue.ToLower()) { return $true }
-    if ($null -ne $Config) {
-        $a = $Config.autoupdate
-        if ($a -is [bool] -and -not $a) { return $true }
-        if ($a -is [string] -and $a -eq "notify") { return $true }
-    }
-    return $false
+    return "$($script:AgentName) changed from $Expected to $now during the batch"
 }
 
 # --- hosted seats (OpenCode Go) and the spend cap -----------------------------
 # See the header. None of these functions calls a model: listing models, testing
 # that the key file exists and resolving the config are all free.
+# OpenCode Go is a provider reached through opencode: listing its models
+# (`opencode models opencode-go`) and reading its usage (`opencode db`) use
+# opencode's own CLI, outside the agent adapter on purpose. They belong to the
+# provider, not to the agent running a task; another agent would need its own
+# way to Go's endpoint, or another provider.
 
 function Test-HostedModelId {
     # A hosted seat: the OpenCode Go provider, billed per token, not host-scoped,
@@ -736,24 +703,20 @@ function Get-SpendCap {
 }
 
 function Get-TranscriptTokenUsage {
-    # Token totals over a transcript's step_finish events (part.tokens: input,
-    # output, reasoning, cache.read, cache.write), across every turn. The same
-    # sum test-tasks.ps1 records as a run JSON's `usage`; used here for a run
-    # that left no JSON, which may still have been billed.
+    # Token totals over a transcript's step ends that carry tokens (the agent
+    # adapter's Read-AgentEvents), across every turn. The same sum
+    # test-tasks.ps1 records as a run JSON's `usage`; used here for a run that
+    # left no JSON, which may still have been billed.
     param([string]$Path)
     $u = [ordered]@{ input = 0.0; output = 0.0; reasoning = 0.0; cacheRead = 0.0; cacheWrite = 0.0; steps = 0 }
-    if ($Path -and (Test-Path -LiteralPath $Path)) {
-        foreach ($line in [System.IO.File]::ReadLines($Path)) {
-            if ($line -notmatch '"step_finish"') { continue }
-            try { $e = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
-            $t = $e.part.tokens
-            if (-not $t) { continue }
-            $u.steps++
-            $u.input     += [double]$t.input
-            $u.output    += [double]$t.output
-            $u.reasoning += [double]$t.reasoning
-            if ($t.cache) { $u.cacheRead += [double]$t.cache.read; $u.cacheWrite += [double]$t.cache.write }
-        }
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -ne "step-end" -or -not $e.HasTokens) { continue }
+        $u.steps++
+        $u.input      += [double]$e.Input
+        $u.output     += [double]$e.Output
+        $u.reasoning  += [double]$e.Reasoning
+        $u.cacheRead  += [double]$e.CacheRead
+        $u.cacheWrite += [double]$e.CacheWrite
     }
     return [pscustomobject]$u
 }
@@ -803,12 +766,9 @@ function Get-ProviderRefusal {
     param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
     foreach ($f in (Get-NewRunFiles -ResultsDir $ResultsDir -Before $Before -TaskId $TaskId -ModelLabel $ModelLabel)) {
         if ($f.Extension -ne ".jsonl") { continue }
-        foreach ($line in [System.IO.File]::ReadLines($f.FullName)) {
-            if ($line -notmatch '"type"\s*:\s*"error"' -or $line -notmatch '402') { continue }
-            try { $e = $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
-            if ($e.type -ne "error" -or -not $e.error -or -not $e.error.data) { continue }
-            if ("$($e.error.data.statusCode)" -ne "402") { continue }
-            $msg = "$($e.error.data.message)".Trim()
+        foreach ($e in (Read-AgentEvents -Path $f.FullName)) {
+            if ($e.Kind -ne "error" -or "$($e.StatusCode)" -ne "402") { continue }
+            $msg = "$($e.Message)".Trim()
             return $(if ($msg) { $msg } else { "HTTP 402" })
         }
     }
@@ -1138,7 +1098,7 @@ Write-Host ""
 Write-Host "=== Select models ===" -ForegroundColor Cyan
 # Hosted seats (opencode-go): listed by opencode, key file present, config
 # resolves. Read once; Get-AvailableModelSeats and the filter below both use it.
-$hostedState = Get-HostedState -KeyFile $goKeyPath -ConfigOk ($null -ne (Get-OpencodeConfig))
+$hostedState = Get-HostedState -KeyFile $goKeyPath -ConfigOk ($null -ne (Get-AgentConfig))
 $goRates = Get-GoRates -Path $goRatesPath
 $available = @(Get-AvailableModelSeats)
 $availableLocal  = @($available | Where-Object { -not (Test-HostedModelId $_) })
@@ -1277,8 +1237,8 @@ $runList = $plan.Runs
 $skipped = $plan.Skipped
 $total = $runList.Count
 
-# One batch, one opencode version: read now, checked before every run.
-$batchOpencode = Get-OpencodeVersion
+# One batch, one agent version: read now, checked before every run.
+$batchAgentVersion = Get-AgentVersion
 
 Write-Host ""
 Write-Host "=== Plan ===" -ForegroundColor Cyan
@@ -1288,7 +1248,7 @@ Write-Host "  Reps:   $repCount each  ->  $total total run(s)"
 if ($repCount -gt 1) {
     Write-Host ("  Order:  {0}" -f $(if ($BackToBack) { "back-to-back (a cell's reps adjacent)" } else { "rep-outer (a cell's reps a full pass apart)" }))
 }
-Write-Host ("  opencode: {0}" -f $(if ($batchOpencode) { $batchOpencode } else { "unknown - a version change mid-batch cannot be detected" }))
+Write-Host ("  {0}: {1}" -f $script:AgentName, $(if ($batchAgentVersion) { $batchAgentVersion } else { "unknown - a version change mid-batch cannot be detected" }))
 if ($OnlyMissing) { Write-Host "  Skipped $skipped task x model pair(s) that already have a graded result" }
 Write-Host ""
 if ($total -eq 0) {
@@ -1402,7 +1362,7 @@ if ($hostedSelected.Count -gt 0) {
 # opencode installs patch releases by itself when a TUI starts, so opening
 # OpenCode on this machine mid-batch can swap the binary under it. Not a FAIL:
 # the drift check below stops the batch if it happens.
-if (Test-OpencodeAutoupdatePinned -Config (Get-OpencodeConfig)) {
+if (Test-AgentAutoupdatePinned -Config (Get-AgentConfig)) {
     Write-Host "  [PASS] opencode autoupdate is pinned" -ForegroundColor Green
 } else {
     Write-Host '  [WARN] opencode autoupdate is ON - starting the OpenCode TUI on this machine can upgrade the binary under a running batch.' -ForegroundColor Yellow
@@ -1441,7 +1401,7 @@ $planStopped = $null  # the message once a plan meter is (nearly) full
 $planSkipped = 0      # hosted runs skipped after it
 foreach ($run in $runList) {
     $runNum++
-    $drift = Get-OpencodeVersionDrift -Expected $batchOpencode
+    $drift = Get-AgentVersionDrift -Expected $batchAgentVersion
     if ($drift) {
         $stopped = "$drift, before run $runNum of $total; $($total - $runNum + 1) run(s) not started. A cell must not straddle versions: pin autoupdate, then re-run the rest on one version."
         break
@@ -1491,6 +1451,7 @@ foreach ($run in $runList) {
     if ($IncludeRetired) { $taskArgs['IncludeRetired'] = $true }
     if ($TaskManifest) { $taskArgs['TaskManifest'] = $manifestPath }
     if ($ResultsDir) { $taskArgs['ResultsDir'] = $taskResultsDir }
+    if ($Agent -ne "opencode") { $taskArgs['Agent'] = $Agent }
     if ($NudgeOnStop) { $taskArgs['NudgeOnStop'] = $true }
     if ($MaxStopNudges -gt 0) { $taskArgs['MaxStopNudges'] = $MaxStopNudges }
     # One run's uncaught exception must not end an unattended batch: on

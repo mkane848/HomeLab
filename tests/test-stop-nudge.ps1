@@ -40,7 +40,10 @@ if ($errs.Count) { $errs; exit 2 }
 $fn = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq "Get-StopKind" }, $true)) | Select-Object -First 1
 if (-not $fn) { Write-Host "FAIL: Get-StopKind not found in $ScriptPath"; exit 1 }
 Invoke-Expression $fn.Extent.Text
-foreach ($var in '$script:CompactionContinueText', '$script:AskedForTaskPattern', '$script:AnnouncedStepPattern', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
+# The OpenCode adapter: Read-AgentEvents, which Get-StopKind reads, and
+# $script:CompactionContinueText.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
+foreach ($var in '$script:AskedForTaskPattern', '$script:AnnouncedStepPattern', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
     $assign = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $var }, $true)) | Select-Object -First 1
     if (-not $assign) { Write-Host "FAIL: $var not found in $ScriptPath"; exit 1 }
     Invoke-Expression $assign.Extent.Text
@@ -96,6 +99,7 @@ try {
     $priv = Join-Path $tmp "priv"
     foreach ($d in @("$h/tests/tasks", "$h/bin", "$priv/hidden/fx", "$tmp/repo")) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $h "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $h "tests") -Recurse -Force
     # A public manifest, so the tests/results/ refusal is reached (a missing
     # manifest exits 1 earlier, for another reason).
     '{"tasks":[]}' | Set-Content -LiteralPath (Join-Path $h "tests/tasks/manifest.json")

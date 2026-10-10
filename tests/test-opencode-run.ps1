@@ -1,6 +1,7 @@
 # test-opencode-run.ps1 - regression guard for how test-tasks.ps1 runs opencode
 #
-# Why this exists: Invoke-OpencodeRun runs `opencode run` in a background job.
+# Why this exists: Invoke-AgentRun (tests/agents/opencode.ps1, the OpenCode
+# adapter) runs `opencode run` in a background job.
 # On 2026-10-02 the job's own PowerShell process died under the first run of a
 # 16-run batch ("The background process closed or ended abnormally",
 # PSSessionStateBroken). Receive-Job raised it, the script's "Stop" made it
@@ -8,8 +9,9 @@
 # Receive-Job not thrown, the empty result would have defaulted to exit -1,
 # which the caller reads as a TIMEOUT - the wrong kind of failure either way.
 #
-# What it does: pulls the REAL functions out of test-tasks.ps1 (so it tests the
-# script as written, not a copy) and drives Invoke-OpencodeRun against a
+# What it does: pulls the REAL functions out of test-tasks.ps1 and loads the
+# REAL adapter (so it tests the scripts as written, not a copy) and drives
+# Invoke-AgentRun against a
 # stand-in `opencode` first on PATH, in four modes:
 #   ok    - two events, one write tool call, exit 0  -> ExitCode 0, Writes 1
 #   exit3 - exit 3                                   -> ExitCode 3 (INFRA to the caller)
@@ -25,11 +27,13 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "Run-Native", "Get-TranscriptEnding", "Stop-OrphanOpencode", "Invoke-OpencodeRun") {
+foreach ($name in "Run-Native", "Get-TranscriptEnding", "Get-WriteCount") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
 }
+# The OpenCode adapter: Invoke-AgentRun, Stop-OrphanAgent, Read-AgentEvents.
+. (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
@@ -63,7 +67,7 @@ $env:PATH = "$bin;$savedPath"
 try {
     function Run([string]$mode, [int]$timeout = 60) {
         $env:OCR_TEST_MODE = $mode
-        $r = Invoke-OpencodeRun -WtPath $wt -ModelId "ollama-desktop/stand-in" -Prompt "p" -PromptHash "abc123" -TimeoutSec $timeout
+        $r = Invoke-AgentRun -WtPath $wt -ModelId "ollama-desktop/stand-in" -Prompt "p" -PromptHash "abc123" -TimeoutSec $timeout
         if ($r.TranscriptPath) { Remove-Item -LiteralPath $r.TranscriptPath -Force -ErrorAction SilentlyContinue }
         return $r
     }

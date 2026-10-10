@@ -189,6 +189,7 @@ try {
     $fx = Join-Path $tmpRoot "e2e"
     foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $fx $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $fx "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $fx "tests") -Recurse -Force
 
     $repo = Join-Path $fx "repo"
     git -C $repo init -q
