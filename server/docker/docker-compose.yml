@@ -8,16 +8,16 @@ services:
     # models can edit files, and the failure mode is an agent that reports work
     # it never did (docs/troubleshooting.md -> "Agent 'says' it edited a file").
     #
-    # 0.34.1 is the version every tool-calling result in the docs was measured
-    # against. Bumped from 0.34.0 on 2026-09-19 to match the desktop, which
-    # auto-updated; the probe was re-run there and reproduced every result
-    # including each failure's mode (tests/results/toolcalls-0.34.1.txt).
+    # 0.34.3 is the desktop's version, the one every result since 2026-09-22
+    # was measured on (0.34.1 before that; tests/results/toolcalls-0.34.1.txt).
+    # Bumped from 0.34.1 on 2026-10-10 so the server's results compare with the
+    # desktop's (docs/roadmap.md -> "Next up (2026-10-10): server first").
     #
     # This host has NEVER been probed - it has been down since before
     # tests/test-toolcalls.ps1 existed. Re-run it against this host BEFORE
     # trusting any seat here, on this version or any bump:
     #   .\tests\test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434
-    image: ollama/ollama:0.34.1
+    image: ollama/ollama:0.34.3
     container_name: ollama-server
     restart: unless-stopped
     ports:
@@ -33,12 +33,25 @@ services:
               capabilities: [gpu]
     environment:
       - OLLAMA_HOST=0.0.0.0
-      # RTX 4070 Ti Super (16GB): 7B Q4 ~4.7GB, 14B Q4 ~9GB, 16k KV comfortable.
-      # Context length is honored here (Linux/Docker) - raise via .env only if
-      # serving smaller models with lots of headroom.
+      # The desktop's measured setup (AGENTS.md; aligned 2026-10-10). Results
+      # from this host compare with the desktop's only while these match;
+      # tests/test-server-config.ps1 checks them. A server/docker/.env left
+      # over from before overrides these defaults: check it at bring-up.
+      # Global default context. Seats get their own num_ctx baked into the tag
+      # by server/scripts/bake-models.sh (models/server-seats.tsv), the same
+      # values and tag names as the desktop.
       - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-16384}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      # Flash attention + 8-bit KV cache, as on the desktop.
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-q8_0}
+      # One request at a time per model: Ollama gives each parallel request its
+      # own KV slot, and four 64k slots of the 35B main seat do not fit 16 GB.
+      # The harness runs one attempt per host anyway.
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
       - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      # 4h, as on the desktop: with Ollama's 5 min default a model idle between
+      # turns unloads, and the next reply pays a reload plus a full re-prefill.
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-4h}
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s

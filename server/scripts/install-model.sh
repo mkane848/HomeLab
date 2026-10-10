@@ -78,11 +78,18 @@ ollama_pull() {
     if [[ -n "$CTX" ]]; then
         local derived="${tag}-${CTX}k"
         echo "[install-model] Creating derived model $derived (num_ctx $CTX)..."
-        ollama_exec create "$derived" <<EOF >/dev/null
-FROM $tag
-PARAMETER num_ctx $CTX
-EOF
+        # The Modelfile goes in on stdin, so `docker exec -i`, and `ollama
+        # create` reads it from a file inside the container. This used to pass
+        # a heredoc to `docker exec` without -i, which never reached the
+        # container (found 2026-10-10, before the script had ever run).
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            echo "[install-model] (dry-run) docker exec -i $CONTAINER ollama create $derived (FROM $tag, num_ctx $CTX)"
+        else
+            printf 'FROM %s\nPARAMETER num_ctx %s\n' "$tag" "$CTX" |
+                docker exec -i "$CONTAINER" sh -c 'cat > /tmp/Modelfile.ctx && ollama create "$1" -f /tmp/Modelfile.ctx && rm -f /tmp/Modelfile.ctx' _ "$derived" >/dev/null
+        fi
         echo "[install-model] ok: $derived serves $tag at $CTX context."
+        echo "[install-model] note: the desktop bakes into the tag itself; for a seat both hosts serve, use bake-models.sh instead."
     fi
 }
 

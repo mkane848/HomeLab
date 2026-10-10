@@ -1,0 +1,28 @@
+# models/server-seats.tsv - what the server serves, read by server/scripts/bake-models.sh.
+#
+# The server's Ollama must match the desktop's measured setup before any of its
+# results can be compared (docs/roadmap.md -> "Next up (2026-10-10): server
+# first", step 2). For each seat this file pins:
+#   num_ctx   baked into the tag itself, the same value and the same tag name as
+#             the desktop (desktop/scripts/startup.ps1 $contextModels) - not
+#             install-model.sh's <tag>-Nk names, so one run-tasks-models.tsv row
+#             covers both hosts. opencode/global/opencode.jsonc's ollama-server
+#             limit.context must equal it (tests/test-server-config.ps1).
+#   num_gpu   only for derived CPU models (0 = no VRAM).
+#   from      the base tag a derived model is built from ("-" for a pulled tag).
+#   weights   sha256 of the desktop copy's weights blob (/api/show FROM line, read
+#             2026-10-10). bake-models.sh compares the server copy against it: a
+#             different blob is a different model, so its results are a new era.
+#   source    pull (ollama pull the tag), import (the desktop copy is a local GGUF
+#             import - copy that GGUF over, or pull and accept new weights),
+#             derived (built by bake-models.sh from `from`).
+# Columns are tab-separated.
+tag	num_ctx	num_gpu	from	weights	source	note
+qwen3.6:35b-a3b-coding	65536	-	-	sha256:d372de8e934898a59e6ccfabc3368474711384d8f1fd4d22d87a3f0a45400cdc	pull	main executor; desktop 11 of 12 work packages with the stop nudge (2026-10-10)
+qwen3:8b	32768	-	-	sha256:a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f	pull	light general seat
+qwen3:14b	32768	-	-	sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e	pull	former main seat; control runs
+qwen3.5:9b	65536	-	-	sha256:096a84703a334662086e4b46b6a4dd896bad10a46f67cd84a53cfe1420b24717	import	fast executor (Q8_0); half its work-package runs crash on overflow
+qwen3-coder:30b-a3b	65536	-	-	sha256:79ad15a5ee3caddc3f4ff0db33a14454a5a3eb503d7fa1c1e35feafc579de486	import	review-gate auditor seat
+qwen2.5-coder:3b	16384	-	-	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	pull	base of the CPU small model
+qwen2.5-coder-3b-cpu	16384	0	qwen2.5-coder:3b	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	derived	OpenCode small model (titles) on the CPU, so it never evicts the main seat
+nomic-embed-text:latest	-	-	-	sha256:970aa74c0a90ef7482477cf803618e776e173c007bf957f635f1015bfcfef0e6	pull	embeddings; served at its own context, no bake

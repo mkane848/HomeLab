@@ -461,7 +461,7 @@ $profileIntents = @{
     # the CPU-pinned 3b that startup.ps1 derives, so titles do not evict it.
     "dev-workflow-quality"  = New-Intent -Purpose "qwen3.6 drives in-thread at 64k with a CPU companion, /plan on demand" -Main "ollama-desktop/qwen3.6:35b-a3b-coding" -Role "general" -Small "ollama-desktop/qwen2.5-coder-3b-cpu" -Desktop $true
     "dev-workflow-resident" = New-Intent -Purpose "qwen3:8b drives, 7b coder resident as a no-tools code/review model (no coder subagent since 2026-09-17)" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
-    "dev-workflow-server"   = New-Intent -Purpose "qwen3:8b drives from the server, desktop planner" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Desktop $true
+    "dev-workflow-server"   = New-Intent -Purpose "qwen3.6 drives from the server at 64k, CPU small model there, desktop GPU free" -Main "ollama-server/qwen3.6:35b-a3b-coding" -Role "general" -Small "ollama-server/qwen2.5-coder-3b-cpu" -Server $true
     "dev-desktop-only"      = New-Intent -Purpose "standalone desktop console, no LAN deps" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
     "dev-local-only"        = New-Intent -Purpose "zero-cloud local stack: desktop main seat + server autocomplete" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Desktop $true
     "dev-server-all"        = New-Intent -Purpose "everything heavy on the server, desktop idle" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
