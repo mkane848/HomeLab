@@ -2296,6 +2296,80 @@ or run. They measured each against what the adapter needs:
 [claude-code-llm-gateway]: https://code.claude.com/docs/en/llm-gateway
 [ollama-claude-code]: https://docs.ollama.com/integrations/claude-code
 
+#### Replacing Ollama: llama.cpp or Unsloth, researched 2026-10-10
+
+The owner plans to replace Ollama eventually (2026-10-03). This is a desk study of the two options raised; nothing
+was installed or run.
+
+**Unsloth is a layer on llama.cpp, not a separate engine.**
+- [Unsloth Studio][unsloth-studio] is a local app for fine-tuning, chat, data and export.
+- Its API serves GGUF models through `llama-server` ([API docs][unsloth-api]). One port carries OpenAI
+  `/v1/chat/completions` and Anthropic `/v1/messages`, with tool calling and `sk-unsloth-` API keys.
+- `unsloth run` passes context size, sampling and reasoning flags through to `llama-server`. KV-cache settings
+  aren't mentioned, and whether it runs without its UI isn't documented.
+- Licence: the core package is Apache-2.0, the Studio UI AGPL-3.0 ([README][unsloth-readme]).
+- On Windows the llama.cpp backend can be set to Vulkan at install (`UNSLOTH_LLAMA_CPP_BACKEND="vulkan"`). The
+  README also claims training on AMD GPUs across Windows, WSL and Linux, which is unmeasured here.
+
+As the benchmark's engine it would add noise. With no sampling flags it picks "recommended" settings itself, and
+its server-side tools (Python, web search, terminal) are on by default on localhost. Where it fits instead:
+- fine-tuning, the roadmap's node3 plan, now possibly on this desktop too;
+- its GGUF quants, which run on any engine;
+- possibly a chat window.
+
+**llama.cpp directly (`llama-server`) is the realistic replacement** ([server README][llama-cpp-server]; official
+Windows Vulkan builds with each release, `b11541` on 2026-10-10, [releases][llama-cpp-releases]). Against today's
+setup:
+- **Overflow becomes an error instead of a silent loss.** Context shift is off by default, and llama.cpp's own test
+  checks that an oversized prompt gets a non-200 reply containing "exceeds the available context size"
+  ([test][llama-cpp-ctx-shift-test]). Ollama's silent front-drop is behind the lost briefs and `qwen3.5:9b`'s
+  crashes (above). How a client reacts to the error, by compacting or by failing the run, is untested.
+- **MoE placement.** `--n-cpu-moe N` / `--cpu-moe` keep only the expert weights on the CPU. That's the usual way
+  to run a 35B-A3B model on a 16 GB card, finer than Ollama's layer split of qwen3.6 (12.5 GB on the GPU, the
+  rest in RAM). Unmeasured on this card.
+- **Exact cache accounting.** Every chat response carries `timings` (`cache_n`, `prompt_n`, `predicted_n`) and
+  `usage.prompt_tokens_details.cached_tokens`. The front-drop heuristics would become measurement.
+- **Model management built in.** Router mode loads models from `--models-dir` or a per-model `--models-preset`
+  INI file. It has `POST /models/load` / `unload`, auto-load and `--sleep-idle-seconds`. That replaces the
+  `num_ctx` bakes and keep-alive. [llama-swap][llama-swap] (MIT, Windows binaries) is the established alternative.
+- **More clients.** `/v1/responses` (converted to chat completions) and Anthropic `/v1/messages` are served too.
+  That matters for Codex CLI and Claude Code in the client research (above).
+- **Same backend.** Vulkan on this card, as now. ROCm still doesn't support gfx1030 on Windows.
+
+**What it would cost:**
+- **A new era.** Tool calling depends on each model's chat template, so every seat is re-probed and every
+  context and VRAM figure re-measured.
+- **About 147 Ollama-specific references across 25 files:**
+  - `startup.ps1`'s bakes and `models.ps1`;
+  - the profiles' `OLLAMA_*` URLs and the `opencode.jsonc` providers;
+  - `test-toolcalls.ps1` (`/api/chat`);
+  - the harness's `/api/tags`, `/api/show` and `/api/version` checks and its `server.log` truncation scan;
+  - `test-profiles.ps1`;
+  - the server's Docker setup.
+- **The adapter pattern applies.** An engine adapter (`tests/engines/<name>.ps1`) like `tests/agents/`. Run JSONs
+  already record `servingEngine` generically.
+- **Ollama conveniences go:** `ollama pull` names, its templates, and the CPU-only companion model (`-ngl 0` in a
+  preset).
+
+**Recommendation (to deliberate, not decided):** a side-by-side trial, with Ollama kept in place.
+1. Download a pinned Windows Vulkan release.
+2. Load the same qwen3.6 GGUF.
+3. Compare prefill and generation at 64k with `--n-cpu-moe` against Ollama's split.
+4. Probe tool calling on the main seats.
+5. If it wins on speed or reliability, run a few work packages through OpenCode pointed at `llama-server` as a
+   trial era.
+6. Build the engine adapter only then.
+
+The trial needs a download, so it waits for the owner's go-ahead.
+
+[unsloth-studio]: https://www.unsloth.ai/docs/new
+[unsloth-api]: https://unsloth.ai/docs/basics/api
+[unsloth-readme]: https://raw.githubusercontent.com/unslothai/unsloth/main/README.md
+[llama-cpp-server]: https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md
+[llama-cpp-releases]: https://github.com/ggml-org/llama.cpp/releases
+[llama-cpp-ctx-shift-test]: https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/tests/unit/test_ctx_shift.py
+[llama-swap]: https://github.com/mostlygeek/llama-swap
+
 #### Hermes Agent: researched 2026-10-07, parked
 
 [Hermes Agent][hermes-agent] (Nous Research, MIT) is an open-source agent with a CLI/TUI, messaging front ends and

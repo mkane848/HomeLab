@@ -105,6 +105,13 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight").
 | claude-code-headless | Claude Code docs, "Headless" (read 2026-10-10) — `-p`, `--output-format stream-json`, `--resume`, exit codes | <https://code.claude.com/docs/en/headless> |
 | claude-code-hooks | Claude Code docs, "Hooks" (read 2026-10-10) — a blocking `Stop` hook "sends Claude back to keep working"; PreCompact and PostCompact | <https://code.claude.com/docs/en/hooks> |
 | claude-code-llm-gateway | Claude Code docs, "LLM gateway" (read 2026-10-10) — routing Claude Code to non-Claude models through a gateway is not supported | <https://code.claude.com/docs/en/llm-gateway> |
+| llama-cpp-server | llama.cpp `tools/server/README.md` on `master` (read 2026-10-10) — `llama-server` endpoints (`/v1/chat/completions`, `/v1/responses`, `/v1/messages`), `--context-shift` (default disabled), `--n-cpu-moe`, `timings`/`usage` fields, router mode (`--models-dir`, `--models-preset`, `/models/load`) | <https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/README.md> |
+| llama-cpp-ctx-shift-test | llama.cpp `tools/server/tests/unit/test_ctx_shift.py` on `master` (read 2026-10-10) — with context shift disabled, an oversized prompt gets a non-200 reply containing "exceeds the available context size" | <https://raw.githubusercontent.com/ggml-org/llama.cpp/master/tools/server/tests/unit/test_ctx_shift.py> |
+| llama-cpp-releases | llama.cpp releases (read 2026-10-10) — `b11541` (10 October) ships `llama-b11541-bin-win-vulkan-x64.zip` | <https://github.com/ggml-org/llama.cpp/releases> |
+| llama-swap | llama-swap repository (read 2026-10-10) — MIT, one Go binary; swaps upstream servers per model (`cmd`, `ttl`); OpenAI and Anthropic endpoints; Windows binaries | <https://github.com/mostlygeek/llama-swap> |
+| unsloth-studio | Unsloth docs, "Introducing Unsloth Studio" (read 2026-10-10) — local app to run and train models: fine-tuning, chat with LLMs and GGUFs, Data Recipes, export | <https://www.unsloth.ai/docs/new> |
+| unsloth-api | Unsloth docs, "How to use Unsloth as an API endpoint" (read 2026-10-10) — GGUFs served through `llama-server`; `/v1/chat/completions` and `/v1/messages` on one port; API keys; `unsloth run` passes `-c` and sampling flags | <https://unsloth.ai/docs/basics/api> |
+| unsloth-readme | Unsloth README (read 2026-10-10) — Apache-2.0 core, AGPL-3.0 Studio UI; `UNSLOTH_LLAMA_CPP_BACKEND="vulkan"` at install; claims training on AMD GPUs across Windows, WSL and Linux | <https://raw.githubusercontent.com/unslothai/unsloth/main/README.md> |
 
 Where used: `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
@@ -118,7 +125,8 @@ and `ollama-openclaw` → the same section's "Is this OpenCode, or the plan?"; `
 `docs/roadmap.md` → "Hermes Agent: researched 2026-10-07, parked"; `qwen-code-*`, `goose-*`, `codex-*`,
 `cline-*`, `kilo-*`, `crush-*`, `aider-*`, `gemini-*`, `continue-*`, `openhands-*`, `claude-code-*`,
 `ollama-openai-compat`, `hermes-quickstart`, `hermes-hooks` (and `ollama-claude-code`, re-read 2026-10-10) →
-`docs/roadmap.md` → "Alternatives to OpenCode: researched 2026-10-10". The 2026-10-10 rows were read by three
+`docs/roadmap.md` → "Alternatives to OpenCode: researched 2026-10-10"; `llama-cpp-*`, `llama-swap`, `unsloth-*` →
+`docs/roadmap.md` → "Replacing Ollama: llama.cpp or Unsloth, researched 2026-10-10". The 2026-10-10 rows were read by three
 research agents in this repo's working session, from the docs as they stood that day. Clients this young change
 weekly, so re-read before acting on them
 (rendered docs pages, no commit to pin: re-read before acting on them). These are read at one
