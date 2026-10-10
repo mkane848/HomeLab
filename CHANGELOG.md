@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `docs/roadmap.md`: a new "Next up (2026-10-10): server first". The owner made getting the server back the top
+  priority and the place things run from; the Qwen Code trial is declined. The list, in order:
+  1. POST;
+  2. day-one bring-up, including aligning the server's Ollama with the desktop's measured setup (it differs in
+     version, flash attention, KV cache, context, parallel slots and keep-alive), the OpenCode provider, the first
+     tool-call probe and the profile;
+  3. measuring `qwen3.6` on the server with a nudged round of the 15 real tasks;
+  4. a llama.cpp CUDA trial there;
+  5. the harness ported to Linux so batches run on the server;
+  6. real use the owner drives.
+
+  The 2026-09-23 list is kept, marked superseded. `docs/target-setup.md` gets a status note.
+- The replication of the nudge's rescues (`wp-2b`, `wp-5a`, `wp-1a`), which missed #107's merge, is carried here.
+
 - `docs/roadmap.md`: "Round 3 and the stop nudge (2026-10-09/10)". With `-NudgeOnStop`, qwen3.6 passed 11 of 12
   work packages, against 7 of 12 in each plain round. That matches hosted Qwen3.7 Plus, at $0.
   - Four of the passes depended on a nudge, including both runs that had lost their brief, which the re-sent
