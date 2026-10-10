@@ -87,8 +87,8 @@ Over every run, including the harder work packages and runs that weren't graded:
 - **What the plan buys.** At Qwen3.7 Plus's $0.10 per pass, this month's estimated $22.30 limit covers roughly
   200 passing tasks of this size, at most about half of them in any one week.
 - **The local seats cost no API money.** Their electricity isn't recorded yet (below). On the LFCbot tasks
-  qwen3.6 passed 7 of 13 runs and qwen3.5:9b 3 of 10. On the 12 work packages (2026-10-07) qwen3.6 passed 7,
-  with a 45-minute limit; Qwen3.7 Plus passed 11 for $1.17. Running qwen3.6 first and handing Qwen3.7 Plus only
+  qwen3.6 passed 9 of 16 runs and qwen3.5:9b 3 of 10. On the 12 work packages, with a 45-minute limit,
+  qwen3.6 passed 7 (2026-10-07) and qwen3.5:9b 4 (2026-10-09); Qwen3.7 Plus passed 11 for $1.17. Running qwen3.6 first and handing Qwen3.7 Plus only
   its failures would also end at 11, for $0.63, but in about 3½ hours instead of 49 minutes (`docs/roadmap.md`
   → "Local qwen3.6 on the work packages").
 - **DeepSeek is overestimated.** Our own estimate, from `costs/go-rates.tsv` at the peak rate, comes to $1.49 for

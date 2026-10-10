@@ -1937,14 +1937,15 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
 | GLM-5.2 | 3/3 | 9/9 | 2 timed out, 1 refused |
 | Qwen3.8 Max | 3/3 | 6/6 | 1 refused mid-run, 5 not run |
 | Kimi K2.7 Code | 3/3 | — | 12 refused at the plan limit |
-| *qwen3.6 (local)* | *7/13 (four batches)* | *7/11 (45-min limit)* | *1 timed out at 45 min* |
-| *qwen3.5:9b (local)* | *3/10* | *not run* | |
+| *qwen3.6 (local)* | *9/16 (five batches)* | *7/11 (45-min limit)* | *1 timed out at 45 min* |
+| *qwen3.5:9b (local)* | *3/10* | *4/8 (45-min limit)* | *4 crashed (context overflow)* |
 
 - **47 of 49 graded hosted runs passed.** The batches stopped when the Go plan's weekly limit was reached
   (`docs/costs.md` → "Usage limits as observed"). Hosted cells are one run each, so these are signals, not
   standings.
-- **qwen3.6 ran the work packages on 2026-10-07, with a 45-minute limit** (below, "Local qwen3.6 on the work
-  packages"). `qwen3.5:9b` hasn't run them yet.
+- **The local seats ran the work packages with a 45-minute limit,** qwen3.6 on 2026-10-07 and `qwen3.5:9b` on
+  2026-10-09 (below, "Local qwen3.6 on the work packages" and its follow-up). The qwen3.6 cell is the first
+  round; a second run of its failures is in the follow-up.
 
 **What the failures show** (transcripts in the private repo):
 - **No hosted run compacted.** Go serves these models with up to 1M tokens of context. The biggest request was
@@ -1971,8 +1972,7 @@ Rows are in `tests/results/real-tasks-public.tsv`; what they cost is in `docs/co
   gap (TODO below).
 
 **Next:**
-- ~~Run the local seats on the 12 work packages.~~ qwen3.6 done 2026-10-07 (below); `qwen3.5:9b` still to
-  run.
+- ~~Run the local seats on the 12 work packages.~~ qwen3.6 done 2026-10-07, `qwen3.5:9b` 2026-10-09 (below).
 - Fill the hosted gaps (Kimi 12, DeepSeek 5, Qwen3.8 Max 6, GLM 3) when the plan's limits allow. The batch now
   checks the plan-wide meters first.
 
@@ -2019,7 +2019,8 @@ ends the same under either. From the second batch on, the run JSONs record the l
   pays for re-reading the whole context. That costs time, not the task. Before the compaction plugin
   (2026-10-05), losing the task after compacting was the main local failure (above, "Context overflow"). On
   these runs it never happened. Four runs aren't proof, but it's the first evidence that the plugin carries the
-  task through.
+  task through. (Found 2026-10-09: `wp-3b` lost its brief to a front-drop *before* its first compaction, asked
+  what to do, and got the task back from the compaction summary. More in the follow-up below.)
 - **The three passes under 15 minutes never compacted** (`wp-9a`, `wp-0a`, `wp-1a`, 7–12 min). On the seven
   tasks both passed, qwen3.6 took 3–10 times as long as Qwen3.7 Plus (median 5×).
 - **Five failures, four different ways:**
@@ -2052,6 +2053,74 @@ local work that matters most is now stopping early, not losing the task. Next:
 - `qwen3.5:9b` on the same 12;
 - a decision on raising qwen3.6's `limit.output` above 8,192 (`wp-7a`). That would start a new era for its rows,
   so it waits until these runs are in.
+
+All four ran on 2026-10-09 except the `limit.output` decision (next section).
+
+#### Follow-up runs (2026-10-09)
+
+**"Check your work" didn't change the outcome.** The three LFCbot tasks ran once with and once without a fixed
+second turn asking the model to re-read the request, compare it with its changes and fix what's missing
+(`real-01c`–`03c`). qwen3.6 passed `real-01` and `real-03` both ways and failed `real-02` both ways. The
+follow-up added 2–9 minutes a task. On `real-02` it changed the failure without fixing it: alone, the model
+called the document "already up to date and clean" and changed nothing; asked to check, it made two small fixes
+and still missed the newer modules the hidden tests look for. A generic check doesn't make up for an incomplete
+survey.
+
+**qwen3.6's four non-timeout failures, run again:**
+
+| task | run 1 (2026-10-07) | run 2 (2026-10-09) |
+|---|---|---|
+| `wp-6a` | stopped after two edits | **passed** (32 min, one compaction) |
+| `wp-6f` | stopped after reading | stopped after "Now I have everything. Let me implement all changes:" and one edit |
+| `wp-7a` | output cap | ran the tests, wrote out exactly what to fix, and stopped (37 min) |
+| `wp-2b` | lost its brief | lost its brief the same way |
+
+- **`wp-6a` was variance.** Over both rounds qwen3.6 has 8 passes in 16 work-package runs.
+- **Stopping with work undone is the pattern.** Four of qwen3.6's eight work-package failures end that way
+  (`wp-6a` once, `wp-6f` twice, `wp-7a`'s second run), and in the two latest the model had just said what it
+  would do next. A fixed "check your work" turn isn't the answer; something that notices the stop and says "keep
+  going" might be. The compaction plugin
+  already does that, but only after a compaction and never under `opencode run`.
+- **`wp-2b` is deterministic.** Both runs read the same three files in one step (~159k characters), overflowed
+  64k, and asked "You've shared two files but haven't specified a task" (`qwen3.5:9b` crashed on the same
+  read). The harness flagged the first run's drop and missed the second: Ollama still had the first run's
+  identical prompt cached, which looked like a cache hit. Run JSONs now also record `askedForTask`, the model's
+  own question (`AGENTS.md` → `test-context-events.ps1`).
+- **A compaction can give a lost task back.** `wp-3b` (2026-10-07) lost its brief the same way, but its request
+  was then over the compaction threshold (57,344). opencode compacted, building the summary from its own history
+  (tool outputs pruned, so the request fit), which still had the brief; the run carried on and passed. `wp-2b`'s request stayed under the
+  threshold, so nothing rescued it. Re-sending the original request when the model asks for its task would do
+  on purpose what the compaction did by luck.
+
+**`qwen3.5:9b` on the 12 work packages:**
+
+| | qwen3.5:9b | qwen3.6 (first round) |
+|---|---|---|
+| passed within 15 min | 4 of 12 | 3 of 12 |
+| passed within 45 min | 4 of 12 | 7 of 12 |
+| time per pass | 2–14 min | 7–28 min |
+| crashed (context overflow) | 4 | 0 |
+
+- **Fast when it works.** All four passes (`wp-9a`, `wp-0a`, `wp-1a`, `wp-6a`) finished within 15 minutes;
+  `wp-0a` took under 2. It passed `wp-6a` in 4.5 minutes, the task qwen3.6 failed once.
+- **A third of the set crashed.** `wp-2b`, `wp-3b`, `wp-4a` and `wp-7a` each ended in "No user query found in
+  messages", the template's answer to a front-drop (above, "Context overflow"). Those runs have no row, and they
+  count against it.
+- **Its graded failures left the code broken.** In all four (`wp-3a`, `wp-5a`, `wp-6f`, `wp-5b`) the suite was
+  red: test files that no longer loaded, or hidden tests failing. In three it stopped without a closing message,
+  soon after a failed edit or a test or typecheck run; `wp-5b` worked 39 minutes through five compactions and stopped mid-debugging with
+  three hidden tests failing.
+
+**Across both local seats,** 8 of the 12 work packages passed at least once (`wp-9a`, `wp-0a`, `wp-1a`, `wp-3a`,
+`wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`). `wp-2b`, `wp-5b`, `wp-6f` and `wp-7a` never did.
+
+**Next:**
+- **Owner's decision:** a conditional "keep going". Send it only when a run ends on an announced next step, and
+  re-send the original request when the model asks for its task. Measure it in the harness first, as assisted
+  runs in the private repo, before changing the daily setup. It would build on `-NudgeAfterCompaction`.
+- **The `limit.output` decision for qwen3.6** (`wp-7a`'s first run). One cap hit in 16 runs; the second run of
+  `wp-7a` didn't hit it. Not urgent.
+- **Hosted gaps** wait for a Go budget.
 
 #### Hermes Agent: researched 2026-10-07, parked
 

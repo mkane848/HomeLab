@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `docs/roadmap.md`: "Follow-up runs (2026-10-09)". "Check your work" didn't change any outcome. qwen3.6's
+  rerun passed `wp-6a` and failed the other three again, so stopping with work undone is a pattern, not a
+  one-off. `wp-2b` loses its brief every time, while `wp-3b` got its brief back from a compaction. `qwen3.5:9b`
+  passed 4 of 12 work packages, all within 15 minutes, and crashed on 4. `tests/results/real-tasks-public.tsv`
+  gains the 29 local rows of 2026-10-07/09. `docs/costs.md` updated to match.
 - `test-tasks.ps1`: every run JSON's `contextEvents` records `askedForTask`, each time the model's own text asks
   what its task is ("You've shared two files but haven't specified a task"), with a WARN. It isn't graded. The
   token test for a front-drop missed `wp-2b`'s rerun (2026-10-09): Ollama still had the first run's identical
