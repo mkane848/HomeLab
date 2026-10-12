@@ -37,6 +37,23 @@ rows stay as history under their old fingerprint. So far: `real-01`'s
 to the owner's own fix and failed two correct answers. Its `7976ebded682`
 replacement is calibrated against other correct phrasings and near-misses.
 
+## Speed baselines: `bench-speed.tsv`
+
+Written by `tests/bench-speed.ps1`, not by the task harness: one seat on one host, prefill and decode in tokens per
+second at fixed prompt sizes, so two hosts (or two engines) compare on speed instead of wall-clock per task, which
+also reflects how much work the model chose to do. One row per request: `host`, `engine`, `engineVersion`, `model`,
+the seat's baked `numCtx`, `targetTokens` and the `promptTokens` actually sent, `loadS`, `prefillTokS`, `decodeTokS`,
+`evalTokens`, the placement `/api/ps` reported (`totalGB`, `vramGB`, `gpuShare`) and a `note`.
+
+- **`targetTokens` 0 is the warm-up** (loads the seat, calibrates characters per token): its load time counts, and it has
+  no speeds, because a one-token generation measures nothing.
+- **Compare rows with the same model tag, `numCtx`, engine and `engineVersion`, and the same sizes.** The weights must be
+  the same blob (`docs/roadmap.md` records the `sha256` per seat).
+- A `skipped:` note is a size above 92% of `numCtx`, not sent. A `FAILED` note carries the host's error.
+- Decode speed falls as the context fills, so read it per size, not as one number per seat.
+- No prompt text is stored, only sizes and speeds; the file is public-safe. Rows are not task results and never join
+  `tasks-summary.tsv`.
+
 ## Assisted runs: `compaction-nudge/`
 
 The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context
