@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The server is back (2026-10-11).** `docs/server-recovery-cpu-led.md` records attempts 3–11 (two ROMs, four
+  USB sticks logged by vendor/product ID, GPU out, CPU out, a 60-minute run): every Flashback write hung, so the
+  board itself had failed. A replacement MAG B550 Tomahawk MAX WiFi booted first time with the same CPU, RAM,
+  GPU, PSU and drive. Also recorded: the Secure Boot key re-enrollment the NVIDIA driver needs on a new board
+  (and after every CMOS clear), the A-XMP freeze, the `apt full-upgrade` to kernel 7.0.0-38, and bench and
+  in-case thermals. `AGENTS.md` and `docs/roadmap.md` ("Next up", step 1) no longer call the server down; the
+  old handoff prompt is marked resolved. New source in `docs/references.md`: `mortar-flashback`.
+
 - `docs/roadmap.md`: a new "Next up (2026-10-10): server first". The owner made getting the server back the top
   priority and the place things run from; the Qwen Code trial is declined. The list, in order:
   1. POST;

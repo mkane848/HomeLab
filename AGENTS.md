@@ -28,7 +28,7 @@ Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama
 - `.env`, `desktop/docker/.env` and anything `*.env` are git-ignored; only `.env.example` templates are tracked. Secrets live in `~/.config/opencode/.secrets/`, outside the repo entirely.
 - Remote is `origin` (`github.com/mkane848/HomeLab`). Don't force-push `main`; revert-and-re-PR instead.
 
-Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker — down, won't POST), `desktop` (this PC, RX 6800 XT 16GB Vulkan, native), `node3` (RTX 3080 FE 10GB, onboarded 2026-09-20 — `qwen3:8b` is the only agent seat; `glm4:9b` is no-tools, probed). Hosts often down — all sync scripts must degrade gracefully (see Gotchas).
+Machines: `server` (SERVER_IP, RTX 4070 Ti Super 16GB, Docker — back up 2026-10-11 on a replacement board; Ollama is still the old 0.33.3 setup and never probed, so no seats yet — `docs/roadmap.md` → "Next up", step 2), `desktop` (this PC, RX 6800 XT 16GB Vulkan, native), `node3` (RTX 3080 FE 10GB, onboarded 2026-09-20 — `qwen3:8b` is the only agent seat; `glm4:9b` is no-tools, probed). Hosts often down — all sync scripts must degrade gracefully (see Gotchas).
 
 ## Active workflow ("qwen3 is the boss")
 

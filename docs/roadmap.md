@@ -21,10 +21,13 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
   8.6 of `qwen3.6`'s 21 GB in system RAM (AGENTS.md). [target-setup.md](target-setup.md) already has the server as the main executor
   host and the dispatcher.
 
-1. **The server POSTs** (owner, hardware).
+1. ~~**The server POSTs** (owner, hardware).~~ **Done 2026-10-11** on a replacement board (MAG B550 Tomahawk
+   MAX WiFi); the original board had failed ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)).
 2. **Day-one bring-up.** It extends "Post-server-upgrade validation" below.
    - **Hardware and runtime:** `nvidia-smi`, Docker with the NVIDIA container toolkit
-     ([troubleshooting.md](troubleshooting.md)), `./server/scripts/status.sh`.
+     ([troubleshooting.md](troubleshooting.md)), `./server/scripts/status.sh`. *2026-10-11: `nvidia-smi`, the
+     toolkit and the old `ollama-server` container (0.33.3) all work; `status.sh` not yet run. The root volume
+     has 34 GB free of a 930 GB drive, so extend it before pulling the seats.*
    - **Align its Ollama with the desktop's measured setup before any measurement.** Today
      `server/docker/docker-compose.yml` differs in five ways:
 
