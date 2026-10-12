@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The llama.cpp engine trial, Phase 0: protocol, server stack and tools (2026-10-12).** The owner approved Phases 0 and 1
+  of replacing Ollama (server first, Ollama untouched). This is the repo half; nothing has run against a real server, because
+  the session that wrote it could not reach one. Protocol, runbook and the pre-registered Gate G1 are in
+  `docs/llamacpp-trial.md`.
+  - **`server/docker/docker-compose.llamacpp.yml` + `server/llamacpp/models.ini`.** A separate compose project (`name:
+    llamacpp`, so it never orphans the Ollama stack's volume), image `ghcr.io/ggml-org/llama.cpp:server-cuda-b11561`
+    pinned by tag and digest (the registry tags every build; CUDA 12.8.1, which driver 580 runs), the same five explicit
+    `/dev/nvidia*` nodes and a `nvidia-smi -L` healthcheck as the Ollama file (the 2026-10-12 silent GPU loss),
+    `restart: "no"`, and Ollama's volume mounted read-only so llama-server loads Ollama's own weights blobs. The router-mode
+    preset names each seat like its Ollama tag, pins the blob by sha256, sets `c`, one slot, `q8_0` KV and flash attention.
+  - **`server/scripts/llamacpp-check.sh`** (python3): checks the preset against `models/server-seats.tsv` (blob sha256,
+    explicit context equal to `num_ctx`, one slot, a CPU seat with no GPU layers); with `--ollama-url` compares the sampling
+    parameters Ollama applies to the same tag, because `llama-server` uses its own defaults for anything the preset leaves
+    out; with `--url` checks a running server's `/props` without loading a model.
+  - **`tests/probe-overflow.ps1`.** Sends one oversized request and reports EXPLICIT-ERROR, SILENT-TRUNCATION or
+    ACCEPTED-FULL, and whether OpenCode v1.18.34's own overflow patterns (read from its source: 27 patterns, including
+    llama.cpp's "exceeds the available context size") would classify the error. It is the premise check for the whole
+    migration (does Ollama 0.40.x still cut silently?) and the first half of the overflow measurement.
+  - **`-Engine llamacpp` on `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`.** The probe sends the same prompt and
+    schema to `/v1/chat/completions` and logs to its own file, so the Ollama log the batch parses is untouched; the bench
+    reads llama-server's `timings` with the prompt cache off and leaves placement blank (no `/api/ps`). Default behaviour
+    of both is unchanged.
+  - **Guards, each with controls that fail when the thing it guards is broken:** `tests/test-toolcalls-engine.ps1` (44
+    checks; the probe had none), `tests/test-probe-overflow.ps1` (51), `tests/test-llamacpp-stack.ps1` (36, plus 16 Python
+    tests in `tests/test_llamacpp_check.py`), and `tests/test-bench-speed.ps1` extended from 43 to 81 checks. Run on
+    PowerShell 7.4.6 on Linux; not yet on Windows PowerShell 5.1.
+  - **Caught by those guards while writing them:** `@("a" + $x, "b")` fused two URLs into one string (the comma binds
+    tighter than `+`) and only worked against the stand-in because its pattern was lenient, so a no-whitespace check on
+    every request URL was added; `"…$NumCtx: …"` parses as a scope-qualified variable; and PowerShell hashtables enumerate
+    in a per-process random order on .NET Core, so two runs of one script serialise the same request with different key
+    order (compared with sorted keys).
+  - **Not verified, and said so in the runbook:** whether llama.cpp can read Ollama's `qwen3.6` blob; how OpenCode behaves
+    after the overflow error (classification is confirmed, recovery is not); the real status code and body of the
+    overflow response; whether `n-gpu-layers = 0` leaves the CPU companion with no VRAM; whether the new
+    `llamacpp-server` provider block needs an `npm` field.
+  - **Roadmap, AGENTS.md and `docs/references.md`:** step 4 records the approval and what is written; "Replacing Ollama"
+    gets a dated update (CUDA container on the server, same bytes, a premise check against Ollama 0.40.3, sampling as a
+    confound, a mechanism-first gate); five sources added and two rows refreshed.
+
 - **`tests/bench-speed.ps1`: prefill and decode speed of one seat on one host, at depth (2026-10-12).** "The server is
   faster" rested on wall-clock per task, which mixes the engine with how much work the model chose to do (the server's
   two early-stopped runs were also its fastest). The script asks one host the same question at the same prompt sizes

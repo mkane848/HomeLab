@@ -153,6 +153,15 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
    speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
    Ollama"). It runs after step 3, so there's a baseline.
+   - **Approved 2026-10-12 (owner): Phases 0 and 1 only** of the Ollama replacement; each later phase needs its own
+     go after a gate. Protocol, runbook and Gate G1 are pre-registered in [llamacpp-trial.md](llamacpp-trial.md).
+   - **Phase 0 (repo only) is written:** `server/docker/docker-compose.llamacpp.yml`, `server/llamacpp/models.ini`,
+     `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp` on
+     `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
+     server: this session could not reach one.
+   - **Phase 1 needs the owner:** the second Ollama round under classifier 2 as the like-for-like baseline (the
+     10 of 15 above used classifier 1), then the runbook on the server. `sudo` steps (the GPU-loss drill) are the
+     owner's.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU.
    - **The three CPUs differ.** node3's Ryzen 9 5950X (16c/32t) is the fleet's throughput CPU. The desktop's Ryzen 7
@@ -2565,6 +2574,36 @@ setup:
 6. Build the engine adapter only then.
 
 The trial needs a download, so it waits for the owner's go-ahead.
+
+**Update 2026-10-12: approved, and revised against what the repo had become.** The owner approved Phases 0 and 1
+(the trial, server first). Differences from the recommendation above, and why:
+- **The trial runs on the server's CUDA container**, not the desktop's Vulkan build: the server is up on Ollama 0.34.3
+  with `qwen3.6` seated and a baseline measured (step 3), and it is where the work is meant to run. The image is
+  `ghcr.io/ggml-org/llama.cpp:server-cuda-b11561`, pinned by tag and digest: the registry tags every build, which settles
+  the pinning question the first draft left open ([registry][llama-cpp-ghcr], [Docker docs][llama-cpp-docker]). Its base
+  is CUDA 12.8.1, which the server's driver 580 runs; the CUDA 13 builds are out.
+- **Same bytes.** The stack mounts Ollama's volume read-only and loads Ollama's own weights blob, whose sha256 is already
+  pinned in `models/server-seats.tsv`. Whether llama.cpp can read that blob is the first thing the trial finds out.
+- **OpenCode already recognises the error.** At v1.18.34 `isContextOverflow` has `/exceeds the available context size/i`
+  ([source][opencode-provider-error]), so llama.cpp's refusal is classified `context_overflow`. What is still untested
+  is whether the session then compacts and resumes.
+- **A premise check comes first.** Ollama is now at 0.40.3 and its [release notes][ollama-releases] say nothing about
+  overflow or truncation either way, so `tests/probe-overflow.ps1` is run against 0.34.3 (the control) and 0.40.3 in a
+  scratch container before anything else. If 0.40.x refuses oversized prompts loudly, the main reason to migrate is
+  weaker and the owner decides what to do. Both hosts stay on 0.34.3 for the trial: 0.40.2 upgrades stored models in the
+  background.
+- **Sampling is a confound the first draft missed.** Ollama gives each tag its registry parameters; `llama-server` uses its
+  own defaults for anything the preset leaves out. `llamacpp-check.sh --ollama-url` lists the differences, and the
+  trial doesn't start measuring until it prints none.
+- **The gate leads with the mechanism, not the pass rate.** At 15 tasks × 1 run the benchmark can't separate 8 of 11
+  from 11 of 11 (p ≈ 0.21), so Gate G1 is: tool probe, explicit-and-recoverable overflow with no silent lost briefs, a
+  detectable GPU loss, a clean soak, speed ≥ 90% of Ollama's, and the round no worse than the classifier-2 Ollama round by
+  more than 2.
+
+[llama-cpp-docker]: https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/docker.md
+[llama-cpp-ghcr]: https://ghcr.io/v2/ggml-org/llama.cpp/tags/list
+[opencode-provider-error]: https://raw.githubusercontent.com/sst/opencode/v1.18.34/packages/llm/src/provider-error.ts
+[ollama-releases]: https://github.com/ollama/ollama/releases
 
 [unsloth-studio]: https://www.unsloth.ai/docs/new
 [unsloth-api]: https://unsloth.ai/docs/basics/api
