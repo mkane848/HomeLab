@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     when `nvidia-smi -L` fails inside the container (the old `ollama list` check stayed green).
   - `server/scripts/status.sh` prints the GPU as the container sees it and each loaded model's GPU share.
   - `docs/troubleshooting.md` → "Container lost the GPU", an `AGENTS.md` Gotcha and `docs/roadmap.md` record the cause
-    and the fix. **Not yet proven:** that explicit devices survive a reload; it needs `sudo systemctl daemon-reload`
-    and then `docker exec ollama-server nvidia-smi -L`. The harness still does not check a remote host's GPU use.
+    and the fix. **Tested once:** after `sudo systemctl daemon-reload` (13:48:16Z, the trigger that broke the
+    container at 11:12Z) the container still saw the GPU, stayed healthy and `qwen3.6` stayed 60% on the GPU, with a
+    benchmark batch running. The harness still does not check a remote host's GPU use.
 
 - **Server day-one bring-up (2026-10-12).** `docs/roadmap.md` "Next up" step 2 is done; step 3 has its first numbers.
   - **Ollama realigned.** `server/docker/docker-compose.yml` pins 0.34.3 (the version the desktop was measured on)

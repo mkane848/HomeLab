@@ -81,10 +81,11 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      next `qwen3.6` load went to the CPU: 38 GB, 100% CPU. The first launch of step 3's nudged round ran 31 minutes
      like that before it was noticed. It was stopped; it wrote no rows. Fixed by recreating the container (back to
      22.68 GB, 60% on the GPU, 645 tok/s prefill, 66.8 tok/s decode). The compose file now lists the GPU devices
-     explicitly and its healthcheck checks the GPU from inside; `status.sh` prints each model's GPU share. **Not yet
-     proven:** that the explicit devices survive a reload (needs `sudo systemctl daemon-reload`, then
-     `docker exec ollama-server nvidia-smi -L`). Until then, a batch against this host runs with a watchdog on both
-     checks. `docs/troubleshooting.md` → "Container lost the GPU".
+     explicitly and its healthcheck checks the GPU from inside; `status.sh` prints each model's GPU share. **Tested
+     once:** `sudo systemctl daemon-reload` at 13:48:16Z, mid-batch; the container kept the GPU, stayed healthy, and
+     `qwen3.6` kept its 60% share. Repeat it after any Docker, driver or toolkit upgrade. The harness still does not
+     check a remote host's GPU use, so a batch against this host runs with a watchdog on both checks.
+     `docs/troubleshooting.md` → "Container lost the GPU".
 3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
    drives a remote Ollama, and its truncation check records "not checked" for a remote host.
    - Measure `qwen3.6`'s placement on 16 GB of CUDA plus 32 GB of RAM, and its speed against the desktop. The

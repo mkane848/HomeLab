@@ -36,10 +36,11 @@ services:
     # container silently loses the GPU ("Failed to initialize NVML: Unknown
     # Error") and Ollama falls back to CPU-only. On 2026-10-12 that happened at
     # 11:12Z and an hours-long benchmark batch started running qwen3.6 at 38 GB,
-    # 100% CPU. Explicit devices are the toolkit's documented workaround; whether
-    # they survive a reload on THIS host is tested with `sudo systemctl
-    # daemon-reload` then `docker exec ollama-server nvidia-smi -L`
-    # (docs/troubleshooting.md -> "Container lost the GPU").
+    # 100% CPU. Explicit devices are the toolkit's documented workaround. Tested on
+    # this host 2026-10-12: after `sudo systemctl daemon-reload` the container still
+    # saw the GPU (`docker exec ollama-server nvidia-smi -L`). Repeat that after any
+    # Docker, driver or toolkit upgrade (docs/troubleshooting.md -> "Container lost
+    # the GPU").
     devices:
       - /dev/nvidiactl:/dev/nvidiactl
       - /dev/nvidia0:/dev/nvidia0

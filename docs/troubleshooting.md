@@ -83,8 +83,11 @@ docker exec ollama-server nvidia-smi -L        # GPU 0: NVIDIA GeForce RTX 4070 
 **Prevention, and what is proven.**
 - `docker-compose.yml` lists the five `/dev/nvidia*` nodes explicitly (the toolkit's documented workaround) and its
   healthcheck now fails when `nvidia-smi -L` fails inside the container, so `docker ps` and `server/scripts/status.sh`
-  show it. **Whether the explicit devices survive a reload on this host is tested, not assumed:** run
-  `sudo systemctl daemon-reload` and then `docker exec ollama-server nvidia-smi -L`. If it fails, the next step is
+  show it. **Tested on this host, once:** `sudo systemctl daemon-reload` at 13:48:16Z (the trigger that broke the
+  container without explicit devices at 11:12Z); 13 seconds later `docker exec ollama-server nvidia-smi -L` still
+  listed the GPU, the container stayed healthy with 0 restarts, and a loaded `qwen3.6` kept its 60% GPU share.
+  One reload is one data point: repeat the test after any Docker, driver or toolkit upgrade
+  (`sudo systemctl daemon-reload`, then `docker exec ollama-server nvidia-smi -L`). If it ever fails, the next step is
   `"exec-opts": ["native.cgroupdriver=cgroupfs"]` in `/etc/docker/daemon.json` (needs `sudo`; restarts Docker).
 - **Any run of results from this host needs a placement check.** The harness does not look at a remote Ollama's
   GPU use. During a batch, poll `/api/ps` and `docker exec ollama-server nvidia-smi -L`; a loaded GPU seat with
