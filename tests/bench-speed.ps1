@@ -15,9 +15,18 @@
 # are skipped and logged, because a request over num_ctx is silently cut from the
 # front and would measure a different prompt.
 #
-# Ollama only (/api/generate). llama-server gets its own path in the engine trial
-# (docs/roadmap.md -> "Replacing Ollama"), tested against a real one; `-Engine`
-# is already a column in the results so the rows compare.
+# Two engines. `-Engine ollama` (default) asks /api/generate and /api/ps. `-Engine
+# llamacpp` (the engine trial, docs/llamacpp-trial.md) asks llama-server's
+# /v1/chat/completions and reads its `timings` (prompt_n/prompt_ms, predicted_n/
+# predicted_ms), with `cache_prompt` off so a prefix hit can't make a repeat look
+# fast. `engine` is a column in the results so the rows compare. What differs:
+#   - placement: llama-server has no /api/ps, so totalGB / vramGB / gpuShare are
+#     empty; read `nvidia-smi` on the host and the server's offload log line by hand;
+#   - loadS is approximate: the request's wall time minus llama-server's own
+#     prompt + predict time (the router loads a model on its first request);
+#   - num_ctx comes from /props (default_generation_settings.n_ctx), and a request
+#     over it is REJECTED rather than cut, but the 92% skip rule still applies so
+#     both engines are measured at the same sizes.
 #
 # Rows are appended to tests/results/bench-speed.tsv (-NoLog skips). No prompt
 # text, only sizes and speeds, so the file is public-safe.
@@ -25,9 +34,11 @@
 # Usage:
 #   .\tests\bench-speed.ps1 -OllamaHost http://SERVER_IP:11434 -HostLabel server -Model qwen3.6:35b-a3b-coding
 #   .\tests\bench-speed.ps1 -OllamaHost http://localhost:11434 -HostLabel desktop -Model qwen3.6:35b-a3b-coding -PromptTokens 3000,30000
+#   .\tests\bench-speed.ps1 -Engine llamacpp -EngineHost http://SERVER_IP:8090 -HostLabel server -Model qwen3.6:35b-a3b-coding
 # Exit 1 if any request failed (the row is still logged, with the error as its note).
 param(
-    [Parameter(Mandatory)][string]$OllamaHost,
+    # -EngineHost is the same parameter under the name that fits either engine.
+    [Parameter(Mandatory)][Alias("EngineHost")][string]$OllamaHost,
     [Parameter(Mandatory)][string]$HostLabel,
     [Parameter(Mandatory)][string]$Model,
     # Comma-separated: `pwsh -File` does not split an array argument.
@@ -79,6 +90,29 @@ function Get-BenchMetrics {
     }
 }
 
+function Get-BenchMetricsLlama {
+    # Speeds from one llama-server /v1/chat/completions reply. Its `timings` are
+    # milliseconds and token counts of what was actually evaluated: prompt_n
+    # excludes tokens served from the prompt cache (cache_n), so prefill is
+    # prompt_n over prompt_ms. The same floors as Get-BenchMetrics apply (64 prompt
+    # tokens, 8 generated ones). $WallS is the request's wall time; loadS is what is
+    # left after llama-server's own prompt and predict time, so it is approximate.
+    param($Reply, [double]$WallS = 0)
+    $t = $Reply.timings
+    $perSec = { param($count, $ms, $min) if ($count -ge $min -and $ms -gt 0) { [math]::Round($count / ($ms / 1000.0), 1) } else { $null } }
+    $promptN = [int]$t.prompt_n; $cacheN = [int]$t.cache_n
+    $total = if ($null -ne $Reply.usage -and $null -ne $Reply.usage.prompt_tokens) { [int]$Reply.usage.prompt_tokens } else { $promptN + $cacheN }
+    $own = ([double]$t.prompt_ms + [double]$t.predicted_ms) / 1000.0
+    [pscustomobject]@{
+        PromptTokens = $total
+        EvalTokens   = [int]$t.predicted_n
+        LoadS        = [math]::Round([math]::Max(0.0, $WallS - $own), 1)
+        PrefillTokS  = (& $perSec $promptN $t.prompt_ms 64)
+        DecodeTokS   = (& $perSec $t.predicted_n $t.predicted_ms 8)
+        CacheN       = $cacheN
+    }
+}
+
 function Add-BenchRow {
     # One TSV line, in $script:Columns order; the header is written when the file is new or empty.
     param([string]$Path, [hashtable]$Row)
@@ -90,29 +124,60 @@ function Add-BenchRow {
     [IO.File]::AppendAllText($Path, $text, (New-Object System.Text.UTF8Encoding($false)))
 }
 
-if ($Engine -ne "ollama") {
-    Write-Host "bench-speed.ps1 supports -Engine ollama only; llama-server arrives with the engine trial (docs/roadmap.md -> `"Replacing Ollama`")." -ForegroundColor Red
+if (@("ollama", "llamacpp") -notcontains $Engine) {
+    Write-Host "bench-speed.ps1 supports -Engine ollama or llamacpp, not '$Engine'." -ForegroundColor Red
     exit 2
 }
 $root = $OllamaHost.TrimEnd('/') -replace '/v1$', ''
 $targets = @($PromptTokens -split '[,\s]+' | Where-Object { $_ } | ForEach-Object { [int]$_ })
 if ($targets.Count -eq 0 -or $Reps -lt 1) { Write-Host "no prompt sizes, or -Reps below 1" -ForegroundColor Red; exit 2 }
 
-$version = try { [string](Invoke-RestMethod -Uri "$root/api/version" -TimeoutSec 10).version } catch { "unknown" }
 $numCtx = $null
-try {
-    $show = Invoke-RestMethod -Uri "$root/api/show" -Method Post -ContentType "application/json" -Body (@{ model = $Model } | ConvertTo-Json) -TimeoutSec 10
-    $line = @($show.parameters -split "`n" | Where-Object { $_ -match '^\s*num_ctx\s+(\d+)' })
-    if ($line.Count -gt 0 -and $line[0] -match '(\d+)\s*$') { $numCtx = [int]$Matches[1] }
-} catch { }
-Write-Host ("bench-speed: {0} on {1} ({2}) | ollama {3} | num_ctx {4}" -f $Model, $HostLabel, $root, $version, $(if ($numCtx) { $numCtx } else { "unknown" })) -ForegroundColor DarkGray
+if ($Engine -eq "llamacpp") {
+    # /props carries the build and the served context. In router mode it wants the
+    # model as a query parameter, so ask that way first and fall back to the bare path.
+    $props = $null
+    # (The parentheses matter: in @("a" + $x, "b") the comma binds tighter than +, which
+    # would fuse both URLs into one string.)
+    $propsUrls = @(("$root/props?model=" + [uri]::EscapeDataString($Model)), "$root/props")
+    foreach ($u in $propsUrls) {
+        try { $props = Invoke-RestMethod -Uri $u -TimeoutSec 10; if ($props) { break } } catch { }
+    }
+    $version = if ($props -and $props.build_info) { [string]$props.build_info } else { "unknown" }
+    if ($props) {
+        $n = if ($props.default_generation_settings -and $props.default_generation_settings.n_ctx) { $props.default_generation_settings.n_ctx } else { $props.n_ctx }
+        if ($n) { $numCtx = [int]$n }
+    }
+} else {
+    $version = try { [string](Invoke-RestMethod -Uri "$root/api/version" -TimeoutSec 10).version } catch { "unknown" }
+    try {
+        $show = Invoke-RestMethod -Uri "$root/api/show" -Method Post -ContentType "application/json" -Body (@{ model = $Model } | ConvertTo-Json) -TimeoutSec 10
+        $line = @($show.parameters -split "`n" | Where-Object { $_ -match '^\s*num_ctx\s+(\d+)' })
+        if ($line.Count -gt 0 -and $line[0] -match '(\d+)\s*$') { $numCtx = [int]$Matches[1] }
+    } catch { }
+}
+Write-Host ("bench-speed: {0} on {1} ({2}) | {3} {4} | num_ctx {5}" -f $Model, $HostLabel, $root, $Engine, $version, $(if ($numCtx) { $numCtx } else { "unknown" })) -ForegroundColor DarkGray
 
 $script:Failed = 0
 function Invoke-Generate([string]$Prompt, [int]$Predict) {
     $body = @{ model = $Model; prompt = $Prompt; stream = $false; options = @{ num_predict = $Predict; temperature = 0; seed = 1 } } | ConvertTo-Json -Depth 5
     Invoke-RestMethod -Uri "$root/api/generate" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
 }
+function Measure-Request([string]$Prompt, [int]$Predict) {
+    # One timed request, as the engine-neutral metrics object the rest of the script reads.
+    if ($Engine -eq "llamacpp") {
+        $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); max_tokens = $Predict
+                   temperature = 0; seed = 1; stream = $false; cache_prompt = $false } | ConvertTo-Json -Depth 6
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $reply = Invoke-RestMethod -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
+        $sw.Stop()
+        return (Get-BenchMetricsLlama $reply $sw.Elapsed.TotalSeconds)
+    }
+    return (Get-BenchMetrics (Invoke-Generate $Prompt $Predict))
+}
 function Get-Placement {
+    # llama-server reports no per-model placement (no /api/ps equivalent): leave it blank.
+    if ($Engine -eq "llamacpp") { return @{ Total = $null; Vram = $null; Share = $null } }
     try {
         $m = @((Invoke-RestMethod -Uri "$root/api/ps" -TimeoutSec 10).models | Where-Object { $_ -and (($_.name -ieq $Model) -or ($_.model -ieq $Model)) })
         if ($m.Count -eq 0) { return @{ Total = $null; Vram = $null; Share = $null } }
@@ -140,12 +205,14 @@ function Show-Row([string]$What, $m, $pl, [switch]$NoSpeeds) {
 $charsPerToken = 3.0
 try {
     $warmPrompt = New-BenchPrompt -Tokens 600 -CharsPerToken $charsPerToken -Nonce ([guid]::NewGuid().ToString("N").Substring(0, 12))
-    $m = Get-BenchMetrics (Invoke-Generate $warmPrompt 1)
+    $m = Measure-Request $warmPrompt 1
     if ($m.PromptTokens -ge 64) { $charsPerToken = [math]::Max(1.0, $warmPrompt.Length / $m.PromptTokens) }
     $pl = Get-Placement
     Show-Row "load / calibration" $m $pl -NoSpeeds
+    $warmNote = "warm-up (load, chars-per-token calibration)"
+    if ($Engine -eq "llamacpp") { $warmNote += "; loadS approximate; placement not reported by llama-server" }
     Save-Row @{ targetTokens = 0; promptTokens = $m.PromptTokens; loadS = $m.LoadS; evalTokens = $m.EvalTokens
-                totalGB = $pl.Total; vramGB = $pl.Vram; gpuShare = $pl.Share; note = "warm-up (load, chars-per-token calibration)" }
+                totalGB = $pl.Total; vramGB = $pl.Vram; gpuShare = $pl.Share; note = $warmNote }
 } catch {
     $script:Failed++
     Write-Host "  warm-up failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -155,19 +222,23 @@ try {
 foreach ($rep in 1..$Reps) {
     foreach ($target in $targets) {
         if ($numCtx -and ($target + $NumPredict) -gt [int]($numCtx * 0.92)) {
-            Write-Host ("  {0,6} tokens: skipped, over 92% of num_ctx {1} (a request over num_ctx is cut from the front)" -f $target, $numCtx) -ForegroundColor Yellow
+            $fate = if ($Engine -eq "llamacpp") { "llama-server would reject it" } else { "a request over num_ctx is cut from the front" }
+            Write-Host ("  {0,6} tokens: skipped, over 92% of num_ctx {1} ({2})" -f $target, $numCtx, $fate) -ForegroundColor Yellow
             Save-Row @{ targetTokens = $target; note = "skipped: over 92% of num_ctx $numCtx" }
             continue
         }
         $nonce = [guid]::NewGuid().ToString("N").Substring(0, 12)
         $prompt = New-BenchPrompt -Tokens $target -CharsPerToken $charsPerToken -Nonce $nonce
         try {
-            $m = Get-BenchMetrics (Invoke-Generate $prompt $NumPredict)
+            $m = Measure-Request $prompt $NumPredict
             $pl = Get-Placement
             if ($m.PromptTokens -gt 0) { $charsPerToken = [math]::Max(1.0, $prompt.Length / $m.PromptTokens) }
             Show-Row ("{0} tok (rep {1})" -f $target, $rep) $m $pl
+            $note = "rep $rep"
+            # A prompt-cache hit would inflate prefill; cache_prompt is off, so any cache_n is worth saying.
+            if ($m.CacheN -gt 0) { $note += "; $($m.CacheN) prompt tokens came from the cache" }
             Save-Row @{ targetTokens = $target; promptTokens = $m.PromptTokens; loadS = $m.LoadS; prefillTokS = $m.PrefillTokS; decodeTokS = $m.DecodeTokS
-                        evalTokens = $m.EvalTokens; totalGB = $pl.Total; vramGB = $pl.Vram; gpuShare = $pl.Share; note = "rep $rep" }
+                        evalTokens = $m.EvalTokens; totalGB = $pl.Total; vramGB = $pl.Vram; gpuShare = $pl.Share; note = $note }
         } catch {
             $script:Failed++
             Write-Host "  $target tokens failed: $($_.Exception.Message)" -ForegroundColor Red
