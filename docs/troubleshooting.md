@@ -89,9 +89,16 @@ docker exec ollama-server nvidia-smi -L        # GPU 0: NVIDIA GeForce RTX 4070 
   One reload is one data point: repeat the test after any Docker, driver or toolkit upgrade
   (`sudo systemctl daemon-reload`, then `docker exec ollama-server nvidia-smi -L`). If it ever fails, the next step is
   `"exec-opts": ["native.cgroupdriver=cgroupfs"]` in `/etc/docker/daemon.json` (needs `sudo`; restarts Docker).
-- **Any run of results from this host needs a placement check.** The harness does not look at a remote Ollama's
-  GPU use. During a batch, poll `/api/ps` and `docker exec ollama-server nvidia-smi -L`; a loaded GPU seat with
-  `size_vram` 0 means the numbers are CPU numbers. `status.sh` prints each loaded model's GPU share.
+- **The harness now checks placement itself** (`tests/test-tasks.ps1`, `Get-OllamaGpuPlacement`, guarded by
+  `tests/test-gpu-placement.ps1`). After each run that exited 0 against an Ollama provider it asks that host's
+  `/api/ps` where the seat's model sits. Loaded with `size_vram` 0 is infrastructure: exit -5, a `_CPUONLY_`
+  transcript, no summary row, and `run-tasks-batch.ps1` stops instead of queueing more runs on the host. Graded
+  runs record `gpuPlacement` (verdict, total and VRAM GB, share) in their JSON; `-NoGpuCheck` skips the check.
+  It judges only the seat asked about, so the CPU-pinned 3b beside it (0% GPU by design) never trips it, and it
+  only sees a loss once the seat is loaded: a host that is CPU-only before the first run is caught by that run,
+  after it has been spent. Results from before 2026-10-12 carry no `gpuPlacement`. For a one-off look,
+  `status.sh` prints each loaded model's GPU share, and `docker exec ollama-server nvidia-smi -L` is the
+  direct test.
 
 ### Out of VRAM
 
