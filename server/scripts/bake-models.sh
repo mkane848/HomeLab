@@ -14,7 +14,9 @@
 #   bake-models.sh --list       # show the table and what is installed
 #   bake-models.sh --dry-run    # show what would be created
 #
-# It never pulls. Install first: ./server/scripts/install-model.sh <tag>.
+# It never pulls. Install first: ./server/scripts/install-model.sh <tag>, or for a tag
+# outside models/catalog.tsv (qwen2.5-coder:3b: the desktop gets it from startup.ps1):
+#   docker exec ollama-server ollama pull <tag>
 # Idempotent: re-baking a baked tag writes the same parameters again.
 
 set -euo pipefail
@@ -54,7 +56,13 @@ create() {
         return 0
     fi
     echo "[bake-models] $name <- $from  num_ctx=$ctx${gpu:+ num_gpu=$gpu}"
-    docker exec "$CONTAINER" sh -c "printf '%s\n' $lines > /tmp/Modelfile-bake && ollama create '$name' -f /tmp/Modelfile-bake && rm -f /tmp/Modelfile-bake" >/dev/null
+    # ollama create draws progress on stderr with terminal escapes: keep the output
+    # and show it only if the create fails.
+    local out
+    if ! out="$(docker exec "$CONTAINER" sh -c "printf '%s\n' $lines > /tmp/Modelfile-bake && ollama create '$name' -f /tmp/Modelfile-bake && rm -f /tmp/Modelfile-bake" 2>&1)"; then
+        printf '%s\n' "$out" >&2
+        die "ollama create $name failed."
+    fi
     docker exec "$CONTAINER" ollama show "$name" --parameters | sed 's/^/[bake-models]     /'
 }
 
@@ -98,7 +106,7 @@ main() {
         if grep -qxF "$tag" <<<"$have"; then
             create "$tag" "$tag" "$ctx"; baked=$((baked + 1))
         else
-            echo "[bake-models] skip $tag: not installed (install-model.sh $tag)"; skipped=$((skipped + 1))
+            echo "[bake-models] skip $tag: not installed (install-model.sh $tag, or ollama pull $tag)"; skipped=$((skipped + 1))
         fi
     done
 
