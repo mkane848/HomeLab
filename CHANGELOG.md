@@ -29,8 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   16c/32t, the desktop's 5800X3D 8c/16t, the server's 3700X 8c/16t), so `test-tasks.ps1` now records the machine name,
   CPU model, cores, logical processors and OS. A wall-clock compared across run hosts says whose CPU it was. Rows
   before this have no field (all desktop). `docs/roadmap.md` "Next up" step 5 is rewritten around it: model host and
-  run host are separate choices, node3 is the default run host, and the Linux harness is demoted. Checked in
-  `tests/test-gpu-placement.ps1` (59 checks).
+  run host are separate choices, node3 is the default run host, and the Linux harness is demoted.
+  - Next to it, `phaseSeconds`: how long the CPU-bound phases of that run took on that machine (`install` and `setup`,
+    once per worktree; `baseline`, the post-change `suite`, `typecheck`, `acceptance`). Every run on every host now
+    adds a row to the answer to "which CPU is better at which work": a single test file (start-up latency) against a
+    whole suite (many workers), an install, a typecheck. It replaces most of the separate `bench-cpu.ps1` the plan had.
+  - Both are checked in `tests/test-gpu-placement.ps1` (62 checks, PowerShell 7 and 5.1); a harness without
+    `phaseSeconds` fails 3 checks, without `runHost` 2.
 
 - **The harness checks GPU placement after each run (2026-10-12).** On 2026-10-12 the server's container lost its GPU and
   Ollama kept answering from the CPU; nothing in a run but its speed showed it, and a batch crawled for 31 minutes.

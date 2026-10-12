@@ -159,6 +159,7 @@ try {
     Set-Content -LiteralPath (Join-Path $repo "src.txt") -Value "buggy"
     @'
 $src = (Get-Content -LiteralPath src.txt -Raw).Trim()
+Start-Sleep -Milliseconds 700   # a known cost, so phaseSeconds can be checked against it
 if ((Test-Path hidden.txt) -and $src -ne 'fixed') { Write-Host "Tests  1 failed (2)"; exit 1 }
 Write-Host "Tests  2 passed (2)"; exit 0
 '@ | Set-Content -LiteralPath (Join-Path $repo "check.ps1")
@@ -269,6 +270,10 @@ exit $LASTEXITCODE
     Check "asked /api/ps once"                                   $r.PsCalls 1
     # Not about the GPU, but this is the guard that already runs the real harness end to end.
     Check "JSON runHost: this machine's name and its logical processors" ("{0} {1}" -f $r.Json.runHost.name, ($r.Json.runHost.logicalProcessors -eq [Environment]::ProcessorCount)) ("{0} True" -f [Environment]::MachineName)
+    $ph = $r.Json.phaseSeconds
+    Check "JSON phaseSeconds: baseline, suite and acceptance each ran the 0.7 s test command (>= 0.6 s)" ((@($ph.baseline, $ph.suite, $ph.acceptance) | Where-Object { $null -ne $_ -and $_ -ge 0.6 }).Count) 3
+    Check "...and none of them is absurd (< 60 s)"                (((@($ph.baseline, $ph.suite, $ph.acceptance) | Where-Object { $null -ne $_ -and $_ -lt 60 }).Count)) 3
+    Check "...install, setup and typecheck did not run here: present and null" ("{0}|{1}|{2}" -f ($null -ne $ph -and $ph.PSObject.Properties["install"] -and $null -eq $ph.install), ($null -ne $ph -and $ph.PSObject.Properties["setup"] -and $null -eq $ph.setup), ($null -ne $ph -and $ph.PSObject.Properties["typecheck"] -and $null -eq $ph.typecheck)) "True|True|True"
     $cimCpu = try { @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)[0].Name } catch { $null }
     Check "...and its CPU model (as Win32_Processor names it, when the machine has one)" $(if ($cimCpu) { "$($r.Json.runHost.cpu)" -eq (($cimCpu -replace '\s+', ' ').Trim()) } else { $true }) "True"
 

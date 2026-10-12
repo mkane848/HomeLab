@@ -165,11 +165,14 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      the desktop's 5800X3D. **node3 is the default run host**: it is Windows 11, so the harness runs there without a
      port, and its 5950X runs the CPU-heavy half. Every run JSON now records `runHost` (machine, CPU, cores) so a
      wall-clock compared across hosts says whose CPU it was.
-   - **Measure, then route.** A `tests/bench-cpu.ps1` (per host, on a pinned task repo: `pnpm install` cold and warm,
-     the baseline test command, `tsc --noEmit`, vitest at 1, 4, 8 and 16 workers) on the desktop and node3; a
-     contention test for `qwen3.6` decode speed with 0, 4 and 8 busy threads beside it on the server; and a control run
-     with the model on the server and the tools first on the desktop, then on node3. The rule it produces goes into
-     `target-setup.md`.
+   - **Measure, then route.** Every run JSON now carries `phaseSeconds` (install and setup once per worktree, the
+     baseline suite, the post-change suite, the typecheck, the acceptance run) beside `runHost`, so the runs themselves
+     answer which CPU is better at which work. Most tasks run one test file (start-up latency) and a few run a whole
+     suite (many workers), which is where the two CPUs should differ; the data will say. Then a contention test for
+     `qwen3.6` decode speed with 0, 4 and 8 busy threads beside it on the server, and a control run with the model on
+     the server and the tools first on the desktop, then on node3. A separate `bench-cpu.ps1` (vitest at 1, 4, 8 and 16
+     workers on a pinned repo) is only worth writing if the runs leave the worker scaling unanswered. The rule it
+     produces goes into `target-setup.md`.
    - **node3 has to be up and have the toolchain.** It is not answering now (its sleep settings: owner). Needed there:
      PowerShell 7, Node, pnpm, git, `gh`, OpenCode 1.18.34, the task repos (the manifests hard-code `M:/…` and `C:/…`
      paths: same paths or a per-host repo-root map), the private repo. Downloads and git credentials are the owner's
