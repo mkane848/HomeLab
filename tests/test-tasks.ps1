@@ -184,6 +184,15 @@ param(
     # each, and the rows need their own -ResultsDir.
     [switch]$NudgeOnStop,
     [int]$MaxStopNudges = 2,
+    # After each run that exited 0 against an Ollama provider, ask that host's
+    # /api/ps where -Model sits (Get-OllamaGpuPlacement). Loaded with none of it
+    # in VRAM means the host was not using its GPU: the run is infrastructure
+    # (exit -5, a _CPUONLY_ transcript, no row), because its time and its
+    # truncation behaviour measure the host, not the model. 2026-10-12: the
+    # server's container lost the GPU, Ollama kept answering from the CPU, and
+    # a batch crawled for 31 minutes before anyone noticed. -NoGpuCheck skips it
+    # (the run JSON then records "not checked").
+    [switch]$NoGpuCheck,
     # The agent that runs each task: tests/agents/<name>.ps1 is its adapter
     # (how a run is started and continued, and how its transcript reads). Every
     # grade and analysis below is client-neutral. Today only opencode exists.
@@ -1084,6 +1093,35 @@ function Test-OutputCapHit {
     return ($Ending.FinishReason -eq "length" -and -not $Ending.LastStepHadContent -and [int]$Ending.OutputTokens -ge [int]$Limit)
 }
 
+function Get-OllamaGpuPlacement {
+    # Where an Ollama host has the model $Tag loaded, from /api/ps: its total
+    # size and the part of it in VRAM. Verdicts:
+    #   "gpu"        some of it is in VRAM (a 35B MoE on a 16 GB card is split:
+    #                60% on the server's 4070 Ti SUPER, 12.5 of 21 GB on the desktop)
+    #   "cpu-only"   loaded, and none of it in VRAM: the host was not using its GPU
+    #   "not-loaded" /api/ps answers but the model is not in it (unloaded already)
+    #   "unchecked"  /api/ps did not answer
+    # A container that lost its GPU keeps answering from the CPU (2026-10-12:
+    # qwen3.6 at 38 GB, 100% CPU), so nothing else in a run notices. Only the
+    # model asked about counts: the CPU-pinned 3b beside it is 0% GPU by design.
+    param([string]$Root, [string]$Tag, [int]$TimeoutSec = 10)
+    $want = if ($Tag -match ':') { $Tag } else { "${Tag}:latest" }
+    $result = { param($verdict, $total, $vram, $detail)
+        $share = if ($null -ne $total -and $total -gt 0) { [math]::Round($vram / $total, 3) } else { $null }
+        [pscustomobject]@{ Verdict = $verdict; Model = $want; TotalBytes = $total; VramBytes = $vram; Share = $share; Detail = $detail } }
+    try {
+        $ps = Invoke-RestMethod -Uri "$Root/api/ps" -TimeoutSec $TimeoutSec
+    } catch {
+        return (& $result "unchecked" $null $null "$Root/api/ps did not answer")
+    }
+    $loaded = @($ps.models | Where-Object { $_ -and (($_.name -ieq $want) -or ($_.model -ieq $want)) })
+    if ($loaded.Count -eq 0) { return (& $result "not-loaded" $null $null "$want is not loaded on $Root") }
+    $total = [double]$loaded[0].size
+    $vram = [double]$loaded[0].size_vram
+    if ($total -gt 0 -and $vram -le 0) { return (& $result "cpu-only" $total $vram "$want is entirely in system RAM ($([math]::Round($total / 1e9, 2)) GB, size_vram 0)") }
+    return (& $result "gpu" $total $vram "$([math]::Round($total / 1e9, 2)) GB, $([math]::Round($vram / 1e9, 2)) GB in VRAM")
+}
+
 function Get-OllamaPromptTruncation {
     # Ollama's "truncating input prompt" warnings logged between $Since and
     # $Until. When a request is longer than the served num_ctx, Ollama keeps
@@ -1702,6 +1740,28 @@ foreach ($tk in $tasksToRun) {
             $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("Ollama truncated the prompt {0} time(s) during the run ({1}): the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {2})." -f $truncation.Count, $truncWhat, $promptHashes[$tk.id])
         }
     }
+    # Where did the host put the model? (Get-OllamaGpuPlacement.) Asked after the
+    # run, while the seat is still loaded. Exit -5 is this harness's code for a
+    # host that was not using its GPU (-1 timeout, -2 dead job host, -3 truncated
+    # prompt, -4 no session to nudge).
+    $gpuPlacement = $null
+    if ($NoGpuCheck) {
+        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked (-NoGpuCheck)" }
+    } elseif (-not $ollamaRoot) {
+        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($providerId is not an Ollama provider)" }
+    } elseif ($run.ExitCode -eq 0) {
+        $gp = Get-OllamaGpuPlacement -Root $ollamaRoot -Tag (($Model -split '/', 2)[1])
+        $gpuPlacement = [ordered]@{
+            checked = ($gp.Verdict -ne "unchecked"); verdict = $gp.Verdict; model = $gp.Model
+            totalGB = $(if ($null -ne $gp.TotalBytes) { [math]::Round($gp.TotalBytes / 1e9, 2) } else { $null })
+            vramGB  = $(if ($null -ne $gp.VramBytes) { [math]::Round($gp.VramBytes / 1e9, 2) } else { $null })
+            share   = $gp.Share; note = $gp.Detail
+        }
+        if ($gp.Verdict -eq "cpu-only") {
+            $run.ExitCode = -5
+            $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("{0} after the run: the host was not using its GPU (on the server, a container that lost it: docs/troubleshooting.md -> `"Container lost the GPU`"). The run measures the host, NOT the model: not graded, no summary row (prompt sha {1}). Fix the GPU, then re-run the gap (-OnlyMissing in the batch)." -f $gp.Detail, $promptHashes[$tk.id])
+        }
+    }
     # Compactions, overflowed requests and the template crash an overflow causes
     # (Get-ContextEvents). Read before the transcript is archived.
     $ctxEvents = Get-ContextEvents -Path $run.TranscriptPath -NumCtx $numCtx
@@ -1714,7 +1774,7 @@ foreach ($tk in $tasksToRun) {
     # failed baseline already do.
     if ($run.ExitCode -ne 0) {
         $isTimeout = ($run.ExitCode -eq -1)
-        $kind      = if ($isTimeout) { "TIMEOUT" } elseif ($run.ExitCode -eq -3) { "TRUNCATED" } else { "INFRA" }
+        $kind      = if ($isTimeout) { "TIMEOUT" } elseif ($run.ExitCode -eq -3) { "TRUNCATED" } elseif ($run.ExitCode -eq -5) { "CPUONLY" } else { "INFRA" }
         if ($run.Detail) {
             $runDetail = $run.Detail
         } else {
@@ -1741,6 +1801,14 @@ foreach ($tk in $tasksToRun) {
     }
 
     Write-Result $tk.id "$($script:AgentName) run" "PASS" ("exit {0}, {1} write/edit tool calls" -f $run.ExitCode, $run.Writes)
+    # GPU placement is recorded in the run JSON (gpuPlacement); a cpu-only host
+    # never reaches this line (exit -5 above). Not loaded / no answer is a WARN:
+    # nothing to judge, and nothing to fail on.
+    if ($gpuPlacement -and $gpuPlacement.verdict -eq "gpu") {
+        Write-Result $tk.id "gpu placement" "PASS" ("{0}: {1} GB in total, {2} GB ({3}%) in VRAM" -f $gpuPlacement.model, $gpuPlacement.totalGB, $gpuPlacement.vramGB, [math]::Round(100 * $gpuPlacement.share))
+    } elseif ($gpuPlacement -and @("not-loaded", "unchecked") -contains $gpuPlacement.verdict) {
+        Write-Result $tk.id "gpu placement" "WARN" ("{0}. Recorded in gpuPlacement, not graded." -f $gpuPlacement.note)
+    }
     $capHit = Test-OutputCapHit -Ending $run.Ending -Limit $outputLimit
     if ($run.Writes -eq 0) {
         if ($capHit) {
@@ -2014,6 +2082,7 @@ foreach ($tk in $tasksToRun) {
         runTimeoutSec   = $RunTimeout
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
+        gpuPlacement    = $gpuPlacement
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.

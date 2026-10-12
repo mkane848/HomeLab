@@ -775,6 +775,20 @@ function Get-ProviderRefusal {
     return $null
 }
 
+function Get-CpuOnlyRun {
+    # The _CPUONLY_ transcript a run left behind (test-tasks.ps1 exit -5: after
+    # the run Ollama had the seat entirely in system RAM, so its host was not
+    # using the GPU), or $null. The condition outlives the run: a container that
+    # lost its GPU stays that way until it is recreated, and every further run
+    # would measure the CPU (2026-10-12: a first batch crawled for 31 minutes).
+    # The batch stops instead of queueing more.
+    param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
+    foreach ($f in (Get-NewRunFiles -ResultsDir $ResultsDir -Before $Before -TaskId $TaskId -ModelLabel $ModelLabel)) {
+        if ($f.Name -like "*_CPUONLY_*") { return $f.Name }
+    }
+    return $null
+}
+
 function Measure-RunSpend {
     # What one test-tasks.ps1 invocation spent, from the files it left in the
     # results folder (Get-NewRunFiles). A transcript paired with a JSON that
@@ -1440,9 +1454,11 @@ foreach ($run in $runList) {
             $hostedCapped[$run.Model]++
             continue
         }
-        $filesBefore = Get-ResultFileNames -Dir $taskResultsDir
         $hostedRan[$run.Model] = [int]$hostedRan[$run.Model] + 1
     }
+    # What the results folder holds before this run, to tell the files it leaves
+    # behind (spend, a provider's refusal, a _CPUONLY_ transcript) from the rest.
+    $filesBefore = Get-ResultFileNames -Dir $taskResultsDir
     Write-Host ""
     Write-Host ">>> [$runNum/$total] $($run.Task)  x  $($run.Model)  (rep $($run.Rep) of $repCount)" -ForegroundColor Cyan
     $taskArgs = @{ Task = $run.Task; Model = $run.Model; ModelLabel = $run.Model }
@@ -1495,6 +1511,12 @@ foreach ($run in $runList) {
         Rep      = $run.Rep
         ExitCode = $code
     })
+    # A host that was not using its GPU: stop, don't queue more runs on it.
+    $cpuOnly = Get-CpuOnlyRun -ResultsDir $taskResultsDir -Before $filesBefore -TaskId $run.Task -ModelLabel $run.Model
+    if ($cpuOnly) {
+        $stopped = "run $runNum of $total ($($run.Task) x $($run.Model)): Ollama had the seat entirely in system RAM after the run, so its host was not using the GPU ($cpuOnly). $($total - $runNum) run(s) not started. Fix the GPU (server: docs/troubleshooting.md -> `"Container lost the GPU`"), then re-run the rest with -OnlyMissing."
+        break
+    }
 }
 
 Write-Host ""

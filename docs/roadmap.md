@@ -83,8 +83,9 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      22.68 GB, 60% on the GPU, 645 tok/s prefill, 66.8 tok/s decode). The compose file now lists the GPU devices
      explicitly and its healthcheck checks the GPU from inside; `status.sh` prints each model's GPU share. **Tested
      once:** `sudo systemctl daemon-reload` at 13:48:16Z, mid-batch; the container kept the GPU, stayed healthy, and
-     `qwen3.6` kept its 60% share. Repeat it after any Docker, driver or toolkit upgrade. The harness still does not
-     check a remote host's GPU use, so a batch against this host runs with a watchdog on both checks.
+     `qwen3.6` kept its 60% share. Repeat it after any Docker, driver or toolkit upgrade. The harness now checks
+     placement itself (below, "GPU-placement check"); the first nudged round on this host ran with a watchdog on both
+     checks before it existed.
      `docs/troubleshooting.md` → "Container lost the GPU".
 3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
    drives a remote Ollama, and its truncation check records "not checked" for a remote host.
@@ -136,6 +137,12 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **Repeated writes were not loops.** `wp-4a` made 23 write/edit calls (21 on one file) between 14 test, typecheck
      and lint runs: it had written 3-space indentation into a 2-space file and broke a doc comment, then fixed both and
      passed. `wp-7a` (15) and `wp-5b` (13) were edit-and-test iterations the same way.
+   - **GPU-placement check (2026-10-12, in the harness).** After each run that exited 0 against an Ollama provider,
+     `test-tasks.ps1` asks the host's `/api/ps` where the seat sits (`Get-OllamaGpuPlacement`). Loaded with `size_vram` 0
+     is exit -5: a `_CPUONLY_` transcript, no row, and `run-tasks-batch.ps1` stops rather than queue more runs on a
+     host that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
+     ran under; it can't catch a host that is CPU-only before the first run until that run has been spent. Guard:
+     `tests/test-gpu-placement.ps1`.
    - **Still open for step 3.** Placement and speed against the desktop on a controlled prompt; a second round for
      variance (one run per task is all this has), now under classifier 2.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure

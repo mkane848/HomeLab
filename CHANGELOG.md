@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The harness checks GPU placement after each run (2026-10-12).** On 2026-10-12 the server's container lost its GPU and
+  Ollama kept answering from the CPU; nothing in a run but its speed showed it, and a batch crawled for 31 minutes.
+  - `tests/test-tasks.ps1`: after each run that exited 0 against an Ollama provider, `Get-OllamaGpuPlacement` asks the
+    host's `/api/ps` where `-Model` sits. Loaded with `size_vram` 0 is infrastructure: exit -5, a `_CPUONLY_`
+    transcript, no run JSON, no summary row. Graded runs record `gpuPlacement` (verdict, GB, share). `-NoGpuCheck`
+    skips it. Only the seat asked about counts, so the CPU-pinned 3b beside it never trips it.
+  - `tests/run-tasks-batch.ps1`: a `_CPUONLY_` transcript stops the batch (`Get-CpuOnlyRun`), with the run, how many
+    were not started, and `-OnlyMissing` to carry on after the fix.
+  - New guard `tests/test-gpu-placement.ps1` (57 checks, PowerShell 7 and 5.1); a harness or batch copy with the new
+    branch removed fails 6 checks each. The throwaway watchdog the first round ran under (outside the repo) is no
+    longer needed.
+
 - **First nudged round of the 15 real tasks on the server's `qwen3.6` (2026-10-12).** `docs/roadmap.md` "Next up"
   step 3 has the result; nothing in the repo changed but the docs, and the rows and transcripts stay in the private
   repo (assisted rows, `results/nudged-server/`).
