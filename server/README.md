@@ -50,8 +50,11 @@ it uses `systemctl`; otherwise it falls back to `docker compose up -d`.
 - `docker/.env.example` — copy to `.env` and fill in values
 - `systemd/ollama-server.service` — systemd unit (optional install; E2E via stop/startup)
 - `scripts/install-model.sh` — catalog-aware model installer (`--list`, `--info`, `--ctx`, `--profile`, `--dry-run`)
-- `scripts/bake-models.sh` — bakes `num_ctx` into the installed seats under the desktop's tags, plus the CPU-pinned
-  3b companion (`--list`, `--dry-run`). Run it after every install; it never pulls.
+- `../models/server-seats.tsv` — the seats this server serves: `num_ctx`, `num_gpu`, the base of a derived model, and
+  the desktop copy's weights `sha256`. Candidate seats are commented out until they are probed on this host.
+- `scripts/bake-models.sh` — reads that list: pulls a missing seat, bakes `num_ctx` into the desktop's tag (plus the
+  CPU-pinned 3b companion), reads the value back and compares the weights blob with the desktop's
+  (`--dry-run`, `--only <tag>`, `--no-pull`). Run it after changing the list.
 - `scripts/startup.sh` — bring services online
 - `scripts/stop.sh` — stop services
 - `scripts/status.sh` — GPU (`nvidia-smi`), API, loaded-model context, catalog gaps

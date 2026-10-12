@@ -71,10 +71,12 @@
     // cannot reach two machines. Each profile sets the *_BASE_URL env vars.
     // Model IDs look like: ollama-server/qwen2.5-coder:7b
 
-    // Server context: a tag that server/scripts/bake-models.sh bakes (the
-    // server half of startup.ps1 $contextModels) serves at its baked num_ctx -
-    // qwen3.6 65536, qwen3:8b 32768, the 3b 16384; keep those entries here in
-    // step with that table. Every other tag serves at OLLAMA_CONTEXT_LENGTH
+    // Server context: a tag listed in models/server-seats.tsv, which
+    // server/scripts/bake-models.sh bakes (the server half of startup.ps1
+    // $contextModels), serves at its baked num_ctx - qwen3.6 65536, qwen3:8b
+    // 32768, the 3b 16384; keep those entries here in step with that table
+    // (test-profiles.ps1 checks limit.context against what the server serves).
+    // Every other tag serves at OLLAMA_CONTEXT_LENGTH
     // (server/docker/.env, 16384 by default), so its entry is capped at 16384.
     // tool_call here reflects the DESKTOP probe of the same weights
     // (tests/test-toolcalls.ps1) unless a server probe is logged for the tag in
@@ -98,7 +100,7 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 65536, "output": 8192 }
         },
-        // The 3b with num_gpu 0 (bake-models.sh $DERIVED): runs on the CPU, so
+        // The 3b with num_gpu 0 (a derived row of models/server-seats.tsv): runs on the CPU, so
         // as the small model it cannot evict qwen3.6 (see the desktop entry).
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Server, CPU, small)",

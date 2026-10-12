@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     with flash attention, a `q8_0` KV cache, `NUM_PARALLEL=1` and a 4 h keep-alive. The running container had been
     an unmanaged `ollama/ollama:latest` (0.33.3) from a stale non-git copy; it is now managed from `~/HomeLab` and
     keeps its volume. The owner extended the root volume from 98 GB to 914 GB.
-  - **Seats.** New `server/scripts/bake-models.sh` bakes `qwen3.6:35b-a3b-coding` (65536), `qwen3:8b` (32768) and
-    `qwen2.5-coder:3b` (16384) under the desktop's tags, plus the CPU-pinned `qwen2.5-coder-3b-cpu`.
+  - **Seats.** New `models/server-seats.tsv` and `server/scripts/bake-models.sh` pull and bake `qwen3.6:35b-a3b-coding`
+    (65536), `qwen3:8b` (32768) and `qwen2.5-coder:3b` (16384) under the desktop's tags, plus the CPU-pinned
+    `qwen2.5-coder-3b-cpu`, read `num_ctx` back, and check each weights blob against the desktop's `sha256` (all
+    four match). Ported from the owner's 2026-10-10 offline WIP, whose first real run this was.
   - **Fixed:** `server/scripts/install-model.sh --ctx` never created its derived model, because its Modelfile went
     through `docker exec` without `-i` and was dropped.
   - **Probe (Ollama 0.34.3, host `server`):** `qwen3:8b` and `qwen3.6:35b-a3b-coding` PASS; the 3b CPU model FAILs as
@@ -21,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `qwen3.6` made exactly one write call and wrote the right file.
   - **`dev-workflow-server` is live again**, rewritten for `qwen3.6` on the server with the desktop tier off (it
     still seated the pre-qwen3.6 setup). `opencode/global/opencode.jsonc` `ollama-server` lists the new seats.
-    `test-profiles.ps1`: 117 PASS, 0 FAIL across the five live profiles. `profiles/parked/README.md`, `AGENTS.md`
+    `test-profiles.ps1`: 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (node3 unreachable) across the five live profiles. `profiles/parked/README.md`, `AGENTS.md`
     and `server/README.md` updated.
   - **SSH access documented** in `docs/network-topology.md` ("SSH access"), which closes the gap `docs/target-setup.md`
     listed. `sudo` on the server asks for a password; privileged steps stay with the owner.

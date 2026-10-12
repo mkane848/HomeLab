@@ -56,8 +56,11 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      `MAX_LOADED_MODELS=2`, keep-alive 4 h. The live container had been an unmanaged `ollama/ollama:latest` (0.33.3)
      from a Sep 9 non-git copy at `~/dev-docs`; it is now managed from `~/HomeLab`, same compose project and volume,
      so the four old models survived. The newest tag is 0.40.x; both hosts stay on 0.34.3 until they are moved together.
-   - **Seats:** `server/scripts/bake-models.sh` (new) bakes `qwen3.6:35b-a3b-coding` 65536, `qwen3:8b` 32768,
-     `qwen2.5-coder:3b` 16384 and the CPU-pinned `qwen2.5-coder-3b-cpu`, under the desktop's tags. Along the way:
+   - **Seats:** `models/server-seats.tsv` lists them and `server/scripts/bake-models.sh` (new) pulls, bakes
+     `qwen3.6:35b-a3b-coding` 65536, `qwen3:8b` 32768, `qwen2.5-coder:3b` 16384 and the CPU-pinned
+     `qwen2.5-coder-3b-cpu` under the desktop's tags, reads `num_ctx` back and checks each weights blob against the
+     desktop's recorded `sha256` (all four match). The list and script come from the owner's 2026-10-10 offline WIP
+     (`feat/server-bringup-config`), run for the first time here; candidate seats from it are commented out until probed. Along the way:
      `install-model.sh --ctx` never created its derived model (a heredoc into `docker exec` without `-i`); fixed.
      Checked against the live desktop (`ollama show --modelfile`): the server's `qwen3.6:35b-a3b-coding`,
      `qwen3:8b` and `qwen2.5-coder:3b` have the same weights blobs (`sha256:d372de8e…`, `a3de86cd…`, `4a188102…`),
@@ -69,7 +72,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      the right file (31 s). Run in a directory that is not a git repo, the same seat wrote to `%TEMP%\opencode`
      instead of the working directory (OpenCode roots a non-repo at `/`): test ad hoc in a `git init` directory.
    - **Harness:** `test-profiles.ps1 -Profile dev-workflow-server` 17 PASS (18 with `-Reliability`: "exactly 1 write
-     tool call; file correct"); all five live profiles 117 PASS, 0 FAIL. `status.sh` runs clean.
+     tool call; file correct"); all five live profiles 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (node3 unreachable). `status.sh` runs clean.
      `opencode/global/opencode.jsonc` `ollama-server` lists the new seats with the desktop's limits.
    - **Watch:** with `qwen3.6` loaded the GPU has 782 MiB free of 16,376, and Ollama logs "GPU discovery watchdog
      timed out" on every model load (the load still uses CUDA). Neither has caused a failure yet.

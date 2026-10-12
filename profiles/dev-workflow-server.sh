@@ -23,10 +23,9 @@
 # The small model is the 3b with num_gpu 0 (bake-models.sh derives it), for the
 # reason in dev-workflow-quality.sh: a GPU companion evicts the main seat.
 #
-# Server setup (docs/network-topology.md -> "SSH access"):
-#   ./server/scripts/install-model.sh qwen3.6:35b-a3b-coding qwen3:8b
-#   docker exec ollama-server ollama pull qwen2.5-coder:3b    # not in the catalog
-#   ./server/scripts/bake-models.sh                           # num_ctx + the CPU 3b
+# Server setup (docs/network-topology.md -> "SSH access"), on the server:
+#   ./server/scripts/bake-models.sh    # pulls the seats in models/server-seats.tsv,
+#                                      # bakes num_ctx, derives the CPU 3b, checks weights
 # Probe before trusting any seat here:
 #   .\tests\test-toolcalls.ps1 -Model qwen3.6:35b-a3b-coding -OllamaHost http://SERVER_IP:11434 -HostLabel server
 
@@ -39,8 +38,9 @@ export DEV_TIERS_DESKTOP=false
 export DEV_TIERS_GO=false
 export DEV_TIERS_NODE3=false
 
-# qwen2.5-coder:3b is the base of the CPU companion (not in models/catalog.tsv, like
-# the desktop's list); install-model.sh reports it as "nothing to install".
+# Mirrors models/server-seats.tsv. qwen2.5-coder:3b is the base of the CPU companion and
+# is not in models/catalog.tsv (like the desktop's list), so install-model.sh --profile
+# reports it as "nothing to install": bake-models.sh is what pulls it.
 export DEV_SERVER_MODELS="qwen3.6:35b-a3b-coding qwen3:8b qwen2.5-coder:3b"
 
 # This profile runs against the REMOTE server: default to SERVER_IP (from .env), NOT localhost.
