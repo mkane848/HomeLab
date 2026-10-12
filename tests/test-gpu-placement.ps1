@@ -267,6 +267,10 @@ exit $LASTEXITCODE
     Check "JSON gpuPlacement: checked, verdict gpu"              ("{0} {1}" -f $r.Json.gpuPlacement.checked, $r.Json.gpuPlacement.verdict) "True gpu"
     Check "...share 0.599, 22.68 GB, 13.59 GB in VRAM"           ("{0} {1} {2}" -f $r.Json.gpuPlacement.share, $r.Json.gpuPlacement.totalGB, $r.Json.gpuPlacement.vramGB) "0.599 22.68 13.59"
     Check "asked /api/ps once"                                   $r.PsCalls 1
+    # Not about the GPU, but this is the guard that already runs the real harness end to end.
+    Check "JSON runHost: this machine's name and its logical processors" ("{0} {1}" -f $r.Json.runHost.name, ($r.Json.runHost.logicalProcessors -eq [Environment]::ProcessorCount)) ("{0} True" -f [Environment]::MachineName)
+    $cimCpu = try { @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)[0].Name } catch { $null }
+    Check "...and its CPU model (as Win32_Processor names it, when the machine has one)" $(if ($cimCpu) { "$($r.Json.runHost.cpu)" -eq (($cimCpu -replace '\s+', ' ').Trim()) } else { $true }) "True"
 
     Write-Host "   scenario: CPU-only (38 GB, 0 VRAM)"
     $r = Invoke-Harness (PsJson @((M $fxModel 38e9 0)))

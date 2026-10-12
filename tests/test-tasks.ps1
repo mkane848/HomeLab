@@ -1493,6 +1493,23 @@ $servingEngine = [ordered]@{
     provider = $providerId
 }
 
+# Where the agent's tools ran: the machine hosting this harness (every read, edit,
+# shell command, install and test run), which is not necessarily the one serving
+# the model. The fleet's CPUs differ (a 5950X with 16 cores, a 5800X3D, a 3700X),
+# and install, vitest and tsc time scale with them, so a wall-clock compared across
+# run hosts needs this. Recorded in every run JSON as `runHost`.
+$runHost = [ordered]@{
+    name = [Environment]::MachineName; cpu = $null; cores = $null
+    logicalProcessors = [Environment]::ProcessorCount; os = [Environment]::OSVersion.VersionString
+}
+try {
+    $cpuInfo = @(Get-CimInstance -ClassName Win32_Processor -ErrorAction Stop)
+    if ($cpuInfo.Count -gt 0) {
+        $runHost.cpu = ($cpuInfo[0].Name -replace '\s+', ' ').Trim()
+        $runHost.cores = [int](($cpuInfo | Measure-Object -Property NumberOfCores -Sum).Sum)
+    }
+} catch { }
+
 # Prompt-truncation check (Get-OllamaPromptTruncation): Ollama-specific, and
 # only a local Ollama's server.log is readable from here. Every graded run
 # records which it was, so another engine records "not checked", not a clean.
@@ -2083,6 +2100,7 @@ foreach ($tk in $tasksToRun) {
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
         gpuPlacement    = $gpuPlacement
+        runHost         = $runHost
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.

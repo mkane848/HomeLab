@@ -95,6 +95,11 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      desktop).** Placement at 64k: 22.68 GB in total, 13.59 GB (60%) on the GPU, 19 of 42 layers overflowing, with
      the CPU 3b co-resident at 0 VRAM. Prefill 646 tok/s on a 3,325-token prompt; decode about 63 tok/s (two
      300-token runs). The desktop's placement was 21.13 GB total, 12.51 GB on the GPU (`dev-workflow-quality.sh`).
+   - **Speed at depth, server (`tests/bench-speed.ps1`, 2026-10-12, one rep, Ollama 0.34.3, `qwen3.6` at 64k).** Prefill
+     688 / 692 / 674 tok/s at 3k / 30k / 60k prompt tokens; decode 73.1 / 65.0 / 60.6 tok/s; 22.68 GB with 13.59 GB (60%)
+     in VRAM throughout. Rows in `tests/results/bench-speed.tsv`; they agree with the single-prompt figures above
+     (646 / ~67). **The desktop's matching rows are the missing half**, and the comparison has to be at the same sizes:
+     decode falls with depth on both.
    - ~~**One nudged round of the 15 real tasks on the server's `qwen3.6`.**~~ **Done 2026-10-12** (result below). A new
      era (host). It replaces the second nudged round on the desktop.
 
@@ -148,18 +153,30 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
    speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
    Ollama"). It runs after step 3, so there's a baseline.
-5. **Make the server where things run.**
-   - **The harness on Linux.** PowerShell 7 runs there, but the harness has Windows-only pieces:
-     - `taskkill` and `Win32_Process` for timeouts and orphans;
-     - `.cmd` stand-ins in the guards;
-     - the Ollama log path;
-     - Windows paths.
-
-     Port them and run every guard on Linux. This can start before the server is back, in a Linux container on
-     the desktop.
-   - **On the server:** the task repos, the private repo, Node and pnpm, and gh auth (the no-push guard covers
-     runs).
-   - **Batches run there, unattended,** and the desktop stays free.
+5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
+   server where things run", which would have put every test run on the weakest CPU.
+   - **The three CPUs differ.** node3's Ryzen 9 5950X (16c/32t) is the fleet's throughput CPU. The desktop's Ryzen 7
+     5800X3D (8c/16t, large L3) is strong on single-thread and cache-bound work and is the owner's planning and
+     review machine. The server's Ryzen 7 3700X is the weakest, and it is busy: `qwen3.6` has 13.6 of 22.7 GB in
+     VRAM and reads the rest from system RAM on every token, so that CPU and its memory set decode speed.
+     Which work suits which CPU is a hypothesis until measured.
+   - **Model host and run host are separate choices.** The model's tool calls (read, edit, shell, `pnpm`, `vitest`,
+     `tsc`) run on the machine hosting the harness, not where the model is served. In the first server round that was
+     the desktop's 5800X3D. **node3 is the default run host**: it is Windows 11, so the harness runs there without a
+     port, and its 5950X runs the CPU-heavy half. Every run JSON now records `runHost` (machine, CPU, cores) so a
+     wall-clock compared across hosts says whose CPU it was.
+   - **Measure, then route.** A `tests/bench-cpu.ps1` (per host, on a pinned task repo: `pnpm install` cold and warm,
+     the baseline test command, `tsc --noEmit`, vitest at 1, 4, 8 and 16 workers) on the desktop and node3; a
+     contention test for `qwen3.6` decode speed with 0, 4 and 8 busy threads beside it on the server; and a control run
+     with the model on the server and the tools first on the desktop, then on node3. The rule it produces goes into
+     `target-setup.md`.
+   - **node3 has to be up and have the toolchain.** It is not answering now (its sleep settings: owner). Needed there:
+     PowerShell 7, Node, pnpm, git, `gh`, OpenCode 1.18.34, the task repos (the manifests hard-code `M:/…` and `C:/…`
+     paths: same paths or a per-host repo-root map), the private repo. Downloads and git credentials are the owner's
+     to approve and enter.
+   - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
+     `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
+     paths. It is not on the critical path while node3 is the run host.
 6. **Real use.** The owner drives real tasks in the daily setup against the server's models. That's OpenCode for
    now: the client choice is open and its research on file. Here it gets decided whether the stop nudge joins
    daily use. OpenCode's plugin is the quick route; a client's own stop hook is the portable one.

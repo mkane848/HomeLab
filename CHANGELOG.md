@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`tests/bench-speed.ps1`: prefill and decode speed of one seat on one host, at depth (2026-10-12).** "The server is
+  faster" rested on wall-clock per task, which mixes the engine with how much work the model chose to do (the server's
+  two early-stopped runs were also its fastest). The script asks one host the same question at the same prompt sizes
+  and appends rows to `tests/results/bench-speed.tsv`: cold load, then per size (default 3k, 30k, 60k tokens) prefill and
+  decode tok/s from Ollama's own durations, the `/api/ps` placement, the engine and version, and the baked `num_ctx`.
+  - Each prompt carries a fresh nonce (no prefix-cache hits); a size over 92% of `num_ctx` is skipped and logged rather
+    than sent (Ollama would cut it from the front); the chars-per-token estimate is corrected after the first request.
+  - A warm-up request (about 600 tokens in, one out) loads the seat and calibrates characters per token, so each measured
+    size lands within a few percent of its target; no speeds are logged for it, and a speed from fewer than 64 prompt or
+    8 generated tokens is null. The first real run, before either rule, logged 1,000,000 tok/s for a one-token decode and a
+    3000-token target that came out at 4,465.
+  - Ollama only for now; `llama-server` arrives with the engine trial, and `engine` is already a column so rows compare.
+  - New guard `tests/test-bench-speed.ps1` (43 checks, PowerShell 7 and 5.1); controls with a fixed nonce, the cap
+    disabled, a wrong divisor or no minimum token count each fail their own checks. Found on the way: `"a`tb" -split
+    "`t", -1` does not split on PowerShell 7.4.20 (5.1 does); the guard uses `.Split("`t")`.
+
+- **Every run JSON records `runHost` (2026-10-12).** The agent's tools (read, edit, shell, `pnpm`, `vitest`, `tsc`) run on
+  the machine hosting the harness, which is not necessarily the one serving the model: in the first server round the
+  model ran on the server's GPU and every tool call on the desktop's CPU. The fleet's CPUs differ (node3's 5950X
+  16c/32t, the desktop's 5800X3D 8c/16t, the server's 3700X 8c/16t), so `test-tasks.ps1` now records the machine name,
+  CPU model, cores, logical processors and OS. A wall-clock compared across run hosts says whose CPU it was. Rows
+  before this have no field (all desktop). `docs/roadmap.md` "Next up" step 5 is rewritten around it: model host and
+  run host are separate choices, node3 is the default run host, and the Linux harness is demoted. Checked in
+  `tests/test-gpu-placement.ps1` (59 checks).
+
 - **The harness checks GPU placement after each run (2026-10-12).** On 2026-10-12 the server's container lost its GPU and
   Ollama kept answering from the CPU; nothing in a run but its speed showed it, and a batch crawled for 31 minutes.
   - `tests/test-tasks.ps1`: after each run that exited 0 against an Ollama provider, `Get-OllamaGpuPlacement` asks the
