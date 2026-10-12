@@ -94,8 +94,50 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      desktop).** Placement at 64k: 22.68 GB in total, 13.59 GB (60%) on the GPU, 19 of 42 layers overflowing, with
      the CPU 3b co-resident at 0 VRAM. Prefill 646 tok/s on a 3,325-token prompt; decode about 63 tok/s (two
      300-token runs). The desktop's placement was 21.13 GB total, 12.51 GB on the GPU (`dev-workflow-quality.sh`).
-   - **One nudged round of the 15 real tasks on the server's `qwen3.6`.** A new era (host). Compare it with the
-     desktop's 11 of 12. This replaces the second nudged round on the desktop.
+   - ~~**One nudged round of the 15 real tasks on the server's `qwen3.6`.**~~ **Done 2026-10-12** (result below). A new
+     era (host). It replaces the second nudged round on the desktop.
+
+   **Result: the nudged round on the server, 2026-10-12.** One run per task with `-NudgeOnStop`, so every row is
+   assisted. Ollama 0.34.3, OpenCode 1.18.34, `num_ctx` 65536. Rows and transcripts stay private; only ids and
+   verdicts are here.
+   - **Valid.** 15 of 15 graded, with no `_INFRA_`, `_TIMEOUT_` or `_TRUNCATED_` run. The GPU held the whole batch:
+     the container (recreated 13:31Z) had 0 restarts, came through the one `daemon-reload` at 13:48Z, still lists the
+     GPU, and `qwen3.6` was 59% on it after the last run.
+   - **10 of 15 passed.** Work packages 8 of 12: `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`, `wp-3b`, `wp-4a`, `wp-6a`, `wp-9a`
+     passed; `wp-5a`, `wp-5b`, `wp-6f`, `wp-7a` failed. Real tasks 2 of 3 (`real-02` fails, as it did in both of the
+     desktop's nudged rounds). Each of the five failures missed exactly one hidden test, and the repo's own suite was
+     green in all fifteen.
+   - **Against the desktop's round.** Its "11 of 12" was 11 passes and `wp-5b` timing out at 45 minutes (no row).
+     On the 11 work packages both hosts graded it is 8 of 11 on the server against 11 of 11. One run per task can't
+     separate those: Fisher exact, two-sided, p ≈ 0.21. `wp-5b`: the server graded it (39 minutes, five compactions,
+     one test short); the desktop timed out. Real tasks: 2 of 3 on both.
+   - **Speed.** 131 minutes for the 15. On the 14 tasks both hosts ran, 92 minutes against the desktop's 201 (2.2x;
+     per task from 0.9x, `wp-7a`, to 4.0x, `wp-3a`). Not all of that is the engine: two of the misses are runs that
+     stopped early (below).
+   - **Why the four work packages missed, two ways.**
+     - **Stopped with work undone (`wp-5a`, `wp-6f`).** Both made no `bash` call, so they never ran a test. `wp-5a`
+       edited one file and ended saying the verify commands were still running (it had run none); `wp-6f` ended
+       saying the server route and tests were still to do. Each got one stop nudge of the two allowed, then
+       ended on a sentence `Get-StopKind` doesn't read as a stop with work left: it reads only the last sentence for
+       "I'll…", "let me…" or a trailing colon, and these ended on "Still need to…" and "Please let me know when…".
+       (`wp-5a`'s one nudge went on its lost brief.) The desktop passed both tasks every time it ran them in the
+       nudged and stop-nudge rounds. **Fixed the same day (classifier 2, not yet used in a round).** `Get-StopKind`
+       has a fourth kind, `pending`, that reads the last two sentences for "still need to", "yet to", "I'll wait",
+       "waiting for/on", "still running" and "let me know when/once". A scan of all 607 transcripts held (public and
+       private) changes exactly three endings, `wp-5a`, `wp-6f` and `wp-3b`, and leaves the other 604 as they were.
+       `wp-3b` also stopped mid-list ("I still need to: …, run verification… Shall I complete those remaining
+       steps?"; 5 edits, no test run) and passed only because its hidden tests exercise production code. So 3 of the 15
+       server runs ended with work undone, and the old classifier read none of them. Rows nudged from now on carry
+       `stopNudges.classifier` 2 (absent = 1): a new assisted era, and the server round above is its baseline.
+     - **Verified, one case short (`wp-7a`, `wp-5b`).** Both ran tests, typecheck and lint, reported them green and
+       closed with "complete", and missed one behaviour the visible tests don't pin. The nudge can't reach these.
+   - **Lost briefs: 3 of 15.** `wp-2b`, `wp-4a` and `wp-5a` each had a front-drop followed by the model asking what
+     its task was; the lost-task nudge re-sent the brief in all three, and two of the three passed.
+   - **Repeated writes were not loops.** `wp-4a` made 23 write/edit calls (21 on one file) between 14 test, typecheck
+     and lint runs: it had written 3-space indentation into a 2-space file and broke a doc comment, then fixed both and
+     passed. `wp-7a` (15) and `wp-5b` (13) were edit-and-test iterations the same way.
+   - **Still open for step 3.** Placement and speed against the desktop on a controlled prompt; a second round for
+     variance (one run per task is all this has), now under classifier 2.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
    speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
    Ollama"). It runs after step 3, so there's a baseline.
