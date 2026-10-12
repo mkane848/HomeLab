@@ -1,0 +1,92 @@
+# llama.cpp (llama-server) beside Ollama - the engine trial's server stack.
+# Protocol and runbook: docs/llamacpp-trial.md. Phase 1 only; nothing here runs
+# at boot, and nothing here touches the Ollama stack.
+#
+#   docker compose -f server/docker/docker-compose.llamacpp.yml up -d
+#   docker compose -f server/docker/docker-compose.llamacpp.yml down
+#
+# ONE ENGINE ON THE GPU AT A TIME. qwen3.6 holds ~13.6 GB of the 16 GB under
+# Ollama, so before a trial window stop its resident model:
+#   docker exec ollama-server ollama stop qwen3.6:35b-a3b-coding
+# (Ollama keeps it loaded for 4 h.) Real use of the server pauses for the window.
+#
+# --- Why this file is shaped the way it is ---------------------------------
+# * `name: llamacpp` - its OWN compose project. The Ollama stack's project is
+#   `docker` (named after its directory) and it owns the models volume
+#   `docker_ollama_data`; renaming that directory orphans the volume
+#   (docs/network-topology.md -> "Server layout"). A second file in the same
+#   project would make the Ollama container an orphan of this one.
+# * The Ollama volume is mounted READ-ONLY and declared `external`: llama-server
+#   loads Ollama's own weights blobs (the file name of a blob IS its sha256), so
+#   the weights are the exact bytes models/server-seats.tsv pins. Nothing in this
+#   stack can write to, rename or remove them. Needs Ollama 0.34.3 left as it is:
+#   0.40.2 upgrades stored models in the background (docs/llamacpp-trial.md).
+# * Pinned by build tag AND digest. ghcr tags every build (server-cuda-bNNNNN) and
+#   the digest is the multi-arch index (linux/amd64, linux/arm64). Chosen
+#   2026-10-12: b11561 was the newest server-cuda build. The image is CUDA 12.8.1
+#   (nvidia/cuda:12.8.1-runtime-ubuntu24.04), which driver 580.178.04 runs; do
+#   not use server-cuda13 / the CUDA 13.4 builds on this driver. A different
+#   build is a different era - change it deliberately, re-run the probe.
+# * The five /dev/nvidia* nodes are listed explicitly and the healthcheck runs
+#   `nvidia-smi -L` INSIDE the container, exactly as the Ollama file does. On
+#   2026-10-12 a systemd reload (apt-daily) silently took the Ollama container's
+#   GPU and it served qwen3.6 from the CPU for 31 minutes
+#   (docs/troubleshooting.md -> "Container lost the GPU"). This container has the
+#   same Docker, cgroup driver and toolkit, so it has the same hazard. A
+#   llama-server that loses the GPU may not say so, which is why the trial has a
+#   drill for it (docs/llamacpp-trial.md, measurement E).
+# * restart: "no". While this is a trial it must never start at boot and fight
+#   Ollama for the GPU. Phase 3 (cutover) changes this deliberately.
+# * The image's own HEALTHCHECK probes port 8080 (LLAMA_ARG_PORT=8080 in its
+#   Dockerfile); this stack serves 8090, so the healthcheck is overridden below.
+#   The image installs curl; verify on first start with
+#   `docker inspect --format '{{json .State.Health}}' llamacpp-server`.
+name: llamacpp
+
+services:
+  llamacpp-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11561@sha256:20c6e722e2fcc5ca9c15401d3fd8e35408aaf8f9c54a12f32920f637c57959bb
+    container_name: llamacpp-server
+    restart: "no"
+    ports:
+      - "8090:8090"
+    volumes:
+      - ollama_data:/ollama:ro
+      - ../llamacpp/models.ini:/config/models.ini:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    devices:
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
+    # Router mode: no -m, a preset file instead. Each [section] of models.ini is a
+    # model the server can load on demand (POST /models/load, or its first request);
+    # --models-max caps how many stay resident (it counts models, not VRAM, so the
+    # preset's sizes are what keep two of them inside 16 GB).
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8090"
+      - --models-preset
+      - /config/models.ini
+      - --models-max
+      - "2"
+    # Unhealthy when the API is up but the container cannot see the GPU.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/health >/dev/null && nvidia-smi -L >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ollama_data:
+    external: true
+    name: docker_ollama_data
