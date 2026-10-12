@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **First nudged round of the 15 real tasks on the server's `qwen3.6` (2026-10-12).** `docs/roadmap.md` "Next up"
+  step 3 has the result; nothing in the repo changed but the docs, and the rows and transcripts stay in the private
+  repo (assisted rows, `results/nudged-server/`).
+  - 15 of 15 graded, all on the GPU (container healthy, 0 restarts, `qwen3.6` 59% GPU after the last run). 10 passed:
+    work packages 8 of 12, real tasks 2 of 3. Every failure missed one hidden test.
+  - On the 11 work packages both hosts graded, 8 of 11 against the desktop's 11 of 11 (the desktop's `wp-5b` timed
+    out, so its "11 of 12" is 11 passes and a timeout). Fisher exact p ≈ 0.21 at one run per task: not separable yet.
+  - 92 minutes against the desktop's 201 on the 14 tasks both ran (2.2x).
+  - Two of the four work-package misses (`wp-5a`, `wp-6f`) stopped with work undone and ran no test; the stop
+    classifier (`Get-StopKind`) didn't read their closing sentences as a stop, and neither was a third run (`wp-3b`,
+    which passed).
+- **Stop classifier 2: a `pending` kind (2026-10-12).** `Get-StopKind` in `tests/test-tasks.ps1` now also reads the
+  last two sentences for work still to do or a wait ("Still need to…", "yet to", "I'll wait", "waiting for/on",
+  "still running", "let me know when/once"). "Let me know if…" stays a sign-off. A scan of all 607 transcripts held
+  (public and private) changes exactly three endings (`wp-5a`, `wp-6f`, `wp-3b`, all stops with work undone) and none of
+  the other 604. The run JSON's `stopNudges` gains `classifier` (2; absent = 1), so earlier nudged rows are a different
+  era. `tests/test-stop-nudge.ps1` gains 7 classifier cases and an end-to-end `pending` run (59 checks, PowerShell 7
+  and 5.1); the same guard against a harness without the branch fails 8.
+
 - **The server's container lost the GPU silently, and a benchmark batch ran on the CPU (2026-10-12).** A systemd reload
   at 11:12Z (`apt-daily`) dropped `ollama-server`'s device access on this host's systemd-cgroup-v2 Docker
   (`docker exec ollama-server nvidia-smi -L`: `Failed to initialize NVML: Unknown Error`; the host's `nvidia-smi` fine).
