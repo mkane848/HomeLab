@@ -3,14 +3,16 @@
 These profiles are **correct and working**. They are parked because they target
 a host that does not currently exist:
 
-- the **server** (`SERVER_IP`) will not POST — see
-  [`docs/server-recovery-cpu-led.md`](../../docs/server-recovery-cpu-led.md)
+- the **server** (`SERVER_IP`) as it was before 2026-10-12. The host is back on a replacement board
+  ([`docs/server-recovery-cpu-led.md`](../../docs/server-recovery-cpu-led.md)) and runs Ollama 0.34.3, but only
+  `qwen3:8b` and `qwen3.6` are probed or seated there. These profiles still name the old `qwen2.5-coder` /
+  `deepseek-r1` seats, so they stay parked until each is rewritten and re-checked.
 
 (`dev-node3.sh` used to be parked here for the same reason — the third node
 had never been provisioned. It was onboarded 2026-09-20 and the profile is
-live in `profiles/` again.)
+live in `profiles/` again. `dev-workflow-server.sh` followed on 2026-10-12, rewritten for `qwen3.6` on the server.)
 
-Nothing here is deprecated. Parked 2026-09-17; eight profiles remain.
+Nothing here is deprecated. Parked 2026-09-17; seven profiles remain.
 
 ## Why park instead of leaving them live
 
@@ -36,7 +38,6 @@ it from the run automatically. No test changes were needed.
 | `dev-go-only` | server + OpenCode Go subscription |
 | `dev-full` | server + desktop + Go |
 | `dev-local-only` | server (desktop main seat, but `ollama-server` small model) |
-| `dev-workflow-server` | server |
 
 ## Bringing one back
 

@@ -71,17 +71,46 @@
     // cannot reach two machines. Each profile sets the *_BASE_URL env vars.
     // Model IDs look like: ollama-server/qwen2.5-coder:7b
 
-    // Server serves every tag at OLLAMA_CONTEXT_LENGTH (server/docker/.env,
-    // 16384 by default), so every entry here is capped at 16384.
+    // Server context: a tag listed in models/server-seats.tsv, which
+    // server/scripts/bake-models.sh bakes (the server half of startup.ps1
+    // $contextModels), serves at its baked num_ctx - qwen3.6 65536, qwen3:8b
+    // 32768, the 3b 16384; keep those entries here in step with that table
+    // (test-profiles.ps1 checks limit.context against what the server serves).
+    // Every other tag serves at OLLAMA_CONTEXT_LENGTH
+    // (server/docker/.env, 16384 by default), so its entry is capped at 16384.
     // tool_call here reflects the DESKTOP probe of the same weights
-    // (tests/test-toolcalls.ps1). gemma3, codestral, gpt-oss and qwq are
-    // NOT installed anywhere yet and are therefore UNPROBED - their
-    // "tool_call": true is an assumption. Probe before seating any of them.
-    // glm4 IS measured: FAIL on node3 2026-09-20 (ignored the tool, answered
-    // in prose). The server copy itself is unprobed (server down since before
-    // the test existed) - re-probe it there before trusting this entry.
+    // (tests/test-toolcalls.ps1) unless a server probe is logged for the tag in
+    // tests/results/toolcalls-summary.tsv (host "server"). gemma3, codestral,
+    // gpt-oss and qwq are NOT installed anywhere yet and are therefore
+    // UNPROBED - their "tool_call": true is an assumption. Probe before
+    // seating any of them. glm4 IS measured: FAIL on node3 2026-09-20 (ignored
+    // the tool, answered in prose). The server copy itself is unprobed - re-probe
+    // it there before trusting this entry.
     "ollama-server": {
       "models": {
+        // MAIN SEAT of dev-workflow-server (same weights and bake as the
+        // desktop's seat; server placement on 16 GB CUDA is measured separately,
+        // docs/roadmap.md -> "Next up", step 3).
+        "qwen3.6:35b-a3b-coding": {
+          "name": "Qwen3.6 35B-A3B Coding (Server, main seat, offloads)",
+          "attachment": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["image", "text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
+        },
+        // The 3b with num_gpu 0 (a derived row of models/server-seats.tsv): runs on the CPU, so
+        // as the small model it cannot evict qwen3.6 (see the desktop entry).
+        "qwen2.5-coder-3b-cpu": {
+          "name": "Qwen 2.5 Coder 3B (Server, CPU, small)",
+          "attachment": true,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        },
         "qwen2.5-coder:7b": {
           "name": "Qwen 2.5 Coder 7B (Server)",
           "attachment": true,
@@ -116,7 +145,7 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 16384, "output": 4096 }
+          "limit": { "context": 32768, "output": 4096 }
         },
         "qwen3:14b": {
           "name": "Qwen3 14B (Server)",

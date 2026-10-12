@@ -91,6 +91,28 @@ On each Ollama host, also set the bind:
 
 Server binds via `OLLAMA_HOST=0.0.0.0` in `server/docker/.env`.
 
+## SSH access
+
+Recorded 2026-10-12, when the server came back on a replacement board. Placeholders as
+elsewhere; the real values are in the git-ignored `.env` and in `~/.ssh/config`.
+
+- **Desktop → hosts.** `~/.ssh/config` has a `Host server` and a `Host node3` entry (HostName from `.env`,
+  `User` = `SSH_USER` for the server), both `IdentityFile ~/.ssh/dev-docs` with `IdentitiesOnly yes`. So
+  `ssh server` and `ssh node3` work, and key auth means no prompt: scripts and agents can run `ssh -o BatchMode=yes server <cmd>`.
+  The key is a single ed25519 pair used for this fleet; the private half stays on the desktop and is never copied
+  to a phone or into the repo. The server's `authorized_keys` holds its public half.
+- **Phone / other clients (Terminus).** Host = `SERVER_IP`, port 22, user = `SSH_USER`, LAN only. Prefer a key
+  generated in the client with its public half appended to the server's `~/.ssh/authorized_keys`; the server does
+  not disable password login in its config files, so a password may also work (unconfirmed without root). Check
+  the first-connect fingerprint against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` run on the server.
+  A replaced board or reinstall changes the host keys: expect a one-time "host key changed" warning on every client.
+- **`sudo` on the server asks for a password.** Anything privileged (extending the root LV, installing packages,
+  `systemctl`) is run by the owner in their own session. Agents and scripts do everything that needs only the
+  `docker` group: Ollama, models, compose. Do not add a passwordless-sudo rule for convenience.
+- **Server layout.** A checkout (or `git archive` extract) of this repo at `~/HomeLab`; the compose project there is
+  named `docker`, which owns the models' volume `docker_ollama_data`. Renaming that directory orphans the volume.
+  `~/dev-docs` is the pre-outage copy (Sep 2026, not a git repo) and can be removed once nothing points at it.
+
 ## Verification
 
 With a profile sourced (which loads `.env`):

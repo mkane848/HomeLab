@@ -8,16 +8,14 @@ services:
     # models can edit files, and the failure mode is an agent that reports work
     # it never did (docs/troubleshooting.md -> "Agent 'says' it edited a file").
     #
-    # 0.34.1 is the version every tool-calling result in the docs was measured
-    # against. Bumped from 0.34.0 on 2026-09-19 to match the desktop, which
-    # auto-updated; the probe was re-run there and reproduced every result
-    # including each failure's mode (tests/results/toolcalls-0.34.1.txt).
-    #
-    # This host has NEVER been probed - it has been down since before
-    # tests/test-toolcalls.ps1 existed. Re-run it against this host BEFORE
-    # trusting any seat here, on this version or any bump:
-    #   .\tests\test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434
-    image: ollama/ollama:0.34.1
+    # 0.34.3 is the version the desktop's tool-call results and task benchmark
+    # were measured on (tests/results/toolcalls-summary.tsv). Bumped from 0.34.1
+    # on 2026-10-12 when the server came back on a replacement board; until then
+    # the live container was an unmanaged ollama/ollama:latest (0.33.3). A newer
+    # tag exists (0.40.x). Moving either host is a new era for the benchmark and
+    # a decision of its own - change both together, then re-run the probe:
+    #   .\tests\test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434 -HostLabel server
+    image: ollama/ollama:0.34.3
     container_name: ollama-server
     restart: unless-stopped
     ports:
@@ -33,12 +31,23 @@ services:
               capabilities: [gpu]
     environment:
       - OLLAMA_HOST=0.0.0.0
-      # RTX 4070 Ti Super (16GB): 7B Q4 ~4.7GB, 14B Q4 ~9GB, 16k KV comfortable.
-      # Context length is honored here (Linux/Docker) - raise via .env only if
-      # serving smaller models with lots of headroom.
+      # Aligned with the desktop's measured setup (docs/roadmap.md -> "Next up",
+      # step 2). Flash attention + a q8_0 KV cache is what lets a 64k seat fit
+      # next to its companion; num_ctx per model is baked by
+      # server/scripts/bake-models.sh (the other half of the desktop's
+      # startup.ps1 $contextModels). The default below only serves tags that are
+      # not baked.
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-q8_0}
       - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-16384}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      # One slot. Four KV slots of a 64k 35B seat do not fit, and the harness
+      # and OpenCode are single-stream anyway.
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      # 2: the main seat plus the CPU-pinned 3b companion (num_gpu 0).
       - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      # Ollama's default is 5m: a seat idle that long unloads and the next reply
+      # pays a reload plus a full re-prefill (2-3.5 min for qwen3.6 on the desktop).
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-4h}
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s
