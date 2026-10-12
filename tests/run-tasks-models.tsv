@@ -19,7 +19,7 @@
 # cap (-SpendCapShare of the monthly allowance in costs/go-rates.tsv; a seat with
 # no rate row there is refused).
 tag	hosts	desc
-qwen3:8b	desktop node3	general light seat; measured PASS on desktop (0.34.1) and node3 (2026-09-20)
+qwen3:8b	desktop node3 server	general light seat; measured PASS on desktop (0.34.1), node3 (2026-09-20) and server (0.34.3, 2026-10-12, baked 32k)
 qwen3:14b	desktop	main seat; measured PASS on desktop (0.34.1); deliberately absent from node3
 qwen3.5:9b	desktop	local GGUF import, vision; measured PASS on desktop (0.34.1)
 qwen3-coder:30b-a3b	desktop	review-gate auditor seat; measured PASS on desktop (0.34.1)

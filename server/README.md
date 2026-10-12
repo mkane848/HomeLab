@@ -45,10 +45,13 @@ it uses `systemctl`; otherwise it falls back to `docker compose up -d`.
 
 ## Files
 
-- `docker/docker-compose.yml` — Ollama container stack (OLLAMA_HOST, CONTEXT_LENGTH=16384, NUM_PARALLEL=4, MAX_LOADED_MODELS=2)
+- `docker/docker-compose.yml` — Ollama container stack, pinned to 0.34.3 and aligned with the desktop's measured setup
+  (flash attention, `q8_0` KV cache, NUM_PARALLEL=1, MAX_LOADED_MODELS=2, keep-alive 4h, default CONTEXT_LENGTH=16384)
 - `docker/.env.example` — copy to `.env` and fill in values
 - `systemd/ollama-server.service` — systemd unit (optional install; E2E via stop/startup)
 - `scripts/install-model.sh` — catalog-aware model installer (`--list`, `--info`, `--ctx`, `--profile`, `--dry-run`)
+- `scripts/bake-models.sh` — bakes `num_ctx` into the installed seats under the desktop's tags, plus the CPU-pinned
+  3b companion (`--list`, `--dry-run`). Run it after every install; it never pulls.
 - `scripts/startup.sh` — bring services online
 - `scripts/stop.sh` — stop services
 - `scripts/status.sh` — GPU (`nvidia-smi`), API, loaded-model context, catalog gaps
@@ -56,6 +59,12 @@ it uses `systemctl`; otherwise it falls back to `docker compose up -d`.
 ## Notes
 
 - The server honors `OLLAMA_CONTEXT_LENGTH` (unlike the Windows Ollama app), so
-  base tags serve at the env default; bake a derived `<tag>-Nk` only when you need
-  a single model with more.
+  un-baked tags serve at the env default (16384). Seats get their own `num_ctx` from
+  `bake-models.sh` under the **same tag** as on the desktop, so one `opencode.jsonc`
+  limit and one `tests/run-tasks-models.tsv` row hold on both hosts. Change a number
+  in `bake-models.sh`, `desktop/scripts/startup.ps1` (`$contextModels`) and the
+  `limit.context` of both OpenCode provider blocks together.
+- Tool-calling on this host was first probed 2026-10-12 on Ollama 0.34.3
+  (`tests/results/toolcalls-summary.tsv`, host `server`). Re-probe after any version change.
+- Access, the `sudo` rule and the `~/HomeLab` layout: [docs/network-topology.md](../docs/network-topology.md) → "SSH access".
 - Files copied from Windows lose the exec bit — run `./make-executable.sh` after any scp.
