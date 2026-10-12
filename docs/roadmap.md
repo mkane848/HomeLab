@@ -23,7 +23,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 
 1. ~~**The server POSTs** (owner, hardware).~~ **Done 2026-10-11** on a replacement board (MAG B550 Tomahawk
    MAX WiFi); the original board had failed ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)).
-2. **Day-one bring-up.** It extends "Post-server-upgrade validation" below.
+2. ~~**Day-one bring-up.**~~ **Done 2026-10-12** (result after the list). It extended "Post-server-upgrade validation" below.
    - **Hardware and runtime:** `nvidia-smi`, Docker with the NVIDIA container toolkit
      ([troubleshooting.md](troubleshooting.md)), `./server/scripts/status.sh`. *2026-10-11: `nvidia-smi`, the
      toolkit and the old `ollama-server` container (0.33.3) all work; `status.sh` not yet run. The root volume
@@ -48,10 +48,42 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **Profile:** bring `dev-workflow-server` back from `profiles/parked/` and run
      `test-profiles.ps1 -Profile dev-workflow-server`.
    - **Document SSH access** (target-setup's open gap).
+
+   **Result, 2026-10-12.** Every sub-bullet above is done; their wording is left as written.
+   - **Volume:** the owner extended the root LV from 98 GB to 914 GB (`sudo` on the server asks for a password, so
+     privileged steps stay with the owner).
+   - **Ollama:** `docker-compose.yml` now pins 0.34.3 with flash attention, `q8_0` KV cache, `NUM_PARALLEL=1`,
+     `MAX_LOADED_MODELS=2`, keep-alive 4 h. The live container had been an unmanaged `ollama/ollama:latest` (0.33.3)
+     from a Sep 9 non-git copy at `~/dev-docs`; it is now managed from `~/HomeLab`, same compose project and volume,
+     so the four old models survived. The newest tag is 0.40.x; both hosts stay on 0.34.3 until they are moved together.
+   - **Seats:** `models/server-seats.tsv` lists them and `server/scripts/bake-models.sh` (new) pulls, bakes
+     `qwen3.6:35b-a3b-coding` 65536, `qwen3:8b` 32768, `qwen2.5-coder:3b` 16384 and the CPU-pinned
+     `qwen2.5-coder-3b-cpu` under the desktop's tags, reads `num_ctx` back and checks each weights blob against the
+     desktop's recorded `sha256` (all four match). The list and script come from the owner's 2026-10-10 offline WIP
+     (`feat/server-bringup-config`), run for the first time here; candidate seats from it are commented out until probed. Along the way:
+     `install-model.sh --ctx` never created its derived model (a heredoc into `docker exec` without `-i`); fixed.
+     Checked against the live desktop (`ollama show --modelfile`): the server's `qwen3.6:35b-a3b-coding`,
+     `qwen3:8b` and `qwen2.5-coder:3b` have the same weights blobs (`sha256:d372de8e…`, `a3de86cd…`, `4a188102…`),
+     so results from the two hosts are the same model, differing in engine backend (CUDA vs Vulkan) only.
+   - **Probe, Ollama 0.34.3** (`tests/results/toolcalls-summary.tsv`, host `server`): `qwen3:8b` PASS (60.3 s) and
+     `qwen3.6` PASS (68 s), both including a cold load; `qwen2.5-coder-3b-cpu` FAIL, as expected for the no-tools
+     titles model. Both PASSes are rows for host `server` in `tests/run-tasks-models.tsv`.
+   - **End to end:** `opencode run` against `ollama-server/qwen3.6:35b-a3b-coding` made exactly 1 write call and wrote
+     the right file (31 s). Run in a directory that is not a git repo, the same seat wrote to `%TEMP%\opencode`
+     instead of the working directory (OpenCode roots a non-repo at `/`): test ad hoc in a `git init` directory.
+   - **Harness:** `test-profiles.ps1 -Profile dev-workflow-server` 17 PASS (18 with `-Reliability`: "exactly 1 write
+     tool call; file correct"); all five live profiles 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (node3 unreachable). `status.sh` runs clean.
+     `opencode/global/opencode.jsonc` `ollama-server` lists the new seats with the desktop's limits.
+   - **Watch:** with `qwen3.6` loaded the GPU has 782 MiB free of 16,376, and Ollama logs "GPU discovery watchdog
+     timed out" on every model load (the load still uses CUDA). Neither has caused a failure yet.
 3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
    drives a remote Ollama, and its truncation check records "not checked" for a remote host.
    - Measure `qwen3.6`'s placement on 16 GB of CUDA plus 32 GB of RAM, and its speed against the desktop. The
      3700X is the fleet's weakest CPU, and a MoE's spill runs on it.
+   - **First numbers (2026-10-12, single stream, one prompt each: not a benchmark and not yet compared with the
+     desktop).** Placement at 64k: 22.68 GB in total, 13.59 GB (60%) on the GPU, 19 of 42 layers overflowing, with
+     the CPU 3b co-resident at 0 VRAM. Prefill 646 tok/s on a 3,325-token prompt; decode about 63 tok/s (two
+     300-token runs). The desktop's placement was 21.13 GB total, 12.51 GB on the GPU (`dev-workflow-quality.sh`).
    - **One nudged round of the 15 real tasks on the server's `qwen3.6`.** A new era (host). Compare it with the
      desktop's 11 of 12. This replaces the second nudged round on the desktop.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure

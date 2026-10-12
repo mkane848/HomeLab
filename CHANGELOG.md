@@ -19,6 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file exits 1 with the same 5 failures, the fixed file exits 0 with 146 checks passing (PowerShell 7 and Windows
   PowerShell 5.1). `Get-MeterBounds` and the rest of `run-tasks-batch.ps1` are unchanged.
 
+- **Server day-one bring-up (2026-10-12).** `docs/roadmap.md` "Next up" step 2 is done; step 3 has its first numbers.
+  - **Ollama realigned.** `server/docker/docker-compose.yml` pins 0.34.3 (the version the desktop was measured on)
+    with flash attention, a `q8_0` KV cache, `NUM_PARALLEL=1` and a 4 h keep-alive. The running container had been
+    an unmanaged `ollama/ollama:latest` (0.33.3) from a stale non-git copy; it is now managed from `~/HomeLab` and
+    keeps its volume. The owner extended the root volume from 98 GB to 914 GB.
+  - **Seats.** New `models/server-seats.tsv` and `server/scripts/bake-models.sh` pull and bake `qwen3.6:35b-a3b-coding`
+    (65536), `qwen3:8b` (32768) and `qwen2.5-coder:3b` (16384) under the desktop's tags, plus the CPU-pinned
+    `qwen2.5-coder-3b-cpu`, read `num_ctx` back, and check each weights blob against the desktop's `sha256` (all
+    four match). Ported from the owner's 2026-10-10 offline WIP, whose first real run this was.
+  - **Fixed:** `server/scripts/install-model.sh --ctx` never created its derived model, because its Modelfile went
+    through `docker exec` without `-i` and was dropped.
+  - **Probe (Ollama 0.34.3, host `server`):** `qwen3:8b` and `qwen3.6:35b-a3b-coding` PASS; the 3b CPU model FAILs as
+    expected. Both PASSes are server seats in `tests/run-tasks-models.tsv`. `opencode run` against the server's
+    `qwen3.6` made exactly one write call and wrote the right file.
+  - **`dev-workflow-server` is live again**, rewritten for `qwen3.6` on the server with the desktop tier off (it
+    still seated the pre-qwen3.6 setup). `opencode/global/opencode.jsonc` `ollama-server` lists the new seats.
+    `test-profiles.ps1`: 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (node3 unreachable) across the five live profiles. `profiles/parked/README.md`, `AGENTS.md`
+    and `server/README.md` updated.
+  - **SSH access documented** in `docs/network-topology.md` ("SSH access"), which closes the gap `docs/target-setup.md`
+    listed. `sudo` on the server asks for a password; privileged steps stay with the owner.
+  - **First `qwen3.6` numbers on the server** (single stream, not compared with the desktop yet): 22.68 GB at 64k,
+    13.59 GB on the GPU; prefill 646 tok/s; decode about 63 tok/s.
+
+
 - **The server is back (2026-10-11).** `docs/server-recovery-cpu-led.md` records attempts 3–11 (two ROMs, four
   USB sticks logged by vendor/product ID, GPU out, CPU out, a 60-minute run): every Flashback write hung, so the
   board itself had failed. A replacement MAG B550 Tomahawk MAX WiFi booted first time with the same CPU, RAM,

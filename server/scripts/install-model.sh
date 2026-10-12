@@ -78,10 +78,14 @@ ollama_pull() {
     if [[ -n "$CTX" ]]; then
         local derived="${tag}-${CTX}k"
         echo "[install-model] Creating derived model $derived (num_ctx $CTX)..."
-        ollama_exec create "$derived" <<EOF >/dev/null
-FROM $tag
-PARAMETER num_ctx $CTX
-EOF
+        # The Modelfile is written inside the container: `docker exec` without -i
+        # drops a heredoc on stdin (this path silently created nothing before
+        # 2026-10-12). For same-tag bakes use bake-models.sh instead.
+        if [[ "$DRY_RUN" -eq 1 ]]; then
+            echo "[install-model] (dry-run) would create $derived from $tag with num_ctx $CTX"
+        else
+            docker exec "$CONTAINER" sh -c "printf '%s\n' 'FROM $tag' 'PARAMETER num_ctx $CTX' > /tmp/Modelfile-install && ollama create '$derived' -f /tmp/Modelfile-install && rm -f /tmp/Modelfile-install" >/dev/null
+        fi
         echo "[install-model] ok: $derived serves $tag at $CTX context."
     fi
 }

@@ -29,8 +29,8 @@ a description of what runs today; [start-here.md](start-here.md) is today.
   ASoHaV). **TypeScript first.** .NET/C# later, not a priority.
 - **No planning around gaming.** If the desktop or node3 is in use, no workers
   run on it. Optimising for that case is future work.
-- **LAN only for now.** SSH access from Terminus already exists but is not
-  documented in this repo (see "Gaps" below).
+- **LAN only for now.** SSH access from Terminus is documented in
+  [network-topology.md](network-topology.md) → "SSH access".
 - **Current hardware only.** Upgrade ideas go in
   [hardware.md](hardware.md) → "Upgrade candidates"; nothing here depends on
   them.
@@ -186,9 +186,8 @@ shape" is unchanged, only the planner's name is filled in.
 
 ## Gaps to close before building
 
-- **Terminus SSH access is undocumented.** Record which hosts it reaches and
-  where the key lives (not the key itself) in
-  [network-topology.md](network-topology.md).
+- ~~**Terminus SSH access is undocumented.**~~ Documented 2026-10-12 in
+  [network-topology.md](network-topology.md) → "SSH access" (hosts, key location, the server's `sudo` rule).
 - ~~Free disk and LAN link.~~ Settled 2026-09-22: all hosts are wired, and
   disk is not a constraint. Per-option totals are in
   [hardware.md](hardware.md) → "Network and storage".
