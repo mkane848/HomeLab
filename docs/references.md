@@ -53,9 +53,11 @@ and `swe-bench-verified` is the reference named throughout
 | aider-edit-formats | Aider — edit formats (whole, diff, udiff) | <https://aider.chat/docs/more/edit-formats.html> |
 | aider-unified-diffs | Aider — "Unified diffs make GPT-4 Turbo 3x less lazy" (edit-format + flexible-apply analysis) | <https://aider.chat/docs/unified-diffs.html> |
 | qcoda-bakeoff | QCoda — "We Tested Every Agentic Coding Engine Against Every Local Model" (engine × model, edit-format + round-trip analysis, 2026-06) | <https://qcoda.com/blog/engine-model-bakeoff> |
+| mortar-flashback | Tom's Hardware forum — "MSI B550M Mortar - Bios Flash/boot issues" (read 2026-10-10): solid CPU LED after a BIOS settings save, Flashback never finishing across sticks, versions and CPUs | <https://forums.tomshardware.com/threads/msi-b550m-mortar-bios-flash-boot-issues.3664291/> |
 
 Where used: → [methodology-research.md](methodology-research.md) ("Edit
-reliability", "Whole-file vs search-replace", "Harness round-trip weight").
+reliability", "Whole-file vs search-replace", "Harness round-trip weight");
+`mortar-flashback` → [server-recovery-cpu-led.md](server-recovery-cpu-led.md) (the 2026-10-10 session).
 
 ## Software & code
 

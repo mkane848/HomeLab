@@ -1,5 +1,9 @@
 # Handoff prompt — server recovery (paste into a new agent)
 
+> **Resolved 2026-10-11: do not use this prompt.** The board had failed; a replacement MAG B550 Tomahawk MAX
+> WiFi boots with the same CPU, RAM, GPU, PSU and drive. Kept for the record. Current state:
+> `docs/server-recovery-cpu-led.md` → "Current state".
+
 > Save this verbatim and open a fresh session with it when you pick the work back up.
 > Read `docs/server-recovery-cpu-led.md` first — it is the source of truth for this incident
 > and is updated as the situation changes.
@@ -47,7 +51,7 @@ of changing the supply. Do not lead with a PSU swap.
    ~7min.
 3. If it hangs again: try a DIFFERENT BIOS VERSION (older AGESA from MSI's B550 Tomahawk
    support page) renamed to MSI.ROM on the same stick. The ROM *version* has never been
-   varied — only its integrity was checked (32,554,432 bytes, _PT_ AMI header).
+   varied — only its integrity was checked (33,554,432 bytes, _PT_ AMI header).
 4. If it hangs again: a THIRD USB stick if available (<=8GB, USB 2.0, DiskPart clean ->
    MBR -> FAT32).
 5. CPU reseat w/ socket-pin inspection (CPU was never touched, so low odds, but it is
