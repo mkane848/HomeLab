@@ -41,8 +41,10 @@ DERIVED=(
 
 die() { echo "[bake-models] ERROR: $*" >&2; exit 1; }
 
+# `ollama list` spells an untagged model "name:latest": emit both spellings so a
+# derived model's bare name matches.
 installed_tags() {
-    docker exec "$CONTAINER" ollama list | awk 'NR>1 { print $1 }'
+    docker exec "$CONTAINER" ollama list | awk 'NR>1 { print $1; if ($1 ~ /:latest$/) { sub(/:latest$/, "", $1); print $1 } }'
 }
 
 # create <name> <from> <num_ctx> [num_gpu]
