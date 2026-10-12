@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The server's container lost the GPU silently, and a benchmark batch ran on the CPU (2026-10-12).** A systemd reload
+  at 11:12Z (`apt-daily`) dropped `ollama-server`'s device access on this host's systemd-cgroup-v2 Docker
+  (`docker exec ollama-server nvidia-smi -L`: `Failed to initialize NVML: Unknown Error`; the host's `nvidia-smi` fine).
+  Ollama kept answering from the CPU: `qwen3.6` loaded at 38 GB, `100% CPU`, and the first launch of the nudged
+  15-task round crawled for 31 minutes before it was noticed. It was stopped and wrote no result rows. Recreating the
+  container restored 22.68 GB / 60% on the GPU, 645 tok/s prefill and 66.8 tok/s decode.
+  - `server/docker/docker-compose.yml` lists the five `/dev/nvidia*` nodes explicitly and its healthcheck now fails
+    when `nvidia-smi -L` fails inside the container (the old `ollama list` check stayed green).
+  - `server/scripts/status.sh` prints the GPU as the container sees it and each loaded model's GPU share.
+  - `docs/troubleshooting.md` → "Container lost the GPU", an `AGENTS.md` Gotcha and `docs/roadmap.md` record the cause
+    and the fix. **Tested once:** after `sudo systemctl daemon-reload` (13:48:16Z, the trigger that broke the
+    container at 11:12Z) the container still saw the GPU, stayed healthy and `qwen3.6` stayed 60% on the GPU, with a
+    benchmark batch running. The harness still does not check a remote host's GPU use.
+
 - **`tests/test-hosted-seats.ps1` failed 5 checks in the first ~30 hours after every weekly plan reset (found
   2026-10-12).** It was the test's fixture, not the batch's plan-meter code. The end-to-end scenarios stamp their
   usage rows from the real clock ("30 hours ago: $8.00") but the week meter's reset was pinned to
@@ -18,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fixed anchors through the same loop and must fail some hours. Same-clock result at reset + 13 h: the original
   file exits 1 with the same 5 failures, the fixed file exits 0 with 146 checks passing (PowerShell 7 and Windows
   PowerShell 5.1). `Get-MeterBounds` and the rest of `run-tasks-batch.ps1` are unchanged.
+
 
 - **Server day-one bring-up (2026-10-12).** `docs/roadmap.md` "Next up" step 2 is done; step 3 has its first numbers.
   - **Ollama realigned.** `server/docker/docker-compose.yml` pins 0.34.3 (the version the desktop was measured on)

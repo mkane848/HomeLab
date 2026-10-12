@@ -53,6 +53,46 @@ docker logs ollama-server --tail 50
 sudo lsof -i :11434
 ```
 
+### Container lost the GPU: slow server, `Failed to initialize NVML: Unknown Error`
+
+**Symptom.** Everything answers, but the server is many times slower than it was, `ollama ps` shows the main seat at
+`100% CPU` (38 GB instead of 22.7 GB, with 60% on the GPU), and `nvidia-smi` on the **host** looks perfectly fine,
+with 0 MiB used. Inside the container it fails:
+
+```bash
+docker exec ollama-server nvidia-smi -L        # Failed to initialize NVML: Unknown Error
+```
+
+`ollama list` and the API still work, so an old healthcheck stayed green and nothing failed loudly.
+
+**Cause.** Docker here uses the **systemd cgroup driver on cgroup v2**. A systemd reload (any package install or
+upgrade, the daily `apt-daily` / snap timers) rewrites the device-access rules of running containers. The
+`/dev/nvidia*` nodes are still listed inside the container, but access to them is denied, so Ollama finds no GPU
+and loads models onto the CPU. Seen 2026-10-12: `systemd[1]: Reloading...` at 11:12:20Z, as `apt-daily` started
+(`journalctl --since "<container start>" | grep -i reloading`). The container had been up since 04:19Z and had
+used the GPU fine until then. A first launch of the nudged 15-task round ran for 31 minutes on the CPU before it was
+noticed; it was stopped and left no result rows.
+
+**Fix now.** Recreate the container (the volume and the models are kept):
+
+```bash
+docker compose -f server/docker/docker-compose.yml up -d --force-recreate
+docker exec ollama-server nvidia-smi -L        # GPU 0: NVIDIA GeForce RTX 4070 Ti SUPER
+```
+
+**Prevention, and what is proven.**
+- `docker-compose.yml` lists the five `/dev/nvidia*` nodes explicitly (the toolkit's documented workaround) and its
+  healthcheck now fails when `nvidia-smi -L` fails inside the container, so `docker ps` and `server/scripts/status.sh`
+  show it. **Tested on this host, once:** `sudo systemctl daemon-reload` at 13:48:16Z (the trigger that broke the
+  container without explicit devices at 11:12Z); 13 seconds later `docker exec ollama-server nvidia-smi -L` still
+  listed the GPU, the container stayed healthy with 0 restarts, and a loaded `qwen3.6` kept its 60% GPU share.
+  One reload is one data point: repeat the test after any Docker, driver or toolkit upgrade
+  (`sudo systemctl daemon-reload`, then `docker exec ollama-server nvidia-smi -L`). If it ever fails, the next step is
+  `"exec-opts": ["native.cgroupdriver=cgroupfs"]` in `/etc/docker/daemon.json` (needs `sudo`; restarts Docker).
+- **Any run of results from this host needs a placement check.** The harness does not look at a remote Ollama's
+  GPU use. During a batch, poll `/api/ps` and `docker exec ollama-server nvidia-smi -L`; a loaded GPU seat with
+  `size_vram` 0 means the numbers are CPU numbers. `status.sh` prints each loaded model's GPU share.
+
 ### Out of VRAM
 
 The server now hosts an RTX 4070 Ti Super (16 GB) with `OLLAMA_NUM_PARALLEL=4`

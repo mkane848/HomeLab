@@ -29,6 +29,24 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    # The GPU device nodes, listed explicitly on top of the NVIDIA runtime's own
+    # injection. Docker here uses the systemd cgroup driver on cgroup v2, and a
+    # systemd reload (any package install, the daily apt/snap timers) rewrites a
+    # container's device-access rules: with only the runtime's injection the
+    # container silently loses the GPU ("Failed to initialize NVML: Unknown
+    # Error") and Ollama falls back to CPU-only. On 2026-10-12 that happened at
+    # 11:12Z and an hours-long benchmark batch started running qwen3.6 at 38 GB,
+    # 100% CPU. Explicit devices are the toolkit's documented workaround. Tested on
+    # this host 2026-10-12: after `sudo systemctl daemon-reload` the container still
+    # saw the GPU (`docker exec ollama-server nvidia-smi -L`). Repeat that after any
+    # Docker, driver or toolkit upgrade (docs/troubleshooting.md -> "Container lost
+    # the GPU").
+    devices:
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
     environment:
       - OLLAMA_HOST=0.0.0.0
       # Aligned with the desktop's measured setup (docs/roadmap.md -> "Next up",
@@ -48,8 +66,11 @@ services:
       # Ollama's default is 5m: a seat idle that long unloads and the next reply
       # pays a reload plus a full re-prefill (2-3.5 min for qwen3.6 on the desktop).
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-4h}
+    # Unhealthy when the API answers but the container cannot see the GPU: a
+    # CPU-only Ollama still passes `ollama list`, which is how the loss above went
+    # unnoticed. `docker ps` and server/scripts/status.sh show it.
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: ["CMD-SHELL", "ollama list >/dev/null && nvidia-smi -L >/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
