@@ -75,7 +75,16 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      tool call; file correct"); all five live profiles 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (node3 unreachable). `status.sh` runs clean.
      `opencode/global/opencode.jsonc` `ollama-server` lists the new seats with the desktop's limits.
    - **Watch:** with `qwen3.6` loaded the GPU has 782 MiB free of 16,376, and Ollama logs "GPU discovery watchdog
-     timed out" on every model load (the load still uses CUDA). Neither has caused a failure yet.
+     timed out" on every model load (the load still uses CUDA).
+   - **Found 2026-10-12, same day: the container lost the GPU.** A systemd reload at 11:12Z (`apt-daily`) took the
+     container's device access (`Failed to initialize NVML: Unknown Error` inside, host `nvidia-smi` fine) and the
+     next `qwen3.6` load went to the CPU: 38 GB, 100% CPU. The first launch of step 3's nudged round ran 31 minutes
+     like that before it was noticed. It was stopped; it wrote no rows. Fixed by recreating the container (back to
+     22.68 GB, 60% on the GPU, 645 tok/s prefill, 66.8 tok/s decode). The compose file now lists the GPU devices
+     explicitly and its healthcheck checks the GPU from inside; `status.sh` prints each model's GPU share. **Not yet
+     proven:** that the explicit devices survive a reload (needs `sudo systemctl daemon-reload`, then
+     `docker exec ollama-server nvidia-smi -L`). Until then, a batch against this host runs with a watchdog on both
+     checks. `docs/troubleshooting.md` → "Container lost the GPU".
 3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
    drives a remote Ollama, and its truncation check records "not checked" for a remote host.
    - Measure `qwen3.6`'s placement on 16 GB of CUDA plus 32 GB of RAM, and its speed against the desktop. The

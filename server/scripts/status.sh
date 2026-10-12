@@ -30,6 +30,18 @@ if command -v nvidia-smi &>/dev/null; then
 else
     echo "(nvidia-smi not found — GPU passthrough likely broken)"
 fi
+# The GPU as the CONTAINER sees it. The host's nvidia-smi can be fine while the
+# container has lost the device (a systemd reload resets its device-access rules):
+# Ollama then runs on the CPU alone and still answers the API.
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx ollama-server; then
+    if docker exec ollama-server nvidia-smi -L &>/dev/null; then
+        echo "In ollama-server: $(docker exec ollama-server nvidia-smi -L | head -1)"
+    else
+        echo "In ollama-server: GPU NOT VISIBLE (NVML failed) - Ollama is running on the CPU only."
+        echo "  Fix: docker compose -f server/docker/docker-compose.yml up -d --force-recreate"
+        echo "  See docs/troubleshooting.md -> 'Container lost the GPU'."
+    fi
+fi
 echo ""
 
 # Check if Ollama API is responding
@@ -41,7 +53,7 @@ if curl -sf http://localhost:11434/api/tags &>/dev/null; then
     curl -sf http://localhost:11434/api/tags | python3 -m json.tool 2>/dev/null || curl -sf http://localhost:11434/api/tags
     echo ""
     echo "Loaded models + context (VRAM check):"
-    curl -sf http://localhost:11434/api/ps | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'  {m[\"name\"]:<28} ctx={m.get(\"context_length\",\"?\")}') for m in d.get(\"models\",[])]" 2>/dev/null || curl -sf http://localhost:11434/api/ps
+    curl -sf http://localhost:11434/api/ps | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'  {m[\"name\"]:<28} ctx={m.get(\"context_length\",\"?\")} total={m[\"size\"]/1e9:.2f}GB vram={m[\"size_vram\"]/1e9:.2f}GB ({100*m[\"size_vram\"]/max(m[\"size\"],1):.0f}% GPU)') for m in d.get(\"models\",[])]" 2>/dev/null || curl -sf http://localhost:11434/api/ps
 else
     echo "Ollama API: DOWN or not responding"
 fi

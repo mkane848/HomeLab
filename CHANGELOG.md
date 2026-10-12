@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The server's container lost the GPU silently, and a benchmark batch ran on the CPU (2026-10-12).** A systemd reload
+  at 11:12Z (`apt-daily`) dropped `ollama-server`'s device access on this host's systemd-cgroup-v2 Docker
+  (`docker exec ollama-server nvidia-smi -L`: `Failed to initialize NVML: Unknown Error`; the host's `nvidia-smi` fine).
+  Ollama kept answering from the CPU: `qwen3.6` loaded at 38 GB, `100% CPU`, and the first launch of the nudged
+  15-task round crawled for 31 minutes before it was noticed. It was stopped and wrote no result rows. Recreating the
+  container restored 22.68 GB / 60% on the GPU, 645 tok/s prefill and 66.8 tok/s decode.
+  - `server/docker/docker-compose.yml` lists the five `/dev/nvidia*` nodes explicitly and its healthcheck now fails
+    when `nvidia-smi -L` fails inside the container (the old `ollama list` check stayed green).
+  - `server/scripts/status.sh` prints the GPU as the container sees it and each loaded model's GPU share.
+  - `docs/troubleshooting.md` → "Container lost the GPU", an `AGENTS.md` Gotcha and `docs/roadmap.md` record the cause
+    and the fix. **Not yet proven:** that explicit devices survive a reload; it needs `sudo systemctl daemon-reload`
+    and then `docker exec ollama-server nvidia-smi -L`. The harness still does not check a remote host's GPU use.
+
 - **Server day-one bring-up (2026-10-12).** `docs/roadmap.md` "Next up" step 2 is done; step 3 has its first numbers.
   - **Ollama realigned.** `server/docker/docker-compose.yml` pins 0.34.3 (the version the desktop was measured on)
     with flash attention, a `q8_0` KV cache, `NUM_PARALLEL=1` and a 4 h keep-alive. The running container had been
