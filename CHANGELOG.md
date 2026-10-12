@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     container at 11:12Z) the container still saw the GPU, stayed healthy and `qwen3.6` stayed 60% on the GPU, with a
     benchmark batch running. The harness still does not check a remote host's GPU use.
 
+- **`tests/test-hosted-seats.ps1` failed 5 checks in the first ~30 hours after every weekly plan reset (found
+  2026-10-12).** It was the test's fixture, not the batch's plan-meter code. The end-to-end scenarios stamp their
+  usage rows from the real clock ("30 hours ago: $8.00") but the week meter's reset was pinned to
+  `2026-10-11T23:00:00Z`, so 6 hours after that reset the $8.00 row sat in the previous week, the batch counted $0.50
+  instead of $8.50, and the "week is full" stop never fired. The month meter had the same flaw after the 25th. The
+  scenarios now anchor their meters relative to the real clock (`LiveAnchors`, `LivePlanTsv`); the unit checks keep
+  the fixed anchors because they pass their own clock. A new sweep checks every hour of 40 days, across weekly
+  resets and the 25th, that a 30-hour-old row stays inside the current week and month, and a control runs the old
+  fixed anchors through the same loop and must fail some hours. Same-clock result at reset + 13 h: the original
+  file exits 1 with the same 5 failures, the fixed file exits 0 with 146 checks passing (PowerShell 7 and Windows
+  PowerShell 5.1). `Get-MeterBounds` and the rest of `run-tasks-batch.ps1` are unchanged.
+
+
 - **Server day-one bring-up (2026-10-12).** `docs/roadmap.md` "Next up" step 2 is done; step 3 has its first numbers.
   - **Ollama realigned.** `server/docker/docker-compose.yml` pins 0.34.3 (the version the desktop was measured on)
     with flash attention, a `q8_0` KV cache, `NUM_PARALLEL=1` and a 4 h keep-alive. The running container had been
@@ -43,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     listed. `sudo` on the server asks for a password; privileged steps stay with the owner.
   - **First `qwen3.6` numbers on the server** (single stream, not compared with the desktop yet): 22.68 GB at 64k,
     13.59 GB on the GPU; prefill 646 tok/s; decode about 63 tok/s.
+
 
 - **The server is back (2026-10-11).** `docs/server-recovery-cpu-led.md` records attempts 3–11 (two ROMs, four
   USB sticks logged by vendor/product ID, GPU out, CPU out, a 60-minute run): every Flashback write hung, so the
