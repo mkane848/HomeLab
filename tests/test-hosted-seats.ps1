@@ -119,16 +119,35 @@ function ErrorEvent([string]$Status, [string]$Message) {
 }
 # Plan meters (costs/go-plan.tsv). The default is roomy, so only the plan
 # scenarios below are ever stopped by it.
-function PlanTsv([double]$Window, [double]$Week, [double]$Month) {
+function PlanTsv([double]$Window, [double]$Week, [double]$Month, [string]$WeekAnchor = "2026-10-11T23:00:00Z", [string]$MonthAnchor = "2026-10-25T00:00:00Z") {
     $inv = [Globalization.CultureInfo]::InvariantCulture
     return (@(
         "plan`tmeter`tlimitUsd`tperiod`tanchorUtc`tchecked`tbasis",
         ("go`twindow`t{0}`t5h`t`t2026-10-07`tfixture" -f $Window.ToString($inv)),
-        ("go`tweek`t{0}`t7d`t2026-10-11T23:00:00Z`t2026-10-07`tfixture" -f $Week.ToString($inv)),
-        ("go`tmonth`t{0}`t1mo`t2026-10-25T00:00:00Z`t2026-10-07`tfixture" -f $Month.ToString($inv))
+        ("go`tweek`t{0}`t7d`t{1}`t2026-10-07`tfixture" -f $Week.ToString($inv), $WeekAnchor),
+        ("go`tmonth`t{0}`t1mo`t{1}`t2026-10-07`tfixture" -f $Month.ToString($inv), $MonthAnchor)
     ) -join "`n")
 }
-$planFixture = PlanTsv 900 900 900
+# The end-to-end scenarios stamp their usage rows from the REAL clock (UsageJson:
+# "hours ago"), so their meters must reset relative to the real clock too. With
+# PlanTsv's fixed anchors above, a row 30 hours old fell into the previous week
+# for the first 30 hours after every weekly reset (and into the previous month
+# after the 25th), and the week scenario failed 5 checks on 2026-10-12, 6 hours
+# after a reset. The fixed anchors stay for the unit checks, which pass their own
+# clock; the sweep in "plan meters" below guards this choice at every hour.
+function LiveAnchors([datetime]$Now) {
+    $iso = "yyyy-MM-ddTHH:mm:ssZ"
+    $inv = [Globalization.CultureInfo]::InvariantCulture
+    return [pscustomobject]@{
+        Week  = $Now.AddDays(-3).ToString($iso, $inv)     # the week began 3 days ago
+        Month = $Now.AddDays(-12).ToString($iso, $inv)    # the month began 12 days ago
+    }
+}
+function LivePlanTsv([double]$Window, [double]$Week, [double]$Month) {
+    $a = LiveAnchors ([datetime]::UtcNow)
+    return PlanTsv $Window $Week $Month -WeekAnchor $a.Week -MonthAnchor $a.Month
+}
+$planFixture = LivePlanTsv 900 900 900
 # `opencode db --format json` rows: each @(hours ago, usd).
 function UsageJson([object[]]$Rows) {
     $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
@@ -301,6 +320,27 @@ try {
     Check "this batch's spend counts: window 1 + 3 + 0.5 reaches 4.5" (Get-PlanStop -Status $st -BatchUsd 3 -ReserveUsd 0.5) 'plan window $4.0000 of $4.50 (the trailing 5h) - within $0.50 of the limit'
     Check "...one cent short: still runs"             ($null -eq (Get-PlanStop -Status $st -BatchUsd 2.99 -ReserveUsd 0.5)) "True"
     Has   "the week names when it resets"             (Get-PlanStop -Status @($st[1]) -BatchUsd 9.2 -ReserveUsd 0.5) '^plan week \$12\.2000 of \$12\.60, resets \w{3} 2026-10-1[01] \d\d:\d\d - within \$0\.50'
+
+    # The end-to-end scenarios below use LiveAnchors, which must keep a 30-hour-old
+    # row inside the current week AND month at every hour, not just today. Sweep
+    # 40 days hourly across weekly resets and the 25th. The control runs the old
+    # fixed anchors through the same loop and must fail some hours, or the sweep
+    # could not have caught the original defect.
+    function InPeriod($Bounds, [datetime]$T) { return ($T -ge $Bounds[0] -and $T -lt $Bounds[1]) }
+    $sweepBase = [datetime]::SpecifyKind([datetime]"2026-10-01T00:00:00", "Utc")
+    $liveBad = 0; $fixedBad = 0
+    for ($h = 0; $h -lt 24 * 40; $h++) {
+        $n = $sweepBase.AddHours($h); $row = $n.AddHours(-30)
+        $a = LiveAnchors $n
+        $wk = Get-MeterBounds -Period "7d"  -Anchor ([DateTimeOffset]::Parse($a.Week, $inv).UtcDateTime)  -Now $n
+        $mo = Get-MeterBounds -Period "1mo" -Anchor ([DateTimeOffset]::Parse($a.Month, $inv).UtcDateTime) -Now $n
+        if (-not ((InPeriod $wk $row) -and (InPeriod $mo $row))) { $liveBad++ }
+        $wkF = Get-MeterBounds -Period "7d"  -Anchor $wkAnchor -Now $n
+        $moF = Get-MeterBounds -Period "1mo" -Anchor $moAnchor -Now $n
+        if (-not ((InPeriod $wkF $row) -and (InPeriod $moF $row))) { $fixedBad++ }
+    }
+    Check "fixture anchors: a 30h-old row is in the week and month at every hour of 40 days" $liveBad 0
+    Check "...and the old fixed anchors fail some of those hours (the sweep has teeth)" ($fixedBad -gt 0) "True"
 
     Write-Host "-- the real registry and rate table"
     $realReg = Get-Content -LiteralPath (Join-Path $PSScriptRoot "run-tasks-models.tsv")
@@ -495,7 +535,7 @@ exit $LASTEXITCODE
     Check "...it runs everything"                     (RunsOf $r "opencode-go/beta") "fx-infra,t1,t2"
 
     Write-Host "   scenario: the plan's week has `$1.50 left (`$8.50 of `$10.00 used); each run costs `$1.00"
-    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha"); SpendCapShare = 1 } -Plan (PlanTsv 900 10 900) -Usage (UsageJson @(@(30, 8.0), @(2, 0.5), @(2000, 50)))
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha"); SpendCapShare = 1 } -Plan (LivePlanTsv 900 10 900) -Usage (UsageJson @(@(30, 8.0), @(2, 0.5), @(2000, 50)))
     Check "exit 0"                                    $r.Exit 0
     Has   "preflight: each meter, from opencode's records" $r.Out '\[PLAN\] opencode-go  week \$8\.5000 of \$10\.00, resets '
     Has   "...the month leaves out last month's use"  $r.Out '\[PLAN\] opencode-go  month \$8\.5000 of \$900\.00'
@@ -510,7 +550,7 @@ exit $LASTEXITCODE
     Lacks "...and never from the account or credential tables" $q '(?i)account|credential'
 
     Write-Host "   scenario: the 5-hour window is already full"
-    $r = Invoke-Batch @{ Tasks = @("t1", "t2"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -Plan (PlanTsv 4.46 900 900) -Usage (UsageJson @(, @(1, 5.0)))
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -Plan (LivePlanTsv 4.46 900 900) -Usage (UsageJson @(, @(1, 5.0)))
     Has   "preflight warns before anything runs"      $r.Out '\[WARN\] opencode-go  plan window \$5\.0000 of \$4\.46 .* every hosted run in this batch will be skipped'
     Check "no hosted run starts"                      (@($r.Calls | Where-Object { $_ -match 'opencode-go/' }).Count) 0
     Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2"

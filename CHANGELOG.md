@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`tests/test-hosted-seats.ps1` failed 5 checks in the first ~30 hours after every weekly plan reset (found
+  2026-10-12).** It was the test's fixture, not the batch's plan-meter code. The end-to-end scenarios stamp their
+  usage rows from the real clock ("30 hours ago: $8.00") but the week meter's reset was pinned to
+  `2026-10-11T23:00:00Z`, so 6 hours after that reset the $8.00 row sat in the previous week, the batch counted $0.50
+  instead of $8.50, and the "week is full" stop never fired. The month meter had the same flaw after the 25th. The
+  scenarios now anchor their meters relative to the real clock (`LiveAnchors`, `LivePlanTsv`); the unit checks keep
+  the fixed anchors because they pass their own clock. A new sweep checks every hour of 40 days, across weekly
+  resets and the 25th, that a 30-hour-old row stays inside the current week and month, and a control runs the old
+  fixed anchors through the same loop and must fail some hours. Same-clock result at reset + 13 h: the original
+  file exits 1 with the same 5 failures, the fixed file exits 0 with 146 checks passing (PowerShell 7 and Windows
+  PowerShell 5.1). `Get-MeterBounds` and the rest of `run-tasks-batch.ps1` are unchanged.
+
 - **The server is back (2026-10-11).** `docs/server-recovery-cpu-led.md` records attempts 3–11 (two ROMs, four
   USB sticks logged by vendor/product ID, GPU out, CPU out, a 60-minute run): every Flashback write hung, so the
   board itself had failed. A replacement MAG B550 Tomahawk MAX WiFi booted first time with the same CPU, RAM,
