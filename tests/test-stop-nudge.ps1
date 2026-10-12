@@ -43,7 +43,7 @@ Invoke-Expression $fn.Extent.Text
 # The OpenCode adapter: Read-AgentEvents, which Get-StopKind reads, and
 # $script:CompactionContinueText.
 . (Join-Path $PSScriptRoot "agents\opencode.ps1")
-foreach ($var in '$script:AskedForTaskPattern', '$script:AnnouncedStepPattern', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
+foreach ($var in '$script:AskedForTaskPattern', '$script:AnnouncedStepPattern', '$script:PendingWorkPattern', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
     $assign = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $var }, $true)) | Select-Object -First 1
     if (-not $assign) { Write-Host "FAIL: $var not found in $ScriptPath"; exit 1 }
     Invoke-Expression $assign.Extent.Text
@@ -74,6 +74,15 @@ try {
     Check "asked for its task"                    (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "You've shared two files but haven't specified a task. What would you like me to do?"), (Ev-Fin))) "ask"
     Check "announced a step with a colon"         (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "Now I have everything. Let me implement all changes:"), (Ev-Fin))) "announce"
     Check "announced a step in words"             (Kind @((Ev-Text "The test expects 0. I'll fix guardedStrain next."), (Ev-Fin))) "announce"
+    # The two endings the first server round (2026-10-12) left unread: both
+    # stopped with work undone and ran no test.
+    Check "work still to do, no 'I' (wp-6f's ending)" (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "The user asked me to complete WP 6F. I've written two files. Still need to update the server route and tests, then run validation commands."), (Ev-Fin))) "pending"
+    Check "waiting on commands never run (wp-5a's ending)" (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "The verify commands are still running. I'll wait for them to complete before proceeding. Please let me know when the results are available."), (Ev-Fin))) "pending"
+    Check "'let me know when' as the last sentence" (Kind @((Ev-Text "The edits are in. Let me know when you have run the suite."), (Ev-Fin))) "pending"
+    Check "asking for its task wins over waiting"  (Kind @((Ev-Text "You haven't specified a task. I'll wait for it."), (Ev-Fin))) "ask"
+    Check "an announcement in the last sentence is still 'announce'" (Kind @((Ev-Text "Still need to run the tests. Let me do that now:"), (Ev-Fin))) "announce"
+    Check "'still need to' three sentences back: none (the window is two)" (Kind @((Ev-Text "Still need to check the config first. Checked: it is fine. All 12 tests pass. Done."), (Ev-Fin))) "none"
+    Check "'let me know if' stays a sign-off: none" (Kind @((Ev-Text "The tests are green. Please let me know if you want anything changed."), (Ev-Fin))) "none"
     Check "an empty last step"                    (Kind @((Ev-Tool), (Ev-Fin), (Ev-Fin))) "empty"
     Check "a closing summary: none"               (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "Done. All 12 tests pass and the change is in combat.ts."), (Ev-Fin))) "none"
     Check "a sign-off, not a step: none"          (Kind @((Ev-Text "Fixed. Let me know if you need anything else."), (Ev-Fin))) "none"
@@ -126,7 +135,7 @@ Write-Host "Tests  2 passed (2)"; exit 0
             prompt = $taskPrompt
         }
     }
-    $ids = "fx-announce", "fx-ask", "fx-silent", "fx-done", "fx-max"
+    $ids = "fx-announce", "fx-ask", "fx-silent", "fx-pending", "fx-done", "fx-max"
     @{ tasks = @($ids | ForEach-Object { New-Task $_ }) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $priv "manifest.json")
 
     # Stand-in opencode. Per task, the Nth call (1 = the opener) does:
@@ -134,6 +143,8 @@ Write-Host "Tests  2 passed (2)"; exit 0
     #   fx-ask     : 1 "You've shared a file but haven't specified a task"; 2 fixes
     #                if the message holds the original prompt, else asks again
     #   fx-silent  : 1 fixes and ends on an empty step; 2 confirms in one line
+    #   fx-pending : 1 reads, then "Still need to update src.txt, then run the
+    #                checks." (no 'I', not an announcement); 2 fixes, sums up
     #   fx-done    : 1 fixes and sums up
     #   fx-max     : always announces and never fixes
     @'
@@ -164,6 +175,8 @@ switch ("$id/$n") {
     "fx-ask/2"      { if ($msg -like '*fix src.txt*so that it reads fixed*') { Fix; Say "Done: src.txt is fixed." } else { Say "You haven't provided a request." } }
     "fx-silent/1"   { Fix; Fin }
     "fx-silent/2"   { Say "It is finished and checked." }
+    "fx-pending/1"  { Read; Say "Half of it is in. Still need to update src.txt, then run the checks." }
+    "fx-pending/2"  { Fix; Say "Done: src.txt reads fixed and the tests pass." }
     "fx-done/1"     { Fix; Say "Done: src.txt reads fixed and the tests pass." }
     default         { Read; Say "Let me make the change next:" }
 }
@@ -227,12 +240,16 @@ exit 0
     Check "fx-silent: nudged once after an empty ending"     @(Calls fx-silent).Count 2
     Check "...confirms and is not nudged again"              (@((Json fx-silent).stopNudges.kinds) -join ',') "empty"
     Check "...passes"                                        (Verdict fx-silent) "PASS/PASS/PASS"
+    Check "fx-pending: nudged once after 'still need to'"    @(Calls fx-pending).Count 2
+    Check "...with the exact stop text"                      (Calls fx-pending)[1].msg $script:StopNudgeText
+    Check "...JSON: kinds pending, classifier 2"             ("{0} {1}" -f (@((Json fx-pending).stopNudges.kinds) -join ','), (Json fx-pending).stopNudges.classifier) "pending 2"
+    Check "...passes on the end state"                       (Verdict fx-pending) "PASS/PASS/PASS"
     Check "fx-done: a closing summary is never nudged"       @(Calls fx-done).Count 1
     Check "...JSON: stopNudges sent 0"                       (Json fx-done).stopNudges.sent 0
     Check "fx-max: capped at -MaxStopNudges (three calls)"   @(Calls fx-max).Count 3
     Check "...JSON: kinds announce,announce"                 (@((Json fx-max).stopNudges.kinds) -join ',') "announce,announce"
     Check "...never fixed: acceptance FAIL"                  (Row fx-max).acceptance "FAIL"
-    Check "the console names each nudge"                     ([regex]::Matches($log, 'stop nudge \d: the run stopped').Count) 5
+    Check "the console names each nudge"                     ([regex]::Matches($log, 'stop nudge \d: the run stopped').Count) 6
 
     Write-Host "-- assisted rows stay apart"
     Check "the folder is marked ASSISTED"                    (Test-Path -LiteralPath (Join-Path $nudged "ASSISTED")) "True"

@@ -171,12 +171,15 @@ param(
     # stops with no tool call in its last step and that step (Get-StopKind)
     #   - asks what the task is: send $script:LostTaskNudgeText plus the
     #     original prompt (the prompt had dropped out of the model's context);
-    #   - announces a next step ("Let me implement all changes:") or is empty:
+    #   - announces a next step ("Let me implement all changes:"), says work is
+    #     still to do or waits for something ("Still need to update ...",
+    #     "I'll wait ...", "let me know when ..."), or is empty:
     #     send $script:StopNudgeText;
     # into the same session, up to -MaxStopNudges times. Measured on the graded
-    # runs of 2026-09-21..10-09: endings that ask failed 6 of 6, that announce
-    # 16 of 17, that are empty 76 of 110 (qwen3.5:9b often ends a finished run
-    # silently); any other closing text is never nudged. ASSISTED like
+    # runs of 2026-09-21..10-09 (before "pending" existed): endings that ask
+    # failed 6 of 6, that announce 16 of 17, that are empty 76 of 110
+    # (qwen3.5:9b often ends a finished run silently); any other closing text
+    # is never nudged. ASSISTED like
     # -NudgeAfterCompaction: the run JSON records `stopNudges` with the kind of
     # each, and the rows need their own -ResultsDir.
     [switch]$NudgeOnStop,
@@ -1146,13 +1149,27 @@ $script:AskedForTaskPattern = "(?i)\b(haven'?t (specified|provided|mentioned|giv
 # ("Now I have everything. Let me implement all changes:"). "Let me know" is
 # a sign-off, not a step.
 $script:AnnouncedStepPattern = "(?i)(:\s*$|\b(let me(?! know)|let's|i'll|i will|i need to|i should|now i|next,? i|i'm going to|going to)\b)"
+# Get-StopKind: closing text that says work is left, or waits for something that
+# is not coming, found in the last TWO sentences ("Still need to update the
+# server route and tests, then run validation commands."; "The verify commands
+# are still running. I'll wait for them to complete before proceeding. Please let
+# me know when the results are available."). Both stopped a server run with work
+# undone and no test run (wp-6f, wp-5a, 2026-10-12), and the announce pattern
+# above read neither: it looks at the last sentence only. A sign-off is not
+# waiting: "let me know if" stays out, "let me know when" is in.
+$script:PendingWorkPattern = "(?i)\b(still (need|needs|have|has) to|yet to|i'?ll wait|i will wait|waiting (for|on)|(still|currently) (running|in progress)|let me know (when|once|as soon as))\b"
+# Which Get-StopKind a run's rows were nudged under, recorded in the run JSON's
+# stopNudges. Absent = 1 (ask / announce / empty only; every nudged row before
+# 2026-10-12). 2 adds "pending".
+$script:StopClassifierVersion = 2
 
 function Get-StopKind {
     # How a run's last finished step ended, for -NudgeOnStop: "ask" (the model
     # asked what its task is), "announce" (its last sentence announces a next
-    # step), "empty" (no tool call and no text), or $null (a tool call, or any
-    # other closing text). The agent's own post-compaction message isn't the
-    # model's text and is skipped.
+    # step), "pending" (one of its last two sentences says work is still to do,
+    # or waits for something), "empty" (no tool call and no text), or $null (a
+    # tool call, or any other closing text). The agent's own post-compaction
+    # message isn't the model's text and is skipped.
     param([string]$Path)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
     $tools = 0
@@ -1172,8 +1189,9 @@ function Get-StopKind {
     if (-not $last -or $last.Tools -gt 0) { return $null }
     if ($last.Text -match $script:AskedForTaskPattern) { return "ask" }
     if (-not $last.Text) { return "empty" }
-    $sentence = @([regex]::Split($last.Text, '(?<=[.!?:])\s+') | Where-Object { $_.Trim() })[-1]
-    if ($sentence -match $script:AnnouncedStepPattern) { return "announce" }
+    $sentences = @([regex]::Split($last.Text, '(?<=[.!?:])\s+') | Where-Object { $_.Trim() })
+    if ($sentences[-1] -match $script:AnnouncedStepPattern) { return "announce" }
+    if ((@($sentences | Select-Object -Last 2) -join " ") -match $script:PendingWorkPattern) { return "pending" }
     return $null
 }
 
@@ -1985,7 +2003,7 @@ foreach ($tk in $tasksToRun) {
         opencodePlugins = @($agentPlugins)
         compactionPluginRewrites = $pluginRewrites
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
-        stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
+        stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $script:StopClassifierVersion; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus

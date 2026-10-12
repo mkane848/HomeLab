@@ -208,17 +208,18 @@ Restart the consuming app after each: OpenCode (config/agents/commands), WezTerm
   - Run it after touching the nudge or `Get-ContextEvents`.
 - `.\tests\test-stop-nudge.ps1` is the regression guard for `test-tasks.ps1 -NudgeOnStop [-MaxStopNudges 2] -ResultsDir <folder>` (also on `run-tasks-batch.ps1`), a diagnostic for runs that stop with work undone (`docs/roadmap.md` → "Follow-up runs (2026-10-09)"). `Get-StopKind` reads the last finished step. If it made no tool call and:
   - asked what the task is (`$script:AskedForTaskPattern`, shared with `askedForTask`), the switch sends `$script:LostTaskNudgeText` followed by the original prompt;
-  - announced a next step ("Let me implement all changes:") or was empty, it sends `$script:StopNudgeText`, which also asks a finished model to confirm in one line;
+  - announced a next step ("Let me implement all changes:"), said work is still to do or waits for something ("Still need to update…", "I'll wait…", "let me know when…": the last two sentences, `$script:PendingWorkPattern`), or was empty, it sends `$script:StopNudgeText`, which also asks a finished model to confirm in one line;
   - ended on any other text, it sends nothing.
 
-  On the graded runs of 2026-09-21..10-09, endings that ask failed 6 of 6, endings that announce 16 of 17, and empty endings 76 of 110.
-  - A nudged run is **assisted**. Its JSON records `stopNudges` (sent, max, the kind of each, both text hashes).
+  On the graded runs of 2026-09-21..10-09, endings that ask failed 6 of 6, endings that announce 16 of 17, and empty endings 76 of 110 (all before the "pending" kind existed).
+  - **The `pending` kind and the classifier version (2026-10-12).** The first server round had two runs (`wp-5a`, `wp-6f`) stop with work undone and no test run, on closing sentences the announce pattern doesn't read. Over all 607 transcripts held (public and private) the new kind changes exactly those two and a third (`wp-3b`, which also stopped mid-list, 5 edits and no test, and passed only because its hidden tests exercise production code); the other 604 endings are unchanged. `stopNudges.classifier` is 2 from then on; absent means 1 (kinds `ask`, `announce`, `empty` only), so rows nudged before 2026-10-12 are a different era.
+  - A nudged run is **assisted**. Its JSON records `stopNudges` (sent, max, the kind of each, `classifier`, both text hashes).
   - **Assisted rows stay apart** (both nudge switches):
     - a results folder that holds them carries an `ASSISTED` marker file;
     - an assisted run is refused in `tests/results/` and in a folder of unassisted rows;
     - an unassisted run is refused in a marked folder;
     - assisted runs of a private manifest are not mirrored to `real-tasks-public.tsv`.
-  - Covered: the real `Get-StopKind` on synthetic and committed transcripts, then the real harness end to end with a private manifest and a stand-in `opencode`. The end-to-end cases are each kind of nudge, a summary never nudged, the `-MaxStopNudges` cap, the marker, the three refusals and the public mirror. Controls with the loop or the mirror fix removed fail 15 and 2 checks.
+  - Covered: the real `Get-StopKind` on synthetic and committed transcripts, then the real harness end to end with a private manifest and a stand-in `opencode`. The end-to-end cases are each kind of nudge, a summary never nudged, the `-MaxStopNudges` cap, the marker, the three refusals and the public mirror. Controls with the loop or the mirror fix removed fail 15 and 2 checks; one with the `pending` branch removed fails 8.
   - Run it after touching the nudge, `Get-StopKind` or where results are written.
 - `.\tests\test-compaction-plugin.ps1` is the regression guard for `opencode/plugins/compaction-continue.js` (`docs/roadmap.md` → "Context overflow"). After an automatic compaction the plugin does three things:
   - it sends the model the nudge text plus the original request in place of opencode's "…or stop and ask" message;
