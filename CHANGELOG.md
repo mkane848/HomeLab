@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: merging and auto-merge, set up safely (2026-10-13, owner's request).** `CONTRIBUTING.md` gains "Merging and
+  auto-merge":
+  - **who can merge:** only the owner, the sole admin;
+  - **why fork PRs can't do harm:** a read-only token, no secrets, `pull_request` only;
+  - **the settings that make it hold:** **Allow auto-merge**, a `main` ruleset (PR required, both CI jobs
+    required, no force pushes or deletions, no bypass), and fork workflows that need approval with a read-only
+    token.
+
+  The settings are the owner's to flip in GitHub's web UI. This session has no tool for repository settings, and
+  could not reach GitHub's docs to cite them.
+
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was
     `dev-workflow-quality`): the same `qwen3.6` weights on the server, at 2.2 to 3.4 times the desktop's prefill and
