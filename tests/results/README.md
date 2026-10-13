@@ -54,6 +54,16 @@ the seat's baked `numCtx`, `targetTokens` and the `promptTokens` actually sent, 
 - No prompt text is stored, only sizes and speeds; the file is public-safe. Rows are not task results and never join
   `tasks-summary.tsv`.
 
+## CPU contention: `bench-speed-contention.tsv`
+
+Same script and columns as above, one file for one question: how much does other CPU work on the server cost
+`qwen3.6`'s speed (2026-10-12, Ollama 0.34.3, 64k, one rep per condition). The condition is in the `host` column,
+`server+busy0`, `server+busy4`, `server+busy8`: that many `yes` processes (one core each, `timeout` 480 s, killed
+afterwards, no sudo) ran on the server's 16 hardware threads while the benchmark asked for its three sizes. Decode
+tok/s at 3k / 30k / 60k tokens: 70.2 / 69.0 / 61.6 with none; 26.6 / 24.9 / 25.8 with 4; 20.3 / 22.5 / 19.9 with 8.
+Prefill stayed within 5% of its idle value (it runs on the GPU). The idle condition repeats the afternoon baseline in
+`bench-speed.tsv` within about 6%. These burners use a core and little memory bandwidth; real test runs use both.
+
 ## Assisted runs: `compaction-nudge/`
 
 The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context

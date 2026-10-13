@@ -178,15 +178,23 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **Measure, then route.** Every run JSON now carries `phaseSeconds` (install and setup once per worktree, the
      baseline suite, the post-change suite, the typecheck, the acceptance run) beside `runHost`, so the runs themselves
      answer which CPU is better at which work. Most tasks run one test file (start-up latency) and a few run a whole
-     suite (many workers), which is where the two CPUs should differ; the data will say. Then a contention test for
-     `qwen3.6` decode speed with 0, 4 and 8 busy threads beside it on the server, and a control run with the model on
+     suite (many workers), which is where the two CPUs should differ; the data will say. **Contention test, done
+     2026-10-12:** `qwen3.6` decode on the server with 0, 4 and 8 busy threads beside it was 70 / 69 / 62, then
+     27 / 25 / 26, then 20 / 23 / 20 tok/s (3k / 30k / 60k tokens); prefill did not change. Four threads of
+     other work cost it about 60% of its decode speed, so nothing else runs on that CPU
+     ([target-setup.md](target-setup.md) → "Machine roles"; rows in `tests/results/bench-speed-contention.tsv`). The
+     desktop's speed row for the same seat is in `bench-speed.tsv`: prefill 319 / 268 / 200 and decode 31 / 36 / 29 tok/s,
+     against the server's 688 / 692 / 674 and 73 / 65 / 61. Still to do: a control run with the model on
      the server and the tools first on the desktop, then on node3. A separate `bench-cpu.ps1` (vitest at 1, 4, 8 and 16
      workers on a pinned repo) is only worth writing if the runs leave the worker scaling unanswered. The rule it
      produces goes into `target-setup.md`.
-   - **node3 has to be up and have the toolchain.** It is not answering now (its sleep settings: owner). Needed there:
-     PowerShell 7, Node, pnpm, git, `gh`, OpenCode 1.18.34, the task repos (the manifests hard-code `M:/…` and `C:/…`
-     paths: same paths or a per-host repo-root map), the private repo. Downloads and git credentials are the owner's
-     to approve and enter.
+   - **node3 is up (2026-10-12) and has the toolchain.** Sleep and hibernate are off on AC (uptime 21 days), and it
+     now has PowerShell 7.6.6, git, Python, Node 24.18.0, npm 11.16.0, pnpm 10.33.0 and OpenCode 1.18.34: the same
+     versions as the desktop, installed by the owner's approval, with `node.exe` and the OpenCode binaries
+     byte-identical to the desktop's (`gh` was skipped; task runs do not need it). Still missing there: the task repos
+     (the manifests hard-code `M:/…` and `C:/…` paths, and node3 has only a `C:` drive: a per-host repo-root map), the
+     private repo, and an OpenCode config. Git credentials stay the owner's to enter; the repos can be sent as bundles
+     over SSH instead.
    - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
      `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
      paths. It is not on the critical path while node3 is the run host.

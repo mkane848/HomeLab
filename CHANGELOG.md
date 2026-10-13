@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
   is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
 
+- **Measured: other CPU work on the server costs `qwen3.6` about 60% of its decode speed (2026-10-12).** Decode on the
+  server with 0, 4 and 8 busy threads (`yes`, capped by `timeout`) beside the model: 70 / 69 / 62 tok/s, then 27 / 25 / 26,
+  then 20 / 23 / 20 at 3k / 30k / 60k tokens; prefill unchanged. Same script as the speed baselines, one rep per
+  condition, rows in `tests/results/bench-speed-contention.tsv`. It turns "keep tool work off the server" into a
+  number: `docs/target-setup.md` gets the routing rule, the roadmap step 5 the result. The desktop baseline for the same
+  seat is in `bench-speed.tsv` (prefill 319 / 268 / 200, decode 31 / 36 / 29 tok/s; the server is 2.2 to 3.4 times
+  faster at prefill and about 2 times at decode). node3 now has the harness toolchain (Node 24.18.0, pnpm 10.33.0,
+  OpenCode 1.18.34, all matching the desktop); it still needs the task repos and a config.
+
 - **`llamacpp-check.sh` and its guard pick a Python that runs (2026-10-12).** The first run of the trial's guards on Windows
   (desktop, PowerShell 7.4.20): all four pass except `test-llamacpp-stack.ps1`, which failed 22 checks with exit 49 from
   every checker scenario. `python3` there is the Microsoft Store placeholder (on `PATH`, exits 49 instead of running);
