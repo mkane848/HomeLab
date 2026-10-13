@@ -5,11 +5,15 @@ fleet, different door — see [vscode.md](vscode.md)
 instead.) Every command below has been run on this desktop and the output is
 what you should actually see.
 
-**Right now:** the server (`SERVER_IP`) will not POST — hardware recovery is
-in progress ([`server-recovery-cpu-led.md`](server-recovery-cpu-led.md)). So
-the default loop runs on the Windows desktop, and the profile you want is
-`dev-workflow-quality` (qwen3.6 at 64k, with a CPU companion). Nothing below
-needs the server.
+**Right now (2026-10-13):** the server (`SERVER_IP`) is back (replacement
+board, 2026-10-11) and serves the main seat: the default profile is
+`dev-workflow-server`, `qwen3.6` at 64k on the server, the same weights as the
+desktop's at about twice the speed ([roadmap.md](roadmap.md) → "Next up"). You
+still run OpenCode here on the desktop; only the model is remote. **When the
+server is down, or during an engine-trial window** (the llama.cpp trial stops
+the server's seat), use `dev-workflow-quality`: the same seat on this desktop,
+`.\desktop\scripts\opencode.ps1 -Profile dev-workflow-quality` or `opencode quality`.
+Step 1 below is only needed for that fallback (and for VS Code).
 (The third node is live too — `dev-node3` serves `qwen3:8b` general + embed on
 the 3080 FE; see [profiles.md](profiles.md).)
 
@@ -110,18 +114,24 @@ Ollama isn't up — check `Get-Process ollama`.
 You should see this line before the UI appears:
 
 ```
-[opencode] profile=dev-workflow-quality OPENCODE_MODEL=ollama-desktop/qwen3.6:35b-a3b-coding
+[opencode] profile=dev-workflow-server OPENCODE_MODEL=ollama-server/qwen3.6:35b-a3b-coding
 ```
+
+(Before 2026-10-13 the default was `dev-workflow-quality`, which prints
+`ollama-desktop/qwen3.6:35b-a3b-coding`.) The server profile has no desktop
+seat, so the launcher neither warms nor unloads anything on the desktop; the
+server keeps its seat loaded for 4 hours after the last request.
 
 **What a profile is.** A profile is a shell script that exports environment
 variables — nothing more. It doesn't install anything or start anything. It
 just answers "which models, on which machines, for this shell":
 
 ```bash
-export OPENCODE_MODEL="ollama-desktop/qwen3.6:35b-a3b-coding"  # the agent you talk to
-export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder-3b-cpu"  # titles
-export OLLAMA_DESKTOP_BASE_URL="http://localhost:11434/v1"
-export DEV_TIERS_DESKTOP=true                          # startup.ps1 reads this
+export OPENCODE_MODEL="ollama-server/qwen3.6:35b-a3b-coding"   # the agent you talk to
+export OPENCODE_SMALL_MODEL="ollama-server/qwen2.5-coder-3b-cpu"  # titles
+export OLLAMA_SERVER_BASE_URL="http://SERVER_IP:11434/v1"      # SERVER_IP from .env
+export DEV_TIERS_SERVER=true                                   # startup scripts read these
+export DEV_TIERS_DESKTOP=false
 ```
 
 OpenCode's config refers to those variables as `{env:OPENCODE_MODEL}`, so the
@@ -134,8 +144,11 @@ profile is what fills in the blanks.
    precisely so you never have to remember — it sources the profile into its own
    process, then launches OpenCode.
 2. **A bare `opencode` is not the same.** It falls back to whatever Windows
-   User-level environment variables happen to be set. Those are currently
-   correct, but the wrapper is the reliable path.
+   User-level environment variables happen to be set. Those were set by hand
+   for the desktop seat and were not changed when the default moved to the
+   server (2026-10-13); point `OPENCODE_MODEL` / `OPENCODE_SMALL_MODEL` at the
+   `ollama-server/…` ids yourself if you want a bare launch on the server too.
+   The wrapper is the reliable path.
 
 To use a different profile:
 
@@ -148,7 +161,8 @@ once (it adds one guarded line to your PowerShell profiles; `-Uninstall` takes i
 out), open a new terminal, and then:
 
 ```powershell
-opencode quality                 # qwen3.6 + the CPU 3b
+opencode server                  # qwen3.6 on the server (the default)
+opencode quality                 # qwen3.6 + the CPU 3b on this desktop
 opencode resident                # qwen3:8b + the 7b coder
 opencode desktop-only run "..."  # anything after the name goes to opencode
 ```
@@ -449,15 +463,17 @@ trivial request and read `task.n_tokens` from the Ollama log.
 ## When something looks wrong
 
 Run this first — it checks every live profile against what is actually configured
-and serving (expect 100 PASS, 0 FAIL, 1 WARN, 2 SKIP — measured 2026-09-20):
+and serving (2026-10-12, all five profiles: 116 PASS, 0 FAIL, 0 WARN, 2 SKIP
+with node3 unreachable that run):
 
 ```powershell
 .\tests\test-profiles.ps1
 ```
 
-Expect `0 FAIL`. The 1 WARN is a documented node3 false positive (the harness
-expands install intent without checking the catalog `hosts` column — do not
-install to silence it) and the 2 SKIP taps are the dead server. Then, by symptom:
+Expect `0 FAIL`. A WARN about node3 install intent is a documented false
+positive (the harness expands install intent without checking the catalog
+`hosts` column — do not install to silence it); a SKIP is a host that did not
+answer. Then, by symptom:
 
 | Symptom | Likely cause | Where |
 |---|---|---|

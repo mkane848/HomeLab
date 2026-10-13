@@ -2,24 +2,49 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
-## Next up (ordered, as of 2026-10-10): server first
+## Next up (ordered, as of 2026-10-13): the engine trial, then the run host
 
 The rest of this file is the full backlog by theme. This is the short list of what to pick up next.
 
-**Owner, 2026-10-10: getting the server back is the top priority, and it becomes where things run from.** That
+**Owner, 2026-10-13: a review of what 2026-10-10..13 measured, before any further move.** Decided that day:
+- **Server-side work first, few moving parts at once.** The llama.cpp trial's GPU window (step 4) is next. node3
+  run-host work (step 5) waits until the trial's results are recorded.
+- **The daily default is the server.** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` unless told
+  otherwise; `dev-workflow-quality` (the same seat on the desktop) is the fallback when the server is down or in a
+  trial window.
+- **The desktop's role as a model host is decided after Gate G1** ([llamacpp-trial.md](llamacpp-trial.md)), and
+  "Replacing Ollama"'s Phase 4 (the desktop's Vulkan port) waits with it.
+- **`qwen3.5:9b` is retired as an executor** (step 7), and the rest of the open work is queued, in order, under "After the
+  trial" (below step 6).
+
+**Owner, 2026-10-10 (done; kept for the record): getting the server back is the top priority, and it becomes where things run from.** That
 means more test runs, more time on the "real" configuration, and real tasks the owner drives. The owner is
 attempting the hardware fix the weekend of 2026-10-10/11. Also decided that day: no Qwen Code trial. The client and
 engine research stays on file (below, "Alternatives to OpenCode" and "Replacing Ollama").
 
-**Where things stand.**
-- **The work packages are solved locally.** With the stop nudge, `qwen3.6` passes 11 of 12 on the desktop at $0.
-  That's the hosted Qwen3.7 Plus's score, about five times slower (below, "Round 3 and the stop nudge").
-- **The failures left are lost briefs and early stops.** Lost briefs come from Ollama's silent front-drop, and the
-  nudge repairs both after the fact.
+**Where things stand (2026-10-13).**
+- **The server is the executor host and the daily default.** Same weights as the desktop (`sha256` checked per
+  seat), Ollama 0.34.3 with the desktop's settings, a GPU-placement check in every run (step 2).
+- **Replicated, the work packages are about four in five, not "solved".** Under stop classifier 2 on the server,
+  four reps of the 15 real tasks scored 12, 12, 11 and 11 (46 of 60); the work packages alone 39 of 48 (81%), about
+  9.75 of 12 a rep (step 3, rounds 2 and 3). The "11 of 12" of 2026-10-10 was one nudged round on the desktop, with
+  `wp-5b` timing out, and replication did not hold it. The per-rep spread, ±1, is the noise floor of any one-round
+  comparison. **14 of the 15 tasks passed at least once in four reps;** only `wp-5b` never did.
+- **The failures left, by frequency:**
+  1. **Lost briefs.** Ollama's silent front-drop hit 13 of the 60 runs, often on the very first request (`wp-5b`'s is
+     about 78,700 tokens against 65,536). The lost-task nudge repairs it after the fact. Step 4 is the test of
+     ending it at the source.
+  2. **Verified, one case short** (`wp-5b`, `wp-7a`). The model runs the tests, typecheck and lint, reports green,
+     and misses a behaviour only the hidden tests pin. No nudge reaches this.
+  3. **Early stops.** Classifier 2's `pending` kind fired in none of the 60 runs; classifier 3's `question` kind
+     (2026-10-13) targets nine endings that were never nudged, and is unmeasured.
+- **Speed is measured, not argued.** `qwen3.6` on the server: prefill 2.2 to 3.4 times the desktop's and decode
+  about twice (`tests/results/bench-speed.tsv`); a dense 8B model on the desktop's Vulkan loses most of its prefill
+  with depth (17 to 34 times slower than the server). node3's `qwen3:8b`, after its settings fix, decodes 101 / 74 /
+  58 tok/s at 3k / 16k / 30k (`tests/results/README.md`).
+- **The server's CPU is the bottleneck of the MoE spill.** Four busy threads beside `qwen3.6` cost about 60% of its
+  decode (step 5), so the harness's tools never run there: the desktop runs them today, node3 after step 5.
 - **The harness is ready for another client.** Its OpenCode-specific code sits behind one adapter.
-- **The desktop is the wrong long-term host.** It's the owner's planning and gaming machine, and it holds about
-  8.6 of `qwen3.6`'s 21 GB in system RAM (AGENTS.md). [target-setup.md](target-setup.md) already has the server as the main executor
-  host and the dispatcher.
 
 1. ~~**The server POSTs** (owner, hardware).~~ **Done 2026-10-11** on a replacement board (MAG B550 Tomahawk
    MAX WiFi); the original board had failed ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)).
@@ -87,7 +112,8 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      placement itself (below, "GPU-placement check"); the first nudged round on this host ran with a watchdog on both
      checks before it existed.
      `docs/troubleshooting.md` → "Container lost the GPU".
-3. **Measure the server as the executor host, driven from the desktop.** No harness change is needed: it already
+3. ~~**Measure the server as the executor host, driven from the desktop.**~~ **Done 2026-10-12/13** (rounds 1 to 3
+   below; the one open item, the node3 control run, moved to "After the trial"). No harness change is needed: it already
    drives a remote Ollama, and its truncation check records "not checked" for a remote host.
    - Measure `qwen3.6`'s placement on 16 GB of CUDA plus 32 GB of RAM, and its speed against the desktop. The
      3700X is the fleet's weakest CPU, and a MoE's spill runs on it.
@@ -189,11 +215,14 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        9 pass, 8 fail), so the rule would leave them alone. Both are stop classifier 3, a new assisted era. **Adopted
        by the owner on 2026-10-13** (default of `test-tasks.ps1` and `run-tasks-batch.ps1`; `-StopClassifier 2` reproduces the
        old one, and the llama.cpp trial pins it). No round has run under it yet, so its effect on pass rates is unmeasured.
-   - **Still open for step 3.** A control run with the model on the server and the tools on node3 (the contention
-     test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
-4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
-   speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
-   Ollama"). It runs after step 3, so there's a baseline.
+   - **Moved to "After the trial" (2026-10-13).** A control run with the model on the server and the tools on node3
+     (the contention test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
+4. **Engine trial on the server: next (owner, 2026-10-13).** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama,
+   on the same GGUF. Measure speed, and whether turning the front-drop into an explicit error ends the lost briefs
+   (below, "Replacing Ollama"). It runs after step 3, so there's a baseline. **The premise still holds:** lost
+   briefs are the commonest failure in the replicated rounds. **During the window daily use goes to
+   `opencode quality`** (the desktop seat): the trial stops the server's Ollama seat, and daily traffic on the server
+   would also skew its speed figures and rounds.
    - **Approved 2026-10-12 (owner): Phases 0 and 1 only** of the Ollama replacement; each later phase needs its own
      go after a gate. Protocol, runbook and Gate G1 are pre-registered in [llamacpp-trial.md](llamacpp-trial.md).
    - **Phase 0 (repo only) is done and on `main`** (PRs #115 and #116, 2026-10-12): `server/docker/docker-compose.llamacpp.yml`,
@@ -205,7 +234,8 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      like-for-like baseline (round 2 above: done, 12 of 15 in each rep; round 3 adds two more reps), then the runbook on the server. `sudo` steps (the
      GPU-loss drill) are the owner's. Phases 2–6 are not started; outline in "Replacing Ollama" below.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
-   server where things run", which would have put every test run on the weakest CPU.
+   server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
+   after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
    - **The three CPUs differ.** node3's Ryzen 9 5950X (16c/32t) is the fleet's throughput CPU. The desktop's Ryzen 7
      5800X3D (8c/16t, large L3) is strong on single-thread and cache-bound work and is the owner's planning and
      review machine. The server's Ryzen 7 3700X is the weakest, and it is busy: `qwen3.6` has 13.6 of 22.7 GB in
@@ -250,13 +280,39 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
      `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
      paths. It is not on the critical path while node3 is the run host.
-6. **Real use.** The owner drives real tasks in the daily setup against the server's models. That's OpenCode for
-   now: the client choice is open and its research on file. Here it gets decided whether the stop nudge joins
-   daily use. OpenCode's plugin is the quick route; a client's own stop hook is the portable one.
+6. **Real use: starts now (2026-10-13).** The owner drives real tasks in the daily setup against the server's models:
+   `dev-workflow-server` is the launcher's default. That's OpenCode for now: the client choice is open and its
+   research on file. Here it gets decided whether the stop nudge joins daily use. OpenCode's plugin is the quick
+   route; a client's own stop hook is the portable one.
+
+**After the trial, in order (owner, 2026-10-13).** None of these starts before the trial's results are recorded.
+1. **node3 as the run host** (step 5): a per-host repo-root map in the harness (the manifests hard-code `M:/…` and
+   `C:/Projects/…`, and node3 has only `C:\HomeLab\repos\`), node3's OpenCode config, the harness checkout there, then
+   the control run: model on the server, tools on node3.
+2. **`qwen3:8b` re-run on the fixed node3.** Its task record there was earned with 19% of the seat in system RAM,
+   decoding 10 to 17 tok/s at depth; it now decodes 4 to 5 times faster there. One small batch says how much of its
+   weak record was speed (time limits, long waits per step) and how much capability. Its 32k context still limits it.
+3. **The first round under stop classifier 3** (the trial pins classifier 2, so this waits).
+4. **An option to put task worktrees outside the checkout.** In round 2, `real-01` edited the checkout's own
+   `AGENTS.md` one directory up (step 3). Once in 60 runs: a suspect, but the fix is cheap. It waits because the trial
+   holds the layout constant.
+5. **The server profile's small model.** `dev-workflow-server`'s titles model is the CPU 3b on the server's 3700X,
+   the CPU the contention rule protects. Title calls are short, but they are CPU work beside the seat. The baseline
+   rounds ran with it, so it is not changed before the trial. Candidate: the desktop's GPU `qwen2.5-coder:3b`, which
+   evicts nothing under a profile with no desktop seat.
+6. **Best-of-N, back on deck** ([target-setup.md](target-setup.md) milestones 3 and 4). Four reps put pass@1 at about
+   11.5 of 15 and "passed at least once" at 14 of 15, so independent attempts are a real lever. The open question:
+   the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
+   test (milestone 3) before a dispatcher can pick the passing attempt (milestone 4).
+7. **The desktop's role and "Replacing Ollama" Phase 4**, decided on Gate G1's result.
+
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.
-   - **`qwen3.5:9b`:** retire it, or fix it with an engine; step 4 tests the overflow.
-   - **node3's Q4 `qwen3.5:9b`.**
+   - **`qwen3.5:9b`: retired as an executor (owner, 2026-10-13).** It crashed on context overflow ("No user query
+     found in messages") in half its work-package runs in both rounds, an error the nudge can't reach. It reopens
+     only if Gate G1 shows overflow becoming a recoverable error. Its `tests/run-tasks-models.tsv` row stays: that
+     row records a probe PASS, not a seat.
+   - ~~**node3's Q4 `qwen3.5:9b`.**~~ Dropped with it (2026-10-13).
    - **The client choice:** Goose and Hermes stay on file.
    - **Unsloth fine-tuning.**
 

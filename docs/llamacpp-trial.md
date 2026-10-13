@@ -37,8 +37,13 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
   and `python` that actually runs. Windows PowerShell 5.1 is no longer a target (owner, 2026-10-12).
 - [x] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
   desktop, into a private `-ResultsDir`. It needs Ollama exactly as it is today, so it comes before the window below.
-- [ ] Announce one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if
-  0.40.3 says EXPLICIT-ERROR, stop and report to the owner.
+- [ ] **Next (owner, 2026-10-13: server-side work first, nothing else moving on the server meanwhile).** Announce
+  one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if 0.40.3 says
+  EXPLICIT-ERROR, stop and report to the owner. **The daily default is the server since 2026-10-13**
+  (`dev-workflow-server`), so the announcement matters: during the window daily use goes to `opencode quality` (the
+  desktop seat), because step 0 stops the server's Ollama seat and daily requests would skew step 5's speeds and
+  step 7's rounds. `dev-workflow-server`'s small model (the CPU 3b on the server) is unchanged until the trial is
+  over, because the baseline rounds ran with it.
 - [ ] Owner, with `sudo`: step 8's E1, `sudo systemctl daemon-reload` against the running llama container.
 - [ ] Append the numbers and the Gate G1 verdict under "Results" by a PR of their own, with the roadmap and CHANGELOG
   entries the gate section asks for.
