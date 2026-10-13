@@ -136,6 +136,13 @@ def static_checks(ini, seats):
             say("FAIL", tag, "c = %s but server-seats.tsv num_ctx = %s" % (c, seat["num_ctx"]))
         else:
             say("OK", tag, "context %s equals server-seats.tsv" % c)
+        # Router mode reads `name:tag` as a quant tag and rewrites it (qwen3.6:35b-a3b-coding ->
+        # qwen3.6:CODING); only an alias keeps the Ollama tag addressable (trial step 2, 2026-10-13).
+        if ":" in tag:
+            if sec.get("alias") == tag:
+                say("OK", tag, "alias keeps the exact tag addressable")
+            else:
+                say("FAIL", tag, "a ':' in the section name is rewritten by router mode; add `alias = %s`" % tag)
         par = pick(sec, glob, "parallel", "np")
         if par != "1":
             say("FAIL", tag, "parallel = %s (must be 1: c is shared across slots)" % par)
@@ -202,7 +209,14 @@ def live_checks(ini, url):
     for path in ("/v1/models", "/models"):
         try:
             _, body = http_json(base + path)
-            ids = {m.get("id") or m.get("name") for m in body.get("data", []) if isinstance(m, dict)}
+            # Router mode rewrites a section name with a ':' (qwen3:8b -> qwen3:8B, read as a
+            # quant tag), so a seat is listed when its tag is the id or one of its aliases
+            # (the preset's `alias` key; trial step 2, 2026-10-13).
+            ids = set()
+            for m in body.get("data", []):
+                if isinstance(m, dict):
+                    ids.add(m.get("id") or m.get("name"))
+                    ids.update(a for a in (m.get("aliases") or []) if isinstance(a, str))
             if ids:
                 break
         except Exception:  # noqa: BLE001

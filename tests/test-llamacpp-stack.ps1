@@ -18,7 +18,7 @@
 #   2. The REAL llamacpp-check.sh on the real preset and seat table (all OK), then on
 #      deliberately broken copies, each of which must FAIL for the stated reason:
 #      a blob that is not the pinned one, a missing or different `c`, four slots, a
-#      CPU seat with GPU layers, a section with no seat row, a quantized V cache
+#      CPU seat with GPU layers, a ':' section with no alias, a section with no seat row, a quantized V cache
 #      without flash attention, an unpinned (non-Ollama) weights path (a WARN, not a
 #      failure), a missing file (exit 2).
 #   3. The Python unit tests for the sampling and live-server logic
@@ -135,9 +135,13 @@ if (-not $bash -or -not $python) {
         Check "four slots: exit 1"                                 $r.Exit 1
         Has   "...says the context is shared across slots"         $r.Out 'parallel = 4 \(must be 1: c is shared across slots\)'
 
-        $r = Invoke-Checker (Mutate "cpu-seat-on-gpu" "n-gpu-layers = 0" "n-gpu-layers = 99")
+        $r = Invoke-Checker (Mutate "cpu-seat-on-gpu" "n-gpu-layers = 0`ndevice = none" "n-gpu-layers = 99")
         Check "the CPU seat with GPU layers: exit 1"               $r.Exit 1
         Has   "...says the seat table wants zero"                  $r.Out 'num_gpu 0 but n-gpu-layers = 99'
+
+        $r = Invoke-Checker (Mutate "no-alias" "alias = qwen3:8b`n" "")
+        Check "a ':' section with no alias: exit 1"                $r.Exit 1
+        Has   "...says router mode rewrites it"                    $r.Out "qwen3:8b\s+a ':' in the section name is rewritten by router mode"
 
         $r = Invoke-Checker (Mutate "orphan-section" "[qwen3:8b]" "[qwen3:99b]")
         Check "a section with no seat row: exit 1"                 $r.Exit 1
@@ -159,7 +163,7 @@ if (-not $bash -or -not $python) {
         try { $py = & $python.Source -I (Join-Path $PSScriptRoot "test_llamacpp_check.py") 2>&1 | Out-String; $pyExit = $LASTEXITCODE } finally { $ErrorActionPreference = $prev }
         Check "test_llamacpp_check.py passes"                      $pyExit 0
         if ($pyExit -ne 0) { Write-Host $py }
-        Has   "...and ran its 16 tests"                            $py 'Ran 16 tests'
+        Has   "...and ran its 17 tests"                            $py 'Ran 17 tests'
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }

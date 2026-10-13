@@ -141,6 +141,18 @@ class Live(Base):
         lc.live_checks(self.INI, "http://llama.invalid:8090")
         self.assertIn("WARN", [l for l, _ in levels()])
 
+    def test_a_tag_listed_only_as_an_alias_is_present(self):
+        # Router mode lists [qwen3:8b] as id "qwen3:8B"; the preset's alias keeps the tag (2026-10-13).
+        def f(url, data=None, timeout=15):
+            if url.endswith("/health"):
+                return 200, {"status": "ok"}
+            if "/models" in url:
+                return 200, {"data": [{"id": "qwen3:8B", "aliases": ["qwen3:8b"]}]}
+            return 200, {"default_generation_settings": {"n_ctx": 32768}, "total_slots": 1}
+        lc.http_json = f
+        lc.live_checks({"*": {}, "qwen3:8b": {"c": "32768"}}, "http://llama.invalid:8090")
+        self.assertEqual([l for l, _ in levels()], ["OK", "OK"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
