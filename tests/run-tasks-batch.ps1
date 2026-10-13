@@ -126,6 +126,9 @@ param(
     # -ResultsDir of their own, which test-tasks.ps1 enforces.
     [switch]$NudgeOnStop,
     [int]$MaxStopNudges = 0,
+    # 0 = test-tasks.ps1's default (classifier 3). 2 repeats a round under the
+    # 2026-10-12 stop classifier, as the llama.cpp trial's baseline rounds ran.
+    [ValidateSet(0, 2, 3)][int]$StopClassifier = 0,
     # Hosted seats: the share of a model's monthly allowance one batch may spend
     # (see the header). Must be > 0 and <= 1.
     [double]$SpendCapShare = 0.2,
@@ -1480,6 +1483,7 @@ foreach ($run in $runList) {
     if ($Agent -ne "opencode") { $taskArgs['Agent'] = $Agent }
     if ($NudgeOnStop) { $taskArgs['NudgeOnStop'] = $true }
     if ($MaxStopNudges -gt 0) { $taskArgs['MaxStopNudges'] = $MaxStopNudges }
+    if ($StopClassifier -gt 0) { $taskArgs['StopClassifier'] = $StopClassifier }
     # One run's uncaught exception must not end an unattended batch: on
     # 2026-10-02 a dead job host in run 1 of 16 threw out of test-tasks.ps1 and
     # the other 15 never started. Record the run as crashed and move on.

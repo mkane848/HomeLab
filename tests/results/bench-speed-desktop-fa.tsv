@@ -2,3 +2,13 @@ timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS
 2026-10-13T03:20:17	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	0	861	4.1			1	7.69	7.69	1	warm-up (load, chars-per-token calibration)
 2026-10-13T03:22:21	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16539	0	135.5	53.5	128	7.69	7.69	1	rep 1
 2026-10-13T03:24:20	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16092	0	138.3	53.7	128	7.69	7.69	1	rep 2
+2026-10-13T07:04:32	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	0	875	4.1			1	7.69	7.69	1	warm-up (load, chars-per-token calibration)
+2026-10-13T07:06:36	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16410	0	135.5	53.5	128	7.69	7.69	1	rep 1
+2026-10-13T07:08:34	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16013	0	138.6	54.1	128	7.69	7.69	1	rep 2
+2026-10-13T07:10:33	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16039	0	138.6	53.6	128	7.69	7.69	1	rep 3
+2026-10-13T07:10:52	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	0	861	5.4			1	9.89	9.89	1	warm-up (load, chars-per-token calibration)
+2026-10-13T07:12:30	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	16000	16442	0	188.7	17.4	128	9.89	9.89	1	rep 1
+2026-10-13T07:13:29	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	16000	16009	0	321.6	26.9	128	9.89	9.89	1	rep 2
+2026-10-13T07:14:28	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	16000	16072	0	320.5	26.8	128	9.89	9.89	1	rep 3
+2026-10-13T07:14:36	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	0	859	0			1	9.89	9.89	1	warm-up (load, chars-per-token calibration)
+2026-10-13T07:29:13	desktop+nofa+f16kv	ollama	0.34.3	qwen3:8b	32768	30000	31104	0	35.9	17	128	9.89	9.89	1	rep 1

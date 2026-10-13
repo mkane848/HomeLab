@@ -48,3 +48,4 @@ timestamp	host	ollamaVersion	model	status	sec	detail
 2026-10-12T00:22:58	server	0.34.3	qwen3:8b	PASS	60.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
 2026-10-12T00:23:07	server	0.34.3	qwen2.5-coder-3b-cpu	FAIL	8.3	emitted the call as CHAT TEXT (parser saw no tool_call tags) -> [{"name": "write_file", "arguments": {"content": {"type": "string", "value": "hello"}, "path": {"type": "string...]
 2026-10-12T00:40:45	server	0.34.3	qwen3.6:35b-a3b-coding	PASS	68	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-10-13T07:06:48	node3	0.34.2	qwen3:8b	PASS	1.9	tool_calls -> write_file {"content":"hello","path":"a.txt"}

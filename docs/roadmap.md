@@ -186,8 +186,9 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        changes exactly that one ending and no other. A broader rule, "the last step is prose only, ends in a question
        and no write or edit call has been made", finds 16 endings, 15 of which failed; the classifier already nudges 7
        of them (the `ask` kind) and 9 got nothing, these two included. The same ending after real edits is mixed (17:
-       9 pass, 8 fail), so the rule would leave them alone. Either change is stop classifier 3, a new assisted era, and
-       is the owner's call; it was not made during a round.
+       9 pass, 8 fail), so the rule would leave them alone. Both are stop classifier 3, a new assisted era. **Adopted
+       by the owner on 2026-10-13** (default of `test-tasks.ps1` and `run-tasks-batch.ps1`; `-StopClassifier 2` reproduces the
+       old one, and the llama.cpp trial pins it). No round has run under it yet, so its effect on pass rates is unmeasured.
    - **Still open for step 3.** A control run with the model on the server and the tools on node3 (the contention
      test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
@@ -232,15 +233,20 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      now has PowerShell 7.6.6, git, Python, Node 24.18.0, npm 11.16.0, pnpm 10.33.0 and OpenCode 1.18.34: the same
      versions as the desktop, installed by the owner's approval, with `node.exe` and the OpenCode binaries
      byte-identical to the desktop's (`gh` was skipped; task runs do not need it). Still missing there: the task repos
-     (the manifests hard-code `M:/…` and `C:/…` paths, and node3 has only a `C:` drive: a per-host repo-root map), the
-     private repo, and an OpenCode config. Git credentials stay the owner's to enter; the repos can be sent as bundles
-     over SSH instead.
+     are there since 2026-10-13: `C:\HomeLab\repos\` holds `LFCbot`, `ASoHaV`, `KaneEnabler`, `HomeLab` and `HomeLab-private`,
+     imported from git bundles sent over SSH (no GitHub credentials typed on that PC; `origin` is the real URL with pushing disabled;
+     every commit the two manifests pin is present: 16, 36 and 12 for the three task repos). Still missing there: a per-host
+     repo-root map in the harness (the manifests hard-code `M:/…` and `C:/Projects/…` paths, and node3 has only a `C:` drive), an
+     OpenCode config, and the harness checkout at a chosen commit.
    - **node3's own seat is held back by its Ollama settings (measured 2026-10-12).** `qwen3:8b` there (Ollama 0.34.2, no
      flash attention, f16 KV cache, 32k context) takes 10.36 GB on a 10 GB card, so 19% spills to system RAM: decode 17
      tok/s at 16k and 11.7 at 30k. With `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0`, tried on a temporary
      second instance and then removed, it fits whole (7.64 GB) and decodes 74 and 58 tok/s, about 100 at 3k; prefill is 28 to
-     45% faster. The desktop and the server already run those settings. Applying them on node3 is the owner's change (two
-     machine variables and an Ollama restart on a shared PC). Detail: `tests/results/README.md`.
+     45% faster. The desktop and the server already run those settings. **Applied 2026-10-13 (owner-approved)** as User variables
+     of node3's account (not machine-wide) plus a restart of the Ollama tray app in her session through a one-shot scheduled task that was removed
+     again. Measured on the live instance afterwards: 7.64 GB, 100% on the GPU, prefill 4,329 / 3,468 / 2,824 and decode 101 / 74 / 58 tok/s
+     at 3k / 16k / 30k (was 3,063 / 2,671 / 2,181 and 30 / 17 / 10); the tool-call probe still passes (1.9 s). Detail:
+     `tests/results/README.md`.
    - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
      `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
      paths. It is not on the critical path while node3 is the run host.

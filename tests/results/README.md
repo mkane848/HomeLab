@@ -83,6 +83,11 @@ its highest), but a freshly loaded seat is, on any host: the server's first `qwe
 prefill against 6,097 on the repeat. Read the second repetition of the smallest size (`-Reps 2`), or ignore the first
 size, until the warm-up is lengthened.
 
+**Applied on node3, 2026-10-13 (owner-approved):** `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` as User variables for node3's
+account and a restart of the Ollama tray app. The rows in `bench-speed.tsv` with host `node3-applied` are the live instance afterwards, two
+reps: 7.64 GB all on the GPU, prefill 4,329 / 3,468 / 2,824 and decode 100.8 / 74.0 / 57.7 tok/s at 3k / 16k / 30k (rep 2); the tool-call
+probe still passes. They match the temporary-instance rows above within 1%.
+
 ## The same seat on three hosts: `qwen3:8b` (2026-10-13, `bench-speed.tsv`)
 
 Ollama 0.34.3 (node3: 0.34.2), `qwen3:8b`, three sizes, two reps each; rep 2 is quoted, because rep 1 reads low right after a
@@ -100,9 +105,15 @@ prefill falls steeply with depth for a dense model (the MoE `qwen3.6` held 319 /
 slower than the server). **Treat the desktop's depth figures as unsettled:** during that run, with nothing else of mine on the
 machine, the same 16k size read 138, then 48, and the second 30k request timed out at 900 s after the first took 10 minutes
 (50.5 tok/s); a quiet re-run at 3:20 AM read 135.5 and 138.3 at 16k. Something slowed the desktop for about half an hour
-(heat after a 10-minute prefill, background work and the driver are the candidates) and it was not found. The flash-attention-off
-comparison on the desktop (`bench-speed-desktop-fa.tsv`: part A, current settings, two reps at 16k; part B, a temporary instance
-with both off) was interrupted after part A and has not run.
+(heat after a 10-minute prefill, background work and the driver are the candidates) and it was not found; it did not recur.
+**The flash-attention A/B on a quiet machine** (`bench-speed-desktop-fa.tsv`, 2026-10-13 07:04 to 07:29, CPU 1 to 2%): at 16k the
+desktop's own settings (flash attention, q8_0 KV cache) read 135.5, 138.6 and 138.6 tok/s prefill and 54 decode, 7.69 GB; six of
+the seven 16k readings at those settings were 135 to 139, the seventh 47.8. A temporary second Ollama with both off (flash
+attention 0, f16 KV, set for that process only, killed afterwards) read 321 prefill (the first request 189) and 27 decode, and took
+9.89 GB. So the settings trade 2.3 times the prefill for twice the decode at 16k; the desktop keeps the decode-friendly one, which
+suits an agent loop (most of each step's prompt is cached). At 30k neither is good: with both off a 31,104-token prompt read 36 tok/s
+prefill (14 minutes) and 17 decode; with the desktop's settings the one 30k request that completed read 50.5. A dense 8B model
+on Vulkan loses most of its prefill speed with depth, and the settings do not change that.
 
 ## Assisted runs: `compaction-nudge/`
 

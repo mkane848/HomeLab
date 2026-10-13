@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Measured: the same small seat on three hosts (2026-10-13).** `qwen3:8b`, rep 2 at 3k / 16k / 30k tokens, prefill and decode in
   tok/s: server 6,097 / 100, 4,735 / 77, 3,426 / 63; node3 as set up 3,063 / 30, 2,671 / 17, 2,181 / 10; desktop 237 / 65,
-  138 / 54 (one rep read 48), 51 / 46 (rep 1; rep 2 timed out). On the desktop's better readings its prefill is 17 to 34 times
+  138 / 54 (one rep read 48, six others 135-139), 51 / 46 (rep 1; rep 2 timed out). On the desktop's better readings its prefill is 17 to 34 times
   slower than the server's and its decode 1.4 to 1.5 times. The desktop's
   depth figures are unsettled (one 16k request read 48 where two others read 136 and 138, and one 30k request timed out at
-  900 s); the flash-attention-off comparison there was interrupted and has not run (`bench-speed-desktop-fa.tsv` holds
-  part A only). Table and caveats: `tests/results/README.md`.
+  900 s). The flash-attention A/B on a quiet machine (`bench-speed-desktop-fa.tsv`): at 16k the desktop's settings read 137 tok/s
+  prefill and 54 decode, a temporary instance with flash attention and the q8_0 KV cache off 321 and 27, so the desktop
+  trades 2.3 times the prefill for twice the decode; at 30k neither setting is good (36 to 50 tok/s prefill). The overnight
+  slowdown did not recur (six of seven 16k readings at 135 to 139). Table and caveats: `tests/results/README.md`.
 
 - **Measured: node3's `qwen3:8b` is 4 to 5 times slower at depth than it needs to be (2026-10-12).** With Ollama 0.34.2 on
   node3 as configured (no flash attention, f16 KV cache, 32k context) the seat takes 10.36 GB, 81% on the GPU, and decodes
@@ -33,6 +35,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   decode in `bench-speed.tsv` is understated on the desktop and node3, and on any host right after a model load
   (the server's first `qwen3:8b` request read 485 tok/s prefill against 6,097 on the repeat); the long-resident
   `qwen3.6` rows on the server are not affected. Noted in `tests/results/README.md`; warm-up not yet lengthened.
+
+- **node3's Ollama now runs with flash attention and a q8_0 KV cache, and node3 has the task repos (2026-10-13, owner-approved).**
+  `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` were set as User variables of node3's account (not machine-wide) and the
+  Ollama tray app restarted in her session through a one-shot scheduled task, removed afterwards (a first attempt failed to register the
+  task because of an account-name lookup and left Ollama stopped for about two minutes; fixed and restored). Measured on the live
+  instance: `qwen3:8b` 100% on the GPU (7.64 GB), decode 101 / 74 / 58 tok/s (was 30 / 17 / 10), prefill 28 to 41% faster, tool-call
+  probe PASS. `C:\HomeLab\repos\` holds LFCbot, ASoHaV, KaneEnabler, HomeLab and HomeLab-private, imported from git bundles sent over SSH
+  (branches, tags and remote-tracking refs only, no stashes; no credentials entered; `origin` pointing at GitHub with pushing disabled;
+  every commit the manifests pin present). The bundles and my helper scripts were deleted from node3 afterwards. What the harness
+  still needs to run there: a per-host repo-root map and an OpenCode config.
+
+- **Stop classifier 3 (2026-10-13; owner's call).** `Get-StopKind` gains the `question` kind: a prose-only last step that ends in a
+  question mark after zero write or edit calls ("Want me to go ahead and implement all the stubs?") is nudged with the stop text;
+  after real edits such an ending is left alone. `ask` also reads "you didn't include a task" and "there is no task"
+  (`$script:AskedForTaskExtraPattern`, kept apart from the pattern the context audit shares). Over the 647 transcripts held the
+  zero-write question rule finds 16 endings, 15 of them failures (7 already nudged as `ask`, 9 not); the phrase set changes 1.
+  `test-tasks.ps1` and `run-tasks-batch.ps1` take `-StopClassifier 2|3` (default 3); 2 reproduces the old classifier exactly, and
+  the llama.cpp trial pins it (`docs/llamacpp-trial.md`). `stopNudges.classifier` is 3 from now on: a new assisted era, so a round
+  under it is not a like-for-like repeat of rounds 2 and 3. `tests/test-stop-nudge.ps1`: 59 to 85 checks; five controls fail
+  8, 2, 4, 3 and 1 checks.
 
 - **Round 3, two more reps under classifier 2, and two endings the stop classifier misses (2026-10-13).** 22 of 30 pass
   (11 of 15 per rep), clean on every infrastructure check; with round 2, 46 of 60 and four per-rep scores of 12, 12, 11,
