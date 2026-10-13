@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **PowerShell 7 is the only supported PowerShell (owner, 2026-10-12).** One version to write, test and support.
+  Guards are run on `pwsh` 7 only; Windows PowerShell 5.1 is no longer a target. Nothing is removed: the existing
+  scripts still happen to parse on 5.1, and older entries below that say "PowerShell 7 and 5.1" record what was run
+  at the time. What changed: `AGENTS.md` no longer asks for the 5.1 cross-check, and new entries say PowerShell 7.
+  The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
+  is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
 - **`tests/bench-speed.ps1`: prefill and decode speed of one seat on one host, at depth (2026-10-12).** "The server is
   faster" rested on wall-clock per task, which mixes the engine with how much work the model chose to do (the server's
   two early-stopped runs were also its fastest). The script asks one host the same question at the same prompt sizes
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     8 generated tokens is null. The first real run, before either rule, logged 1,000,000 tok/s for a one-token decode and a
     3000-token target that came out at 4,465.
   - Ollama only for now; `llama-server` arrives with the engine trial, and `engine` is already a column so rows compare.
-  - New guard `tests/test-bench-speed.ps1` (43 checks, PowerShell 7 and 5.1); controls with a fixed nonce, the cap
+  - New guard `tests/test-bench-speed.ps1` (43 checks, PowerShell 7); controls with a fixed nonce, the cap
     disabled, a wrong divisor or no minimum token count each fail their own checks. Found on the way: `"a`tb" -split
     "`t", -1` does not split on PowerShell 7.4.20 (5.1 does); the guard uses `.Split("`t")`.
 
@@ -34,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     once per worktree; `baseline`, the post-change `suite`, `typecheck`, `acceptance`). Every run on every host now
     adds a row to the answer to "which CPU is better at which work": a single test file (start-up latency) against a
     whole suite (many workers), an install, a typecheck. It replaces most of the separate `bench-cpu.ps1` the plan had.
-  - Both are checked in `tests/test-gpu-placement.ps1` (62 checks, PowerShell 7 and 5.1); a harness without
+  - Both are checked in `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); a harness without
     `phaseSeconds` fails 3 checks, without `runHost` 2.
 
 - **The harness checks GPU placement after each run (2026-10-12).** On 2026-10-12 the server's container lost its GPU and
@@ -43,9 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     host's `/api/ps` where `-Model` sits. Loaded with `size_vram` 0 is infrastructure: exit -5, a `_CPUONLY_`
     transcript, no run JSON, no summary row. Graded runs record `gpuPlacement` (verdict, GB, share). `-NoGpuCheck`
     skips it. Only the seat asked about counts, so the CPU-pinned 3b beside it never trips it.
-  - `tests/run-tasks-batch.ps1`: a `_CPUONLY_` transcript stops the batch (`Get-CpuOnlyRun`), with the run, how many
-    were not started, and `-OnlyMissing` to carry on after the fix.
-  - New guard `tests/test-gpu-placement.ps1` (57 checks, PowerShell 7 and 5.1); a harness or batch copy with the new
+  - `tests/run-tasks-batch.ps1`: a `_CPUONLY_` transcript stops that host's remaining runs (`Get-CpuOnlyRun`; the
+    other hosts of the batch carry on, like the hosted-model guards), with the run, how many were not started on
+    that host, and `-OnlyMissing` to carry on after the fix. The batch exits 1.
+  - `gpuPlacement.note` says `OLLAMA_*_BASE_URL is unset` for an Ollama provider with no base URL, instead of calling
+    it a non-Ollama provider (found by the ultrareview of this branch).
+  - New guard `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); a harness or batch copy with the new
     branch removed fails 6 checks each. The throwaway watchdog the first round ran under (outside the repo) is no
     longer needed.
 

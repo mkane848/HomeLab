@@ -113,6 +113,10 @@ function Invoke-Generate([string]$Prompt, [int]$Predict) {
     Invoke-RestMethod -Uri "$root/api/generate" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
 }
 function Get-Placement {
+    # The same /api/ps query and arithmetic as Get-OllamaGpuPlacement in
+    # test-tasks.ps1, kept as a copy on purpose: this script runs on its own, and
+    # test-tasks.ps1 is a script the guards read function by function, not a module.
+    # Change one, change the other (name or model match, bytes to GB, share).
     try {
         $m = @((Invoke-RestMethod -Uri "$root/api/ps" -TimeoutSec 10).models | Where-Object { $_ -and (($_.name -ieq $Model) -or ($_.model -ieq $Model)) })
         if ($m.Count -eq 0) { return @{ Total = $null; Vram = $null; Share = $null } }

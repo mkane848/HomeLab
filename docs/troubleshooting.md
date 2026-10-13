@@ -92,7 +92,7 @@ docker exec ollama-server nvidia-smi -L        # GPU 0: NVIDIA GeForce RTX 4070 
 - **The harness now checks placement itself** (`tests/test-tasks.ps1`, `Get-OllamaGpuPlacement`, guarded by
   `tests/test-gpu-placement.ps1`). After each run that exited 0 against an Ollama provider it asks that host's
   `/api/ps` where the seat's model sits. Loaded with `size_vram` 0 is infrastructure: exit -5, a `_CPUONLY_`
-  transcript, no summary row, and `run-tasks-batch.ps1` stops instead of queueing more runs on the host. Graded
+  transcript, no summary row, and `run-tasks-batch.ps1` stops queueing runs on that host (a batch that mixes hosts carries on with the others). Graded
   runs record `gpuPlacement` (verdict, total and VRAM GB, share) in their JSON; `-NoGpuCheck` skips the check.
   It judges only the seat asked about, so the CPU-pinned 3b beside it (0% GPU by design) never trips it, and it
   only sees a loss once the seat is loaded: a host that is CPU-only before the first run is caught by that run,

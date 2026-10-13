@@ -781,7 +781,7 @@ function Get-CpuOnlyRun {
     # using the GPU), or $null. The condition outlives the run: a container that
     # lost its GPU stays that way until it is recreated, and every further run
     # would measure the CPU (2026-10-12: a first batch crawled for 31 minutes).
-    # The batch stops instead of queueing more.
+    # The batch stops queueing runs on that host (provider); other hosts carry on.
     param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
     foreach ($f in (Get-NewRunFiles -ResultsDir $ResultsDir -Before $Before -TaskId $TaskId -ModelLabel $ModelLabel)) {
         if ($f.Name -like "*_CPUONLY_*") { return $f.Name }
@@ -1413,12 +1413,22 @@ $hostedRefused = @{}  # hosted model id -> the provider's refusal message
 $hostedRefusedSkipped = @{}   # hosted model id -> runs skipped after it
 $planStopped = $null  # the message once a plan meter is (nearly) full
 $planSkipped = 0      # hosted runs skipped after it
+$cpuOnlyHosts = @{}   # provider id (ollama-server, ...) -> the message once its host was found not using the GPU
+$cpuOnlySkipped = @{} # provider id -> runs skipped after it
 foreach ($run in $runList) {
     $runNum++
     $drift = Get-AgentVersionDrift -Expected $batchAgentVersion
     if ($drift) {
         $stopped = "$drift, before run $runNum of $total; $($total - $runNum + 1) run(s) not started. A cell must not straddle versions: pin autoupdate, then re-run the rest on one version."
         break
+    }
+    # A host found without its GPU earlier in this batch: every further run on it
+    # would crawl the same way and measure the host, not the model. Other hosts
+    # (a different provider) are not affected and carry on.
+    $runProvider = ($run.Model -split '/', 2)[0]
+    if ($cpuOnlyHosts.ContainsKey($runProvider)) {
+        $cpuOnlySkipped[$runProvider] = [int]$cpuOnlySkipped[$runProvider] + 1
+        continue
     }
     $isHosted = Test-HostedModelId $run.Model
     if ($isHosted) {
@@ -1511,16 +1521,20 @@ foreach ($run in $runList) {
         Rep      = $run.Rep
         ExitCode = $code
     })
-    # A host that was not using its GPU: stop, don't queue more runs on it.
+    # A host that was not using its GPU: no more runs on that host (its provider),
+    # the rest of the batch goes on.
     $cpuOnly = Get-CpuOnlyRun -ResultsDir $taskResultsDir -Before $filesBefore -TaskId $run.Task -ModelLabel $run.Model
     if ($cpuOnly) {
-        $stopped = "run $runNum of $total ($($run.Task) x $($run.Model)): Ollama had the seat entirely in system RAM after the run, so its host was not using the GPU ($cpuOnly). $($total - $runNum) run(s) not started. Fix the GPU (server: docs/troubleshooting.md -> `"Container lost the GPU`"), then re-run the rest with -OnlyMissing."
-        break
+        $left = @($runList | Select-Object -Skip $runNum | Where-Object { ($_.Model -split '/', 2)[0] -eq $runProvider }).Count
+        $cpuOnlyHosts[$runProvider] = "run $runNum of $total ($($run.Task) x $($run.Model)): Ollama had the seat entirely in system RAM after the run, so its host was not using the GPU ($cpuOnly). $left run(s) not started on $runProvider. Fix the GPU (server: docs/troubleshooting.md -> `"Container lost the GPU`"), then re-run the rest with -OnlyMissing."
+        Write-Host ""
+        Write-Host "  [GPU] ${runProvider}: its host was not using the GPU - skipping its remaining $left run(s). Other hosts carry on." -ForegroundColor Red
     }
 }
 
+$batchStopped = [bool]$stopped -or $cpuOnlyHosts.Count -gt 0
 Write-Host ""
-Write-Host $(if ($stopped) { "=== Batch STOPPED ===" } else { "=== Batch complete ===" }) -ForegroundColor $(if ($stopped) { "Red" } else { "Cyan" })
+Write-Host $(if ($batchStopped) { "=== Batch STOPPED ===" } else { "=== Batch complete ===" }) -ForegroundColor $(if ($batchStopped) { "Red" } else { "Cyan" })
 $results | Format-Table -AutoSize
 $hostedInBatch = @($selectedModels | Where-Object { Test-HostedModelId $_ })
 if ($hostedInBatch.Count -gt 0) {
@@ -1547,6 +1561,7 @@ if ($stopped) {
     Write-Host $stopped -ForegroundColor Red
     exit 1
 }
+foreach ($h in $cpuOnlyHosts.Keys) { Write-Host $cpuOnlyHosts[$h] -ForegroundColor Red }
 
 $cappedRuns = 0
 foreach ($n in $hostedCapped.Values) { $cappedRuns += $n }
@@ -1569,3 +1584,4 @@ if ($fails.Count -gt 0) {
 } else {
     Write-Host "All $ranCount run(s) completed with exit 0 (no FAIL grade - a run can still carry a WARN)." -ForegroundColor Green
 }
+if ($cpuOnlyHosts.Count -gt 0) { exit 1 }

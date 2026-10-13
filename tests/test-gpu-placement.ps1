@@ -8,7 +8,7 @@
 # anyone noticed. Nothing in a run looked wrong except its speed. After each run
 # the harness now asks the serving Ollama's /api/ps where the seat's model sits;
 # loaded with none of it in VRAM is infrastructure (exit -5, a _CPUONLY_
-# transcript, no row), and the batch stops driving that host.
+# transcript, no row), and the batch stops driving that host (the others carry on).
 #
 # What it does:
 #   1. Runs the REAL Get-OllamaGpuPlacement against canned /api/ps replies: a
@@ -24,10 +24,12 @@
 #      run is graded and records gpuPlacement; a CPU-only one is exit -5 with a
 #      _CPUONLY_ transcript and no JSON and no row; -NoGpuCheck grades it and
 #      never asks; not-loaded and unreachable are graded with a WARN; a provider
-#      that is not Ollama is graded and never asked.
+#      that is not Ollama is graded and never asked, and an Ollama provider whose
+#      base URL is unset says so (not "not an Ollama provider").
 #   4. Runs the REAL run-tasks-batch.ps1 end to end (stand-in opencode, test-
-#      tasks.ps1 and Ollama /api/tags): a _CPUONLY_ run stops the batch with the
-#      reason, and a batch without one runs everything.
+#      tasks.ps1 and Ollama /api/tags): a _CPUONLY_ run stops that host's
+#      remaining runs with the reason, a second host's runs in the same batch
+#      still happen, and a batch without one runs everything.
 # Exit 1 on any failure. A control: pass -ScriptPath / -BatchPath a copy with the
 # check removed and the matching scenarios fail.
 #
@@ -220,7 +222,7 @@ exit $LASTEXITCODE
     $tt = Join-Path $h "tests/test-tasks.ps1"
     $fxModel = "fx-model:latest"
     $script:scn = 0
-    function Invoke-Harness([string]$Reply, [string]$Model = "ollama-server/fx-model", [switch]$NoGpuCheck) {
+    function Invoke-Harness([string]$Reply, [string]$Model = "ollama-server/fx-model", [switch]$NoGpuCheck, [switch]$NoBaseUrl) {
         $script:scn++
         $rdir = Join-Path $priv "results-$($script:scn)"
         $psFile = Join-Path $tmp "ps-$($script:scn).json"
@@ -236,7 +238,8 @@ exit $LASTEXITCODE
         Write-Fixture $argsFile ($argv | ConvertTo-Json -Depth 4)
         $savedPath = $env:PATH
         $env:PATH = "$(Join-Path $h 'bin');$savedPath"
-        $env:OLLAMA_SERVER_BASE_URL = "http://fixture.invalid:11434/v1"
+        if ($NoBaseUrl) { Remove-Item Env:OLLAMA_SERVER_BASE_URL -ErrorAction SilentlyContinue }
+        else { $env:OLLAMA_SERVER_BASE_URL = "http://fixture.invalid:11434/v1" }
         $env:FIXTURE_PS_FILE = $psFile
         $env:FIXTURE_PS_CALLS = $psCalls
         $prevEap = $ErrorActionPreference
@@ -311,6 +314,13 @@ exit $LASTEXITCODE
     Check "never asked /api/ps"                                  $r.PsCalls 0
     Has   "JSON: not checked, and why"                           ("{0} | {1}" -f $r.Json.gpuPlacement.checked, $r.Json.gpuPlacement.note) 'False \| not checked \(fixture is not an Ollama provider\)'
 
+    Write-Host "   scenario: an Ollama provider whose base URL is unset"
+    $r = Invoke-Harness (PsJson @((M $fxModel 38e9 0))) -NoBaseUrl
+    Check "exit 0: graded"                                       $r.Exit 0
+    Check "never asked /api/ps"                                  $r.PsCalls 0
+    Has   "JSON: not checked, and the note names the unset variable" ("{0} | {1}" -f $r.Json.gpuPlacement.checked, $r.Json.gpuPlacement.note) 'False \| not checked \(OLLAMA_SERVER_BASE_URL is unset\)'
+    Lacks "...and does not call it a non-Ollama provider"        ("$($r.Json.gpuPlacement.note)") 'not an Ollama provider'
+
     # --- end to end: the real batch ------------------------------------------
     Write-Host "-- end to end: the real run-tasks-batch.ps1, stand-in opencode, test-tasks.ps1 and Ollama"
     $tree = Join-Path $tmp "tree"
@@ -318,13 +328,14 @@ exit $LASTEXITCODE
     foreach ($d in "$tree\tests\tasks", "$tree\tests\results", "$tree\costs", $bin) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
     Copy-Item -LiteralPath $BatchPath -Destination "$tree\tests\run-tasks-batch.ps1"
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
-    Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`thosts`tdesc`nqwen3:8b`tdesktop`tlocal seat`n")
+    Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`thosts`tdesc`nqwen3:8b`tdesktop server`tlocal seat`n")
     Write-Fixture "$tree\costs\go-rates.tsv" "model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource`n"
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
     $bm = @{ tasks = @(foreach ($id in "fx-cpu", "t1", "t2", "t3") { [ordered]@{ id = $id; title = "fixture $id" } }) }
     Write-Fixture "$tree\tests\tasks\manifest.json" ($bm | ConvertTo-Json -Depth 5)
-    # Stand-in test-tasks.ps1, naming files the way the real one does. fx-cpu
-    # leaves a _CPUONLY_ transcript and exits 1; anything else is graded, exit 0.
+    # Stand-in test-tasks.ps1, naming files the way the real one does. fx-cpu on
+    # the desktop leaves a _CPUONLY_ transcript and exits 1 (the same task on the
+    # server is graded: only the desktop's GPU is idle); anything else is graded, exit 0.
     Write-Fixture "$tree\tests\test-tasks.ps1" @'
 param([string[]]$Task, [string]$Model, [string]$ModelLabel, [int]$RunTimeout, [int]$CommandTimeout,
       [switch]$IncludeRetired, [string]$TaskManifest, [string]$ResultsDir)
@@ -334,7 +345,7 @@ $label = $ModelLabel -replace '[^a-zA-Z0-9._-]', '_'
 $n = @(Get-ChildItem -LiteralPath $ResultsDir -File).Count
 $stamp = "20261012-{0:D6}" -f $n
 $enc = New-Object System.Text.UTF8Encoding $false
-if ($t -eq 'fx-cpu') {
+if ($t -eq 'fx-cpu' -and $Model -like 'ollama-desktop/*') {
     [IO.File]::WriteAllText((Join-Path $ResultsDir ("tasks-{0}-{1}_CPUONLY_{2}.jsonl" -f $t, $label, $stamp)), "{}`n", $enc)
     Write-Host "  [FAIL] opencode run - fixture: the host was not using its GPU"
     exit 1
@@ -353,7 +364,7 @@ exit /b 2
 echo 9.9.9
 exit /b 0
 :debug
-echo {"autoupdate":"notify","provider":{"ollama-desktop":{"models":{"qwen3:8b":{}}}}}
+echo {"autoupdate":"notify","provider":{"ollama-desktop":{"models":{"qwen3:8b":{}}},"ollama-server":{"models":{"qwen3:8b":{}}}}}
 exit /b 0
 '@) -replace "`r?`n", "`r`n")
     Write-Fixture "$tmp\batch-driver.ps1" @'
@@ -374,13 +385,13 @@ foreach ($p in $a.PSObject.Properties) {
 exit $LASTEXITCODE
 '@
     $script:bscn = 0
-    function Invoke-Batch([string[]]$Tasks) {
+    function Invoke-Batch([string[]]$Tasks, [string[]]$Models = @("ollama-desktop/qwen3:8b"), [switch]$WithServer) {
         $script:bscn++
         $rdir = Join-Path $tmp "batch-results-$($script:bscn)"
         New-Item -ItemType Directory -Path $rdir -Force | Out-Null
         $calls = Join-Path $tmp "batch-calls-$($script:bscn).txt"
         Write-Fixture $calls ""
-        $all = @{ SkipSetup = $true; Mode = "Tasks"; Reps = 1; Yes = $true; ResultsDir = $rdir; Tasks = $Tasks; Models = @("ollama-desktop/qwen3:8b") }
+        $all = @{ SkipSetup = $true; Mode = "Tasks"; Reps = 1; Yes = $true; ResultsDir = $rdir; Tasks = $Tasks; Models = $Models }
         $argsFile = Join-Path $tmp "batch-args-$($script:bscn).json"
         Write-Fixture $argsFile ($all | ConvertTo-Json -Depth 4)
         $savedPath = $env:PATH
@@ -388,6 +399,7 @@ exit $LASTEXITCODE
         $env:FIXTURE_CALLS = $calls
         $env:OLLAMA_DESKTOP_BASE_URL = "http://fixture.invalid:11434/v1"
         foreach ($v in "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL", "OPENCODE_SMALL_MODEL") { [Environment]::SetEnvironmentVariable($v, $null) }
+        if ($WithServer) { $env:OLLAMA_SERVER_BASE_URL = "http://fixture-server.invalid:11434/v1" }
         $prevEap = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
@@ -396,10 +408,12 @@ exit $LASTEXITCODE
         } finally {
             $ErrorActionPreference = $prevEap
             $env:PATH = $savedPath
-            Remove-Item Env:FIXTURE_CALLS, Env:OLLAMA_DESKTOP_BASE_URL -ErrorAction SilentlyContinue
+            Remove-Item Env:FIXTURE_CALLS, Env:OLLAMA_DESKTOP_BASE_URL, Env:OLLAMA_SERVER_BASE_URL -ErrorAction SilentlyContinue
         }
         [pscustomobject]@{ Out = ($out -replace '\x1b\[[0-9;]*m', ''); Exit = $code
-                           Calls = (@(Get-Content -LiteralPath $calls | Where-Object { $_ } | ForEach-Object { ($_ -split '\|')[0] }) -join ",") }
+                           Calls = (@(Get-Content -LiteralPath $calls | Where-Object { $_ } | ForEach-Object { ($_ -split '\|')[0] }) -join ",")
+                           # task@provider, in the order the stand-in test-tasks.ps1 was called
+                           Seen  = (@(Get-Content -LiteralPath $calls | Where-Object { $_ } | ForEach-Object { $p = $_ -split '\|'; "{0}@{1}" -f $p[0], ($p[1] -split '/')[0] }) -join ",") }
     }
 
     Write-Host "   scenario: the second of four runs finds the host CPU-only"
@@ -410,6 +424,15 @@ exit $LASTEXITCODE
     Has   "...names the run and the reason"                      $r.Out 'run 2 of 4 \(fx-cpu x ollama-desktop/qwen3:8b\): Ollama had the seat entirely in system RAM after the run'
     Has   "...says how many were not started"                    $r.Out '2 run\(s\) not started'
     Has   "...and how to carry on"                               $r.Out 'then re-run the rest with -OnlyMissing'
+    Write-Host "   scenario: two hosts, the first finds its GPU idle at its second run"
+    $r = Invoke-Batch @("t1", "fx-cpu", "t2") -Models @("ollama-desktop/qwen3:8b", "ollama-server/qwen3:8b") -WithServer
+    Check "the desktop stops after fx-cpu; every server run still happens" $r.Seen "t1@ollama-desktop,fx-cpu@ollama-desktop,t1@ollama-server,fx-cpu@ollama-server,t2@ollama-server"
+    Check "exit 1 (a host was stopped)"                          $r.Exit 1
+    Has   "the summary says the batch STOPPED"                   $r.Out '=== Batch STOPPED ==='
+    Has   "...names the run on the desktop"                      $r.Out 'run 2 of 6 \(fx-cpu x ollama-desktop/qwen3:8b\): Ollama had the seat entirely in system RAM after the run'
+    Has   "...says one run was not started on the desktop"       $r.Out '1 run\(s\) not started on ollama-desktop'
+    Has   "...and says the other hosts carry on"                 $r.Out '\[GPU\] ollama-desktop:.*Other hosts carry on'
+    Lacks "...and nothing about the server being stopped"        $r.Out 'not started on ollama-server'
     Write-Host "   scenario: no CPU-only run"
     $r = Invoke-Batch @("t1", "t2", "t3")
     Check "runs everything"                                      $r.Calls "t1,t2,t3"

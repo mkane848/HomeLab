@@ -144,8 +144,8 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      passed. `wp-7a` (15) and `wp-5b` (13) were edit-and-test iterations the same way.
    - **GPU-placement check (2026-10-12, in the harness).** After each run that exited 0 against an Ollama provider,
      `test-tasks.ps1` asks the host's `/api/ps` where the seat sits (`Get-OllamaGpuPlacement`). Loaded with `size_vram` 0
-     is exit -5: a `_CPUONLY_` transcript, no row, and `run-tasks-batch.ps1` stops rather than queue more runs on a
-     host that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
+     is exit -5: a `_CPUONLY_` transcript, no row, and `run-tasks-batch.ps1` stops queueing runs on that host (the other
+     hosts of the batch carry on) rather than run on one that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
      ran under; it can't catch a host that is CPU-only before the first run until that run has been spent. Guard:
      `tests/test-gpu-placement.ps1`.
    - **Still open for step 3.** Placement and speed against the desktop on a controlled prompt; a second round for

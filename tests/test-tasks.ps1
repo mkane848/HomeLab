@@ -1783,7 +1783,9 @@ foreach ($tk in $tasksToRun) {
     if ($NoGpuCheck) {
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked (-NoGpuCheck)" }
     } elseif (-not $ollamaRoot) {
-        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($providerId is not an Ollama provider)" }
+        # No root for one of two reasons: not an Ollama provider, or its base URL is unset.
+        $noRootWhy = if ($ollamaBaseVar) { "$ollamaBaseVar is unset" } else { "$providerId is not an Ollama provider" }
+        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($noRootWhy)" }
     } elseif ($run.ExitCode -eq 0) {
         $gp = Get-OllamaGpuPlacement -Root $ollamaRoot -Tag (($Model -split '/', 2)[1])
         $gpuPlacement = [ordered]@{
