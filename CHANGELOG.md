@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
   is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
 
+- **Round 2 of the nudged real tasks on the server, under stop classifier 2 (2026-10-12).** Two reps of the 15 (30 runs,
+  about 5 h, run host the desktop): 24 of 30 pass the hidden tests, 12 of 15 in each rep, against round 1's 10 of 15 under
+  classifier 1. No infrastructure, timeout, truncation or CPU-only row; `gpuPlacement` is `gpu` on all 30. 11 tasks pass in
+  both reps, 2 miss in both (`wp-5b`, `real-02`) and 2 split (`wp-7a`, `real-01`). The new `pending` nudge kind fired in
+  none of the runs (19 nudges: 13 empty, 4 ask, 2 announce), so it cannot be credited for `wp-5a`, `wp-6f` and `wp-3b`
+  passing. 9 runs took a front-drop, mostly on the very first request (`wp-2b`, `wp-4a`, `wp-5b`, `wp-7a`). One run
+  (`real-01` rep 1) edited the harness checkout's own `AGENTS.md` instead of the task's, which `outsideWrites` caught: the
+  task worktrees sit inside the checkout, a suspect and not a finding. This is the like-for-like baseline the llama.cpp
+  trial needed (`docs/llamacpp-trial.md`, `docs/roadmap.md` step 3).
+
 - **Measured: other CPU work on the server costs `qwen3.6` about 60% of its decode speed (2026-10-12).** Decode on the
   server with 0, 4 and 8 busy threads (`yes`, capped by `timeout`) beside the model: 70 / 69 / 62 tok/s, then 27 / 25 / 26,
   then 20 / 23 / 20 at 3k / 30k / 60k tokens; prefill unchanged. Same script as the speed baselines, one rep per

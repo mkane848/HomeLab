@@ -127,7 +127,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        ended on a sentence `Get-StopKind` doesn't read as a stop with work left: it reads only the last sentence for
        "I'll…", "let me…" or a trailing colon, and these ended on "Still need to…" and "Please let me know when…".
        (`wp-5a`'s one nudge went on its lost brief.) The desktop passed both tasks every time it ran them in the
-       nudged and stop-nudge rounds. **Fixed the same day (classifier 2, not yet used in a round).** `Get-StopKind`
+       nudged and stop-nudge rounds. **Fixed the same day (classifier 2; round 2, below, ran under it).** `Get-StopKind`
        has a fourth kind, `pending`, that reads the last two sentences for "still need to", "yet to", "I'll wait",
        "waiting for/on", "still running" and "let me know when/once". A scan of all 607 transcripts held (public and
        private) changes exactly three endings, `wp-5a`, `wp-6f` and `wp-3b`, and leaves the other 604 as they were.
@@ -148,8 +148,30 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      hosts of the batch carry on) rather than run on one that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
      ran under; it can't catch a host that is CPU-only before the first run until that run has been spent. Guard:
      `tests/test-gpu-placement.ps1`.
-   - **Still open for step 3.** Placement and speed against the desktop on a controlled prompt; a second round for
-     variance (one run per task is all this has), now under classifier 2.
+   - **Round 2: classifier 2, two reps (2026-10-12, 30 runs, run host the desktop, about 5 h).** 24 of 30 pass the
+     hidden tests: 12 of 15 in each rep (work packages 11 and 10 of 12, real tasks 1 and 2 of 3), against round 1's 10 of
+     15 under classifier 1. No `_INFRA_`, `_TIMEOUT_`, `_TRUNCATED_` or `_CPUONLY_` row; `gpuPlacement` is `gpu` on all 30;
+     every row records `runHost`. Results in `HomeLab-private/results/nudged-server-2` (assisted).
+     - **Stable passes: 11 of 15 tasks** (both reps), `wp-5a`, `wp-6f` and `wp-3b` among them. **`pending` cannot take the
+       credit:** it fired in none of the 30 runs. The 19 nudges (14 runs) were 13 empty, 4 ask and 2 announce, so those
+       three tasks passing is as likely variance as the classifier.
+     - **Stable misses (2):** `wp-5b`, which ran tests, typecheck and lint, reported them green and missed hidden
+       behaviour in both reps (one test, then nine); and `real-02`, narrowly (2 and 1 of 111 hidden tests).
+       **Unstable (2):** `wp-7a` passed once and missed once (1 of 3 with round 1) and `real-01` passed once and missed
+       once. One suite stayed red with acceptance passing (`wp-5a` rep 1).
+     - **Lost briefs:** 9 runs took a front-drop, 7 asked what the task was. On the first request: `wp-2b` (both reps),
+       `wp-4a`, `wp-5b` (both reps, about 78,700 tokens against 65,536) and `wp-7a` rep 2; later: `wp-5a` rep 2 (step 2),
+       `wp-7a` rep 1 (step 3) and `wp-6f` (step 17). The nudge re-sent the brief every time; `wp-5b` still missed.
+     - **Time:** 9.9 minutes a run on average, 5.0 hours in all; the slowest `wp-5b` rep 2 (41 min) and `wp-7a` rep 2
+       (39 min).
+     - **A hazard the rows exposed.** Task worktrees sit inside the checkout (`<checkout>/tests/.worktrees/<id>`), so the
+       checkout's own `AGENTS.md` is one directory up from the model's working directory. In rep 1, `real-01` edited that
+       file instead of the task's (`outsideWrites` recorded it; the checkout was restored afterwards) and `real-02` spent
+       its steps reading it. Neither happened in round 1, nor in rep 2 of `real-01`, so the layout is a suspect, not a
+       finding. If it repeats, add an option to put task worktrees outside the checkout; until then a round records the
+       checkout path it ran from.
+   - **Still open for step 3.** A control run with the model on the server and the tools on node3 (the contention
+     test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
    speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
    Ollama"). It runs after step 3, so there's a baseline.
@@ -158,10 +180,10 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **Phase 0 (repo only) is done and on `main`** (PRs #115 and #116, 2026-10-12): `server/docker/docker-compose.llamacpp.yml`,
      `server/llamacpp/models.ini`, `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp`
      on `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
-     server: the session that wrote it could not reach one, and the guards have run on PowerShell 7.4.6 on Linux only.
+     server: the session that wrote it could not reach one, and the guards ran on PowerShell 7.4.6 on Linux and, since 2026-10-12, on the desktop (Windows, PowerShell 7.4.20).
    - **Phase 1 has not started and needs the owner** (status and checklist: [llamacpp-trial.md](llamacpp-trial.md) →
-     "Status and handoff"): the four guards on Windows (PowerShell 7 only), the second Ollama round under classifier 2 as the
-     like-for-like baseline (the 10 of 15 above used classifier 1), then the runbook on the server. `sudo` steps (the
+     "Status and handoff"): the four guards on Windows (done), the second Ollama round under classifier 2 as the
+     like-for-like baseline (round 2 above: done, 12 of 15 in each rep; round 3 adds two more reps), then the runbook on the server. `sudo` steps (the
      GPU-loss drill) are the owner's. Phases 2–6 are not started; outline in "Replacing Ollama" below.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU.
