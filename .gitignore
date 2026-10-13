@@ -27,3 +27,7 @@ tests/.worktrees/
 # Session transcripts (blind-trial evidence; kept untracked by convention —
 # cited by name in docs/implementation-tasks.md DP records)
 session-*.md
+
+# Python bytecode (tests/test-llamacpp-stack.ps1 imports server/scripts/llamacpp_check.py)
+__pycache__/
+*.pyc
