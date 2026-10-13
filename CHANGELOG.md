@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `taskkill`, `Win32_Process`), so script changes written in cloud sessions were first exercised on the desktop, which is
   how the `python3` Store placeholder and the `test-task-pins` failure under 5.1 were found. AGENTS.md (Verification)
   and the PR template name the workflow and the runner.
+  **Its first run (pwsh 7.6.6, Git for Windows defaults) passed 26 of 28 guards and found two real bugs, fixed here:**
+  - **Unsetting an environment variable silently stopped working on PowerShell 7.5+.** PowerShell binds `$null` to a
+    .NET string parameter as `""`; `SetEnvironmentVariable(name, "")` removed the variable on .NET 8 (pwsh 7.4, the
+    desktop's 7.4.20) and sets it to empty on .NET 9+ (pwsh 7.5+, node3's 7.6.6). So on node3 a task pinned "unset"
+    (`DATABASE_URL` for asohav-02/05/07/08, `MANAPOOL_API_KEY` for lfc-02) would have seen `''`, which Node's `??`
+    does not treat as missing, and every variable `Set-TaskTestEnv` or `Set-NoPushEnv` touched would have been left
+    as `''` after a run. `Set-TaskTestEnv` and `Restore-TaskTestEnv` (`tests/test-tasks.ps1`) and the launcher's env
+    restore (`desktop/scripts/opencode.ps1`) now pass `[NullString]::Value`, a true null. Reproduced on pwsh 7.6.6
+    on Linux (the same 4 FAILs as CI), then `test-task-env.ps1` 60 of 60 on 7.4.6 and 7.6.6; a control with the old
+    harness fails the same 4. The guard's own setup lines had the same trap and are fixed too, and
+    `test-opencode-profiles.ps1` now checks the variable is absent (`Test-Path`), not merely empty.
+  - **`test-llamacpp-stack.ps1` failed on any CRLF checkout** (Git for Windows defaults to `core.autocrlf=true`; the
+    repo has no `.gitattributes`): its preset mutations search for multi-line text joined with LF. It now normalises
+    the preset to LF before mutating. 36 of 36 on a CRLF and an LF copy.
 
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was

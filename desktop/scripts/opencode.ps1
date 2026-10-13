@@ -190,7 +190,10 @@ try {
     $code = $LASTEXITCODE
 } finally {
     foreach ($name in $savedEnv.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $savedEnv[$name], "Process")
+        # A variable that was absent must be removed, not left empty: PowerShell binds $null to
+        # a .NET string as "", which sets an empty value on pwsh 7.5+ (.NET 9); NullString is a true null.
+        $value = if ($null -eq $savedEnv[$name]) { [NullString]::Value } else { $savedEnv[$name] }
+        [Environment]::SetEnvironmentVariable($name, $value, "Process")
     }
 }
 exit $code

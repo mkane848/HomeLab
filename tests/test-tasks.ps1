@@ -743,8 +743,12 @@ function Set-TaskTestEnv {
     if ($Task -and $Task.PSObject.Properties["testEnv"] -and $Task.testEnv) {
         foreach ($p in $Task.testEnv.PSObject.Properties) {
             $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name)
-            $value = if ($null -eq $p.Value) { "" } else { [string]$p.Value }
-            [Environment]::SetEnvironmentVariable($p.Name, $value)   # "" removes the variable
+            # null or "" in the manifest means unset. Only a real null removes the variable:
+            # PowerShell binds $null to a .NET string parameter as "", which removed it on .NET 8
+            # (pwsh 7.4) but sets it to empty on .NET 9+ (pwsh 7.5+, e.g. node3's 7.6.6), so pass
+            # [NullString]::Value.
+            $value = if ([string]::IsNullOrEmpty([string]$p.Value)) { [NullString]::Value } else { [string]$p.Value }
+            [Environment]::SetEnvironmentVariable($p.Name, $value)
         }
     }
     return , $saved
@@ -753,7 +757,10 @@ function Set-TaskTestEnv {
 function Restore-TaskTestEnv {
     param($Saved)
     if (-not $Saved) { return }
-    foreach ($name in @($Saved.Keys)) { [Environment]::SetEnvironmentVariable($name, $Saved[$name]) }
+    foreach ($name in @($Saved.Keys)) {
+        $value = if ($null -eq $Saved[$name]) { [NullString]::Value } else { $Saved[$name] }   # absent before: remove (see Set-TaskTestEnv)
+        [Environment]::SetEnvironmentVariable($name, $value)
+    }
 }
 
 # The model's process must never publish anything. A task worktree is a
