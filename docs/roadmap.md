@@ -170,6 +170,24 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        its steps reading it. Neither happened in round 1, nor in rep 2 of `real-01`, so the layout is a suspect, not a
        finding. If it repeats, add an option to put task worktrees outside the checkout; until then a round records the
        checkout path it ran from.
+   - **Round 3: the same again, two more reps (2026-10-12 22:37 to 2026-10-13 02:45, 30 runs, 3.9 h).** 22 of 30 pass
+     (11 of 15 in each rep); no `_INFRA_`, `_TIMEOUT_`, `_TRUNCATED_` or `_CPUONLY_` row, `gpuPlacement` `gpu` on all 30,
+     no write outside a worktree, run host the desktop. **Rounds 2 and 3 together: 46 of 60.** Per task over the four
+     reps: 4 of 4 for eight tasks (`wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`, `wp-3b`, `wp-6a`, `wp-9a`, `real-03`); 3 of 4 for
+     `wp-4a`, `wp-5a` and `wp-6f`; 2 of 4 for `wp-7a` and `real-01`; 1 of 4 for `real-02`; 0 of 4 for `wp-5b`, which
+     missed the same hidden test in three of those four runs.
+     The per-rep scores, 12, 12, 11, 11 of 15, are the noise floor for any one-round comparison. `pending` again fired
+     in no run (14 nudges in 11 runs: 8 empty, 3 ask, 3 announce). 4 runs took a front-drop (`wp-2b` both reps,
+     `wp-4a`, `wp-5b`).
+     - **Two endings no nudge reached, both with zero edits and both failures.** `wp-5a` rep 1 ended "Since you didn't
+       include a task beyond the boilerplate, I can't carry on — what would you like me to work on next?" and `wp-7a`
+       rep 2 "Git shows zero changes… Want me to go ahead and implement all the stubs?". Over all 647 transcripts held
+       (public and private): a phrase fix for the first ("you didn't include/give/provide a task", "there is no task")
+       changes exactly that one ending and no other. A broader rule, "the last step is prose only, ends in a question
+       and no write or edit call has been made", finds 16 endings, 15 of which failed; the classifier already nudges 7
+       of them (the `ask` kind) and 9 got nothing, these two included. The same ending after real edits is mixed (17:
+       9 pass, 8 fail), so the rule would leave them alone. Either change is stop classifier 3, a new assisted era, and
+       is the owner's call; it was not made during a round.
    - **Still open for step 3.** A control run with the model on the server and the tools on node3 (the contention
      test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure

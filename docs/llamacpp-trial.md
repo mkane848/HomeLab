@@ -91,14 +91,14 @@ server):
 | decode at 3k / 30k / 60k | 73.1 / 65.0 / 60.6 tok/s |
 | placement | 22.68 GB total, 13.59 GB (60%) in VRAM; ~782 MiB of the 16 GB free |
 | nudged round of the 15, classifier 1 (round 1) | 10 of 15 (work packages 8 of 12, real tasks 2 of 3) |
-| nudged round of the 15, **classifier 2** (round 2, the like-for-like baseline, desktop run host, 2026-10-12) | rep 1: 12 of 15, rep 2: 12 of 15 (work packages 11 and 10 of 12, real tasks 1 and 2 of 3); 24 of 30 |
+| nudged round of the 15, **classifier 2** (rounds 2 and 3, the like-for-like baseline, desktop run host, 2026-10-12/13) | four reps: 12, 12, 11, 11 of 15 (mean 11.5; 46 of 60). Eight tasks pass 4 of 4, `wp-5b` 0 of 4; `wp-7a`, `real-01` 2 of 4 |
 | lost briefs | round 1: 3 of 15 (`wp-2b`, `wp-4a`, `wp-5a`). Round 2: front-drops in 9 of 30 runs: `wp-2b` (both reps), `wp-4a`, `wp-5b` (both reps, the largest, about 78,700 tokens), `wp-7a` (both reps), `wp-6f`, `wp-5a` rep 2. Add `wp-5b` and `wp-7a` to the set below. |
 | CPU contention (server) | decode 70 / 69 / 62 tok/s idle, 27 / 25 / 26 with 4 busy threads, 20 / 23 / 20 with 8; prefill unchanged. Nothing else may run on the server during the trial. |
 
-**The like-for-like baseline is collected** (round 2 above; round 3, two more reps with identical settings, was running
-on 2026-10-12/13 and is appended here when it finishes). The two reps differ by 0 passes, but individual tasks are not
-stable (`wp-7a`, `wp-5b`, `real-01`, `real-02`), so Gate G1's "no worse by more than 2" is a screen for a collapse and
-nothing finer. Note for the trial's rounds: round 2 ran from a checkout whose task worktrees sit inside it
+**The like-for-like baseline is collected** (rounds 2 and 3 above, four reps with identical settings). The reps score
+12, 12, 11 and 11 of 15, and individual tasks are not stable (`wp-7a`, `real-01`, `real-02`; `wp-5b` never passes), so
+Gate G1's "no worse by more than 2" tolerates about the whole spread: it is a screen for a collapse and nothing finer.
+A llama.cpp round scoring 10 or more of 15 would pass it (mean 11.5 minus 2, rounded up). Note for the trial's rounds: round 2 ran from a checkout whose task worktrees sit inside it
 (`<checkout>/tests/.worktrees/<id>`), and in two runs the model went up to the checkout's own `AGENTS.md`; run the trial
 rounds from a checkout with the same layout, or record the path. The desktop's speed rows (`bench-speed.tsv`) are not
 needed for the server trial.
