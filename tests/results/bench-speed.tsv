@@ -39,3 +39,43 @@ timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS
 2026-10-13T07:06:16	node3-applied	ollama	0.34.2	qwen3:8b		3000	3037	0	4328.7	100.8	128	7.64	7.64	1	rep 2
 2026-10-13T07:06:23	node3-applied	ollama	0.34.2	qwen3:8b		16000	16100	0	3468.2	74	128	7.64	7.64	1	rep 2
 2026-10-13T07:06:36	node3-applied	ollama	0.34.2	qwen3:8b		30000	30102	0	2824	57.7	128	7.64	7.64	1	rep 2
+2026-10-13T16:52:56	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	897	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=16
+2026-10-13T16:53:02	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3141	0.1	746.1	65.9	128				rep 1; n-cpu-moe=16
+2026-10-13T16:53:44	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30262	0.1	763.3	59.2	128				rep 1; n-cpu-moe=16
+2026-10-13T16:55:09	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60058	0.4	731.6	54.3	128				rep 1; n-cpu-moe=16
+2026-10-13T16:55:32	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	909	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=18
+2026-10-13T16:55:39	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3124	0.1	682.5	61.9	128				rep 1; n-cpu-moe=18
+2026-10-13T16:56:24	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30054	0.1	699.2	56.9	128				rep 1; n-cpu-moe=18
+2026-10-13T16:57:57	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60111	0.3	667.9	51.9	128				rep 1; n-cpu-moe=18
+2026-10-13T16:58:21	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	929	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=20
+2026-10-13T16:58:28	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3087	0.1	658.3	57.4	128				rep 1; n-cpu-moe=20
+2026-10-13T16:59:18	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30281	0.1	633.4	54	128				rep 1; n-cpu-moe=20
+2026-10-13T17:00:59	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	59956	0.3	608.9	50.2	128				rep 1; n-cpu-moe=20
+2026-10-13T17:01:23	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	921	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=22
+2026-10-13T17:01:31	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3126	0.1	571.2	55.1	128				rep 1; n-cpu-moe=22
+2026-10-13T17:02:25	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30113	0.1	589.7	51.2	128				rep 1; n-cpu-moe=22
+2026-10-13T17:04:14	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60056	0.3	564.4	46.9	128				rep 1; n-cpu-moe=22
+2026-10-13T17:04:38	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	914	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=24
+2026-10-13T17:04:46	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3085	0.1	560.1	51.1	128				rep 1; n-cpu-moe=24
+2026-10-13T17:05:46	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30367	0.1	537.7	48.2	128				rep 1; n-cpu-moe=24
+2026-10-13T17:07:45	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60142	0.3	517.7	44.8	128				rep 1; n-cpu-moe=24
+2026-10-13T17:28:21	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	909	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=16; mtp
+2026-10-13T17:28:27	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3132	0.1	727.5	86.4	128				rep 1; n-cpu-moe=16; mtp
+2026-10-13T17:29:08	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	29976	0.1	753.6	76.6	128				rep 1; n-cpu-moe=16; mtp
+2026-10-13T17:30:34	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60133	0.9	720.6	67.9	128				rep 1; n-cpu-moe=16; mtp
+2026-10-13T17:30:57	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	915	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=18; mtp
+2026-10-13T17:31:04	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3112	0.1	667.2	75	128				rep 1; n-cpu-moe=18; mtp
+2026-10-13T17:31:50	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30253	0.1	684.8	75	128				rep 1; n-cpu-moe=18; mtp
+2026-10-13T17:33:24	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	59978	0.4	655.3	68.2	128				rep 1; n-cpu-moe=18; mtp
+2026-10-13T17:33:47	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	909	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=20; mtp
+2026-10-13T17:33:53	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3072	0.1	657.3	71.1	128				rep 1; n-cpu-moe=20; mtp
+2026-10-13T17:34:44	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30560	0.1	628.3	66.1	128				rep 1; n-cpu-moe=20; mtp
+2026-10-13T17:36:27	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60075	0.4	599.8	63.6	128				rep 1; n-cpu-moe=20; mtp
+2026-10-13T17:36:50	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	905	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=22; mtp
+2026-10-13T17:36:57	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3139	0.1	565.2	70.4	128				rep 1; n-cpu-moe=22; mtp
+2026-10-13T17:37:51	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30160	0.1	586.1	66.7	128				rep 1; n-cpu-moe=22; mtp
+2026-10-13T17:39:41	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	60110	0.4	556.2	63.1	128				rep 1; n-cpu-moe=22; mtp
+2026-10-13T17:40:05	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	0	911	0.1			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server; n-cpu-moe=24; mtp
+2026-10-13T17:40:13	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	3000	3121	0.1	520.4	62.6	128				rep 1; n-cpu-moe=24; mtp
+2026-10-13T17:41:12	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	30000	30363	0.1	534.3	59.7	128				rep 1; n-cpu-moe=24; mtp
+2026-10-13T17:43:11	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	60000	59989	0.4	514.4	58.5	128				rep 1; n-cpu-moe=24; mtp
