@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: merging and auto-merge, set up safely (2026-10-13, owner's request).** `CONTRIBUTING.md` gains "Merging and
+  auto-merge":
+  - **who can merge:** only the owner, the sole admin;
+  - **why fork PRs can't do harm:** a read-only token, no secrets, `pull_request` only;
+  - **the settings that make it hold:** **Allow auto-merge**, a `main` ruleset (PR required, both CI jobs
+    required, no force pushes or deletions, no bypass), and fork workflows that need approval with a read-only
+    token.
+
+  The settings are the owner's to flip in GitHub's web UI. This session has no tool for repository settings, and
+  could not reach GitHub's docs to cite them.
+
 - **docs: the llama.cpp trial's provider snippet needs no `npm` field (2026-10-13).** One of the trial's open items, settled
   from OpenCode's source at v1.18.34 (`packages/opencode/src/provider/provider.ts` L1547-1555): a config-defined provider with
   no `npm` and an id models.dev doesn't know, such as `llamacpp-server`, gets `@ai-sdk/openai-compatible`, as the `ollama-*`
