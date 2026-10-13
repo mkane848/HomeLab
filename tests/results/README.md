@@ -64,6 +64,23 @@ tok/s at 3k / 30k / 60k tokens: 70.2 / 69.0 / 61.6 with none; 26.6 / 24.9 / 25.8
 Prefill stayed within 5% of its idle value (it runs on the GPU). The idle condition repeats the afternoon baseline in
 `bench-speed.tsv` within about 6%. These burners use a core and little memory bandwidth; real test runs use both.
 
+## node3's `qwen3:8b`, and what the first request hides: `bench-speed.tsv` (host `node3`), `bench-speed-node3-kv.tsv`
+
+2026-10-12, Ollama 0.34.2 on node3 (RTX 3080 10 GB), `qwen3:8b` at the machine default context of 32,768 (the seat is not
+baked, so `numCtx` is blank and sizes stop at 30k). As it is set up (no flash attention, f16 KV cache) the seat takes
+10.36 GB and only 8.42 GB (81%) fits in VRAM: prefill 2,942 / 2,711 / 2,187 tok/s and decode 33.5 / 17.0 / 11.7 tok/s at
+3k / 16k / 30k tokens. On a temporary second Ollama with `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` set for
+that process only (host label `node3+fa+q8kv`, port 11500, killed afterwards; no machine setting changed) the same seat takes
+7.64 GB, all in VRAM: prefill 4,258 / 3,470 / 2,812 and decode 19.1 / 74.1 / 57.6. The difference at depth is the KV cache
+spilling to system RAM, 4.4x to 4.9x in decode. Those are the two settings the desktop and the server already use.
+
+**The first request after an idle gap reads low, in decode and sometimes prefill.** Repeating the 3k size three times on the
+test instance gave decode 90.2, 100.8, 100.6 and prefill 977, 4,311, 4,343; in the earlier run the first size (3k) read 19.1
+decode against 74 at 16k. The warm-up request generates one token, which loads the model but does not wake the GPU for
+decode. So **the first size's decode is understated** wherever the host sleeps between runs: the desktop's 3k decode
+(31.2 against 35.8 at 30k) and node3's 3k rows. The server is not affected (its 3k decode, 73.1, is its highest). Read the
+second repetition of the smallest size (`-Reps 2`), or ignore the first size, until the warm-up is lengthened.
+
 ## Assisted runs: `compaction-nudge/`
 
 The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context

@@ -217,6 +217,12 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      (the manifests hard-code `M:/…` and `C:/…` paths, and node3 has only a `C:` drive: a per-host repo-root map), the
      private repo, and an OpenCode config. Git credentials stay the owner's to enter; the repos can be sent as bundles
      over SSH instead.
+   - **node3's own seat is held back by its Ollama settings (measured 2026-10-12).** `qwen3:8b` there (Ollama 0.34.2, no
+     flash attention, f16 KV cache, 32k context) takes 10.36 GB on a 10 GB card, so 19% spills to system RAM: decode 17
+     tok/s at 16k and 11.7 at 30k. With `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0`, tried on a temporary
+     second instance and then removed, it fits whole (7.64 GB) and decodes 74 and 58 tok/s, about 100 at 3k; prefill is 28 to
+     45% faster. The desktop and the server already run those settings. Applying them on node3 is the owner's change (two
+     machine variables and an Ollama restart on a shared PC). Detail: `tests/results/README.md`.
    - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
      `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
      paths. It is not on the critical path while node3 is the run host.

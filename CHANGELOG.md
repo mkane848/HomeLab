@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
   is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
 
+- **Measured: node3's `qwen3:8b` is 4 to 5 times slower at depth than it needs to be (2026-10-12).** With Ollama 0.34.2 on
+  node3 as configured (no flash attention, f16 KV cache, 32k context) the seat takes 10.36 GB, 81% on the GPU, and decodes
+  17 tok/s at 16k and 11.7 at 30k. The same seat on a temporary second Ollama with `OLLAMA_FLASH_ATTENTION=1` and
+  `OLLAMA_KV_CACHE_TYPE=q8_0` (this process only, killed afterwards; node3 checked back to how it was) takes 7.64 GB, all on
+  the GPU, and decodes 74 and 58 tok/s; at 3k, 100 tok/s. Those are the desktop's and the server's settings. Changing them
+  on node3 (machine variables plus an Ollama restart) is the owner's call: it is a shared PC. Rows in
+  `tests/results/bench-speed.tsv` (host `node3`) and `bench-speed-node3-kv.tsv`.
+  Also found: the first request after an idle gap reads low (3k decode 19 against 100 on the repeat), so the first size's
+  decode in `bench-speed.tsv` is understated on the desktop and node3, not on the server; noted in
+  `tests/results/README.md`, warm-up not yet lengthened.
+
 - **Round 2 of the nudged real tasks on the server, under stop classifier 2 (2026-10-12).** Two reps of the 15 (30 runs,
   about 5 h, run host the desktop): 24 of 30 pass the hidden tests, 12 of 15 in each rep, against round 1's 10 of 15 under
   classifier 1. No infrastructure, timeout, truncation or CPU-only row; `gpuPlacement` is `gpu` on all 30. 11 tasks pass in

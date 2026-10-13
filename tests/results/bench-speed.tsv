@@ -7,3 +7,7 @@ timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS
 2026-10-12T22:17:29	desktop	ollama	0.34.3	qwen3.6:35b-a3b-coding	65536	3000	3130	0	319.3	31.2	128	22.69	13.43	0.592	rep 1
 2026-10-12T22:19:26	desktop	ollama	0.34.3	qwen3.6:35b-a3b-coding	65536	30000	30260	0	267.6	35.8	128	22.69	13.43	0.592	rep 1
 2026-10-12T22:24:32	desktop	ollama	0.34.3	qwen3.6:35b-a3b-coding	65536	60000	60084	0	199.5	29.3	128	22.69	13.43	0.592	rep 1
+2026-10-12T22:40:33	node3	ollama	0.34.2	qwen3:8b		0	870	7.6			1	10.36	8.42	0.812	warm-up (load, chars-per-token calibration)
+2026-10-12T22:40:37	node3	ollama	0.34.2	qwen3:8b		3000	3105	0	2941.6	33.5	128	10.36	8.42	0.812	rep 1
+2026-10-12T22:40:51	node3	ollama	0.34.2	qwen3:8b		16000	16125	0	2711.3	17	128	10.36	8.42	0.812	rep 1
+2026-10-12T22:41:16	node3	ollama	0.34.2	qwen3:8b		30000	30088	0	2186.7	11.7	128	10.36	8.42	0.812	rep 1
