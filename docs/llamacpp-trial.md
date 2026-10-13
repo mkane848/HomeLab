@@ -52,7 +52,8 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
 
 - The preset does **not** yet copy Ollama's sampling parameters; `llamacpp-check.sh --ollama-url` fails until step 3 does.
 - `n-cpu-moe = 20` is a starting value; step 5 sweeps it under a rule fixed in advance.
-- The `llamacpp-server` OpenCode provider snippet (step 6) has an unverified `npm` field.
+- ~~The `llamacpp-server` OpenCode provider snippet (step 6) has an unverified `npm` field.~~ Settled 2026-10-13 from
+  OpenCode's source: no `npm` field is needed (step 6).
 - `bench-speed.ps1 -Engine llamacpp` reports a load time that is approximate, and no placement; the `nvidia-smi`
   reading is the placement.
 - The compaction plugin is pinned to OpenCode 1.18.34, and `probe-overflow.ps1` embeds that version's overflow patterns;
@@ -212,7 +213,6 @@ set `LLAMACPP_SERVER_BASE_URL=http://SERVER_IP:8090/v1`:
 
 ```jsonc
 "llamacpp-server": {
-  "npm": "@ai-sdk/openai-compatible",   // UNVERIFIED: the ollama-* blocks declare none; confirm with `opencode debug config`
   "options": { "baseURL": "{env:LLAMACPP_SERVER_BASE_URL}" },
   "models": {
     "qwen3.6:35b-a3b-coding": { "name": "Qwen3.6 35B-A3B (llama.cpp)", "tool_call": true, "reasoning": true,
@@ -223,7 +223,10 @@ set `LLAMACPP_SERVER_BASE_URL=http://SERVER_IP:8090/v1`:
 }
 ```
 
-Confirm `opencode debug config` still shows `limit` for both (the silent-drop gotcha in AGENTS.md). Then run **one**
+**No `npm` field** (settled 2026-10-13): OpenCode v1.18.34 gives a config-defined provider without one
+`@ai-sdk/openai-compatible` whenever its id is not a models.dev provider, which `llamacpp-server` is not, exactly as for the
+`ollama-*` blocks; that SDK also gets `includeUsage`, so token usage still reaches the run JSONs
+([`provider.ts` at that tag][opencode-provider-npm], lines 1547-1555 and 1806). Confirm `opencode debug config` still shows `limit` for both (the silent-drop gotcha in AGENTS.md). Then run **one**
 `wp-2b` (it loses its brief at the same step every time on Ollama) with a private results folder and read its
 transcript for: the error event, whether OpenCode compacted, whether the compaction request itself fit, whether the run
 resumed, and the outcome. Also whether `opencode/plugins/compaction-continue.js` (written for threshold-triggered
@@ -330,3 +333,5 @@ and the [Ollama releases](https://github.com/ollama/ollama/releases). Short name
 ## Results
 
 *Not run yet (status as of 2026-10-13, see "Status and handoff"). Appended by the PR that records them.*
+
+[opencode-provider-npm]: https://raw.githubusercontent.com/sst/opencode/v1.18.34/packages/opencode/src/provider/provider.ts

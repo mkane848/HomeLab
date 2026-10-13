@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the llama.cpp trial's provider snippet needs no `npm` field (2026-10-13).** One of the trial's open items, settled
+  from OpenCode's source at v1.18.34 (`packages/opencode/src/provider/provider.ts` L1547-1555): a config-defined provider with
+  no `npm` and an id models.dev doesn't know, such as `llamacpp-server`, gets `@ai-sdk/openai-compatible`, as the `ollama-*`
+  blocks already do, and that SDK gets `includeUsage` (L1806). `docs/llamacpp-trial.md` step 6 drops the line and its
+  UNVERIFIED comment; `docs/references.md` gains the source. The other open item that needs no server, the preset's
+  sampling parameters, can't be settled from a cloud session (`registry.ollama.ai` and `ollama.com` unreachable there), so it
+  stays runbook step 3.
+
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was
     `dev-workflow-quality`): the same `qwen3.6` weights on the server, at 2.2 to 3.4 times the desktop's prefill and
