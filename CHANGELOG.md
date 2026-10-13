@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **CI: syntax on Linux, every guard on Windows (2026-10-13, owner-approved).** `.github/workflows/checks.yml` runs on
+  every pull request and push to `main`. The `syntax` job (Ubuntu) parses all 53 `.ps1` files with the AGENTS.md
+  `ParseFile` wrapper, runs `bash -n` on all 22 `.sh` files, the 16 Python tests of `tests/test_llamacpp_check.py`, and
+  parses `tests/tasks/manifest.json`. The `guards` job (`windows-latest`, PowerShell 7, Node 24.18.0, `opencode-ai@1.18.34`)
+  runs `tests/run-guards.ps1` (new), which runs each `tests/test-*.ps1` in its own `pwsh` with an empty stdin and a
+  timeout (900 s, whole process tree ended), prints a table and each failure's log tail, writes the GitHub step summary,
+  and exits 1 on any guard not OK. Left out, with the reason in the script: `test-profiles`, `test-tasks` and
+  `test-toolcalls`, which need live hosts. Read-only token, no secrets, no `pull_request_target`. Why: a Linux sweep the
+  same day found 11 of the 28 guards runnable there; the rest need Windows (stand-in `opencode.cmd` shims, `%TEMP%`,
+  `taskkill`, `Win32_Process`), so script changes written in cloud sessions were first exercised on the desktop, which is
+  how the `python3` Store placeholder and the `test-task-pins` failure under 5.1 were found. AGENTS.md (Verification)
+  and the PR template name the workflow and the runner.
+
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was
     `dev-workflow-quality`): the same `qwen3.6` weights on the server, at 2.2 to 3.4 times the desktop's prefill and
