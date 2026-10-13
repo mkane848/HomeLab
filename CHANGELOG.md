@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`test-llamacpp-stack.ps1` failed on any CRLF checkout** (Git for Windows defaults to `core.autocrlf=true`; the
     repo has no `.gitattributes`): its preset mutations search for multi-line text joined with LF. It now normalises
     the preset to LF before mutating. 36 of 36 on a CRLF and an LF copy.
+  - **`.gitattributes` (new, owner-approved):** `*.sh`, `*.ini`, `*.yml`, `*.yaml` and `*.py` are checked out with LF on
+    every machine, whatever `core.autocrlf` says, because they run on Linux. All 72 such files were already stored LF,
+    so nothing is rewritten in the repo; `.ps1`, Markdown and the rest keep each clone's own setting (some `.ps1` are
+    stored CRLF on purpose). An existing Windows clone keeps its CRLF copies until they are checked out again:
+    `git rm -r --cached -q . && git reset --hard` in a clean tree refreshes them.
 
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was

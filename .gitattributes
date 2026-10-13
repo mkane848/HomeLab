@@ -1,0 +1,10 @@
+# Files that run on Linux (the server, containers, CI) are checked out with LF on every
+# machine, whatever core.autocrlf says. Git for Windows defaults to autocrlf=true, which
+# gave the CI Windows runner a CRLF server/llamacpp/models.ini and broke a guard's
+# LF-joined search (2026-10-13). PowerShell, Markdown and the rest keep each clone's
+# own setting: some .ps1 files are stored CRLF on purpose, and nothing here changes them.
+*.sh    text eol=lf
+*.ini   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.py    text eol=lf
