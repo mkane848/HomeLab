@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The settings are the owner's to flip in GitHub's web UI. This session has no tool for repository settings, and
   could not reach GitHub's docs to cite them.
 
+- **docs: the llama.cpp trial's provider snippet needs no `npm` field (2026-10-13).** One of the trial's open items, settled
+  from OpenCode's source at v1.18.34 (`packages/opencode/src/provider/provider.ts` L1547-1555): a config-defined provider with
+  no `npm` and an id models.dev doesn't know, such as `llamacpp-server`, gets `@ai-sdk/openai-compatible`, as the `ollama-*`
+  blocks already do, and that SDK gets `includeUsage` (L1806). `docs/llamacpp-trial.md` step 6 drops the line and its
+  UNVERIFIED comment; `docs/references.md` gains the source. The other open item that needs no server, the preset's
+  sampling parameters, can't be settled from a cloud session (`registry.ollama.ai` and `ollama.com` unreachable there), so it
+  stays runbook step 3.
+  The window itself will be run from a Claude Code session on the desktop (owner, 2026-10-13):
+  `docs/agent-notes/prompt-llamacpp-window.md` is its paste-ready handoff, with stop points, `sudo` left to the owner,
+  the baseline's settings held constant, and no Phase 2 without a new approval. It also carries a side job for while
+  node3 is free: two unassisted reps of `qwen3:8b` on node3 over the seven public tasks it has old rows for, to tell
+  speed from capability now that its KV cache fits on the GPU (roadmap → "After the trial", item 2), stopped before the
+  trial's step 7, with the titles model kept off the server.
+
 - **CI: syntax on Linux, every guard on Windows (2026-10-13, owner-approved).** `.github/workflows/checks.yml` runs on
   every pull request and push to `main`. The `syntax` job (Ubuntu) parses all 53 `.ps1` files with the AGENTS.md
   `ParseFile` wrapper, runs `bash -n` on all 22 `.sh` files, the 16 Python tests of `tests/test_llamacpp_check.py`, and
