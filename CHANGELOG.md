@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   but a Linux sandbox on PowerShell 7.4.6; Phase 1 has not started. `docs/llamacpp-trial.md` gets a "Status and handoff"
   section (what was checked and what was not, the ordered checklist for the owner or a desktop-side agent, the open
   items the runbook already carries), and `docs/roadmap.md` step 4 is brought up to date and gets an outline of
-  Phases 2–6 under "Replacing Ollama", which until now existed only in a planning session. Docs only; nothing runs
-  differently.
+  Phases 2–6 under "Replacing Ollama", which until now existed only in a planning session. `.gitignore` also gains
+  `__pycache__/` and `*.pyc`: `tests/test-llamacpp-stack.ps1` imports `server/scripts/llamacpp_check.py`, so every
+  machine that ran the guard was left with an untracked cache directory. Nothing else runs differently.
 - **The llama.cpp engine trial, Phase 0: protocol, server stack and tools (2026-10-12).** The owner approved Phases 0 and 1
   of replacing Ollama (server first, Ollama untouched). This is the repo half; nothing has run against a real server, because
   the session that wrote it could not reach one. Protocol, runbook and the pre-registered Gate G1 are in
