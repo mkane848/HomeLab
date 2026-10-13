@@ -25,6 +25,9 @@
 #      run of the same manifest is); an assisted run is refused in a folder of
 #      unassisted rows and in tests/results/; an unassisted run is refused in a
 #      folder marked ASSISTED. Refusals happen before any model call.
+#   4. Classifier 3 (2026-10-13): a closing question before any write or edit call is
+#      "question" and nudged; the same question after an edit is not; more "you didn't
+#      include a task" phrases are "ask"; -StopClassifier 2 reproduces the older classifier.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-stop-nudge.ps1 [-ScriptPath <a test-tasks.ps1>] [-ResultsDir <tests/results>]
@@ -43,7 +46,7 @@ Invoke-Expression $fn.Extent.Text
 # The OpenCode adapter: Read-AgentEvents, which Get-StopKind reads, and
 # $script:CompactionContinueText.
 . (Join-Path $PSScriptRoot "agents\opencode.ps1")
-foreach ($var in '$script:AskedForTaskPattern', '$script:AnnouncedStepPattern', '$script:PendingWorkPattern', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
+foreach ($var in '$script:AskedForTaskPattern', '$script:AskedForTaskExtraPattern', '$script:AnnouncedStepPattern', '$script:PendingWorkPattern', '$script:StopClassifierVersion', '$script:StopNudgeText', '$script:LostTaskNudgeText') {
     $assign = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq $var }, $true)) | Select-Object -First 1
     if (-not $assign) { Write-Host "FAIL: $var not found in $ScriptPath"; exit 1 }
     Invoke-Expression $assign.Extent.Text
@@ -64,11 +67,13 @@ try {
     Write-Host "-- Get-StopKind (real function)"
     function Ev-Text([string]$t) { (@{ type = "text"; part = @{ text = $t } } | ConvertTo-Json -Compress -Depth 4) }
     function Ev-Tool { '{"type":"tool_use","part":{"tool":"read","state":{"status":"completed","output":"x"}}}' }
+    function Ev-Edit { '{"type":"tool_use","part":{"tool":"edit","state":{"status":"completed","input":{"filePath":"src.txt"},"output":"ok"}}}' }
+    function Ev-EditErr { '{"type":"tool_use","part":{"tool":"edit","state":{"status":"error","input":{"filePath":"src.txt"},"output":"no match"}}}' }
     function Ev-Fin { '{"type":"step_finish","part":{"reason":"stop","tokens":{"input":10,"output":5,"cache":{"read":0,"write":0}}}}' }
-    function Kind([string[]]$events) {
+    function Kind([string[]]$events, [int]$Classifier = 3) {
         $p = Join-Path $tmp ([guid]::NewGuid().ToString("N").Substring(0, 8) + ".jsonl")
         [IO.File]::WriteAllText($p, (($events -join "`n") + "`n"), $utf8)
-        $k = Get-StopKind -Path $p
+        $k = Get-StopKind -Path $p -Classifier $Classifier
         if ($null -eq $k) { "none" } else { $k }
     }
     Check "asked for its task"                    (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "You've shared two files but haven't specified a task. What would you like me to do?"), (Ev-Fin))) "ask"
@@ -92,6 +97,28 @@ try {
     Check "a step cut off before it finished counts the last finished one" (Kind @((Ev-Text "All tests pass."), (Ev-Fin), (Ev-Text "Let me"))) "none"
     Check "no transcript: none"                   (Kind @()) "none"
     Check "no transcript file: null"              ($null -eq (Get-StopKind -Path (Join-Path $tmp "nope.jsonl"))) "True"
+
+    # Classifier 3 (2026-10-13): two endings the first two server rounds' nudges did not reach, both
+    # with no edit made and both failures (wp-5a round 3 rep 1, wp-7a round 3 rep 2).
+    $noTask = "Git shows the tree is clean. Since you didn't include a task beyond the boilerplate, I can't carry on - what would you like me to work on next?"
+    $permission = "Git shows zero changes - so far only reading has been done. No implementation yet. Want me to go ahead and implement all the stubs?"
+    Check "classifier 3: 'you didn't include a task' is a lost brief"   (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text $noTask), (Ev-Fin))) "ask"
+    Check "...'there is no task in this message'"                      (Kind @((Ev-Text "There is no task in this message."), (Ev-Fin))) "ask"
+    Check "...'you didn't include any test results' is not a lost task" (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "The log is short: you didn't include any test results."), (Ev-Fin))) "none"
+    Check "classifier 3: a closing question before any edit"          (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text $permission), (Ev-Fin))) "question"
+    Check "...a question wrapped in a quote or backtick"              (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text 'Should I start with `enemies.ts`?'), (Ev-Fin))) "question"
+    Check "...an edit that errored wrote nothing: still a question"   (Kind @((Ev-EditErr), (Ev-Fin), (Ev-Text $permission), (Ev-Fin))) "question"
+    Check "...the same question after a real edit: none"              (Kind @((Ev-Edit), (Ev-Fin), (Ev-Text "Added the guard. Want me to run the tests too?"), (Ev-Fin))) "none"
+    Check "...a question in the middle, a statement last: none"       (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "Should I start with enemies.ts? Not needed: the stubs are all there is."), (Ev-Fin))) "none"
+    Check "...a last step that calls a tool: none"                    (Kind @((Ev-Text $permission), (Ev-Tool), (Ev-Fin))) "none"
+    Check "...asking for its task still wins over a question"         (Kind @((Ev-Text "You haven't specified a task. What would you like me to do?"), (Ev-Fin))) "ask"
+    Check "...an announced step stays 'announce' (the last sentence)" (Kind @((Ev-Text "Which file first? Let me start with enemies.ts:"), (Ev-Fin))) "announce"
+    Check "...pending work stays 'pending'"                           (Kind @((Ev-Text "Still need to update the route. Shall I continue?"), (Ev-Fin))) "pending"
+    Check "...an empty step stays 'empty'"                            (Kind @((Ev-Tool), (Ev-Fin), (Ev-Fin))) "empty"
+    Check "classifier 2 is unchanged: the same question is none"       (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text $permission), (Ev-Fin)) 2) "none"
+    Check "...and 'you didn't include a task' is none"                 (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text $noTask), (Ev-Fin)) 2) "none"
+    Check "...while its own kinds still read: pending"                 (Kind @((Ev-Tool), (Ev-Fin), (Ev-Text "Half of it is in. Still need to update src.txt, then run the checks."), (Ev-Fin)) 2) "pending"
+    Check "the current classifier version is 3"                       $script:StopClassifierVersion 3
 
     Write-Host "-- real transcripts (tests/results)"
     foreach ($r in @(
@@ -135,7 +162,7 @@ Write-Host "Tests  2 passed (2)"; exit 0
             prompt = $taskPrompt
         }
     }
-    $ids = "fx-announce", "fx-ask", "fx-silent", "fx-pending", "fx-done", "fx-max"
+    $ids = "fx-announce", "fx-ask", "fx-silent", "fx-pending", "fx-question", "fx-question-late", "fx-done", "fx-max"
     @{ tasks = @($ids | ForEach-Object { New-Task $_ }) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $priv "manifest.json")
 
     # Stand-in opencode. Per task, the Nth call (1 = the opener) does:
@@ -145,6 +172,9 @@ Write-Host "Tests  2 passed (2)"; exit 0
     #   fx-silent  : 1 fixes and ends on an empty step; 2 confirms in one line
     #   fx-pending : 1 reads, then "Still need to update src.txt, then run the
     #                checks." (no 'I', not an announcement); 2 fixes, sums up
+    #   fx-question: 1 reads, then asks "Want me to go ahead and make the change?" with no edit
+    #                made (classifier 3); 2 fixes, sums up
+    #   fx-question-late: 1 fixes, then sums up with a question (an edit was made: never nudged)
     #   fx-done    : 1 fixes and sums up
     #   fx-max     : always announces and never fixes
     @'
@@ -177,6 +207,9 @@ switch ("$id/$n") {
     "fx-silent/2"   { Say "It is finished and checked." }
     "fx-pending/1"  { Read; Say "Half of it is in. Still need to update src.txt, then run the checks." }
     "fx-pending/2"  { Fix; Say "Done: src.txt reads fixed and the tests pass." }
+    "fx-question/1" { Read; Say "Git shows no changes yet. Want me to go ahead and make the change?" }
+    "fx-question/2" { Fix; Say "Done: src.txt reads fixed and the tests pass." }
+    "fx-question-late/1" { Fix; Say "Done: src.txt reads fixed and the tests pass. Want me to run anything else?" }
     "fx-done/1"     { Fix; Say "Done: src.txt reads fixed and the tests pass." }
     default         { Read; Say "Let me make the change next:" }
 }
@@ -196,6 +229,11 @@ exit 0
         $calls = @(Get-Content -LiteralPath $env:FIXTURE_CALLS | ForEach-Object { $_ | ConvertFrom-Json })
         Remove-Item -LiteralPath $env:FIXTURE_CALLS
         $publicAfterNudged = Test-Path -LiteralPath $publicTsv
+        # The same question-before-any-edit run under -StopClassifier 2: not nudged.
+        $c2 = Join-Path $priv "results-c2"
+        $null = & $tt -Task fx-question @common -ResultsDir $c2 -NudgeOnStop -StopClassifier 2 *>&1 | Out-String
+        $c2Calls = @(Get-Content -LiteralPath $env:FIXTURE_CALLS | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.id -eq 'fx-question' }).Count
+        Remove-Item -LiteralPath $env:FIXTURE_CALLS
 
         Write-Host "-- refusals (before any model call)"
         $r1 = & $tt -Task fx-done @common -ResultsDir $nudged *>&1 | Out-String
@@ -242,14 +280,26 @@ exit 0
     Check "...passes"                                        (Verdict fx-silent) "PASS/PASS/PASS"
     Check "fx-pending: nudged once after 'still need to'"    @(Calls fx-pending).Count 2
     Check "...with the exact stop text"                      (Calls fx-pending)[1].msg $script:StopNudgeText
-    Check "...JSON: kinds pending, classifier 2"             ("{0} {1}" -f (@((Json fx-pending).stopNudges.kinds) -join ','), (Json fx-pending).stopNudges.classifier) "pending 2"
+    Check "...JSON: kinds pending, classifier 3 (the default)"  ("{0} {1}" -f (@((Json fx-pending).stopNudges.kinds) -join ','), (Json fx-pending).stopNudges.classifier) "pending 3"
     Check "...passes on the end state"                       (Verdict fx-pending) "PASS/PASS/PASS"
+    Check "fx-question: nudged once after a question with no edit" @(Calls fx-question).Count 2
+    Check "...with the exact stop text"                      (Calls fx-question)[1].msg $script:StopNudgeText
+    Check "...JSON: kinds question, classifier 3"            ("{0} {1}" -f (@((Json fx-question).stopNudges.kinds) -join ','), (Json fx-question).stopNudges.classifier) "question 3"
+    Check "...passes on the end state"                       (Verdict fx-question) "PASS/PASS/PASS"
+    Check "fx-question-late: a question after an edit is not nudged" @(Calls fx-question-late).Count 1
+    Check "...JSON: stopNudges sent 0"                       (Json fx-question-late).stopNudges.sent 0
     Check "fx-done: a closing summary is never nudged"       @(Calls fx-done).Count 1
     Check "...JSON: stopNudges sent 0"                       (Json fx-done).stopNudges.sent 0
     Check "fx-max: capped at -MaxStopNudges (three calls)"   @(Calls fx-max).Count 3
     Check "...JSON: kinds announce,announce"                 (@((Json fx-max).stopNudges.kinds) -join ',') "announce,announce"
     Check "...never fixed: acceptance FAIL"                  (Row fx-max).acceptance "FAIL"
-    Check "the console names each nudge"                     ([regex]::Matches($log, 'stop nudge \d: the run stopped').Count) 6
+    Check "the console names each nudge"                     ([regex]::Matches($log, 'stop nudge \d: the run stopped').Count) 7
+
+    Write-Host "-- -StopClassifier 2 reproduces the old classifier"
+    $c2Json = Get-ChildItem $c2 -Filter "tasks-fx-question-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
+    Check "classifier 2: a question before any edit is not nudged (one call)" $c2Calls 1
+    Check "...JSON: classifier 2, sent 0"                    ("{0} {1}" -f $c2Json.stopNudges.classifier, $c2Json.stopNudges.sent) "2 0"
+    Check "...and the run, left alone, fails acceptance"     ((Import-Csv (Join-Path $c2 "real-tasks-summary.tsv") -Delimiter "`t" | Select-Object -First 1).acceptance) "FAIL"
 
     Write-Host "-- assisted rows stay apart"
     Check "the folder is marked ASSISTED"                    (Test-Path -LiteralPath (Join-Path $nudged "ASSISTED")) "True"

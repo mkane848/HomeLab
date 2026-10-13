@@ -80,7 +80,7 @@ Anything that differs between the Ollama baseline and the trial is a confound, s
 | Context, slots, KV | `c` = the seat table's `num_ctx` (65536 / 32768 / 16384); `parallel = 1`; K and V cache `q8_0` with flash attention. Same as the Ollama compose file. |
 | Sampling | what Ollama applies to the same tag. **Must be copied** (step 3): llama-server uses its own defaults for anything the preset does not set. |
 | Run host | the **desktop**, as in the first server round. Every run JSON records `runHost`; a round from another run host is a different era. |
-| Nudge | `-NudgeOnStop`, stop classifier 2 (`stopNudges.classifier` 2). |
+| Nudge | `-NudgeOnStop -StopClassifier 2` (`stopNudges.classifier` 2). The harness default became classifier 3 on 2026-10-13, so the trial's rounds, like the baseline rounds 2 and 3, must pass `-StopClassifier 2` (`run-tasks-batch.ps1` takes it too). |
 
 **Ollama baseline already in hand** ([roadmap](roadmap.md) → "Next up" step 3, 2026-10-12, `qwen3.6` at 64k on the
 server):
@@ -228,7 +228,7 @@ compaction) behaves when compaction follows an *error*.
 
 Same flags as the Ollama baseline round, one change: `-Model llamacpp-server/qwen3.6:35b-a3b-coding`. Use
 `test-tasks.ps1` directly (the batch only offers Ollama and hosted providers), with the private manifest and a trial
-results folder (`-TaskManifest … -ResultsDir …`, `-NudgeOnStop`; the `ASSISTED` marker keeps these rows out of
+results folder (`-TaskManifest … -ResultsDir …`, `-NudgeOnStop -StopClassifier 2`; the `ASSISTED` marker keeps these rows out of
 `tests/results/`).
 
 1. The lost-brief set × 3: `wp-2b`, `wp-4a`, `wp-5a`, `kane-08`.

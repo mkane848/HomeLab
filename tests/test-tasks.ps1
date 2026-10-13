@@ -173,8 +173,9 @@ param(
     #     original prompt (the prompt had dropped out of the model's context);
     #   - announces a next step ("Let me implement all changes:"), says work is
     #     still to do or waits for something ("Still need to update ...",
-    #     "I'll wait ...", "let me know when ..."), or is empty:
-    #     send $script:StopNudgeText;
+    #     "I'll wait ...", "let me know when ..."), is empty, or (classifier 3)
+    #     ends on a question before any write or edit call ("Want me to go ahead
+    #     and implement all the stubs?"): send $script:StopNudgeText;
     # into the same session, up to -MaxStopNudges times. Measured on the graded
     # runs of 2026-09-21..10-09 (before "pending" existed): endings that ask
     # failed 6 of 6, that announce 16 of 17, that are empty 76 of 110
@@ -184,6 +185,11 @@ param(
     # each, and the rows need their own -ResultsDir.
     [switch]$NudgeOnStop,
     [int]$MaxStopNudges = 2,
+    # Which Get-StopKind reads the endings: 3 (default, 2026-10-13) adds the
+    # "question" kind and more "no task" phrases; 2 is the 2026-10-12 classifier,
+    # kept so a round can be repeated under it (the llama.cpp trial's baseline
+    # held it constant).
+    [ValidateSet(2, 3)][int]$StopClassifier = 3,
     # After each run that exited 0 against an Ollama provider, ask that host's
     # /api/ps where -Model sits (Get-OllamaGpuPlacement). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
@@ -1204,26 +1210,43 @@ $script:AnnouncedStepPattern = "(?i)(:\s*$|\b(let me(?! know)|let's|i'll|i will|
 # above read neither: it looks at the last sentence only. A sign-off is not
 # waiting: "let me know if" stays out, "let me know when" is in.
 $script:PendingWorkPattern = "(?i)\b(still (need|needs|have|has) to|yet to|i'?ll wait|i will wait|waiting (for|on)|(still|currently) (running|in progress)|let me know (when|once|as soon as))\b"
+# Classifier 3 (2026-10-13): more ways to say "I have no task" (a lost brief that the
+# patterns above did not read): "Since you didn't include a task beyond the boilerplate,
+# I can't carry on", "there is no task". Measured over the 647 transcripts held, it
+# changes exactly one ending (wp-5a, round 3) and no other. Kept apart from
+# AskedForTaskPattern, which the context audit (`askedForTask`) shares, so that
+# audit's meaning does not move.
+$script:AskedForTaskExtraPattern = "(?i)\b(you (didn'?t|did not|haven'?t|have not) (include|give|provide|specify|state|mention) (a|an|any|the) (\w+ ){0,3}(task|request|instruction|question)|there (is|was) no (task|request|instruction|question))"
 # Which Get-StopKind a run's rows were nudged under, recorded in the run JSON's
 # stopNudges. Absent = 1 (ask / announce / empty only; every nudged row before
-# 2026-10-12). 2 adds "pending".
-$script:StopClassifierVersion = 2
+# 2026-10-12). 2 adds "pending". 3 adds "question" and the extra "no task" phrases
+# (2026-10-13). -StopClassifier 2 reproduces the old one exactly: the llama.cpp
+# trial's baseline rounds ran under it and held it constant.
+$script:StopClassifierVersion = 3
 
 function Get-StopKind {
     # How a run's last finished step ended, for -NudgeOnStop: "ask" (the model
     # asked what its task is), "announce" (its last sentence announces a next
     # step), "pending" (one of its last two sentences says work is still to do,
-    # or waits for something), "empty" (no tool call and no text), or $null (a
-    # tool call, or any other closing text). The agent's own post-compaction
-    # message isn't the model's text and is skipped.
-    param([string]$Path)
+    # or waits for something), "empty" (no tool call and no text), "question"
+    # (classifier 3: it ended on a question and has made no write or edit call
+    # yet: "Want me to go ahead and implement all the stubs?"), or $null (a tool
+    # call, or any other closing text). The agent's own post-compaction message
+    # isn't the model's text and is skipped. After real edits a closing question
+    # is left alone: such runs often are finished (9 passed, 8 failed).
+    param([string]$Path, [int]$Classifier = $script:StopClassifierVersion)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
     $tools = 0
+    $writes = 0
     $text = New-Object System.Text.StringBuilder
     $last = $null
     foreach ($e in (Read-AgentEvents -Path $Path)) {
         switch ($e.Kind) {
-            "tool" { $tools++ }
+            "tool" {
+                $tools++
+                # same rule as Get-OutsideWrites: a call that errored wrote nothing
+                if ($e.Tool -in @("write", "edit", "multiedit", "patch", "notebookedit") -and $e.Status -ne "error") { $writes++ }
+            }
             "text" { if (-not $e.CompactionContinue) { [void]$text.Append($e.Text).Append(" ") } }
             "step-end" {
                 $last = [pscustomobject]@{ Tools = $tools; Text = $text.ToString().Trim() }
@@ -1234,10 +1257,13 @@ function Get-StopKind {
     }
     if (-not $last -or $last.Tools -gt 0) { return $null }
     if ($last.Text -match $script:AskedForTaskPattern) { return "ask" }
+    if ($Classifier -ge 3 -and $last.Text -match $script:AskedForTaskExtraPattern) { return "ask" }
     if (-not $last.Text) { return "empty" }
     $sentences = @([regex]::Split($last.Text, '(?<=[.!?:])\s+') | Where-Object { $_.Trim() })
     if ($sentences[-1] -match $script:AnnouncedStepPattern) { return "announce" }
     if ((@($sentences | Select-Object -Last 2) -join " ") -match $script:PendingWorkPattern) { return "pending" }
+    # A closing question (a trailing quote, bracket or backtick is allowed) before any edit.
+    if ($Classifier -ge 3 -and $writes -eq 0 -and $last.Text -match '\?[\s"''`)\]*_]*$') { return "question" }
     return $null
 }
 
@@ -1569,7 +1595,7 @@ if ($NudgeOnStop) {
         $stopNudgeSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:StopNudgeText))) -replace '-', '').Substring(0, 12)
         $lostTaskNudgeSha = ([BitConverter]::ToString($sha256.ComputeHash([Text.Encoding]::UTF8.GetBytes($script:LostTaskNudgeText))) -replace '-', '').Substring(0, 12)
     } finally { $sha256.Dispose() }
-    Write-Host ("stop nudge: on (up to {0} per run; stop text sha256 {1}, lost-task text {2}); rows go to {3} only" -f $MaxStopNudges, $stopNudgeSha, $lostTaskNudgeSha, $resultsDir) -ForegroundColor DarkGray
+    Write-Host ("stop nudge: on (up to {0} per run, classifier {4}; stop text sha256 {1}, lost-task text {2}); rows go to {3} only" -f $MaxStopNudges, $stopNudgeSha, $lostTaskNudgeSha, $resultsDir, $StopClassifier) -ForegroundColor DarkGray
 }
 Write-Host ("ollama: {0} | $($script:AgentName): {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $agentVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
 
@@ -1738,7 +1764,7 @@ foreach ($tk in $tasksToRun) {
         # up to -MaxStopNudges. Same mechanics as a follow-up.
         $stopNudgeKinds = New-Object System.Collections.Generic.List[string]
         while ($NudgeOnStop -and $run.ExitCode -eq 0 -and $stopNudgeKinds.Count -lt $MaxStopNudges) {
-            $stopKind = Get-StopKind -Path $run.TranscriptPath
+            $stopKind = Get-StopKind -Path $run.TranscriptPath -Classifier $StopClassifier
             if (-not $stopKind) { break }
             $sessionId = Get-TranscriptSessionId -Path $run.TranscriptPath
             if (-not $sessionId) {
@@ -2114,7 +2140,7 @@ foreach ($tk in $tasksToRun) {
         opencodePlugins = @($agentPlugins)
         compactionPluginRewrites = $pluginRewrites
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
-        stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $script:StopClassifierVersion; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
+        stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $StopClassifier; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
