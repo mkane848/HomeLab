@@ -45,8 +45,10 @@ cd dev-docs
 .\desktop\scripts\opencode.ps1     # source the profile, launch OpenCode
 ```
 
-`opencode.ps1` defaults to `dev-workflow-quality`; pass `-Profile <name>` for
-another. Or run `.\desktop\scripts\install-opencode-profiles.ps1` once, and from
+`opencode.ps1` defaults to `dev-workflow-server` (since 2026-10-13: `qwen3.6` on
+the server, about twice the desktop's speed); when the server is down, or during
+an engine-trial window, use `-Profile dev-workflow-quality` (the same seat on the
+desktop) or `opencode quality`. Pass `-Profile <name>` for any other. Or run `.\desktop\scripts\install-opencode-profiles.ps1` once, and from
 any PowerShell window `opencode quality`, `opencode resident`,
 `opencode desktop-only` or `opencode node3` launches with that profile's models
 (and unloads the previous profile's). A plain `opencode` is unchanged. Add
@@ -59,9 +61,10 @@ you just don't need `opencode.ps1`.
 On the Ubuntu server:
 
 ```bash
-source profiles/dev-workflow-quality.sh
-./server/scripts/install-model.sh --profile
-./server/scripts/startup.sh
+source profiles/dev-workflow-server.sh
+./server/scripts/startup.sh        # the Ollama container (server/docker/docker-compose.yml)
+./server/scripts/bake-models.sh    # pull + bake the seats in models/server-seats.tsv
+./server/scripts/status.sh         # each loaded model's GPU share
 ```
 
 ## What's Where

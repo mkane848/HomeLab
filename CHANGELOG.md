@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
+  - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was
+    `dev-workflow-quality`): the same `qwen3.6` weights on the server, at 2.2 to 3.4 times the desktop's prefill and
+    about twice its decode. `dev-workflow-quality` is the fallback (`opencode quality`) when the server is down or
+    during the llama.cpp window. No profile's content changed; the desktop's hand-set User-level `OPENCODE_MODEL`,
+    which a bare `opencode` uses, is not touched.
+  - **Order (roadmap → "Next up"):** server-side work first, few moving parts at once. The llama.cpp trial's
+    window (step 4) is next; node3 as run host and the rest wait in a new "After the trial" list (node3 run host
+    and control run, a `qwen3:8b` re-run on the fixed node3, the first classifier-3 round, worktrees outside the
+    checkout, the server profile's small model, best-of-N, and the desktop's role after Gate G1).
+  - **Corrected:** "the work packages are solved locally, 11 of 12" was one desktop round; replicated on the
+    server it is 39 of 48 (81%), 46 of 60 on all 15 tasks, with 14 of 15 passing at least once in four reps.
+  - **Retired:** `qwen3.5:9b` as an executor (overflow crashes in half its work-package runs); node3's Q4
+    `qwen3.5:9b` trial dropped. Its probe row in `tests/run-tasks-models.tsv` stays.
+  - **Docs brought up to date:** `docs/target-setup.md` (status; no Linux harness port and no dispatcher on the
+    server, per the contention measurement; a current-build table; milestones 3, 4 and 6; node3 sleep gap closed),
+    `docs/start-here.md` (the server is up and the default), `docs/profiles.md` (five live profiles, seven
+    parked), `README.md` (the server quick start used a profile that switches the server tier off),
+    `docs/llamacpp-trial.md` (announce the window; daily use moves to the desktop during it) and AGENTS.md.
+
 - **PowerShell 7 is the only supported PowerShell (owner, 2026-10-12).** One version to write, test and support.
   Guards are run on `pwsh` 7 only; Windows PowerShell 5.1 is no longer a target. Nothing is removed: the existing
   scripts still happen to parse on 5.1, and older entries below that say "PowerShell 7 and 5.1" record what was run

@@ -1,12 +1,15 @@
 # Target setup (the "server is back" end state)
 
-> **Status (2026-10-10).** The server is the owner's top priority again: milestone 6, "Server back", now heads
-> [roadmap.md](roadmap.md) → "Next up". Since this doc was written:
-> - the executor seat is `qwen3.6:35b-a3b-coding` with the stop nudge, which passes 11 of 12 real work packages,
->   not the 2026-09-23 starting build below;
-> - the planning side is still the hosted orchestrator shortlist (roadmap → "Hosted seats on the real tasks");
-> - the dispatcher and the harness should run on the server, which needs the harness ported to Linux (roadmap
->   step 5).
+> **Status (2026-10-13).** Milestone 6, "Server back", is done (2026-10-11/12), and the server is the executor
+> host and the daily default ([roadmap.md](roadmap.md) → "Next up"). What has changed since this doc was written:
+> - **The executor seat** is `qwen3.6:35b-a3b-coding` on the server with the stop nudge: 46 of 60 on the 15 real
+>   tasks over four reps, the work packages 39 of 48 (81%). It replaces the 2026-09-23 starting build below.
+> - **The planning side** is still the hosted orchestrator shortlist (roadmap → "Hosted seats on the real tasks").
+> - **The harness and the dispatcher do not run on the server, and no Linux port is needed.** Measured
+>   2026-10-12: four busy threads on the server cost `qwen3.6` about 60% of its decode (the routing rule under
+>   "Machine roles"). The harness runs where the tools run: the desktop today, node3 once it is the run host
+>   (roadmap → "After the trial"). This amends the "server-centric" requirement below, which is kept as written.
+> - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
 
 What the fleet should look like once the server POSTs, derived from how the
 owner actually wants to work (recorded 2026-09-22). This is the concrete shape
@@ -117,9 +120,9 @@ with the acceptance test already written, and grade it mechanically.
 
 | Machine | Role | Seats (provisional) | Why |
 |---|---|---|---|
-| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host + dispatcher.** Serves the best executor model to every worker 24/7 and runs the queue. In mode C it is also the local planner. | Winner of the executor batch, most likely a 30B-A3B MoE coder spilling into RAM (`qwen3-coder:30b-a3b`, `north-mini-code-1.0`, `laguna-xs-2.1`, …) | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
-| **node3** (3080 10 GB CUDA, 5950X 16c/32t, 32 GB, always on once sleep is disabled) | **Worker: parallel attempts + CPU-heavy test runs.** Runs worktrees, `pnpm install`, vitest, typecheck. Serves a small executor for extra attempts and embeddings. | `qwen3:8b` today; Q4 `qwen3.5:9b` trial next (only strong seat small enough for 10 GB). `ornith:9b` passed only the easiest task; `lfm2.5:8b` / `ministral-3:8b` are not executors. `nomic-embed-text` | The 16-core CPU is the best in the fleet: test/build execution is a big share of every attempt's wall-clock, so node3 is where worktrees run. 10 GB caps its served models at ~9B. |
-| **Desktop** (6800 XT 16 GB Vulkan, 5800X3D, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here. When not in use, its GPU adds attempts or hosts the review-gate seat. | Review-gate seat. Overflow executor (gap-fill winner, once chosen) | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it — but while idle it is a free second executor with a strong CPU. |
+| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host** (since 2026-10-12; the daily default since 2026-10-13). Serves the best executor model to every worker 24/7. In mode C it is also the local planner. **Not the dispatcher** (2026-10-13): the queue runs where the tools run, per the routing rule below. | `qwen3.6:35b-a3b-coding` @64k (13.6 of 22.7 GB in VRAM), with the CPU 3b for titles; `qwen3:8b` @32k. The llama.cpp trial ([llamacpp-trial.md](llamacpp-trial.md)) may change the engine, not the seat | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
+| **node3** (3080 10 GB CUDA, 5950X 16c/32t, 32 GB, always on once sleep is disabled) | **Worker: parallel attempts + CPU-heavy test runs.** Runs worktrees, `pnpm install`, vitest, typecheck. Serves a small executor for extra attempts and embeddings. | `qwen3:8b`, 100% on the GPU since the 2026-10-13 settings fix (flash attention, `q8_0` KV; decode 101 / 74 / 58 tok/s at 3k / 16k / 30k). The Q4 `qwen3.5:9b` trial is dropped (2026-10-13, retired as an executor for overflow crashes). `ornith:9b` passed only the easiest task; `lfm2.5:8b` / `ministral-3:8b` are not executors. `nomic-embed-text` | The 16-core CPU is the best in the fleet: test/build execution is a big share of every attempt's wall-clock, so node3 is where worktrees run. 10 GB caps its served models at ~9B. |
+| **Desktop** (6800 XT 16 GB Vulkan, 5800X3D, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here, and today so does the harness (the run host until node3 takes over). When not in use, its GPU adds attempts or hosts the review-gate seat. **Its role as a model host is decided after the llama.cpp trial's Gate G1** (owner, 2026-10-13): measured, it is the slowest host (`qwen3.6` at about half the server's speed; a dense 8B's prefill 17 to 34 times slower). | Review-gate seat. Overflow executor (gap-fill winner, once chosen) | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it — but while idle it is a free second executor with a strong CPU. |
 | **GTX 1070** (8 GB) | Spare | — | See [hardware.md](hardware.md) → "Upgrade candidates". |
 
 **Routing rule, measured (2026-10-12): no other CPU work on the server while `qwen3.6` is seated.** `qwen3.6` has
@@ -137,10 +140,23 @@ last step, not the first. A routing proxy on the server (e.g. LiteLLM) is the
 likely shape, but it only pays off once there are two executor hosts worth
 routing between.
 
-## Starting build (Stage 1, agreed 2026-09-23, server down)
+## Current build (2026-10-13)
 
-The end state above waits on the server; this is what runs now, picked
-winners-first off the 105-row corpus (`tests/results/README.md`):
+| Position | Seat | Evidence |
+|---|---|---|
+| Planner | Claude Code (mode B) in practice; the hosted orchestrator test waits for a Go budget | roadmap → "Hosted seats on the real tasks" |
+| Executor | `qwen3.6:35b-a3b-coding` @64k on the **server**, `-NudgeOnStop` | 46 of 60 on the 15 real tasks over four reps (classifier 2); 14 of 15 tasks pass at least once |
+| Executor fallback | the same seat on the desktop (`dev-workflow-quality`) | same weights; about half the speed |
+| Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix (roadmap → "After the trial") |
+| Run host | the desktop today; node3 after the trial | the routing rule under "Machine roles" |
+| Retired as executors | `qwen3.5:9b` (overflow crashes in half its work-package runs, 2026-10-13); `ministral-3:8b`, `lfm2.5:8b`, `ornith:9b` (below) | roadmap → "Next up" step 7 |
+| Unmeasured since the starting build | `laguna-xs-2.1`, `nemotron-3.5-lightning` | no runs on the real tasks |
+| Dispatcher | manual (the owner runs the batch) | until milestone 4 |
+
+## Starting build (Stage 1, agreed 2026-09-23, server down; superseded 2026-10-13)
+
+Kept as the record of what was picked then. The end state above waited on the server; this is what ran,
+picked winners-first off the 105-row corpus (`tests/results/README.md`):
 
 | Position | Seat | Evidence |
 |---|---|---|
@@ -180,15 +196,23 @@ shape" is unchanged, only the planner's name is filled in.
    task ships the failing test and the model may change only source files.
    Measures the plan/execute split directly. **Expected to be the largest
    single jump**, since it removes the gate local models fail most.
+   **Back on deck after the llama.cpp trial (owner, 2026-10-13)**, as the
+   prerequisite of milestone 4: the real-use tasks grade on hidden tests the
+   model never sees, but a dispatcher in real use has no hidden tests, so the
+   planner's acceptance test is the only gate it could select on.
 4. **Best-of-N.** Dispatcher runs N attempts across hosts and records pass@N
-   as well as pass@1. Set N from the data, not in advance.
+   as well as pass@1. Set N from the data, not in advance. **The data now
+   argues for it (2026-10-13):** over four reps of the 15 real tasks on the
+   server, pass@1 averaged 11.5 and 14 tasks passed at least once (only
+   `wp-5b` never). Waits on milestone 3.
 5. **First real use (TypeScript, mode B).** Plan a real change in one of the
    benchmark repos with Claude Code, emit work orders, let the fleet execute,
    review, merge. Milestone reached when a multi-order feature lands this way
    with you only in the planning and merge steps.
-6. **Server back.** Probe it (it has never run `test-toolcalls.ps1`), move the
-   main executor seat and the dispatcher onto it, then try mode C planning on
-   its best model.
+6. ~~**Server back.**~~ **Done 2026-10-11/12.** Probed (`qwen3:8b` and
+   `qwen3.6` PASS on 0.34.3), the main executor seat moved onto it (the
+   daily default since 2026-10-13). The dispatcher did not move (see the
+   status note at the top). Mode C planning on its best model is still to try.
 7. **Later:** a single routing front door, .NET/C# tasks in the benchmark, and
    optimising around gaming/occupied machines.
 
@@ -199,5 +223,6 @@ shape" is unchanged, only the planner's name is filled in.
 - ~~Free disk and LAN link.~~ Settled 2026-09-22: all hosts are wired, and
   disk is not a constraint. Per-option totals are in
   [hardware.md](hardware.md) → "Network and storage".
-- **node3 sleep settings.** Its 2026-09-21/22 mid-batch dropouts were Windows
-  sleep, not a fault. Disable sleep before giving it scheduled work.
+- ~~**node3 sleep settings.**~~ Closed 2026-10-12: sleep and hibernate are off on
+  AC (roadmap → "Next up" step 5). Its 2026-09-21/22 mid-batch dropouts were
+  Windows sleep, not a fault.

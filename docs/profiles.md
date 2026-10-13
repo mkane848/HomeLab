@@ -5,7 +5,7 @@ should be installed where, and what OpenCode uses by default. Source one per
 shell:
 
 ```bash
-source profiles/dev-workflow-quality.sh
+source profiles/dev-workflow-server.sh
 ```
 
 Or pick from a menu:
@@ -21,17 +21,19 @@ process (Git bash: `source profiles/<name>.sh`).
 
 ## Live vs parked (changed 2026-09-17)
 
-**Four profiles are live** — three desktop-only (the server `SERVER_IP` will
-not POST) plus the onboarded third node:
+**Five profiles are live** (as of 2026-10-13): the server's, three desktop
+ones, and the third node's. The server came back 2026-10-11 and
+`dev-workflow-server` is the default since 2026-10-13:
 
 | Profile | Main seat | Use it when |
 |---|---|---|
-| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` | default — everyday work |
+| `dev-workflow-server` | `qwen3.6:35b-a3b-coding` @64k on the server + `qwen2.5-coder-3b-cpu` (server CPU) | default — everyday work; about twice the desktop's speed on the same weights |
+| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` on the desktop | the server is down, or in an engine-trial window |
 | `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` | you want the 7B resident for code text |
 | `dev-desktop-only` | `qwen3:8b` | plain local console, no extras |
 | `dev-node3` | `qwen3:8b` on node3 (onboarded 2026-09-20) | general + embed work on the 3080 FE |
 
-**Eight are parked** in `profiles/parked/` — see
+**Seven are parked** in `profiles/parked/` — see
 [`profiles/parked/README.md`](../profiles/parked/README.md). They are correct,
 not deprecated; they target the down server. Bringing one back is a `git mv`.
 
@@ -79,14 +81,15 @@ down since before `tests/test-toolcalls.ps1` existed. Probe before trusting one:
 
 ## The workflow profiles (`dev-workflow-*`, the default test target)
 
-The four live profiles are what
-`tests/test-profiles.ps1` validates by default (100 PASS, 0 FAIL, 1 WARN,
-2 SKIP — measured 2026-09-20), each
+The live profiles are what
+`tests/test-profiles.ps1` validates by default (all five: 116 PASS, 0 FAIL,
+0 WARN, 2 SKIP — measured 2026-10-12, node3 unreachable that run), each
 against its intent manifest (purpose, tier flags, main/small model, and whether the main seat can actually call tools):
 
 | Profile | Purpose | Main / small model |
 |---------|---------|--------------------|
-| `dev-workflow-quality` | Default. qwen3.6 drives in-thread at 64k with a CPU companion, `/plan` on demand | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` |
+| `dev-workflow-server` | Default since 2026-10-13. qwen3.6 on the server at 64k with a CPU companion, desktop tier off | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` (both server) |
+| `dev-workflow-quality` | The desktop fallback. qwen3.6 drives in-thread at 64k with a CPU companion, `/plan` on demand | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` |
 | `dev-workflow-resident` | Same, but keeps the 7B coder resident as a no-tools code/review model | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-node3` | Third node (RTX 3080 FE): general + embed on node3, server autocomplete | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) |
@@ -126,10 +129,14 @@ table below).
 > If a session shows repeated `← Write` lines, drop back to `qwen3:8b`. See
 > `docs/troubleshooting.md` → "Passing the probe is necessary, not sufficient".
 
-The third workflow profile, `dev-workflow-server`, is parked. It puts the heavy
-models on the server and defaults `OLLAMA_SERVER_BASE_URL` to the server's LAN
-IP (`SERVER_IP` from `.env`) — not `localhost`, which is what the older `dev-*`
-server profiles use.
+`dev-workflow-server` was brought back from `profiles/parked/` on 2026-10-12
+and became the default on 2026-10-13. It puts `qwen3.6` on the server and
+defaults `OLLAMA_SERVER_BASE_URL` to the server's LAN IP (`SERVER_IP` from
+`.env`) — not `localhost`, which is what the older, still-parked `dev-*` server
+profiles use. Its small model is the CPU 3b on the **server's** CPU; the
+contention rule (`docs/target-setup.md` → "Machine roles") makes that a
+candidate to move, after the llama.cpp trial, whose baseline ran with it
+(`docs/roadmap.md` → "Next up").
 
 ### Plan toggle is NOT `/plan`
 
