@@ -12,7 +12,7 @@ attempting the hardware fix the weekend of 2026-10-10/11. Also decided that day:
 engine research stays on file (below, "Alternatives to OpenCode" and "Replacing Ollama").
 
 **Resume here (written 2026-10-13, when a long session was closed out).**
-- **Open PRs:** #119 (stop classifier 3; the desktop flash-attention A/B and node3 rows; node3's settings and repos in the docs) and the WezTerm PR stacked on it (a local PowerShell 7 default; `sync-wezterm.ps1` fills the server details from `.env` and backs up). Merge #119 first. #118 is merged.
+- **Open PRs:** #119 (stop classifier 3; the desktop flash-attention A/B and node3 rows; node3's settings and repos in the docs) and #120 stacked on it (WezTerm: a local PowerShell 7 default; `sync-wezterm.ps1` fills the server details from `.env` and backs up). Merge #119 first, then #120 (retarget it to `main`). #118 is merged.
 - **Local only, never pushed:** `HomeLab-private` commits a180fd6 (round 1) and 442a891 (rounds 2 and 3). Pushing them is the owner's call. That repo also has older untracked results (`nudged/`, `nudged-2/`, `stop-nudge/`, loose `tasks-real-*` files) that no one has committed.
 - **State of the fleet:** the server serves `qwen3.6` on Ollama 0.34.3 and is idle; node3 is up with Node 24.18.0, pnpm 10.33.0, OpenCode 1.18.34, Ollama with flash attention and a `q8_0` KV cache (user variables), and the task repos in `C:\HomeLab\repos\` (no config, no harness checkout, and the harness cannot find the repos yet); the desktop is the run host for every round so far.
 - **Baselines in hand:** stop classifier 2, four reps of the 15 tasks: 12, 12, 11, 11 of 15 (step 3 below); speeds per host and seat (`tests/results/README.md`); the server's CPU-contention rule (`target-setup.md`).
