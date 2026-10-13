@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
   is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
 
+- **`llamacpp-check.sh` and its guard pick a Python that runs (2026-10-12).** The first run of the trial's guards on Windows
+  (desktop, PowerShell 7.4.20): all four pass except `test-llamacpp-stack.ps1`, which failed 22 checks with exit 49 from
+  every checker scenario. `python3` there is the Microsoft Store placeholder (on `PATH`, exits 49 instead of running);
+  the real interpreter is `python.exe`. `server/scripts/llamacpp-check.sh` now takes the first of `python3` and `python`
+  that runs, and the guard does the same for its Python unit tests. After the fix all four trial guards pass.
+  Found by running a guard on a second platform, as its handoff asked.
+
 - **docs: status and handoff for the llama.cpp engine trial (2026-10-13).** Records where the program stands so the next
   session, or the owner, can pick it up without this one: Phase 0 is on `main` (PRs #115 and #116) and has run nowhere
   but a Linux sandbox on PowerShell 7.4.6; Phase 1 has not started. `docs/llamacpp-trial.md` gets a "Status and handoff"
@@ -102,8 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     that host, and `-OnlyMissing` to carry on after the fix. The batch exits 1.
   - `gpuPlacement.note` says `OLLAMA_*_BASE_URL is unset` for an Ollama provider with no base URL, instead of calling
     it a non-Ollama provider (found by the ultrareview of this branch).
-  - New guard `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); a harness or batch copy with the new
-    branch removed fails 6 checks each. The throwaway watchdog the first round ran under (outside the repo) is no
+  - New guard `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); controls (all measured on PowerShell 7): a harness without its exit -5 branch fails 6 checks, a batch with the stop removed 11,
+    a batch that stops every host instead of one 1, the old note wording 2. The throwaway watchdog the first round ran under (outside the repo) is no
     longer needed.
 
 - **First nudged round of the 15 real tasks on the server's `qwen3.6` (2026-10-12).** `docs/roadmap.md` "Next up"

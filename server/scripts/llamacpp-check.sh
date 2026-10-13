@@ -14,8 +14,17 @@
 # (./make-executable.sh restores it).
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "[llamacpp-check] python3 is required" >&2
+# python3 if it runs, else python. "Runs" matters on Windows, where python3 can be the Microsoft
+# Store placeholder: on PATH, but it exits 49 instead of running anything.
+py=""
+for cand in python3 python; do
+    if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import sys" >/dev/null 2>&1; then
+        py="$cand"
+        break
+    fi
+done
+if [ -z "$py" ]; then
+    echo "[llamacpp-check] a working python3 (or python) is required" >&2
     exit 2
 fi
-exec python3 "$here/llamacpp_check.py" "$@"
+exec "$py" "$here/llamacpp_check.py" "$@"

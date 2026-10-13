@@ -23,16 +23,18 @@ wrote it can't reach the LAN. What was checked is what a sandbox can check:
 | `test-bench-speed.ps1` / `test-toolcalls-engine.ps1` / `test-probe-overflow.ps1` / `test-llamacpp-stack.ps1` | 81 / 44 / 51 / 36 checks pass, plus 16 Python tests, on **PowerShell 7.4.6 on Linux only** |
 | `bash server/scripts/llamacpp-check.sh` on the real preset and seat table | 7 OK, 0 FAIL |
 | syntax of every changed script (`bash -n`, `[Parser]::ParseFile`) | clean |
-| the guards on Windows (PowerShell 7 only; 5.1 was dropped by the owner, 2026-10-12); any real host | **not run** |
+| the four guards on the desktop (Windows 11, PowerShell 7.4.20; 5.1 was dropped by the owner) | pass, 2026-10-12, after the `python3` Store-placeholder fix |
+| any real host | **not run** |
 
 **Phase 1 has not started.** No second Ollama round exists, no step of the runbook has run, and Phases 2–6 are neither
 started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
 
 **Next, in order** (the owner, or an agent session on the desktop over SSH; `sudo` steps are the owner's):
 
-- [ ] Run the four guards on the desktop under PowerShell 7 on Windows (they have run on Linux only). Windows
-  PowerShell 5.1 is no longer a target (owner, 2026-10-12). A failure there is a script bug, not a trial result; fix it
-  before measuring with it.
+- [x] Run the four guards on the desktop under PowerShell 7 on Windows. Done 2026-10-12 (desktop, PowerShell 7.4.20,
+  Windows 11): all four pass. One script bug surfaced and is fixed: `python3` on that PC is the Microsoft Store
+  placeholder (on `PATH`, exits 49), so `llamacpp-check.sh` and `test-llamacpp-stack.ps1` now use the first of `python3`
+  and `python` that actually runs. Windows PowerShell 5.1 is no longer a target (owner, 2026-10-12).
 - [ ] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
   desktop, into a private `-ResultsDir`. It needs Ollama exactly as it is today, so it comes before the window below.
 - [ ] Announce one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if
