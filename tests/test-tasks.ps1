@@ -674,6 +674,10 @@ function Ensure-Worktree {
         $r = Run-Native "git" @("-C", $WtPath, "clean", "-fd")
     }
 
+    # How long the install and the setup steps took, for the run JSON's
+    # `phaseSeconds`; $null when they did not run (the worktree was reused).
+    $installSec = $null
+    $setupSec = $null
     if ($installed -ne $head -and -not $SkipInstall) {
         # packageManager is optional per-task (manifest field); default "pnpm"
         # keeps kane-01 (no such field) running exactly as before. npm uses
@@ -684,11 +688,14 @@ function Ensure-Worktree {
         $pmVerb = if ($pm -eq "npm") { "ci" } else { "install" }
         Write-Host "    $pm $pmVerb $($Task.installFlags -join ' ') (first run on this worktree)..." -ForegroundColor DarkGray
         $installArgs = @($pmVerb) + @($Task.installFlags)
+        $swInstall = [Diagnostics.Stopwatch]::StartNew()
         $r = Run-Native $pm $installArgs $WtPath
+        $installSec = [math]::Round($swInstall.Elapsed.TotalSeconds, 1)
         if ($r.ExitCode -ne 0) {
             Write-Result $Task.id "install" "FAIL" "$pm $pmVerb failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts"
             return $null
         }
+        $swSetup = [Diagnostics.Stopwatch]::StartNew()
         foreach ($step in @($Task.setup | Where-Object { $_ })) {
             $stepDir = if ($step.cwd) { Join-Path $WtPath $step.cwd } else { $WtPath }
             Write-Host "    setup: $($step.cmd -join ' ') (in $($step.cwd))" -ForegroundColor DarkGray
@@ -709,9 +716,10 @@ function Ensure-Worktree {
                 }
             }
         }
+        if (@($Task.setup | Where-Object { $_ }).Count -gt 0) { $setupSec = [math]::Round($swSetup.Elapsed.TotalSeconds, 1) }
         Set-Content -LiteralPath $marker -Value $head -Encoding ascii
     }
-    return [pscustomobject]@{ Wt = $WtPath; Head = $head }
+    return [pscustomobject]@{ Wt = $WtPath; Head = $head; InstallSec = $installSec; SetupSec = $setupSec }
 }
 
 # A task's `testEnv` pins the environment its test command and the model's own
@@ -1584,11 +1592,21 @@ foreach ($tk in $tasksToRun) {
     $wt = Ensure-Worktree $tk $wtPath
     if (-not $wt) { $overallPass = $false; continue }
 
+    # Seconds each CPU-bound phase took on this machine, recorded in the run JSON
+    # as `phaseSeconds` next to `runHost`: so which CPU is better at which work
+    # (an install, a whole suite, one test file, a typecheck) is answered by the
+    # runs themselves, not by a guess. install and setup are null when the
+    # worktree was reused (they run once per worktree).
+    $phaseSec = [ordered]@{ install = $wt.InstallSec; setup = $wt.SetupSec; baseline = $null; suite = $null; typecheck = $null; acceptance = $null }
+    $swPhase = [Diagnostics.Stopwatch]::StartNew()
+
     # Baseline: the untouched branch-tip suite must pass. The bug is meant to
     # be UNEXERCISED at baseline (that is the PR #82 trap), so green here is
     # the expected state - and a red baseline means the base is broken and the
     # run tells us nothing.
+    $swPhase.Restart()
     $base = Invoke-Test $tk $wt.Wt
+    $phaseSec.baseline = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
     $baselineOk = $base.ExitCode -eq 0
     $baselineLine = ($base.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)|Tests\s+(\d+)\s+(passed|failed)" | Select-Object -Last 1)
     if ($baselineOk) {
@@ -1765,7 +1783,9 @@ foreach ($tk in $tasksToRun) {
     if ($NoGpuCheck) {
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked (-NoGpuCheck)" }
     } elseif (-not $ollamaRoot) {
-        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($providerId is not an Ollama provider)" }
+        # No root for one of two reasons: not an Ollama provider, or its base URL is unset.
+        $noRootWhy = if ($ollamaBaseVar) { "$ollamaBaseVar is unset" } else { "$providerId is not an Ollama provider" }
+        $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($noRootWhy)" }
     } elseif ($run.ExitCode -eq 0) {
         $gp = Get-OllamaGpuPlacement -Root $ollamaRoot -Tag (($Model -split '/', 2)[1])
         $gpuPlacement = [ordered]@{
@@ -1889,7 +1909,9 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 2: suite green on the model's change ---------------------------
+    $swPhase.Restart()
     $suite = Invoke-Test $tk $wt.Wt
+    $phaseSec.suite = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
     if ($suite.ExitCode -eq 0) {
         $suiteLine = ($suite.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
         Write-Result $tk.id "suite" "PASS" "green after change ($($suiteLine.Line.Trim()))"
@@ -1990,7 +2012,9 @@ foreach ($tk in $tasksToRun) {
         }
         Set-Content -LiteralPath $tcFile -Value ($tcCfg | ConvertTo-Json -Depth 5) -Encoding utf8
         try {
+            $swPhase.Restart()
             $tc = Run-NativeTimed "pnpm" @("exec", "tsc", "--noEmit", "-p", "_bench-typecheck.json") $tcDir $CommandTimeout
+            $phaseSec.typecheck = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
             if ($tc.ExitCode -eq 0) {
                 $typecheckStatus = "PASS"
                 Write-Result $tk.id "typecheck (scoped)" "PASS" "touched module graph compiles"
@@ -2017,7 +2041,9 @@ foreach ($tk in $tasksToRun) {
         Write-Result $tk.id $accLabel $(if ($gradeByAcceptance) { "FAIL" } else { "SKIP" }) "task defines no acceptance block"
         if ($gradeByAcceptance) { $overallPass = $false; $acceptanceRecord.status = "ERROR" }
     } else {
+        $swPhase.Restart()
         $acc = Invoke-Acceptance $tk $wt.Wt
+        $phaseSec.acceptance = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
         $acceptanceRecord = [pscustomobject]@{ status = $acc.Status; ref = $acc.Ref; commit = $acc.Commit; hash = $acc.Hash; detail = $acc.Detail }
         if ($acc.Status -eq "PASS") {
             Write-Result $tk.id $accLabel "PASS" "$($acc.Label) pass on the model's source: $($acc.Detail)"
@@ -2101,6 +2127,7 @@ foreach ($tk in $tasksToRun) {
         servingEngine   = $servingEngine
         gpuPlacement    = $gpuPlacement
         runHost         = $runHost
+        phaseSeconds    = $phaseSec
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.

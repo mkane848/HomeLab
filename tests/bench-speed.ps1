@@ -178,6 +178,10 @@ function Measure-Request([string]$Prompt, [int]$Predict) {
 function Get-Placement {
     # llama-server reports no per-model placement (no /api/ps equivalent): leave it blank.
     if ($Engine -eq "llamacpp") { return @{ Total = $null; Vram = $null; Share = $null } }
+    # Ollama: the same /api/ps query and arithmetic as Get-OllamaGpuPlacement in
+    # test-tasks.ps1, kept as a copy on purpose: this script runs on its own, and
+    # test-tasks.ps1 is a script the guards read function by function, not a module.
+    # Change one, change the other (name or model match, bytes to GB, share).
     try {
         $m = @((Invoke-RestMethod -Uri "$root/api/ps" -TimeoutSec 10).models | Where-Object { $_ -and (($_.name -ieq $Model) -or ($_.model -ieq $Model)) })
         if ($m.Count -eq 0) { return @{ Total = $null; Vram = $null; Share = $null } }

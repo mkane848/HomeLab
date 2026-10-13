@@ -54,6 +54,56 @@ the seat's baked `numCtx`, `targetTokens` and the `promptTokens` actually sent, 
 - No prompt text is stored, only sizes and speeds; the file is public-safe. Rows are not task results and never join
   `tasks-summary.tsv`.
 
+## CPU contention: `bench-speed-contention.tsv`
+
+Same script and columns as above, one file for one question: how much does other CPU work on the server cost
+`qwen3.6`'s speed (2026-10-12, Ollama 0.34.3, 64k, one rep per condition). The condition is in the `host` column,
+`server+busy0`, `server+busy4`, `server+busy8`: that many `yes` processes (one core each, `timeout` 480 s, killed
+afterwards, no sudo) ran on the server's 16 hardware threads while the benchmark asked for its three sizes. Decode
+tok/s at 3k / 30k / 60k tokens: 70.2 / 69.0 / 61.6 with none; 26.6 / 24.9 / 25.8 with 4; 20.3 / 22.5 / 19.9 with 8.
+Prefill stayed within 5% of its idle value (it runs on the GPU). The idle condition repeats the afternoon baseline in
+`bench-speed.tsv` within about 6%. These burners use a core and little memory bandwidth; real test runs use both.
+
+## node3's `qwen3:8b`, and what the first request hides: `bench-speed.tsv` (host `node3`), `bench-speed-node3-kv.tsv`
+
+2026-10-12, Ollama 0.34.2 on node3 (RTX 3080 10 GB), `qwen3:8b` at the machine default context of 32,768 (the seat is not
+baked, so `numCtx` is blank and sizes stop at 30k). As it is set up (no flash attention, f16 KV cache) the seat takes
+10.36 GB and only 8.42 GB (81%) fits in VRAM: prefill 2,942 / 2,711 / 2,187 tok/s and decode 33.5 / 17.0 / 11.7 tok/s at
+3k / 16k / 30k tokens. On a temporary second Ollama with `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` set for
+that process only (host label `node3+fa+q8kv`, port 11500, killed afterwards; no machine setting changed) the same seat takes
+7.64 GB, all in VRAM: prefill 4,258 / 3,470 / 2,812 and decode 19.1 / 74.1 / 57.6. The difference at depth is the KV cache
+spilling to system RAM, 4.4x to 4.9x in decode. Those are the two settings the desktop and the server already use.
+
+**The first request after an idle gap reads low, in decode and sometimes prefill.** Repeating the 3k size three times on the
+test instance gave decode 90.2, 100.8, 100.6 and prefill 977, 4,311, 4,343; in the earlier run the first size (3k) read 19.1
+decode against 74 at 16k. The warm-up request generates one token, which loads the model but does not wake the GPU for
+decode. So **the first size's decode is understated** wherever the host sleeps between runs: the desktop's 3k decode
+(31.2 against 35.8 at 30k) and node3's 3k rows. The server's `qwen3.6` rows were not affected (the seat had been resident for hours; its 3k decode, 73.1, is
+its highest), but a freshly loaded seat is, on any host: the server's first `qwen3:8b` request after its load read 485 tok/s
+prefill against 6,097 on the repeat. Read the second repetition of the smallest size (`-Reps 2`), or ignore the first
+size, until the warm-up is lengthened.
+
+## The same seat on three hosts: `qwen3:8b` (2026-10-13, `bench-speed.tsv`)
+
+Ollama 0.34.3 (node3: 0.34.2), `qwen3:8b`, three sizes, two reps each; rep 2 is quoted, because rep 1 reads low right after a
+load (see above), except on the desktop, whose second pass was the slower one. Prefill / decode, tok/s:
+
+| host and setup | 3k | 16k | 30k | on the GPU |
+|---|---|---|---|---|
+| server (4070 Ti SUPER, CUDA), flash attention, q8_0 KV | 6,097 / 100 | 4,735 / 77 | 3,426 / 63 | 100%, 7.64 GB |
+| node3 (3080 10 GB, CUDA) as set up: no flash attention, f16 KV | 3,063 / 30 | 2,671 / 17 | 2,181 / 10 | 81%, 10.36 GB |
+| node3, temporary instance with flash attention and q8_0 KV | 4,311 / 101 | 3,470 / 74 | 2,812 / 58 | 100%, 7.64 GB |
+| desktop (6800 XT, Vulkan), flash attention, q8_0 KV (rep 2 / rep 1: see below) | 237 / 65 (rep 1: 357) | 48 / 54 (rep 1: 138; quiet re-run: 136, 138) | rep 1 only: 51 / 46 (rep 2 timed out) | 100%, 7.69 GB |
+
+Against the desktop's better readings the server is about 17 to 34 times faster at prefill (6,097 against 357 at 3k, 4,735 against 138 at 16k) and 1.4 to 1.5 times at decode. The desktop's
+prefill falls steeply with depth for a dense model (the MoE `qwen3.6` held 319 / 268 / 200 at 3k / 30k / 60k, 2.2 to 3.4 times
+slower than the server). **Treat the desktop's depth figures as unsettled:** during that run, with nothing else of mine on the
+machine, the same 16k size read 138, then 48, and the second 30k request timed out at 900 s after the first took 10 minutes
+(50.5 tok/s); a quiet re-run at 3:20 AM read 135.5 and 138.3 at 16k. Something slowed the desktop for about half an hour
+(heat after a 10-minute prefill, background work and the driver are the candidates) and it was not found. The flash-attention-off
+comparison on the desktop (`bench-speed-desktop-fa.tsv`: part A, current settings, two reps at 16k; part B, a temporary instance
+with both off) was interrupted after part A and has not run.
+
 ## Assisted runs: `compaction-nudge/`
 
 The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context

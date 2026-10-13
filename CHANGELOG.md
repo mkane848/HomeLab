@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **PowerShell 7 is the only supported PowerShell (owner, 2026-10-12).** One version to write, test and support.
+  Guards are run on `pwsh` 7 only; Windows PowerShell 5.1 is no longer a target. Nothing is removed: the existing
+  scripts still happen to parse on 5.1, and older entries below that say "PowerShell 7 and 5.1" record what was run
+  at the time. What changed: `AGENTS.md` no longer asks for the 5.1 cross-check, and new entries say PowerShell 7.
+  The one 5.1 launcher left is a WezTerm menu entry (`wezterm/wezterm.lua`), kept as a fallback shell. `pwsh` 7.6.6
+  is installed on node3 and 7.x on the desktop; the server has no PowerShell (its scripts are bash).
+
+- **Measured: the same small seat on three hosts (2026-10-13).** `qwen3:8b`, rep 2 at 3k / 16k / 30k tokens, prefill and decode in
+  tok/s: server 6,097 / 100, 4,735 / 77, 3,426 / 63; node3 as set up 3,063 / 30, 2,671 / 17, 2,181 / 10; desktop 237 / 65,
+  138 / 54 (one rep read 48), 51 / 46 (rep 1; rep 2 timed out). On the desktop's better readings its prefill is 17 to 34 times
+  slower than the server's and its decode 1.4 to 1.5 times. The desktop's
+  depth figures are unsettled (one 16k request read 48 where two others read 136 and 138, and one 30k request timed out at
+  900 s); the flash-attention-off comparison there was interrupted and has not run (`bench-speed-desktop-fa.tsv` holds
+  part A only). Table and caveats: `tests/results/README.md`.
+
+- **Measured: node3's `qwen3:8b` is 4 to 5 times slower at depth than it needs to be (2026-10-12).** With Ollama 0.34.2 on
+  node3 as configured (no flash attention, f16 KV cache, 32k context) the seat takes 10.36 GB, 81% on the GPU, and decodes
+  17 tok/s at 16k and 11.7 at 30k. The same seat on a temporary second Ollama with `OLLAMA_FLASH_ATTENTION=1` and
+  `OLLAMA_KV_CACHE_TYPE=q8_0` (this process only, killed afterwards; node3 checked back to how it was) takes 7.64 GB, all on
+  the GPU, and decodes 74 and 58 tok/s; at 3k, 100 tok/s. Those are the desktop's and the server's settings. Changing them
+  on node3 (machine variables plus an Ollama restart) is the owner's call: it is a shared PC. Rows in
+  `tests/results/bench-speed.tsv` (host `node3`) and `bench-speed-node3-kv.tsv`.
+  Also found: the first request after an idle gap reads low (3k decode 19 against 100 on the repeat), so the first size's
+  decode in `bench-speed.tsv` is understated on the desktop and node3, and on any host right after a model load
+  (the server's first `qwen3:8b` request read 485 tok/s prefill against 6,097 on the repeat); the long-resident
+  `qwen3.6` rows on the server are not affected. Noted in `tests/results/README.md`; warm-up not yet lengthened.
+
+- **Round 3, two more reps under classifier 2, and two endings the stop classifier misses (2026-10-13).** 22 of 30 pass
+  (11 of 15 per rep), clean on every infrastructure check; with round 2, 46 of 60 and four per-rep scores of 12, 12, 11,
+  11, which is the baseline's noise floor. Eight tasks pass 4 of 4; `wp-5b` 0 of 4 (the same hidden test in
+  three of them). Two runs ended with no edits and a question that no nudge reached: "you didn't include a task…
+  what would you like me to work on next?" and "Want me to go ahead and implement all the stubs?". A phrase fix would
+  change exactly one of 647 transcripts; a rule "prose-only last step, ends in a question, no write yet" finds 16
+  endings, 15 of them failures, 9 of which the classifier does not nudge. Either is classifier 3, a new assisted era,
+  not made mid-round; the owner decides. `docs/roadmap.md` step 3 has the detail, `docs/llamacpp-trial.md` the baseline.
+
+- **Round 2 of the nudged real tasks on the server, under stop classifier 2 (2026-10-12).** Two reps of the 15 (30 runs,
+  about 5 h, run host the desktop): 24 of 30 pass the hidden tests, 12 of 15 in each rep, against round 1's 10 of 15 under
+  classifier 1. No infrastructure, timeout, truncation or CPU-only row; `gpuPlacement` is `gpu` on all 30. 11 tasks pass in
+  both reps, 2 miss in both (`wp-5b`, `real-02`) and 2 split (`wp-7a`, `real-01`). The new `pending` nudge kind fired in
+  none of the runs (19 nudges: 13 empty, 4 ask, 2 announce), so it cannot be credited for `wp-5a`, `wp-6f` and `wp-3b`
+  passing. 9 runs took a front-drop, mostly on the very first request (`wp-2b`, `wp-4a`, `wp-5b`, `wp-7a`). One run
+  (`real-01` rep 1) edited the harness checkout's own `AGENTS.md` instead of the task's, which `outsideWrites` caught: the
+  task worktrees sit inside the checkout, a suspect and not a finding. This is the like-for-like baseline the llama.cpp
+  trial needed (`docs/llamacpp-trial.md`, `docs/roadmap.md` step 3).
+
+- **Measured: other CPU work on the server costs `qwen3.6` about 60% of its decode speed (2026-10-12).** Decode on the
+  server with 0, 4 and 8 busy threads (`yes`, capped by `timeout`) beside the model: 70 / 69 / 62 tok/s, then 27 / 25 / 26,
+  then 20 / 23 / 20 at 3k / 30k / 60k tokens; prefill unchanged. Same script as the speed baselines, one rep per
+  condition, rows in `tests/results/bench-speed-contention.tsv`. It turns "keep tool work off the server" into a
+  number: `docs/target-setup.md` gets the routing rule, the roadmap step 5 the result. The desktop baseline for the same
+  seat is in `bench-speed.tsv` (prefill 319 / 268 / 200, decode 31 / 36 / 29 tok/s; the server is 2.2 to 3.4 times
+  faster at prefill and about 2 times at decode). node3 now has the harness toolchain (Node 24.18.0, pnpm 10.33.0,
+  OpenCode 1.18.34, all matching the desktop); it still needs the task repos and a config.
+
+- **`llamacpp-check.sh` and its guard pick a Python that runs (2026-10-12).** The first run of the trial's guards on Windows
+  (desktop, PowerShell 7.4.20): all four pass except `test-llamacpp-stack.ps1`, which failed 22 checks with exit 49 from
+  every checker scenario. `python3` there is the Microsoft Store placeholder (on `PATH`, exits 49 instead of running);
+  the real interpreter is `python.exe`. `server/scripts/llamacpp-check.sh` now takes the first of `python3` and `python`
+  that runs, and the guard does the same for its Python unit tests. After the fix all four trial guards pass.
+  Found by running a guard on a second platform, as its handoff asked.
+
 - **docs: status and handoff for the llama.cpp engine trial (2026-10-13).** Records where the program stands so the next
   session, or the owner, can pick it up without this one: Phase 0 is on `main` (PRs #115 and #116) and has run nowhere
   but a Linux sandbox on PowerShell 7.4.6; Phase 1 has not started. `docs/llamacpp-trial.md` gets a "Status and handoff"
@@ -40,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Guards, each with controls that fail when the thing it guards is broken:** `tests/test-toolcalls-engine.ps1` (44
     checks; the probe had none), `tests/test-probe-overflow.ps1` (51), `tests/test-llamacpp-stack.ps1` (36, plus 16 Python
     tests in `tests/test_llamacpp_check.py`), and `tests/test-bench-speed.ps1` extended from 43 to 81 checks. Run on
-    PowerShell 7.4.6 on Linux; not yet on Windows PowerShell 5.1.
+    PowerShell 7.4.6 on Linux; not yet on Windows (PowerShell 7 only).
   - **Caught by those guards while writing them:** `@("a" + $x, "b")` fused two URLs into one string (the comma binds
     tighter than `+`) and only worked against the stand-in because its pattern was lenient, so a no-whitespace check on
     every request URL was added; `"…$NumCtx: …"` parses as a scope-qualified variable; and PowerShell hashtables enumerate
@@ -66,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     8 generated tokens is null. The first real run, before either rule, logged 1,000,000 tok/s for a one-token decode and a
     3000-token target that came out at 4,465.
   - Ollama only for now; `llama-server` arrives with the engine trial, and `engine` is already a column so rows compare.
-  - New guard `tests/test-bench-speed.ps1` (43 checks, PowerShell 7 and 5.1); controls with a fixed nonce, the cap
+  - New guard `tests/test-bench-speed.ps1` (43 checks, PowerShell 7); controls with a fixed nonce, the cap
     disabled, a wrong divisor or no minimum token count each fail their own checks. Found on the way: `"a`tb" -split
     "`t", -1` does not split on PowerShell 7.4.20 (5.1 does); the guard uses `.Split("`t")`.
 
@@ -76,8 +138,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   16c/32t, the desktop's 5800X3D 8c/16t, the server's 3700X 8c/16t), so `test-tasks.ps1` now records the machine name,
   CPU model, cores, logical processors and OS. A wall-clock compared across run hosts says whose CPU it was. Rows
   before this have no field (all desktop). `docs/roadmap.md` "Next up" step 5 is rewritten around it: model host and
-  run host are separate choices, node3 is the default run host, and the Linux harness is demoted. Checked in
-  `tests/test-gpu-placement.ps1` (59 checks).
+  run host are separate choices, node3 is the default run host, and the Linux harness is demoted.
+  - Next to it, `phaseSeconds`: how long the CPU-bound phases of that run took on that machine (`install` and `setup`,
+    once per worktree; `baseline`, the post-change `suite`, `typecheck`, `acceptance`). Every run on every host now
+    adds a row to the answer to "which CPU is better at which work": a single test file (start-up latency) against a
+    whole suite (many workers), an install, a typecheck. It replaces most of the separate `bench-cpu.ps1` the plan had.
+  - Both are checked in `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); a harness without
+    `phaseSeconds` fails 3 checks, without `runHost` 2.
 
 - **The harness checks GPU placement after each run (2026-10-12).** On 2026-10-12 the server's container lost its GPU and
   Ollama kept answering from the CPU; nothing in a run but its speed showed it, and a batch crawled for 31 minutes.
@@ -85,10 +152,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     host's `/api/ps` where `-Model` sits. Loaded with `size_vram` 0 is infrastructure: exit -5, a `_CPUONLY_`
     transcript, no run JSON, no summary row. Graded runs record `gpuPlacement` (verdict, GB, share). `-NoGpuCheck`
     skips it. Only the seat asked about counts, so the CPU-pinned 3b beside it never trips it.
-  - `tests/run-tasks-batch.ps1`: a `_CPUONLY_` transcript stops the batch (`Get-CpuOnlyRun`), with the run, how many
-    were not started, and `-OnlyMissing` to carry on after the fix.
-  - New guard `tests/test-gpu-placement.ps1` (57 checks, PowerShell 7 and 5.1); a harness or batch copy with the new
-    branch removed fails 6 checks each. The throwaway watchdog the first round ran under (outside the repo) is no
+  - `tests/run-tasks-batch.ps1`: a `_CPUONLY_` transcript stops that host's remaining runs (`Get-CpuOnlyRun`; the
+    other hosts of the batch carry on, like the hosted-model guards), with the run, how many were not started on
+    that host, and `-OnlyMissing` to carry on after the fix. The batch exits 1.
+  - `gpuPlacement.note` says `OLLAMA_*_BASE_URL is unset` for an Ollama provider with no base URL, instead of calling
+    it a non-Ollama provider (found by the ultrareview of this branch).
+  - New guard `tests/test-gpu-placement.ps1` (73 checks, PowerShell 7); controls (all measured on PowerShell 7): a harness without its exit -5 branch fails 6 checks, a batch with the stop removed 11,
+    a batch that stops every host instead of one 1, the old note wording 2. The throwaway watchdog the first round ran under (outside the repo) is no
     longer needed.
 
 - **First nudged round of the 15 real tasks on the server's `qwen3.6` (2026-10-12).** `docs/roadmap.md` "Next up"

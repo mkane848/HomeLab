@@ -23,16 +23,19 @@ wrote it can't reach the LAN. What was checked is what a sandbox can check:
 | `test-bench-speed.ps1` / `test-toolcalls-engine.ps1` / `test-probe-overflow.ps1` / `test-llamacpp-stack.ps1` | 81 / 44 / 51 / 36 checks pass, plus 16 Python tests, on **PowerShell 7.4.6 on Linux only** |
 | `bash server/scripts/llamacpp-check.sh` on the real preset and seat table | 7 OK, 0 FAIL |
 | syntax of every changed script (`bash -n`, `[Parser]::ParseFile`) | clean |
-| Windows PowerShell 5.1; any real host | **not run** |
+| the four guards on the desktop (Windows 11, PowerShell 7.4.20; 5.1 was dropped by the owner) | pass, 2026-10-12, after the `python3` Store-placeholder fix |
+| any real host | **not run** |
 
-**Phase 1 has not started.** No second Ollama round exists, no step of the runbook has run, and Phases 2–6 are neither
+**Phase 1 has not started.** (The baseline round it needs now exists: see "Held constant, and the baseline".) No step of the runbook has run, and Phases 2–6 are neither
 started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
 
 **Next, in order** (the owner, or an agent session on the desktop over SSH; `sudo` steps are the owner's):
 
-- [ ] Re-run the four guards on the desktop under Windows PowerShell 5.1 as well as 7. A failure there is a script bug,
-  not a trial result; fix it before measuring with it.
-- [ ] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
+- [x] Run the four guards on the desktop under PowerShell 7 on Windows. Done 2026-10-12 (desktop, PowerShell 7.4.20,
+  Windows 11): all four pass. One script bug surfaced and is fixed: `python3` on that PC is the Microsoft Store
+  placeholder (on `PATH`, exits 49), so `llamacpp-check.sh` and `test-llamacpp-stack.ps1` now use the first of `python3`
+  and `python` that actually runs. Windows PowerShell 5.1 is no longer a target (owner, 2026-10-12).
+- [x] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
   desktop, into a private `-ResultsDir`. It needs Ollama exactly as it is today, so it comes before the window below.
 - [ ] Announce one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if
   0.40.3 says EXPLICIT-ERROR, stop and report to the owner.
@@ -87,12 +90,18 @@ server):
 | prefill at 3k / 30k / 60k | 688 / 692 / 674 tok/s |
 | decode at 3k / 30k / 60k | 73.1 / 65.0 / 60.6 tok/s |
 | placement | 22.68 GB total, 13.59 GB (60%) in VRAM; ~782 MiB of the 16 GB free |
-| nudged round of the 15 | 10 of 15 (work packages 8 of 12, real tasks 2 of 3) under **classifier 1** |
-| lost briefs | 3 of 15 (`wp-2b`, `wp-4a`, `wp-5a`) |
+| nudged round of the 15, classifier 1 (round 1) | 10 of 15 (work packages 8 of 12, real tasks 2 of 3) |
+| nudged round of the 15, **classifier 2** (rounds 2 and 3, the like-for-like baseline, desktop run host, 2026-10-12/13) | four reps: 12, 12, 11, 11 of 15 (mean 11.5; 46 of 60). Eight tasks pass 4 of 4, `wp-5b` 0 of 4; `wp-7a`, `real-01` 2 of 4 |
+| lost briefs | round 1: 3 of 15 (`wp-2b`, `wp-4a`, `wp-5a`). Round 2: front-drops in 9 of 30 runs: `wp-2b` (both reps), `wp-4a`, `wp-5b` (both reps, the largest, about 78,700 tokens), `wp-7a` (both reps), `wp-6f`, `wp-5a` rep 2. Add `wp-5b` and `wp-7a` to the set below. |
+| CPU contention (server) | decode 70 / 69 / 62 tok/s idle, 27 / 25 / 26 with 4 busy threads, 20 / 23 / 20 with 8; prefill unchanged. Nothing else may run on the server during the trial. |
 
-**Still to collect before Gate G1 can be read (the owner runs it):** one more Ollama nudged round of the same 15 tasks
-on the server under **classifier 2**, from the desktop. The 10 of 15 above used classifier 1, so it is not a
-like-for-like baseline. (The desktop's matching speed rows are not needed for the server trial.)
+**The like-for-like baseline is collected** (rounds 2 and 3 above, four reps with identical settings). The reps score
+12, 12, 11 and 11 of 15, and individual tasks are not stable (`wp-7a`, `real-01`, `real-02`; `wp-5b` never passes), so
+Gate G1's "no worse by more than 2" tolerates about the whole spread: it is a screen for a collapse and nothing finer.
+A llama.cpp round scoring 10 or more of 15 would pass it (mean 11.5 minus 2, rounded up). Note for the trial's rounds: round 2 ran from a checkout whose task worktrees sit inside it
+(`<checkout>/tests/.worktrees/<id>`), and in two runs the model went up to the checkout's own `AGENTS.md`; run the trial
+rounds from a checkout with the same layout, or record the path. The desktop's speed rows (`bench-speed.tsv`) are not
+needed for the server trial.
 
 ## Runbook
 

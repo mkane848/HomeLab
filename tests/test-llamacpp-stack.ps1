@@ -75,8 +75,17 @@ Check "every model path in the preset is an Ollama blob under the /ollama mount"
 
 # --- the checker, the real thing -----------------------------------------------
 $bash = Get-Command bash -ErrorAction SilentlyContinue
-$python = Get-Command python3 -ErrorAction SilentlyContinue
-if (-not $python) { $python = Get-Command python -ErrorAction SilentlyContinue }
+# A python that RUNS: on Windows python3 can be the Microsoft Store placeholder (on PATH, exits 49).
+$python = $null
+foreach ($cand in "python3", "python") {
+    foreach ($c in @(Get-Command $cand -All -ErrorAction SilentlyContinue)) {
+        $ErrorActionPreference = "Continue"
+        $o = & $c.Source -c "print(40 + 2)" 2>&1 | Out-String
+        $ErrorActionPreference = "Stop"
+        if ($LASTEXITCODE -eq 0 -and $o.Trim() -eq "42") { $python = $c; break }
+    }
+    if ($python) { break }
+}
 if (-not $bash -or -not $python) {
     Write-Host "SKIP llamacpp-check.sh scenarios and the Python unit tests: need bash and python3 (found: bash=$([bool]$bash), python=$([bool]$python))"
     $script:skipped++

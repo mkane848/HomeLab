@@ -122,6 +122,14 @@ with the acceptance test already written, and grade it mechanically.
 | **Desktop** (6800 XT 16 GB Vulkan, 5800X3D, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here. When not in use, its GPU adds attempts or hosts the review-gate seat. | Review-gate seat. Overflow executor (gap-fill winner, once chosen) | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it — but while idle it is a free second executor with a strong CPU. |
 | **GTX 1070** (8 GB) | Spare | — | See [hardware.md](hardware.md) → "Upgrade candidates". |
 
+**Routing rule, measured (2026-10-12): no other CPU work on the server while `qwen3.6` is seated.** `qwen3.6` has
+13.6 of 22.7 GB in VRAM and reads the rest from system RAM on every token, so the 3700X sets its decode speed. With 4
+unrelated busy threads beside it, decode fell from 70 / 69 / 62 tok/s to 27 / 25 / 26 (3k / 30k / 60k tokens, −58 to
+−64%); with 8 busy threads, to 20 / 23 / 20 (−67 to −71%). Prefill, which runs on the GPU, did not move (within 5%).
+The load was `yes` processes, one core each; a real `vitest` or `tsc` also takes memory bandwidth, so this is a floor
+on the damage, from one rep per condition (`tests/results/bench-speed-contention.tsv`). It is why the harness's tools
+run on the desktop or node3, never on the server.
+
 **One front door.** OpenCode (or the dispatcher) should see one endpoint, and
 routing to whichever host is up happens behind it. Today that is spread over
 four profiles and three provider blocks in `opencode.jsonc`, and it is the

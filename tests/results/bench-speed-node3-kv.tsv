@@ -1,0 +1,9 @@
+timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS	prefillTokS	decodeTokS	evalTokens	totalGB	vramGB	gpuShare	note
+2026-10-12T22:42:15	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		0	863	2.3			1	7.64	7.64	1	warm-up (load, chars-per-token calibration)
+2026-10-12T22:42:22	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		3000	3119	0	4257.6	19.1	128	7.64	7.64	1	rep 1
+2026-10-12T22:42:29	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		16000	16133	0	3469.5	74.1	128	7.64	7.64	1	rep 1
+2026-10-12T22:42:42	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		30000	30089	0	2811.9	57.6	128	7.64	7.64	1	rep 1
+2026-10-12T22:42:54	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		0	883	0			1	7.64	7.64	1	warm-up (load, chars-per-token calibration)
+2026-10-12T22:42:59	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		3000	3090	0	977	90.2	128	7.64	7.64	1	rep 1
+2026-10-12T22:43:01	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		3000	3026	0	4310.7	100.8	128	7.64	7.64	1	rep 2
+2026-10-12T22:43:03	node3+fa+q8kv	ollama	0.34.2	qwen3:8b		3000	3044	0	4342.5	100.6	128	7.64	7.64	1	rep 3

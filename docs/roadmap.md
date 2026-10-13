@@ -127,7 +127,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        ended on a sentence `Get-StopKind` doesn't read as a stop with work left: it reads only the last sentence for
        "I'll…", "let me…" or a trailing colon, and these ended on "Still need to…" and "Please let me know when…".
        (`wp-5a`'s one nudge went on its lost brief.) The desktop passed both tasks every time it ran them in the
-       nudged and stop-nudge rounds. **Fixed the same day (classifier 2, not yet used in a round).** `Get-StopKind`
+       nudged and stop-nudge rounds. **Fixed the same day (classifier 2; round 2, below, ran under it).** `Get-StopKind`
        has a fourth kind, `pending`, that reads the last two sentences for "still need to", "yet to", "I'll wait",
        "waiting for/on", "still running" and "let me know when/once". A scan of all 607 transcripts held (public and
        private) changes exactly three endings, `wp-5a`, `wp-6f` and `wp-3b`, and leaves the other 604 as they were.
@@ -144,12 +144,52 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      passed. `wp-7a` (15) and `wp-5b` (13) were edit-and-test iterations the same way.
    - **GPU-placement check (2026-10-12, in the harness).** After each run that exited 0 against an Ollama provider,
      `test-tasks.ps1` asks the host's `/api/ps` where the seat sits (`Get-OllamaGpuPlacement`). Loaded with `size_vram` 0
-     is exit -5: a `_CPUONLY_` transcript, no row, and `run-tasks-batch.ps1` stops rather than queue more runs on a
-     host that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
+     is exit -5: a `_CPUONLY_` transcript, no row, and `run-tasks-batch.ps1` stops queueing runs on that host (the other
+     hosts of the batch carry on) rather than run on one that will stay that way. Graded runs record `gpuPlacement`. It replaces the watchdog script the first round
      ran under; it can't catch a host that is CPU-only before the first run until that run has been spent. Guard:
      `tests/test-gpu-placement.ps1`.
-   - **Still open for step 3.** Placement and speed against the desktop on a controlled prompt; a second round for
-     variance (one run per task is all this has), now under classifier 2.
+   - **Round 2: classifier 2, two reps (2026-10-12, 30 runs, run host the desktop, about 5 h).** 24 of 30 pass the
+     hidden tests: 12 of 15 in each rep (work packages 11 and 10 of 12, real tasks 1 and 2 of 3), against round 1's 10 of
+     15 under classifier 1. No `_INFRA_`, `_TIMEOUT_`, `_TRUNCATED_` or `_CPUONLY_` row; `gpuPlacement` is `gpu` on all 30;
+     every row records `runHost`. Results in `HomeLab-private/results/nudged-server-2` (assisted).
+     - **Stable passes: 11 of 15 tasks** (both reps), `wp-5a`, `wp-6f` and `wp-3b` among them. **`pending` cannot take the
+       credit:** it fired in none of the 30 runs. The 19 nudges (14 runs) were 13 empty, 4 ask and 2 announce, so those
+       three tasks passing is as likely variance as the classifier.
+     - **Stable misses (2):** `wp-5b`, which ran tests, typecheck and lint, reported them green and missed hidden
+       behaviour in both reps (one test, then nine); and `real-02`, narrowly (2 and 1 of 111 hidden tests).
+       **Unstable (2):** `wp-7a` passed once and missed once (1 of 3 with round 1) and `real-01` passed once and missed
+       once. One suite stayed red with acceptance passing (`wp-5a` rep 1).
+     - **Lost briefs:** 9 runs took a front-drop, 7 asked what the task was. On the first request: `wp-2b` (both reps),
+       `wp-4a`, `wp-5b` (both reps, about 78,700 tokens against 65,536) and `wp-7a` rep 2; later: `wp-5a` rep 2 (step 2),
+       `wp-7a` rep 1 (step 3) and `wp-6f` (step 17). The nudge re-sent the brief every time; `wp-5b` still missed.
+     - **Time:** 9.9 minutes a run on average, 5.0 hours in all; the slowest `wp-5b` rep 2 (41 min) and `wp-7a` rep 2
+       (39 min).
+     - **A hazard the rows exposed.** Task worktrees sit inside the checkout (`<checkout>/tests/.worktrees/<id>`), so the
+       checkout's own `AGENTS.md` is one directory up from the model's working directory. In rep 1, `real-01` edited that
+       file instead of the task's (`outsideWrites` recorded it; the checkout was restored afterwards) and `real-02` spent
+       its steps reading it. Neither happened in round 1, nor in rep 2 of `real-01`, so the layout is a suspect, not a
+       finding. If it repeats, add an option to put task worktrees outside the checkout; until then a round records the
+       checkout path it ran from.
+   - **Round 3: the same again, two more reps (2026-10-12 22:37 to 2026-10-13 02:45, 30 runs, 3.9 h).** 22 of 30 pass
+     (11 of 15 in each rep); no `_INFRA_`, `_TIMEOUT_`, `_TRUNCATED_` or `_CPUONLY_` row, `gpuPlacement` `gpu` on all 30,
+     no write outside a worktree, run host the desktop. **Rounds 2 and 3 together: 46 of 60.** Per task over the four
+     reps: 4 of 4 for eight tasks (`wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`, `wp-3b`, `wp-6a`, `wp-9a`, `real-03`); 3 of 4 for
+     `wp-4a`, `wp-5a` and `wp-6f`; 2 of 4 for `wp-7a` and `real-01`; 1 of 4 for `real-02`; 0 of 4 for `wp-5b`, which
+     missed the same hidden test in three of those four runs.
+     The per-rep scores, 12, 12, 11, 11 of 15, are the noise floor for any one-round comparison. `pending` again fired
+     in no run (14 nudges in 11 runs: 8 empty, 3 ask, 3 announce). 4 runs took a front-drop (`wp-2b` both reps,
+     `wp-4a`, `wp-5b`).
+     - **Two endings no nudge reached, both with zero edits and both failures.** `wp-5a` rep 1 ended "Since you didn't
+       include a task beyond the boilerplate, I can't carry on — what would you like me to work on next?" and `wp-7a`
+       rep 2 "Git shows zero changes… Want me to go ahead and implement all the stubs?". Over all 647 transcripts held
+       (public and private): a phrase fix for the first ("you didn't include/give/provide a task", "there is no task")
+       changes exactly that one ending and no other. A broader rule, "the last step is prose only, ends in a question
+       and no write or edit call has been made", finds 16 endings, 15 of which failed; the classifier already nudges 7
+       of them (the `ask` kind) and 9 got nothing, these two included. The same ending after real edits is mixed (17:
+       9 pass, 8 fail), so the rule would leave them alone. Either change is stop classifier 3, a new assisted era, and
+       is the owner's call; it was not made during a round.
+   - **Still open for step 3.** A control run with the model on the server and the tools on node3 (the contention
+     test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
 4. **Engine trial on the server.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama, on the same GGUF. Measure
    speed, and whether turning the front-drop into an explicit error ends the lost briefs (below, "Replacing
    Ollama"). It runs after step 3, so there's a baseline.
@@ -158,10 +198,10 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    - **Phase 0 (repo only) is done and on `main`** (PRs #115 and #116, 2026-10-12): `server/docker/docker-compose.llamacpp.yml`,
      `server/llamacpp/models.ini`, `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp`
      on `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
-     server: the session that wrote it could not reach one, and the guards have run on PowerShell 7.4.6 on Linux only.
+     server: the session that wrote it could not reach one, and the guards ran on PowerShell 7.4.6 on Linux and, since 2026-10-12, on the desktop (Windows, PowerShell 7.4.20).
    - **Phase 1 has not started and needs the owner** (status and checklist: [llamacpp-trial.md](llamacpp-trial.md) →
-     "Status and handoff"): the guards on Windows PowerShell 5.1, the second Ollama round under classifier 2 as the
-     like-for-like baseline (the 10 of 15 above used classifier 1), then the runbook on the server. `sudo` steps (the
+     "Status and handoff"): the four guards on Windows (done), the second Ollama round under classifier 2 as the
+     like-for-like baseline (round 2 above: done, 12 of 15 in each rep; round 3 adds two more reps), then the runbook on the server. `sudo` steps (the
      GPU-loss drill) are the owner's. Phases 2–6 are not started; outline in "Replacing Ollama" below.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU.
@@ -175,15 +215,32 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      the desktop's 5800X3D. **node3 is the default run host**: it is Windows 11, so the harness runs there without a
      port, and its 5950X runs the CPU-heavy half. Every run JSON now records `runHost` (machine, CPU, cores) so a
      wall-clock compared across hosts says whose CPU it was.
-   - **Measure, then route.** A `tests/bench-cpu.ps1` (per host, on a pinned task repo: `pnpm install` cold and warm,
-     the baseline test command, `tsc --noEmit`, vitest at 1, 4, 8 and 16 workers) on the desktop and node3; a
-     contention test for `qwen3.6` decode speed with 0, 4 and 8 busy threads beside it on the server; and a control run
-     with the model on the server and the tools first on the desktop, then on node3. The rule it produces goes into
-     `target-setup.md`.
-   - **node3 has to be up and have the toolchain.** It is not answering now (its sleep settings: owner). Needed there:
-     PowerShell 7, Node, pnpm, git, `gh`, OpenCode 1.18.34, the task repos (the manifests hard-code `M:/…` and `C:/…`
-     paths: same paths or a per-host repo-root map), the private repo. Downloads and git credentials are the owner's
-     to approve and enter.
+   - **Measure, then route.** Every run JSON now carries `phaseSeconds` (install and setup once per worktree, the
+     baseline suite, the post-change suite, the typecheck, the acceptance run) beside `runHost`, so the runs themselves
+     answer which CPU is better at which work. Most tasks run one test file (start-up latency) and a few run a whole
+     suite (many workers), which is where the two CPUs should differ; the data will say. **Contention test, done
+     2026-10-12:** `qwen3.6` decode on the server with 0, 4 and 8 busy threads beside it was 70 / 69 / 62, then
+     27 / 25 / 26, then 20 / 23 / 20 tok/s (3k / 30k / 60k tokens); prefill did not change. Four threads of
+     other work cost it about 60% of its decode speed, so nothing else runs on that CPU
+     ([target-setup.md](target-setup.md) → "Machine roles"; rows in `tests/results/bench-speed-contention.tsv`). The
+     desktop's speed row for the same seat is in `bench-speed.tsv`: prefill 319 / 268 / 200 and decode 31 / 36 / 29 tok/s,
+     against the server's 688 / 692 / 674 and 73 / 65 / 61. Still to do: a control run with the model on
+     the server and the tools first on the desktop, then on node3. A separate `bench-cpu.ps1` (vitest at 1, 4, 8 and 16
+     workers on a pinned repo) is only worth writing if the runs leave the worker scaling unanswered. The rule it
+     produces goes into `target-setup.md`.
+   - **node3 is up (2026-10-12) and has the toolchain.** Sleep and hibernate are off on AC (uptime 21 days), and it
+     now has PowerShell 7.6.6, git, Python, Node 24.18.0, npm 11.16.0, pnpm 10.33.0 and OpenCode 1.18.34: the same
+     versions as the desktop, installed by the owner's approval, with `node.exe` and the OpenCode binaries
+     byte-identical to the desktop's (`gh` was skipped; task runs do not need it). Still missing there: the task repos
+     (the manifests hard-code `M:/…` and `C:/…` paths, and node3 has only a `C:` drive: a per-host repo-root map), the
+     private repo, and an OpenCode config. Git credentials stay the owner's to enter; the repos can be sent as bundles
+     over SSH instead.
+   - **node3's own seat is held back by its Ollama settings (measured 2026-10-12).** `qwen3:8b` there (Ollama 0.34.2, no
+     flash attention, f16 KV cache, 32k context) takes 10.36 GB on a 10 GB card, so 19% spills to system RAM: decode 17
+     tok/s at 16k and 11.7 at 30k. With `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0`, tried on a temporary
+     second instance and then removed, it fits whole (7.64 GB) and decodes 74 and 58 tok/s, about 100 at 3k; prefill is 28 to
+     45% faster. The desktop and the server already run those settings. Applying them on node3 is the owner's change (two
+     machine variables and an Ollama restart on a shared PC). Detail: `tests/results/README.md`.
    - **A Linux harness is demoted.** It stays worth doing if the server must host runs itself, or for portability:
      `taskkill` and `Win32_Process` for timeouts and orphans, the guards' `.cmd` stand-ins, the Ollama log path, Windows
      paths. It is not on the critical path while node3 is the run host.

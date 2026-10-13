@@ -1,0 +1,4 @@
+timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS	prefillTokS	decodeTokS	evalTokens	totalGB	vramGB	gpuShare	note
+2026-10-13T03:20:17	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	0	861	4.1			1	7.69	7.69	1	warm-up (load, chars-per-token calibration)
+2026-10-13T03:22:21	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16539	0	135.5	53.5	128	7.69	7.69	1	rep 1
+2026-10-13T03:24:20	desktop+fa+q8kv	ollama	0.34.3	qwen3:8b	32768	16000	16092	0	138.3	53.7	128	7.69	7.69	1	rep 2
