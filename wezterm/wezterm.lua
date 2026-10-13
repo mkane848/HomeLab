@@ -3,8 +3,9 @@ local act = wez.action
 local config = wez.config_builder()
 
 -- ============================================================
--- Server Connection
--- Update these to match your network
+-- Server Connection (on demand)
+-- YOUR_USER and SERVER_IP below are placeholders: desktop\scripts\sync-wezterm.ps1
+-- fills them in from SSH_USER and SERVER_IP in .env when it deploys this file.
 -- ============================================================
 
 config.ssh_domains = {
@@ -17,17 +18,30 @@ config.ssh_domains = {
 }
 
 -- ============================================================
+-- Default shell: a local PowerShell 7
+-- Opening WezTerm must not wait on, or fail because of, the server (it used to
+-- connect to it on every launch). The server is one keypress away (Leader, then
+-- s) or the first entry of the launcher menu.
+-- ============================================================
+
+config.default_prog = { "pwsh.exe", "-NoLogo" }
+
+-- ============================================================
 -- Launcher Menu (Ctrl+Shift+Space or the "+" in tabs)
 -- ============================================================
 
 config.launch_menu = {
     {
-        label = "Windows PowerShell",
-        args = { "powershell.exe", "-NoLogo", "-NoExit" },
+        label = "Server (SSH)",
+        domain = { DomainName = "dev-server" },
     },
     {
         label = "PowerShell Core (7+)",
         args = { "pwsh.exe", "-NoLogo", "-NoExit" },
+    },
+    {
+        label = "Windows PowerShell",
+        args = { "powershell.exe", "-NoLogo", "-NoExit" },
     },
 }
 
@@ -40,9 +54,6 @@ config.unix_domains = {
         name = "unix",
     },
 }
-
--- Default startup: connect to server via SSH
-config.default_domain = "dev-server"
 
 -- ============================================================
 -- Appearance
@@ -58,6 +69,8 @@ config.window_background_opacity = 0.95
 -- ============================================================
 
 config.keys = {
+    -- A new tab on the server (SSH)
+    { key = "s", mods = "LEADER", action = act.SpawnTab({ DomainName = "dev-server" }) },
     -- Quick split: horizontal
     {
         key = "-",
