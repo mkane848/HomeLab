@@ -11,6 +11,46 @@ The repo files for the trial are `server/docker/docker-compose.llamacpp.yml`, `s
 reach the server); **the commands below are for the owner, or an agent session on the desktop over SSH.** Anything
 that needs `sudo` on the server is the owner's ([network-topology](network-topology.md) → "SSH access").
 
+## Status and handoff (2026-10-13)
+
+**Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
+(`bench-speed.ps1`, `test-gpu-placement.ps1`, `runHost`, the harness's GPU-placement check), and PR #116 added this
+protocol and the trial's files. **Nothing has been run against a real server, Ollama or llama-server**: the session that
+wrote it can't reach the LAN. What was checked is what a sandbox can check:
+
+| check | result |
+|---|---|
+| `test-bench-speed.ps1` / `test-toolcalls-engine.ps1` / `test-probe-overflow.ps1` / `test-llamacpp-stack.ps1` | 81 / 44 / 51 / 36 checks pass, plus 16 Python tests, on **PowerShell 7.4.6 on Linux only** |
+| `bash server/scripts/llamacpp-check.sh` on the real preset and seat table | 7 OK, 0 FAIL |
+| syntax of every changed script (`bash -n`, `[Parser]::ParseFile`) | clean |
+| Windows PowerShell 5.1; any real host | **not run** |
+
+**Phase 1 has not started.** No second Ollama round exists, no step of the runbook has run, and Phases 2–6 are neither
+started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
+
+**Next, in order** (the owner, or an agent session on the desktop over SSH; `sudo` steps are the owner's):
+
+- [ ] Re-run the four guards on the desktop under Windows PowerShell 5.1 as well as 7. A failure there is a script bug,
+  not a trial result; fix it before measuring with it.
+- [ ] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
+  desktop, into a private `-ResultsDir`. It needs Ollama exactly as it is today, so it comes before the window below.
+- [ ] Announce one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if
+  0.40.3 says EXPLICIT-ERROR, stop and report to the owner.
+- [ ] Owner, with `sudo`: step 8's E1, `sudo systemctl daemon-reload` against the running llama container.
+- [ ] Append the numbers and the Gate G1 verdict under "Results" by a PR of their own, with the roadmap and CHANGELOG
+  entries the gate section asks for.
+
+**Open items the runbook already carries, listed so they aren't lost:**
+
+- The preset does **not** yet copy Ollama's sampling parameters; `llamacpp-check.sh --ollama-url` fails until step 3 does.
+- `n-cpu-moe = 20` is a starting value; step 5 sweeps it under a rule fixed in advance.
+- The `llamacpp-server` OpenCode provider snippet (step 6) has an unverified `npm` field.
+- `bench-speed.ps1 -Engine llamacpp` reports a load time that is approximate, and no placement; the `nvidia-smi`
+  reading is the placement.
+- The compaction plugin is pinned to OpenCode 1.18.34, and `probe-overflow.ps1` embeds that version's overflow patterns;
+  re-copy them if OpenCode is upgraded during the trial.
+- "Known unknowns" at the end of this file are all still unknown.
+
 ## The question and what would answer it
 
 Does `llama-server` beat Ollama 0.34.3 as the executor engine on the server, in the ways the benchmark has shown to
@@ -275,4 +315,4 @@ and the [Ollama releases](https://github.com/ollama/ollama/releases). Short name
 
 ## Results
 
-*Not run yet. Appended by the PR that records them.*
+*Not run yet (status as of 2026-10-13, see "Status and handoff"). Appended by the PR that records them.*

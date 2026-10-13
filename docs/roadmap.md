@@ -155,13 +155,14 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    Ollama"). It runs after step 3, so there's a baseline.
    - **Approved 2026-10-12 (owner): Phases 0 and 1 only** of the Ollama replacement; each later phase needs its own
      go after a gate. Protocol, runbook and Gate G1 are pre-registered in [llamacpp-trial.md](llamacpp-trial.md).
-   - **Phase 0 (repo only) is written:** `server/docker/docker-compose.llamacpp.yml`, `server/llamacpp/models.ini`,
-     `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp` on
-     `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
-     server: this session could not reach one.
-   - **Phase 1 needs the owner:** the second Ollama round under classifier 2 as the like-for-like baseline (the
-     10 of 15 above used classifier 1), then the runbook on the server. `sudo` steps (the GPU-loss drill) are the
-     owner's.
+   - **Phase 0 (repo only) is done and on `main`** (PRs #115 and #116, 2026-10-12): `server/docker/docker-compose.llamacpp.yml`,
+     `server/llamacpp/models.ini`, `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp`
+     on `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
+     server: the session that wrote it could not reach one, and the guards have run on PowerShell 7.4.6 on Linux only.
+   - **Phase 1 has not started and needs the owner** (status and checklist: [llamacpp-trial.md](llamacpp-trial.md) →
+     "Status and handoff"): the guards on Windows PowerShell 5.1, the second Ollama round under classifier 2 as the
+     like-for-like baseline (the 10 of 15 above used classifier 1), then the runbook on the server. `sudo` steps (the
+     GPU-loss drill) are the owner's. Phases 2–6 are not started; outline in "Replacing Ollama" below.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU.
    - **The three CPUs differ.** node3's Ryzen 9 5950X (16c/32t) is the fleet's throughput CPU. The desktop's Ryzen 7
@@ -2599,6 +2600,50 @@ The trial needs a download, so it waits for the owner's go-ahead.
   from 11 of 11 (p ≈ 0.21), so Gate G1 is: tool probe, explicit-and-recoverable overflow with no silent lost briefs, a
   detectable GPU loss, a clean soak, speed ≥ 90% of Ollama's, and the round no worse than the classifier-2 Ollama round by
   more than 2.
+
+**After Gate G1: the rest of the program (outline, 2026-10-13; none of it started or approved).** Each phase needs its
+own owner go-ahead after the gate before it. Ollama stays running and unmodified until Phase 6, so rollback is pointing
+a profile back; every engine is a new era (re-probe every seat, re-measure every context and VRAM figure, never compare
+across engines as if nothing changed); `ollama-*` provider ids are never renamed, because 278 summary rows cite them.
+- **Phase 2, engine adapter (only after a Go).** Mirror `tests/agents/opencode.ps1`: `tests/engines/ollama.ps1`
+  (extracted) and `tests/engines/llamacpp.ps1` behind one interface (liveness, version, served models, served context,
+  prompt-loss detection, GPU placement, base URL), and move the call sites behind it (`Get-OllamaPromptTruncation`,
+  `Get-OllamaGpuPlacement`, the `^ollama-(.+)$` provider regexes in `run-tasks-batch.ps1`, the served-context check in
+  `test-profiles.ps1`). A new run outcome `contextExceeded`, distinct from `_INFRA_` and `_CPUONLY_`. An `engine` column
+  in `run-tasks-models.tsv` and the probe TSV (with a one-time migration of existing rows; the STALE rule keys on
+  engine plus version). Three `llamacpp-*` provider blocks in `opencode/global/opencode.jsonc` (confirm `limit`
+  survives with `opencode debug config`), `*-llamacpp` profile twins, and guards (`test-engine-adapter.ps1`,
+  `test-context-exceeded.ps1`) with every existing Ollama guard still green.
+- **Phase 3, server cutover.** The llama.cpp stack primary on 8090 (`restart: unless-stopped`); the Ollama container
+  stopped, not removed, for a soak. `status.sh` reads `/health`, `/props`, `/models` and the GPU check;
+  `llamacpp-check.sh` replaces `bake-models.sh`; `startup.sh`, `stop.sh` and the systemd unit gain an engine switch. A
+  `dev-workflow-server-llamacpp` twin first; flip the default only after a round that matches the Ollama baseline.
+  Repeat the `daemon-reload` drill after any Docker, driver or toolkit upgrade.
+- **Phase 4, desktop (RX 6800 XT, Vulkan, native).** First the missing baseline: `bench-speed.ps1` on the desktop under
+  Ollama at the same three depths. Then a pinned `llama-bNNNN-bin-win-vulkan-x64.zip` in a versioned folder (no
+  installer, no tray updater, so `pin-ollama-desktop.ps1` and its firewall rule go), a `desktop/scripts/llama-server.ps1`
+  or `startup.ps1 -Engine llamacpp` with `--models-preset` bound to `127.0.0.1`, and a preset that replaces
+  `$contextModels`, `$derivedModels` and keep-alive. `models.ps1` and `opencode.ps1`'s warm and unload blocks move to
+  `GET /models` and `POST /models/load|unload`. **VS Code BYOK is a third Ollama consumer** (`chatLanguageModels.json`
+  → `127.0.0.1:11434/v1`, the review-gate auditor `qwen3-coder:30b-a3b`): add an OpenAI-compatible llama-server entry and
+  update `docs/vscode.md`. Re-measure on Vulkan: flash attention on and off (Ollama's Vulkan lost about 46% of prefill
+  with it), and RAM with and without `--mlock` / `--no-mmap` against the 32 GB shared with gaming.
+- **Phase 5, node3 (RTX 3080 FE 10 GB, 5950X), last.** Its main job is **run host** (step 5), which needs the toolchain
+  and the network, not the engine: reach `llamacpp-server:8090`, carry the updated `opencode.jsonc` and
+  `LLAMACPP_SERVER_BASE_URL`, run Phase 3's rounds from there. Model host only afterwards: a CUDA zip chosen from its
+  `nvidia-smi` driver, `0.0.0.0:8090` with a LAN-scoped firewall rule, an explicit `c =` in place of its 32768 env
+  default. This folds in the parked Q4 `qwen3.5:9b` question: overflow should become an explicit error instead of
+  a silent loss the harness can't see on a remote host (unmeasured until the trial). Disable Windows sleep first (owner).
+- **Phase 6, retire Ollama (owner's decision, after a clean soak on every host).** Remove live-path Ollama only:
+  `startup.ps1`'s bakes, the Ollama modes of `models.ps1`, `pin-ollama-desktop.ps1` (run `-Remove` first), `OLLAMA_*`
+  User env, the Ollama compose file, unit and `bake-models.sh`, the `ollama-*` provider blocks (they stay in git
+  history), parked-profile references and the VS Code BYOK Ollama entry; then update AGENTS.md, README,
+  `docs/hardware.md`, `docs/profiles.md`, `docs/troubleshooting.md`, `docs/network-topology.md` and `docs/vscode.md`.
+  Delete the Ollama model stores only on the owner's say-so. Old results stay as written.
+
+Planned end state: **server** `server-cuda` container (digest-pinned, explicit GPU devices) on `0.0.0.0:8090`, preset
+`server/llamacpp/models.ini`; **desktop** Vulkan zip on `127.0.0.1:8090`; **node3** CUDA zip on `0.0.0.0:8090`; providers
+`llamacpp-server|desktop|node3`; node3 the default run host.
 
 [llama-cpp-docker]: https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/docker.md
 [llama-cpp-ghcr]: https://ghcr.io/v2/ggml-org/llama.cpp/tags/list
