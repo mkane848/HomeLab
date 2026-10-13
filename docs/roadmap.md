@@ -11,7 +11,21 @@ means more test runs, more time on the "real" configuration, and real tasks the 
 attempting the hardware fix the weekend of 2026-10-10/11. Also decided that day: no Qwen Code trial. The client and
 engine research stays on file (below, "Alternatives to OpenCode" and "Replacing Ollama").
 
-**Where things stand.**
+**Resume here (written 2026-10-13, when a long session was closed out).**
+- **Open PRs:** #119 (stop classifier 3; the desktop flash-attention A/B and node3 rows; node3's settings and repos in the docs) and #120 stacked on it (WezTerm: a local PowerShell 7 default; `sync-wezterm.ps1` fills the server details from `.env` and backs up). Merge #119 first, then #120 (retarget it to `main`). #118 is merged.
+- **Local only, never pushed:** `HomeLab-private` commits a180fd6 (round 1) and 442a891 (rounds 2 and 3). Pushing them is the owner's call. That repo also has older untracked results (`nudged/`, `nudged-2/`, `stop-nudge/`, loose `tasks-real-*` files) that no one has committed.
+- **State of the fleet:** the server serves `qwen3.6` on Ollama 0.34.3 and is idle; node3 is up with Node 24.18.0, pnpm 10.33.0, OpenCode 1.18.34, Ollama with flash attention and a `q8_0` KV cache (user variables), and the task repos in `C:\HomeLab\repos\` (no config, no harness checkout, and the harness cannot find the repos yet); the desktop is the run host for every round so far.
+- **Baselines in hand:** stop classifier 2, four reps of the 15 tasks: 12, 12, 11, 11 of 15 (step 3 below); speeds per host and seat (`tests/results/README.md`); the server's CPU-contention rule (`target-setup.md`).
+- **Next, in order of readiness:**
+  1. A round under `-StopClassifier 3` (about 5 h, desktop as run host) to see whether the new kind helps; compare with the four classifier-2 reps. Owner's go-ahead.
+  2. node3 as run host: a per-host repo-root map in the harness (the manifests hard-code `M:/…` and `C:/Projects/…`), an OpenCode config for node3, a harness checkout at a chosen commit, then the 3-task control run (model on the server, tools on the desktop, then on node3). Step 5 has the reasoning.
+  3. The llama.cpp trial's GPU window ([llamacpp-trial.md](llamacpp-trial.md)) after the server-side Ollama work in step 2, because the window stops `qwen3.6` there; its downloads need the owner's approval with sizes, and its rounds pass `-StopClassifier 2`.
+  4. `bench-speed.ps1`: lengthen the warm-up (the first request after a load or an idle gap reads low on every host).
+  5. Task worktrees outside the checkout, only if a task wanders to the checkout's own files again (step 3, round 2).
+  6. `wp-5b` has never passed (0 of 4 under classifier 2): read its prompt before spending more rounds on it.
+- **A caution:** the desktop's GPU driver reset repeatedly on 2026-10-13 (Windows error reports `LiveKernelEvent` 141 and 117 at 07:40, 07:41, 08:16 and 08:17, with older ones queued) and a Guild Wars 2 session crashed; the owner plays on this machine. Do not start GUI windows or GPU benchmarks on the desktop without checking that no game is running, and treat the driver (32.0.21045.5002) as a suspect for the 2026-10-12 WezTerm crash too.
+
+**Where things stand (2026-10-10).**
 - **The work packages are solved locally.** With the stop nudge, `qwen3.6` passes 11 of 12 on the desktop at $0.
   That's the hosted Qwen3.7 Plus's score, about five times slower (below, "Round 3 and the stop nudge").
 - **The failures left are lost briefs and early stops.** Lost briefs come from Ollama's silent front-drop, and the

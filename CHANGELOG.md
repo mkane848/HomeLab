@@ -36,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (the server's first `qwen3:8b` request read 485 tok/s prefill against 6,097 on the repeat); the long-resident
   `qwen3.6` rows on the server are not affected. Noted in `tests/results/README.md`; warm-up not yet lengthened.
 
+- **WezTerm opens a local PowerShell 7, not the server (2026-10-13, owner-approved), and `sync-wezterm.ps1` no longer overwrites a filled-in config.**
+  The owner's taskbar shortcut runs plain `wezterm-gui.exe`, and the config's `default_domain = "dev-server"` made every launch
+  connect to the Ubuntu server first (it also fits a server that was down for weeks; the 2026-10-12 crash itself was never
+  explained). The template now sets `default_prog` to `pwsh.exe`, keeps the SSH domain, and reaches it from the launcher menu
+  (first entry) or Leader then `s`. The sync script was a plain copy, and the live file had the real user and address filled in by
+  hand, so a sync would have replaced them with `YOUR_USER` / `SERVER_IP`: it now fills them from `SSH_USER` and `SERVER_IP` in
+  `.env`, stops without both, and backs up a config it would change. Deployed to this desktop (previous file kept as
+  `~/.wezterm.lua.bak-20261013-081359`); WezTerm started from the taskbar target opened a local `pwsh`, made no connection to
+  the server and left no crash log. New guard `tests/test-sync-wezterm.ps1` (26 checks); the old script fails 14 of them, the old
+  template 4.
+
 - **node3's Ollama now runs with flash attention and a q8_0 KV cache, and node3 has the task repos (2026-10-13, owner-approved).**
   `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` were set as User variables of node3's account (not machine-wide) and the
   Ollama tray app restarted in her session through a one-shot scheduled task, removed afterwards (a first attempt failed to register the
