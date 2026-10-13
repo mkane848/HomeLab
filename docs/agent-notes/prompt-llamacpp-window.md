@@ -20,11 +20,11 @@ to `gh`. Re-read the live state before acting, since anything below may have mov
 
 | PR | what | state then |
 |---|---|---|
-| #122 | `tests:` CI workflow `.github/workflows/checks.yml` (Linux syntax job + every guard on `windows-latest` via the new `tests/run-guards.ps1`), two bugs its first run found (env-var unset on pwsh 7.5+, a CRLF-fragile guard), and `.gitattributes` (LF for `*.sh *.ini *.yml *.yaml *.py`) | ready for review, CI green on `3dfccd9` |
+| #122 | **merged 2026-10-13** — `tests:` CI workflow `.github/workflows/checks.yml` (Linux syntax job + every guard on `windows-latest` via the new `tests/run-guards.ps1`), two bugs its first run found (env-var unset on pwsh 7.5+, a CRLF-fragile guard), and `.gitattributes` (LF for `*.sh *.ini *.yml *.yaml *.py`) | merged (`2dc86ee`) |
 | #123 | `docs:` llama.cpp trial prep: no `npm` field in the provider snippet, and this handoff prompt | draft |
 | #124 | `docs:` "Merging and auto-merge" in `CONTRIBUTING.md`: who can merge, why fork PRs can't do harm, the settings checklist | draft |
 
-**A1. Merge, in this order, each only with the owner's go:** #122, then #124, then #123.
+**A1. Merge, in this order, each only with the owner's go:** #124, then #123 (#122 is already merged).
 - **What to check before each merge:**
   - CI is green on the PR's current head;
   - read the diff;
@@ -35,7 +35,7 @@ to `gh`. Re-read the live state before acting, since anything below may have mov
   - push, and wait for CI again.
 - Mark the drafts ready first: `gh pr ready <n>`.
 
-**A2. After #122 merges, refresh this clone's line endings once,** so the new `.gitattributes` applies to files
+**A2. After pulling `main` (it has #122), refresh this clone's line endings once,** so the new `.gitattributes` applies to files
 already checked out. In a clean tree, run `git rm -r --cached -q . ; git reset --hard`. Afterwards `git status`
 must be clean and `server/llamacpp/models.ini` must be LF.
 

@@ -18,7 +18,8 @@
      docs/review-gate/testing.md. Do not claim "verified" on a suite you never
      ran, or on a test that never entered the branch it names. -->
 
-- [ ] Ran the relevant checks (`tests/test-profiles.ps1`, `tests/test-toolcalls.ps1`, syntax checks per AGENTS.md)
+- [ ] CI `checks` is green (syntax on Linux, every guard on Windows via `tests/run-guards.ps1`)
+- [ ] Ran the live-host checks this change needs on the desktop (`tests/test-profiles.ps1`, `tests/test-toolcalls.ps1`, task runs), or listed them as not run
 - [ ] Model-written change: audited every new test against the branch it claims to cover
 - [ ] Changelog: added/updated the `[Unreleased]` entry in `CHANGELOG.md`, or confirmed one is not warranted
 

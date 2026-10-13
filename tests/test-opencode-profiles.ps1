@@ -100,7 +100,8 @@ try {
     Check "the shell's OPENCODE_MODEL is restored" $env:OPENCODE_MODEL "sentinel"
     Remove-Item Env:OPENCODE_MODEL
     opencode quality -NoWarm -KeepLoaded *> $null
-    Check "an unset variable is unset again" ([string]::IsNullOrEmpty($env:OPENCODE_MODEL)) "True"
+    # Absent, not empty: on pwsh 7.5+ an empty value survives the restore unless it passes a true null.
+    Check "an unset variable is unset again" (Test-Path Env:OPENCODE_MODEL) "False"
 } finally {
     $env:PATH = $savedPath
     if ($null -eq $savedModel) { Remove-Item Env:OPENCODE_MODEL -ErrorAction SilentlyContinue } else { $env:OPENCODE_MODEL = $savedModel }
