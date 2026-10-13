@@ -48,6 +48,11 @@ SAMPLING = {
     "frequency_penalty": ("frequency-penalty",),
     "repeat_last_n": ("repeat-last-n",),
     "seed": ("seed", "s"),
+    # Not sampling, but applied the same way: Ollama 0.34.3 serves a tag with this
+    # parameter through its bundled llama-server with `--spec-type draft-mtp
+    # --spec-draft-n-max N` (its own log, trial step 5, 2026-10-13). Speculative
+    # decoding changes speed, not output, so leaving it out skews only the speed row.
+    "draft_num_predict": ("spec-draft-n-max",),
 }
 
 results = []  # (level, subject, message)
@@ -195,6 +200,12 @@ def sampling_checks(ini, ollama_url):
                 say("OK", tag, "%s = %s matches Ollama" % (SAMPLING[oname][0], have))
             else:
                 say("FAIL", tag, "%s = %s but Ollama applies %s = %s" % (SAMPLING[oname][0], have, oname, value))
+            if oname == "draft_num_predict":
+                kinds = (pick(ini[tag], glob, "spec-type") or "").split(",")
+                if "draft-mtp" in kinds:
+                    say("OK", tag, "spec-type includes draft-mtp, as Ollama serves it")
+                else:
+                    say("FAIL", tag, "Ollama drafts with MTP (draft_num_predict = %s); the preset needs spec-type = draft-mtp" % value)
 
 
 def live_checks(ini, url):
