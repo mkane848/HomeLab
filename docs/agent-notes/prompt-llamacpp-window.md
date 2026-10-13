@@ -1,10 +1,104 @@
-# Handoff prompt: the llama.cpp trial's GPU window (desktop session, 2026-10-13)
+# Handoff prompt: GitHub housekeeping and the llama.cpp trial window (desktop session, 2026-10-13)
 
 Paste everything below the line into a fresh Claude Code session **on the desktop**, started in the desktop's
 HomeLab checkout. The desktop can reach the server over SSH (`ssh server`, key auth); the cloud session that wrote
 this cannot. The owner chose this route on 2026-10-13.
 
 ---
+
+This session has two parts. **Part A** finishes GitHub housekeeping the cloud session left open (it can't change
+repository settings and can't reach the LAN). **Part B** is the llama.cpp trial's GPU window. Do A first, so `main`
+has everything B relies on. Every step that changes GitHub (a merge, a setting) needs the owner's explicit go first.
+
+## Part A: GitHub state and housekeeping (as of 2026-10-13 ~18:00 UTC)
+
+Remote: `github.com/mkane848/HomeLab`, public. `mkane848` is the only collaborator (admin). This PC is signed in
+to `gh`. Re-read the live state before acting, since anything below may have moved: `gh pr list`,
+`gh pr checks <n>`, `gh pr view <n>`.
+
+**Open pull requests, all opened by the cloud session:**
+
+| PR | what | state then |
+|---|---|---|
+| #122 | `tests:` CI workflow `.github/workflows/checks.yml` (Linux syntax job + every guard on `windows-latest` via the new `tests/run-guards.ps1`), two bugs its first run found (env-var unset on pwsh 7.5+, a CRLF-fragile guard), and `.gitattributes` (LF for `*.sh *.ini *.yml *.yaml *.py`) | ready for review, CI green on `3dfccd9` |
+| #123 | `docs:` llama.cpp trial prep: no `npm` field in the provider snippet, and this handoff prompt | draft |
+| #124 | `docs:` "Merging and auto-merge" in `CONTRIBUTING.md`: who can merge, why fork PRs can't do harm, the settings checklist | draft |
+
+**A1. Merge, in this order, each only with the owner's go:** #122, then #124, then #123.
+- **What to check before each merge:**
+  - CI is green on the PR's current head;
+  - read the diff;
+  - each PR body's Verification section lists what was and wasn't run.
+- **Expect a `CHANGELOG.md` conflict after each merge.** Every PR adds its entry at the top of `[Unreleased]`. To fix it:
+  - merge `main` into the next branch; never rebase or force-push;
+  - keep **both** entries, newest on top;
+  - push, and wait for CI again.
+- Mark the drafts ready first: `gh pr ready <n>`.
+
+**A2. After #122 merges, refresh this clone's line endings once,** so the new `.gitattributes` applies to files
+already checked out. In a clean tree, run `git rm -r --cached -q . ; git reset --hard`. Afterwards `git status`
+must be clean and `server/llamacpp/models.ini` must be LF.
+
+**A3. Apply the repository settings from `CONTRIBUTING.md` → "Merging and auto-merge"** (after #124 merges). Do it
+with `gh` rather than the web UI, showing the owner each command and its effect before running it.
+- The payloads below are written from memory of GitHub's REST API; this cloud session couldn't fetch GitHub's
+  docs.
+- **If a call is rejected,** read the error, fix the payload, or fall back to the web-UI steps in
+  `CONTRIBUTING.md`.
+- **Don't widen anything.** If unsure, leave a setting for the owner to set in the UI.
+- Pass JSON through a file with `--input`. Inline JSON from PowerShell gets mangled (the same trap as `--body` in
+  AGENTS.md).
+
+```powershell
+# 1. Allow auto-merge; delete merged branches.
+gh api -X PATCH repos/mkane848/HomeLab -F allow_auto_merge=true -F delete_branch_on_merge=true
+
+# 2. Ruleset on the default branch: PR required (0 approvals: a sole maintainer can't approve their own PRs, and
+#    agent PRs are opened under the owner's account), both CI jobs required, no force pushes, no deletion, no bypass.
+@'
+{
+  "name": "main",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "pull_request", "parameters": {
+        "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false, "require_last_push_approval": false,
+        "required_review_thread_resolution": false } },
+    { "type": "required_status_checks", "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          { "context": "syntax (ps1, sh, python, manifest)" },
+          { "context": "guards (Windows, pwsh 7)" } ] } }
+  ]
+}
+'@ | Set-Content -Encoding utf8NoBOM "$env:TEMP\ruleset.json"
+gh api -X POST repos/mkane848/HomeLab/rulesets --input "$env:TEMP\ruleset.json"
+
+# 3. Actions: read-only workflow token, Actions may not approve PRs.
+gh api -X PUT repos/mkane848/HomeLab/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false
+
+# 4. Fork PRs from outside collaborators wait for the owner's approval before any workflow runs.
+#    If this endpoint is rejected, set it in Settings -> Actions -> General instead.
+gh api -X PUT repos/mkane848/HomeLab/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors
+```
+
+**Then verify, and show the owner the output:**
+- `gh api repos/mkane848/HomeLab --jq '.allow_auto_merge, .delete_branch_on_merge'` prints `true` twice.
+- `gh api repos/mkane848/HomeLab/rulesets` lists `main` as active.
+- On the next open PR, its merge box shows both checks as required, and `gh pr merge <n> --auto --merge` is
+  accepted.
+- A direct `git push origin main` is rejected. Test it only with the owner's go, using a harmless commit you then drop locally.
+
+**After A3:** set auto-merge on a PR (`gh pr merge <n> --auto --merge`) only when the owner asks for it on that PR.
+The cloud session (it watches #122-#124) also has a scheduled check-in on #122 for 21:45 UTC. Merging is fine;
+it notices.
+
+## Part B: the llama.cpp trial window
 
 You are running Phase 1 of the llama.cpp engine trial on the home server, from the desktop. The owner approved
 Phases 0 and 1 only. Everything you need is in the repo. Read these first, in full, before running anything:

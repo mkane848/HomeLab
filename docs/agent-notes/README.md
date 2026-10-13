@@ -10,7 +10,9 @@ required reading if you're here for the homelab itself.
   to resume the hardware-recovery incident documented in
   [docs/server-recovery-cpu-led.md](../server-recovery-cpu-led.md) without
   losing context between sessions.
-- **[prompt-llamacpp-window.md](prompt-llamacpp-window.md)**: the handoff prompt for running the llama.cpp
+- **[prompt-llamacpp-window.md](prompt-llamacpp-window.md)**: the handoff prompt for a Claude Code session on the
+  desktop. Part A finishes GitHub housekeeping (merge order for PRs #122-#124, the auto-merge settings through `gh`).
+  Part B runs the llama.cpp
   trial's GPU window ([llamacpp-trial.md](../llamacpp-trial.md), Phase 1) from a Claude Code session on the
   desktop, which can reach the server over SSH. It adds operating rules (stop points, `sudo` left to the owner,
   settings held constant) on top of the runbook, which stays the authority. Written 2026-10-13.
