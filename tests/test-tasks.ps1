@@ -74,7 +74,11 @@
 # gate, which is how six unreachable-endpoint transcripts ("Cannot connect to
 # API", 307 bytes each) were recorded as a "6/6 liar mode" capability finding
 # for node3 and then cited in a config change. A missing row is the correct
-# record of a run that never happened.
+# record of a run that never happened. One exception (2026-10-13, the llama.cpp
+# trial): an exit of 1 whose only errors are context overflows the engine refused
+# explicitly, followed by a step that finished with "stop", did reach the model
+# and finish; it is graded and its run JSON records `overflowRecovery`
+# (Get-OverflowRecovery; tests/test-overflow-recovery.ps1).
 #
 # Which model/setting combos to compare is the whole point - run the same task
 # on each seat and the pass/fail table is the tuning signal. No config or
@@ -1114,6 +1118,49 @@ function Test-OutputCapHit {
     return ($Ending.FinishReason -eq "length" -and -not $Ending.LastStepHadContent -and [int]$Ending.OutputTokens -ge [int]$Limit)
 }
 
+function Get-OverflowRecovery {
+    # An engine that refuses an over-long request instead of cutting it (llama-server:
+    # HTTP 400, "exceeds the available context size") gives opencode 1.18.34 a
+    # ContextOverflowError; opencode compacts and carries on, but `opencode run` still
+    # exits 1 at the end because the session logged errors. The llama.cpp trial's C2
+    # run (2026-10-13, wp-2b) did exactly that: 14 overflows, then an edit, green tests
+    # and a closing summary, filed as _INFRA_. Such a run reached the model and
+    # finished, so it is gradable. Recovered = at least one error, every error a
+    # context overflow, and the last step after the last of them finished with "stop".
+    # Any other error, or no such step, leaves it infrastructure. Ollama never sends
+    # this error (it truncates silently), so no Ollama run is affected.
+    param([string]$Path)
+
+    $overflows = 0; $other = 0; $lastFinish = $null
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        switch ($e.Kind) {
+            "error"    { if ($e.Name -eq "ContextOverflowError") { $overflows++ } else { $other++ }; $lastFinish = $null }
+            "step-end" { $lastFinish = $e.Finish }
+        }
+    }
+    return [pscustomobject]@{
+        OverflowErrors = $overflows; OtherErrors = $other; LastFinish = $lastFinish
+        Recovered = ($overflows -gt 0 -and $other -eq 0 -and $lastFinish -eq "stop")
+    }
+}
+
+function Resolve-RecoveredOverflow {
+    # A run (or continued turn) that exited 1 only because of overflows it recovered
+    # from (Get-OverflowRecovery) is graded like an exit-0 run; the run JSON records
+    # it under `overflowRecovery`. Exit 1 is opencode's error exit; every other code
+    # (timeout, dead job host, ...) is left alone.
+    param($Run)
+
+    if ($null -eq $Run -or $Run.ExitCode -ne 1) { return $Run }
+    $rec = Get-OverflowRecovery -Path $Run.TranscriptPath
+    if ($rec.Recovered) {
+        $Run.ExitCode = 0
+        $script:OverflowExitsLifted++
+        Write-Host ("    {0} exited 1 after {1} context-overflow error(s) it recovered from (last step: stop): graded as exit 0" -f $script:AgentName, $rec.OverflowErrors) -ForegroundColor DarkGray
+    }
+    return $Run
+}
+
 function Get-OllamaGpuPlacement {
     # Where an Ollama host has the model $Tag loaded, from /api/ps: its total
     # size and the part of it in VRAM. Verdicts:
@@ -1720,7 +1767,9 @@ foreach ($tk in $tasksToRun) {
     $pluginRewrites = $null
     $runStart = [DateTimeOffset]::Now
     try {
+        $script:OverflowExitsLifted = 0
         $run = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+        $run = Resolve-RecoveredOverflow $run
         # Follow-up turns (`followUps`: fixed messages, e.g. the owner's "go
         # ahead" after a plan): each continues the same opencode session and
         # appends to the same transcript, with its own -RunTimeout. The run is
@@ -1738,6 +1787,7 @@ foreach ($tk in $tasksToRun) {
             }
             Write-Host ("    turn {0}: follow-up in session {1}" -f ($turnsRun + 1), $sessionId) -ForegroundColor DarkGray
             $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $fu -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Resolve-RecoveredOverflow $next
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1760,6 +1810,7 @@ foreach ($tk in $tasksToRun) {
             }
             Write-Host ("    nudge {0}: the run ended on prose after compaction {1}; continuing session {2}" -f ($nudgesSent + 1), $nudgeEvents.Compactions, $sessionId) -ForegroundColor DarkGray
             $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $script:CompactionNudgeText -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Resolve-RecoveredOverflow $next
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1782,6 +1833,7 @@ foreach ($tk in $tasksToRun) {
             $nudgeMessage = if ($stopKind -eq "ask") { $script:LostTaskNudgeText + "`n`n" + $prompt } else { $script:StopNudgeText }
             Write-Host ("    stop nudge {0}: the run stopped ({1}); continuing session {2}" -f ($stopNudgeKinds.Count + 1), $stopKind, $sessionId) -ForegroundColor DarkGray
             $next = Invoke-AgentRun -WtPath $wt.Wt -ModelId $Model -Prompt $nudgeMessage -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout -SessionId $sessionId -Transcript $run.TranscriptPath
+            $next = Resolve-RecoveredOverflow $next
             $next.ElapsedSec = [math]::Round($run.ElapsedSec + $next.ElapsedSec, 1)
             $run = $next
             $turnsRun++
@@ -1835,6 +1887,7 @@ foreach ($tk in $tasksToRun) {
     # Compactions, overflowed requests and the template crash an overflow causes
     # (Get-ContextEvents). Read before the transcript is archived.
     $ctxEvents = Get-ContextEvents -Path $run.TranscriptPath -NumCtx $numCtx
+    $overflowRec = Get-OverflowRecovery -Path $run.TranscriptPath
     # A run that never reached the model is not a result. opencode exits 0 even
     # when the model refuses to write (real liar mode), so ANY non-zero exit is
     # infrastructure: unreachable provider, bad model id, crash. Grading those as
@@ -1851,6 +1904,9 @@ foreach ($tk in $tasksToRun) {
             $firstErr  = Get-FirstTranscriptError -Path $run.TranscriptPath
             $errSuffix = if ($firstErr) { " - $firstErr" } else { "" }
             $runDetail = "$($script:AgentName) exited $($run.ExitCode) without a gradable run$errSuffix (prompt sha $($promptHashes[$tk.id])). Infrastructure failure, NOT model behaviour: not graded, no summary row."
+        }
+        if ($overflowRec.OverflowErrors -gt 0) {
+            $runDetail += " The engine refused $($overflowRec.OverflowErrors) over-long request(s) explicitly (ContextOverflowError), and the session did not end on a finished step after the last one ($($overflowRec.OtherErrors) other error(s); last finish: $(if ($overflowRec.LastFinish) { $overflowRec.LastFinish } else { 'none' })): overflow killed the run."
         }
         if ($ctxEvents.TemplateCrash) {
             $runDetail += " Cause: a context overflow. The request was longer than num_ctx, so Ollama dropped the oldest messages, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
@@ -2158,6 +2214,11 @@ foreach ($tk in $tasksToRun) {
         runTimeoutSec   = $RunTimeout
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
+        # Context overflows the engine refused explicitly (Get-OverflowRecovery), and
+        # how many agent exits of 1 they caused that were graded as 0 (exitsLifted).
+        overflowRecovery = $(if ($overflowRec.OverflowErrors -gt 0 -or $script:OverflowExitsLifted -gt 0) {
+            [ordered]@{ overflowErrors = $overflowRec.OverflowErrors; exitsLifted = $script:OverflowExitsLifted; lastFinish = $overflowRec.LastFinish }
+        } else { $null })
         gpuPlacement    = $gpuPlacement
         runHost         = $runHost
         phaseSeconds    = $phaseSec
