@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   UNVERIFIED comment; `docs/references.md` gains the source. The other open item that needs no server, the preset's
   sampling parameters, can't be settled from a cloud session (`registry.ollama.ai` and `ollama.com` unreachable there), so it
   stays runbook step 3.
+  The window itself will be run from a Claude Code session on the desktop (owner, 2026-10-13):
+  `docs/agent-notes/prompt-llamacpp-window.md` is its paste-ready handoff, with stop points, `sudo` left to the owner,
+  the baseline's settings held constant, and no Phase 2 without a new approval.
 
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was

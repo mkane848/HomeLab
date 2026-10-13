@@ -44,6 +44,8 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
   desktop seat), because step 0 stops the server's Ollama seat and daily requests would skew step 5's speeds and
   step 7's rounds. `dev-workflow-server`'s small model (the CPU 3b on the server) is unchanged until the trial is
   over, because the baseline rounds ran with it.
+  **Route chosen 2026-10-13: a Claude Code session on the desktop**, started with
+  [`agent-notes/prompt-llamacpp-window.md`](agent-notes/prompt-llamacpp-window.md).
 - [ ] Owner, with `sudo`: step 8's E1, `sudo systemctl daemon-reload` against the running llama container.
 - [ ] Append the numbers and the Gate G1 verdict under "Results" by a PR of their own, with the roadmap and CHANGELOG
   entries the gate section asks for.
