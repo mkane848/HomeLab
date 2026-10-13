@@ -16,7 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stays runbook step 3.
   The window itself will be run from a Claude Code session on the desktop (owner, 2026-10-13):
   `docs/agent-notes/prompt-llamacpp-window.md` is its paste-ready handoff, with stop points, `sudo` left to the owner,
-  the baseline's settings held constant, and no Phase 2 without a new approval.
+  the baseline's settings held constant, and no Phase 2 without a new approval. It also carries a side job for while
+  node3 is free: two unassisted reps of `qwen3:8b` on node3 over the seven public tasks it has old rows for, to tell
+  speed from capability now that its KV cache fits on the GPU (roadmap → "After the trial", item 2), stopped before the
+  trial's step 7, with the titles model kept off the server.
 
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was

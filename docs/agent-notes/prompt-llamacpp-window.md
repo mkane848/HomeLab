@@ -31,6 +31,36 @@ Phases 0 and 1 only. Everything you need is in the repo. Read these first, in fu
   - No other work on the server's CPU (the contention rule in `docs/target-setup.md`).
   - No gaming on the desktop: it is the run host for step 7.
 
+## Side job while node3 is free (owner, 2026-10-13): re-run `qwen3:8b` on node3
+
+node3 is available for a few hours. Use it for roadmap → "After the trial", item 2: does `qwen3:8b`'s weak task
+record on node3 come from speed or from capability? That record (12 graded rows over 7 public tasks, 2026-09-21..23)
+was earned with 19% of the seat in system RAM, decoding 10 to 17 tok/s at depth. Since 2026-10-13 node3 runs flash
+attention with a q8_0 KV cache, and the seat is 100% on the GPU (101 / 74 / 58 tok/s).
+
+- **When:** start it before the window's step 0, or during steps 0 to 6. Step 7's task rounds use the desktop as
+  the run host. Stop this job before step 7 even if it isn't finished; the rest is re-run later with `-OnlyMissing`.
+  Two harness processes on the desktop at once would skew the trial's wall-clock and `phaseSeconds`.
+- **First check node3:** `curl http://NODE3_IP:11434/api/version`, and `/api/ps` after the first run: `qwen3:8b`
+  must be on the GPU. Ask the owner whether node3 is free (it is a shared PC). Quit cleanly if it goes busy or
+  down. A down host gives `_INFRA_` rows, not capability results.
+- **Never touch the server.** `dev-node3.sh` points `OPENCODE_SMALL_MODEL` at the server. For this job set
+  `$env:OPENCODE_SMALL_MODEL = "ollama-node3/qwen3:8b"`, and `$env:OLLAMA_NODE3_BASE_URL` from `.env`, in the
+  shell that runs it. Record both in your notes: they are part of the config.
+- **The run:** unassisted, so it is comparable with the old rows: no nudge flags, default `-RunTimeout` 900. Two reps
+  of the seven tasks with old rows, run host the desktop, rows into `tests/results/` as usual:
+  ```powershell
+  $t = 'kane-01-background-pair','kane-02-multiword-creature-type','kane-03-saga-chapter-triggers','kane-04-singleton-up-to-n',
+       'lfc-01-listing-status-guard','asohav-01-library-write-reporting','asohav-02-changelog-uuid-id'
+  foreach ($rep in 1,2) { .\tests\test-tasks.ps1 -Task $t -Model ollama-node3/qwen3:8b }
+  ```
+- **Write-up:** a short dated section in `tests/results/README.md` and a CHANGELOG line:
+  - the new rows next to the old ones, per task;
+  - timeouts and `_INFRA_` counted separately;
+  - era differences named: OpenCode version, the compaction plugin since 2026-10-05, Ollama settings.
+
+  It goes in its own PR, not the trial's.
+
 ## Rules for the whole window
 
 - **Never touch Ollama's stack.** Don't write to the `docker_ollama_data` volume, edit
