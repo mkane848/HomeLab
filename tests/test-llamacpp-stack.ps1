@@ -101,7 +101,9 @@ if (-not $bash -or -not $python) {
                 [pscustomobject]@{ Exit = $LASTEXITCODE; Out = $out }
             } finally { $ErrorActionPreference = $prev }
         }
-        $iniText = [IO.File]::ReadAllText($ini)
+        # LF, whatever the checkout: Git for Windows defaults to core.autocrlf=true, and the mutations
+        # below search for multi-line text joined with `n (first seen on the CI Windows runner, 2026-10-13).
+        $iniText = [IO.File]::ReadAllText($ini) -replace "`r`n", "`n"
         function Mutate([string]$Name, [string]$Old, [string]$New) {
             if (-not $iniText.Contains($Old)) { throw "mutation '$Name': text not found in the preset: $Old" }
             $p = Join-Path $tmp "$Name.ini"

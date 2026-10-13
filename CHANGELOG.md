@@ -18,6 +18,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The settings are the owner's to flip in GitHub's web UI. This session has no tool for repository settings, and
   could not reach GitHub's docs to cite them.
 
+- **CI: syntax on Linux, every guard on Windows (2026-10-13, owner-approved).** `.github/workflows/checks.yml` runs on
+  every pull request and push to `main`. The `syntax` job (Ubuntu) parses all 53 `.ps1` files with the AGENTS.md
+  `ParseFile` wrapper, runs `bash -n` on all 22 `.sh` files, the 16 Python tests of `tests/test_llamacpp_check.py`, and
+  parses `tests/tasks/manifest.json`. The `guards` job (`windows-latest`, PowerShell 7, Node 24.18.0, `opencode-ai@1.18.34`)
+  runs `tests/run-guards.ps1` (new), which runs each `tests/test-*.ps1` in its own `pwsh` with an empty stdin and a
+  timeout (900 s, whole process tree ended), prints a table and each failure's log tail, writes the GitHub step summary,
+  and exits 1 on any guard not OK. Left out, with the reason in the script: `test-profiles`, `test-tasks` and
+  `test-toolcalls`, which need live hosts. Read-only token, no secrets, no `pull_request_target`. Why: a Linux sweep the
+  same day found 11 of the 28 guards runnable there; the rest need Windows (stand-in `opencode.cmd` shims, `%TEMP%`,
+  `taskkill`, `Win32_Process`), so script changes written in cloud sessions were first exercised on the desktop, which is
+  how the `python3` Store placeholder and the `test-task-pins` failure under 5.1 were found. AGENTS.md (Verification)
+  and the PR template name the workflow and the runner.
+  **Its first run (pwsh 7.6.6, Git for Windows defaults) passed 26 of 28 guards and found two real bugs, fixed here:**
+  - **Unsetting an environment variable silently stopped working on PowerShell 7.5+.** PowerShell binds `$null` to a
+    .NET string parameter as `""`; `SetEnvironmentVariable(name, "")` removed the variable on .NET 8 (pwsh 7.4, the
+    desktop's 7.4.20) and sets it to empty on .NET 9+ (pwsh 7.5+, node3's 7.6.6). So on node3 a task pinned "unset"
+    (`DATABASE_URL` for asohav-02/05/07/08, `MANAPOOL_API_KEY` for lfc-02) would have seen `''`, which Node's `??`
+    does not treat as missing, and every variable `Set-TaskTestEnv` or `Set-NoPushEnv` touched would have been left
+    as `''` after a run. `Set-TaskTestEnv` and `Restore-TaskTestEnv` (`tests/test-tasks.ps1`) and the launcher's env
+    restore (`desktop/scripts/opencode.ps1`) now pass `[NullString]::Value`, a true null. Reproduced on pwsh 7.6.6
+    on Linux (the same 4 FAILs as CI), then `test-task-env.ps1` 60 of 60 on 7.4.6 and 7.6.6; a control with the old
+    harness fails the same 4. The guard's own setup lines had the same trap and are fixed too, and
+    `test-opencode-profiles.ps1` now checks the variable is absent (`Test-Path`), not merely empty.
+  - **`test-llamacpp-stack.ps1` failed on any CRLF checkout** (Git for Windows defaults to `core.autocrlf=true`; the
+    repo has no `.gitattributes`): its preset mutations search for multi-line text joined with LF. It now normalises
+    the preset to LF before mutating. 36 of 36 on a CRLF and an LF copy.
+  - **`.gitattributes` (new, owner-approved):** `*.sh`, `*.ini`, `*.yml`, `*.yaml` and `*.py` are checked out with LF on
+    every machine, whatever `core.autocrlf` says, because they run on Linux. All 72 such files were already stored LF,
+    so nothing is rewritten in the repo; `.ps1`, Markdown and the rest keep each clone's own setting (some `.ps1` are
+    stored CRLF on purpose). An existing Windows clone keeps its CRLF copies until they are checked out again:
+    `git rm -r --cached -q . && git reset --hard` in a clean tree refreshes them.
+
 - **The daily default is the server, and the plans are reconciled with 2026-10-10..13 (owner review, 2026-10-13).**
   - **Changed behaviour:** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` by default (was
     `dev-workflow-quality`): the same `qwen3.6` weights on the server, at 2.2 to 3.4 times the desktop's prefill and

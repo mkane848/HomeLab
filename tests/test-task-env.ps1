@@ -124,7 +124,7 @@ try {
     Restore-TaskTestEnv $s
     Check "restore after an empty-string unset"                   (Env $A) "ambient"
 
-    [Environment]::SetEnvironmentVariable($A, $null)
+    [Environment]::SetEnvironmentVariable($A, [NullString]::Value)   # absent; $null would leave '' on pwsh 7.5+
     $s = Set-TaskTestEnv (Task-With @{ $A = "pinned" })
     Check "a pin sets a variable that was absent"                 (Env $A) "pinned"
     Restore-TaskTestEnv $s
@@ -182,7 +182,7 @@ try {
     Check "an exception in the command runner propagates (the premise of the next check)" $threw "True"
     Check "the process is restored even when the runner throws"   (Env $A) "ambient"
 
-    [Environment]::SetEnvironmentVariable($A, $null); [Environment]::SetEnvironmentVariable($B, $null)
+    [Environment]::SetEnvironmentVariable($A, [NullString]::Value); [Environment]::SetEnvironmentVariable($B, [NullString]::Value)
 
     # ---- 4. end to end ---------------------------------------------------------------------------
     Write-Host "-- end to end: the real test-tasks.ps1, a fixture repo, a stand-in opencode"

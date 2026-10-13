@@ -1,0 +1,109 @@
+# checks.yml - syntax on Linux, every regression guard on Windows.
+#
+# The guards (tests/test-*.ps1) are Windows-first: stand-in `opencode.cmd` shims, %TEMP%,
+# taskkill, Win32_Process. Most changes are written in Linux sessions that cannot run
+# them, so this is where a change to a script is first exercised the way the desktop
+# runs it. tests/run-guards.ps1 is the same run in one command on the desktop.
+#
+# Not run here, because they need live hosts: tests/test-profiles.ps1 (and its
+# -RoundTrip/-Reliability), tests/test-tasks.ps1 runs, tests/test-toolcalls.ps1. A PR
+# lists those under Verification as run on the desktop, or as not run.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: syntax (ps1, sh, python, manifest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PowerShell parses (every .ps1)
+        shell: pwsh
+        run: |
+          $bad = 0
+          $files = @(Get-ChildItem -Recurse -Filter *.ps1 -File | Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })
+          foreach ($f in $files) {
+            $errs = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+            if ($errs.Count) { $bad++; $errs | ForEach-Object { Write-Host "::error file=$($f.FullName),line=$($_.Extent.StartLineNumber)::$($_.Message)" } }
+          }
+          Write-Host "$($files.Count) .ps1 file(s), $bad with parse errors"
+          if ($bad) { exit 1 }
+
+      - name: bash -n (every .sh)
+        run: |
+          bad=0; n=0
+          while IFS= read -r -d '' f; do
+            n=$((n+1))
+            bash -n "$f" || { echo "::error file=$f::bash -n failed"; bad=$((bad+1)); }
+          done < <(find . -name '*.sh' -not -path './.git/*' -print0)
+          echo "$n .sh file(s), $bad with syntax errors"
+          [ "$bad" -eq 0 ]
+
+      - name: Python unit tests (llamacpp_check)
+        run: python3 -m unittest -v tests/test_llamacpp_check.py
+
+      - name: Task manifest parses
+        shell: pwsh
+        run: |
+          $m = Get-Content -Raw tests/tasks/manifest.json | ConvertFrom-Json
+          Write-Host "tests/tasks/manifest.json: $(@($m.tasks).Count) task(s)"
+
+  guards:
+    name: guards (Windows, pwsh 7)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the guards build throwaway repos and worktrees and read history
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0   # the desktop's and node3's version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # test-compaction-plugin.ps1 runs the plugin inside a real `opencode serve` and
+      # FAILs on any opencode but the one its hooks were read at (AGENTS.md).
+      - name: Install opencode 1.18.34 (pinned)
+        run: |
+          npm install -g opencode-ai@1.18.34
+          opencode --version
+
+      - name: Git identity (as on a signed-in desktop)
+        run: |
+          git config --global user.name "homelab-ci"
+          git config --global user.email "homelab-ci@users.noreply.github.com"
+
+      - name: Run every guard
+        run: |
+          $PSVersionTable.PSVersion.ToString()
+          ./tests/run-guards.ps1 -LogDir "$env:RUNNER_TEMP/guard-logs"
+
+      - name: Upload guard logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-logs
+          path: ${{ runner.temp }}/guard-logs
+          if-no-files-found: ignore
