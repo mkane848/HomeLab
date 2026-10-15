@@ -289,9 +289,12 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 1. **node3 as the run host** (step 5): a per-host repo-root map in the harness (the manifests hard-code `M:/…` and
    `C:/Projects/…`, and node3 has only `C:\HomeLab\repos\`), node3's OpenCode config, the harness checkout there, then
    the control run: model on the server, tools on node3.
-2. **`qwen3:8b` re-run on the fixed node3.** Its task record there was earned with 19% of the seat in system RAM,
-   decoding 10 to 17 tok/s at depth; it now decodes 4 to 5 times faster there. One small batch says how much of its
-   weak record was speed (time limits, long waits per step) and how much capability. Its 32k context still limits it.
+2. ~~**`qwen3:8b` re-run on the fixed node3.**~~ **Done 2026-10-13, early, while node3 was free during the trial
+   window: speed was not what held it back.** All on the GPU and running at about the server's speed, it fully passed
+   0 of 12 graded rows (7 public tasks × 2, unassisted; 2 more timed out), against 1 of 6 valid old rows. Its record is
+   capability; its 32k context and 4096-token output limit are unchanged. Details in
+   [`tests/results/README.md`](../tests/results/README.md) → "node3's `qwen3:8b` re-run". node3 then moved itself to
+   Ollama 0.40.4 (2026-10-14) and now has the desktop's update block.
 3. **The first round under stop classifier 3** (the trial pins classifier 2, so this waits).
 4. **An option to put task worktrees outside the checkout.** In round 2, `real-01` edited the checkout's own
    `AGENTS.md` one directory up (step 3). Once in 60 runs: a suspect, but the fix is cheap. It waits because the trial

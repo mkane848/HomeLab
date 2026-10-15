@@ -291,3 +291,15 @@ timestamp	taskId	model	modelLabel	baseCommit	opencodeExit	writes	scope	suite	fai
 2026-10-04T17:23:54	asohav-04-neutral-status-polarity	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	f15a58cb9ef29c3b511caa0d88949a7b10686874	0	5	PASS	FAIL	SKIP	SKIP	243.9
 2026-10-04T17:25:16	asohav-07-rapport-clamp	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	d73d6c978f478e3aca5fb836683fcfe639debd43	0	2	PASS	PASS	PASS	SKIP	67.6
 2026-10-04T17:30:14	asohav-08-end-combat-clears-strain	ollama-desktop/qwen3.5:9b	ollama-desktop/qwen3.5:9b	9afb9112b0e2596edac0e7fe4055149512ab3b62	0	9	PASS	PASS	PASS	SKIP	284.5
+2026-10-13T16:30:16	kane-01-background-pair	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	24	PASS	FAIL	SKIP	WARN	278.4
+2026-10-13T16:36:17	lfc-01-listing-status-guard	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	4906dc2881d362bda2006d3407e0ba63e005b91b	0	20	FAIL	PASS	FAIL	PASS	347.6
+2026-10-13T16:37:22	kane-02-multiword-creature-type	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	0e9b703047d37e31abbccbda2c9de175ae3e33cb	0	0	FAIL	PASS	FAIL	SKIP	63.5
+2026-10-13T16:38:18	kane-03-saga-chapter-triggers	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	4029a94a8bd5a22df1f3dcf819719c0e448270b4	0	2	FAIL	PASS	FAIL	SKIP	38.7
+2026-10-13T16:43:41	kane-04-singleton-up-to-n	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	420372615ef8b95566dc8ab24039c1532830fdbf	0	45	PASS	FAIL	SKIP	SKIP	320.9
+2026-10-13T16:59:47	asohav-02-changelog-uuid-id	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	d83381ad650b3474a50310e0dd3441a03cd89706	0	4	PASS	FAIL	SKIP	SKIP	48.8
+2026-10-13T17:02:34	kane-01-background-pair	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	92a8ed0df10262cc878d4d214d0a312d542375ec	0	2	PASS	PASS	FAIL	WARN	157.5
+2026-10-13T17:19:18	kane-02-multiword-creature-type	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	0e9b703047d37e31abbccbda2c9de175ae3e33cb	0	4	PASS	FAIL	SKIP	SKIP	100.2
+2026-10-13T17:22:30	kane-03-saga-chapter-triggers	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	4029a94a8bd5a22df1f3dcf819719c0e448270b4	0	11	FAIL	PASS	FAIL	SKIP	187.7
+2026-10-13T17:24:58	kane-04-singleton-up-to-n	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	420372615ef8b95566dc8ab24039c1532830fdbf	0	8	FAIL	PASS	FAIL	SKIP	146.5
+2026-10-13T17:27:13	asohav-01-library-write-reporting	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	c6bc1fdf9205daeebb46c469630d3cc61d6aaaa5	0	15	PASS	PASS	FAIL	SKIP	128.8
+2026-10-13T17:30:10	asohav-02-changelog-uuid-id	ollama-node3/qwen3:8b	ollama-node3/qwen3:8b	d83381ad650b3474a50310e0dd3441a03cd89706	0	10	PASS	FAIL	SKIP	SKIP	173.1
