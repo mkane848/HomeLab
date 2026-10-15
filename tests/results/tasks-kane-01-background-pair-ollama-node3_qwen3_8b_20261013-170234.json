@@ -1,0 +1,114 @@
+{
+  "timestamp": "2026-10-13T17:02:34",
+  "taskId": "kane-01-background-pair",
+  "taskTitle": "KaneEnabler: fix the Background-pairing eligibility bug in deck-validation",
+  "model": "ollama-node3/qwen3:8b",
+  "modelLabel": "ollama-node3/qwen3:8b",
+  "baseCommit": "92a8ed0df10262cc878d4d214d0a312d542375ec",
+  "promptSha256": "EFEF5E6EF63E",
+  "opencodeExit": 0,
+  "writes": 2,
+  "finishReason": "stop",
+  "lastStepOutput": 436,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "checklist": null,
+  "pushGuard": "on (Set-NoPushEnv: git network pushes rewritten to https://push-disabled-by-test-tasks.invalid/; gh token invalid)",
+  "turns": 1,
+  "opencodePlugins": [
+    "file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js"
+  ],
+  "compactionPluginRewrites": 0,
+  "nudges": null,
+  "stopNudges": null,
+  "gates": {
+    "scope": "PASS",
+    "suite": "PASS",
+    "failsOnOld": "FAIL"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/commander-recommender/server/src/services/deckValidation.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "WARN",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "hash": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 157.5,
+  "runTimeoutSec": 900,
+  "ollamaVersion": "ollama version is 0.34.2",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.2",
+    "endpoint": "http://192.168.1.235:11434",
+    "provider": "ollama-node3"
+  },
+  "gpuPlacement": {
+    "checked": true,
+    "verdict": "gpu",
+    "model": "qwen3:8b",
+    "totalGB": 7.64,
+    "vramGB": 7.64,
+    "share": 1.0,
+    "note": "7.64 GB, 7.64 GB in VRAM"
+  },
+  "runHost": {
+    "name": "MIKE-DESKTOP",
+    "cpu": "AMD Ryzen 7 5800X3D 8-Core Processor",
+    "cores": 8,
+    "logicalProcessors": 16,
+    "os": "Microsoft Windows NT 10.0.26200.0"
+  },
+  "phaseSeconds": {
+    "install": null,
+    "setup": null,
+    "baseline": 1.0,
+    "suite": 1.0,
+    "typecheck": 1.0,
+    "acceptance": null
+  },
+  "opencodeVersion": "1.18.34",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.34"
+  },
+  "numCtx": "unset (server default)",
+  "promptTruncation": "not checked (http://192.168.1.235:11434 is not local; its server.log is on that host)",
+  "contextEvents": {
+    "compactions": 0,
+    "endedAfterCompaction": false,
+    "endedWithoutToolCall": true,
+    "frontDrops": [],
+    "askedForTask": [],
+    "peakPromptTokens": 10699,
+    "compactionConfig": {
+      "limitContext": 32768,
+      "limitInput": null,
+      "limitOutput": 4096,
+      "reserved": null,
+      "threshold": 28672
+    }
+  },
+  "testEnv": null,
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-kane-01-background-pair-ollama-node3_qwen3_8b_20261013-170234.jsonl",
+  "usage": {
+    "input": 10694.0,
+    "output": 2241.0,
+    "reasoning": 0.0,
+    "cacheRead": 8392.0,
+    "cacheWrite": 0.0,
+    "steps": 2
+  },
+  "costEstimate": null,
+  "outsideWrites": []
+}

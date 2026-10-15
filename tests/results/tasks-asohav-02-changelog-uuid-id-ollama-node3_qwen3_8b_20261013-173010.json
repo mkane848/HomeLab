@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-10-13T17:30:10",
+  "taskId": "asohav-02-changelog-uuid-id",
+  "taskTitle": "ASoHaVCompanionApp: stop generating a non-UUID id for a column the database already defaults to a real UUID",
+  "model": "ollama-node3/qwen3:8b",
+  "modelLabel": "ollama-node3/qwen3:8b",
+  "baseCommit": "d83381ad650b3474a50310e0dd3441a03cd89706",
+  "promptSha256": "15771B923DC9",
+  "opencodeExit": 0,
+  "writes": 10,
+  "finishReason": "stop",
+  "lastStepOutput": 735,
+  "outputLimit": 4096,
+  "outputCapHit": false,
+  "grading": "gates",
+  "checklist": null,
+  "pushGuard": "on (Set-NoPushEnv: git network pushes rewritten to https://push-disabled-by-test-tasks.invalid/; gh token invalid)",
+  "turns": 1,
+  "opencodePlugins": [
+    "file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js"
+  ],
+  "compactionPluginRewrites": 1,
+  "nudges": null,
+  "stopNudges": null,
+  "gates": {
+    "scope": "PASS",
+    "suite": "FAIL",
+    "failsOnOld": "SKIP"
+  },
+  "scopeDetail": {
+    "mode": "allowFiles",
+    "files": [
+      "apps/server/src/repo.ts",
+      "apps/server/src/repo.changelog.test.ts"
+    ],
+    "lines": null,
+    "hits": []
+  },
+  "typecheck": "SKIP",
+  "acceptance": {
+    "status": "SKIP",
+    "ref": null,
+    "commit": null,
+    "hash": null,
+    "detail": "task defines no acceptance block"
+  },
+  "elapsedSec": 173.1,
+  "runTimeoutSec": 900,
+  "ollamaVersion": "ollama version is 0.34.2",
+  "servingEngine": {
+    "name": "ollama",
+    "version": "0.34.2",
+    "endpoint": "http://192.168.1.235:11434",
+    "provider": "ollama-node3"
+  },
+  "gpuPlacement": {
+    "checked": true,
+    "verdict": "gpu",
+    "model": "qwen3:8b",
+    "totalGB": 7.64,
+    "vramGB": 7.64,
+    "share": 1.0,
+    "note": "7.64 GB, 7.64 GB in VRAM"
+  },
+  "runHost": {
+    "name": "MIKE-DESKTOP",
+    "cpu": "AMD Ryzen 7 5800X3D 8-Core Processor",
+    "cores": 8,
+    "logicalProcessors": 16,
+    "os": "Microsoft Windows NT 10.0.26200.0"
+  },
+  "phaseSeconds": {
+    "install": null,
+    "setup": null,
+    "baseline": 2.0,
+    "suite": 2.0,
+    "typecheck": null,
+    "acceptance": null
+  },
+  "opencodeVersion": "1.18.34",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.34"
+  },
+  "numCtx": "unset (server default)",
+  "promptTruncation": "not checked (http://192.168.1.235:11434 is not local; its server.log is on that host)",
+  "contextEvents": {
+    "compactions": 1,
+    "endedAfterCompaction": true,
+    "endedWithoutToolCall": true,
+    "frontDrops": [],
+    "askedForTask": [],
+    "peakPromptTokens": 28206,
+    "compactionConfig": {
+      "limitContext": 32768,
+      "limitInput": null,
+      "limitOutput": 4096,
+      "reserved": null,
+      "threshold": 28672
+    }
+  },
+  "testEnv": {
+    "DATABASE_URL": null
+  },
+  "samplingControl": "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop).",
+  "transcriptFile": "tasks-asohav-02-changelog-uuid-id-ollama-node3_qwen3_8b_20261013-173010.jsonl",
+  "usage": {
+    "input": 34331.0,
+    "output": 9105.0,
+    "reasoning": 0.0,
+    "cacheRead": 249565.0,
+    "cacheWrite": 0.0,
+    "steps": 13
+  },
+  "costEstimate": null,
+  "outsideWrites": []
+}

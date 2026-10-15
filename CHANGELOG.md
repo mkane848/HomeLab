@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: node3's `qwen3:8b` re-run, speed was not what held it back (2026-10-13/14).** The roadmap's "After the
+  trial" item 2, run early from the desktop while node3 was free: the seven public tasks it had old rows for, two reps
+  each, unassisted, with the seat all on the GPU (flash attention, `q8_0` KV) and its small model pinned to node3.
+  **0 full passes in 12 graded rows** (2 more timed out with no row), against 1 of 6 valid old rows; runs took 39 to
+  348 s instead of 317 to 1,227. So its weak record was capability, not speed. The 12 rows and their run files are in
+  `tests/results/`, written up in `tests/results/README.md` → "node3's `qwen3:8b` re-run". Afterwards a Windows Update
+  restart let node3's Ollama tray updater install 0.40.4 (2026-10-14). All the rows are 0.34.2, so the two timeouts
+  were not re-run. node3 now has the desktop's update block (`desktop/scripts/pin-ollama-desktop.ps1`, its firewall
+  rule), and `qwen3:8b` passes the tool-call probe on 0.40.4 (`toolcalls-summary.tsv`). Owner, 2026-10-14: stay on the
+  newest Ollama unless problems turn up, but upgrade on purpose (updaters blocked, re-probe, a new era).
+
 - **docs: merging and auto-merge, set up safely (2026-10-13, owner's request).** `CONTRIBUTING.md` gains "Merging and
   auto-merge":
   - **who can merge:** only the owner, the sole admin;
