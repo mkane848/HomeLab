@@ -115,6 +115,41 @@ suits an agent loop (most of each step's prompt is cached). At 30k neither is go
 prefill (14 minutes) and 17 decode; with the desktop's settings the one 30k request that completed read 50.5. A dense 8B model
 on Vulkan loses most of its prefill speed with depth, and the settings do not change that.
 
+## node3's `qwen3:8b` re-run: speed was not what held it back (2026-10-13, `tasks-summary.tsv`)
+
+The roadmap's "After the trial" item 2, run early while node3 was free during the llama.cpp trial window. Its old task
+record was earned with 19% of the seat in system RAM, decoding 10 to 17 tok/s at depth; with flash attention and a
+`q8_0` KV cache (section above) the seat is all on the GPU and decodes 4 to 5 times faster. The question: how much of the
+weak record was speed (time limits, long waits per step), and how much capability?
+
+**Setup.** The seven public tasks it has old rows for, two reps each, **unassisted** (no nudges), the default 900 s run
+timeout. Run host the desktop (`runHost` `MIKE-DESKTOP`), opencode 1.18.34, node3 on Ollama 0.34.2, `qwen3:8b` at the
+machine default context of 32,768, `limit.output` 4096. The small model was pinned to node3 too
+(`OPENCODE_SMALL_MODEL=ollama-node3/qwen3:8b`), so nothing touched the server. Every graded run's `gpuPlacement` reads
+`gpu`, share 1.
+
+**Result: 0 full passes in 12 graded rows**, plus 2 timeouts with no row (`asohav-01` rep 1, `lfc-01` rep 2). The old
+record was 1 full pass (`kane-04`, 2026-09-22) in 6 valid rows; its other 6 rows never reached the model ("Never reached
+the model" below).
+
+| how the 12 failed | rows |
+|---|---|
+| broke the suite | 5: `kane-01` rep 1, `kane-02` rep 2, `kane-04` rep 1 (45 writes), `asohav-02` × 2 |
+| out of scope, or no change | 5: `lfc-01` rep 1, `kane-02` rep 1 (output cap hit, 0 writes), `kane-03` × 2, `kane-04` rep 2 (output cap hit after 8 writes) |
+| only `failsOnOld` (its test also passes on the old source) | 2: `kane-01` rep 2, `asohav-01` rep 2 |
+
+No run lost its prompt (no front-drop, no `askedForTask`); two compacted once. Graded runs took 39 to 348 s, against 317
+to 1,227 s for the old valid rows. **So the seat now works at about the server's speed and does no better:** its record
+was capability, not speed. 0 of 12 against 1 of 6 is too few runs to call worse. Its 32k context and 4096-token output
+limit are unchanged.
+
+**node3's Ollama moved afterwards.** A Windows Update restart on 2026-10-14 brought Ollama back at login, and its tray
+updater installed 0.40.4 (node3 never had the desktop's update block). Every row above is 0.34.2. The two timeouts were
+not re-run: on 0.40.4 they would be a different era. node3 now has the same outbound firewall rule as the desktop
+(`desktop/scripts/pin-ollama-desktop.ps1`), and `qwen3:8b` passes the tool-call probe on 0.40.4
+(`toolcalls-summary.tsv`, 2026-10-14). 0.40.4 still cuts an over-long prompt silently; that probe is recorded with the
+llama.cpp trial's results.
+
 ## Assisted runs: `compaction-nudge/`
 
 The 2026-10-04/05 compaction-nudge diagnostic (`docs/roadmap.md` → "Context
