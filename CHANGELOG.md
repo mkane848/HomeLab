@@ -32,10 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `tests/test-tasks.ps1` grades an `opencode run` that exits 1 only because it recovered from context overflows
       (`Get-OverflowRecovery`; new guard `tests/test-overflow-recovery.ps1`). opencode 1.18.34 exits 1 after any
       overflow; Ollama never sends one, so no Ollama row changes.
-  - **Raw rows:** `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv` and `bench-speed.tsv`. Task
-    runs are assisted and stay private.
+  - **Raw rows:** `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv`, `bench-speed.tsv` and
+    `llamacpp-soak.tsv`. Task runs are assisted and stay private.
   - **The window is closed.** llama-server is down, the `ollama/ollama:0.40.3` image is removed, and the server's
-    Ollama serves `qwen3.6` on the GPU again. Phase 2 needs its own approval.
+    Ollama serves `qwen3.6` on the GPU again; the unused `ollama/ollama:latest` (0.33.3) image went too.
+  - **Phase 2 approved (owner, 2026-10-16)**, scoped as the roadmap outlines it. Placement on llama.cpp hosts is
+    `nvidia-smi` over ssh. The fix for files bigger than the window is its own item after Phase 2, and the "After the
+    trial" list follows Phase 2.
 
 - **results: node3's `qwen3:8b` re-run, speed was not what held it back (2026-10-13/14).** The roadmap's "After the
   trial" item 2, run early from the desktop while node3 was free: the seven public tasks it had old rows for, two reps

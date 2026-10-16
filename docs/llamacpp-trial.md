@@ -341,7 +341,7 @@ and the [Ollama releases](https://github.com/ollama/ollama/releases). Short name
 ## Results
 
 **Phase 1 ran 2026-10-13 to 16** on the server, from a Claude Code session on the desktop (run host: the desktop for every
-task run). Raw rows: `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv`, `bench-speed.tsv`. Task runs
+task run). Raw rows: `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv`, `bench-speed.tsv`, `llamacpp-soak.tsv`. Task runs
 are assisted (nudged) and stay in the private results (`llamacpp-c2`, `llamacpp-lostbrief`, `llamacpp-round`).
 
 **Gate G1: go.** Every row passes (table at the end of this section). The mechanism row passes on the owner's reading,
@@ -497,7 +497,7 @@ and cannot show a win.
   an HTTP hint (85 tok/s for `qwen3.6`, 14.5 for the CPU 3b) but not a signal: CPU contention alone has taken
   `qwen3.6` to ~20 tok/s. Phase 2's placement check needs the ssh call or a small HTTP wrapper for `nvidia-smi`.
 - **E3 soak: clean.** 2026-10-14 15:44 to 2026-10-15 15:44 UTC, `qwen3:8b` and `qwen3.6` alternately every 10 min
-  (`server/scripts/llamacpp-soak.sh`): **144 of 144 cycles ok**. Every load succeeded and every request returned 200;
+  (`server/scripts/llamacpp-soak.sh`; its 144 rows are `tests/results/llamacpp-soak.tsv`): **144 of 144 cycles ok**. Every load succeeded and every request returned 200;
   the container stayed `healthy` with 0 restarts.
 
   | seat | cycles | load (s) | VRAM after load | host RAM in use, mean per 6 h block |
