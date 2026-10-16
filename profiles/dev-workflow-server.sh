@@ -51,6 +51,13 @@ export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://${SERVER_IP:-SER
 export OLLAMA_DESKTOP_URL="http://localhost:11434"
 export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:11434/v1}"
 
+# llama.cpp providers (docs/roadmap.md -> "Replacing Ollama", Phase 2). {env:...} has
+# no fallbacks, so every live profile exports the server's endpoint even if it seats
+# nothing there. The desktop and node3 have no llama-server until Phases 4 and 5.
+export LLAMACPP_SERVER_BASE_URL="${LLAMACPP_SERVER_BASE_URL:-http://${SERVER_IP:-SERVER_IP}:8090/v1}"
+export LLAMACPP_SERVER_SSH="${LLAMACPP_SERVER_SSH:-server}"
+export LLAMACPP_DESKTOP_BASE_URL="${LLAMACPP_DESKTOP_BASE_URL:-http://localhost:8090/v1}"
+
 # MAIN SEAT = qwen3.6 (a tool-capable seat; the probe above is the gate). A
 # qwen2.5-coder or deepseek-r1 tag here makes the agent chat-only: it describes
 # edits it never made. Those tags stay installed for deliberate no-tools use.

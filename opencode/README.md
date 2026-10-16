@@ -129,6 +129,8 @@ vars via `{env:...}` substitution:
 | `ollama-server` | `{env:OLLAMA_SERVER_BASE_URL}` | None | Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3 8B/14B, GLM4 9B, Gemma3 12B, Codestral, GPT-OSS 20B, QwQ 32B |
 | `ollama-desktop` | `{env:OLLAMA_DESKTOP_BASE_URL}` | None | Qwen3 14B/8B (baked 32k), Qwen Coder 14B/7B/3B (+ `-16k` bake), DeepSeek-R1 16k/32k (baked) + base 14b, Devstral 24B, Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B |
 | `ollama-node3` | `{env:OLLAMA_NODE3_BASE_URL}` | None | Qwen3 8B (tool-capable seat), GLM4 9B (no-tools) |
+| `llamacpp-server` | `{env:LLAMACPP_SERVER_BASE_URL}` (port 8090) | None | Qwen3.6 35B-A3B, Qwen3 8B, Qwen2.5 Coder 3B CPU (text only; the llama.cpp twin of `ollama-server`) |
+| `llamacpp-desktop`, `llamacpp-node3` | `{env:LLAMACPP_DESKTOP_BASE_URL}`, `{env:LLAMACPP_NODE3_BASE_URL}` | None | same three seats, registered ahead of Phases 4 and 5: no llama-server runs on those hosts yet |
 
 > **No `:-default` fallbacks.** OpenCode's `{env:...}` substitution does not
 > support shell-style defaults — `{env:VAR:-foo}` resolves to an empty string,
