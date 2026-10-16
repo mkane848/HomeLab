@@ -468,7 +468,7 @@ the first 13 were rebuilt from their run JSONs:
 | | |
 |---|---|
 | passed | **11 of 15** on every gate: `real-01`, `real-03`, `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`, `wp-4a`, `wp-6a`, `wp-6f`, `wp-7a`, `wp-9a` |
-| failed | `real-02` (0 edits: "AGENTS.md is already up to date"); `wp-3b` (hidden tests 210/210, but 612 lines changed against a 400-line ceiling); `wp-5a` (0 edits: after a compaction it named its task and asked "Shall I proceed?"; classifier 3 would have nudged it, the trial holds classifier 2); `wp-5b` (2 visible tests broken, hidden tests 246/247: it adds Bond instead of spending it on a negative delta; it failed in every Ollama round too) |
+| failed | `real-02` (0 edits: "AGENTS.md is already up to date"); `wp-3b` (hidden tests 210/210, but 612 lines changed against a 400-line ceiling); `wp-5a` (0 edits: after a compaction it named its task and asked "Shall I proceed?"; classifier 3 would have nudged it, the trial holds classifier 2); `wp-5b` (2 visible tests broken, hidden tests 246/247; it failed in every Ollama round too) |
 | overflows | 16, all recovered (`wp-2b` 3, `wp-4a` 7, `wp-5a` 5, `wp-5b` 1) |
 | wall time | 5,191 s for the 15 tasks; the four Ollama classifier-2 rounds took 6,054 to 10,114 s (mean 8,016) |
 | Ollama classifier-2 rounds | every gate: 11, 12, 11, 11 of 15 (mean 11.25); hidden tests alone: 12, 12, 11, 11 (the roadmap's "12 of 15 in each rep" for round 2 counts this way). `nudged-server-2` and `-3`, two rounds each, 2026-10-12/13; `wp-5b` failed in all four, `real-02` in three. The first server round (classifier 1) scored 10 both ways |
