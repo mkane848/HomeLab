@@ -12,8 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (b11561) launches each child with `--alias <router id>` and rewrites colon ids, so `qwen3.6:35b-a3b-coding` (child
   `--alias qwen3.6:CODING`) read `not-loaded` while it sat on the GPU. It now asks `/models` for the seat's id and aliases
   and accepts a child carrying any of them (case-sensitive; `/models` unreachable falls back to the tag), and the
-  not-loaded note names every name it looked for. `tests/test-engine-adapter.ps1` gained 11 checks (a rewritten id on and
-  off the GPU, `/models` down, no cross-match between seats).
+  not-loaded note names every name it looked for, and its `gpu` note gives decimal GB, as `vramGB` and the Ollama adapter
+  do (it said 14.56 GiB beside a `vramGB` of 15.64). `tests/test-engine-adapter.ps1` gained 12 checks (a rewritten id on
+  and off the GPU, `/models` down, no cross-match between seats, the note's GB).
+
+- **docs: Phase 2 checked live and done (2026-10-16).** A short server window after #128 to #130: `autoload=false`
+  never loads a seat, the `/v1/models` shape, the `server-llamacpp` round trip (21 PASS), one graded task per engine
+  through the real harness (both PASS, `engine` recorded), and the batch probing both llama.cpp seats (2 PASS rows in
+  `tests/results/toolcalls-summary-llamacpp.tsv`). Recorded in `docs/llamacpp-trial.md` → "Phase 2 live window" and
+  the roadmap; AGENTS.md's server line no longer says Phase 2 awaits approval.
 
 - **tests: the batch drives Ollama and llama.cpp hosts through the engine adapters, and the registry gets an `engine`
   column (Phase 2b of "Replacing Ollama", 2026-10-16).**

@@ -198,5 +198,5 @@ function Get-EngineGpuPlacement {
         if ($pids -contains $Matches[1]) { $onGpu = $true; $mib += [double]$Matches[2] }
     }
     if (-not $onGpu) { return (& $result "cpu-only" 0 "$want (pid $($pids -join ',')) is not among the GPU compute processes on ${sshHost}: it runs on the CPU") }
-    return (& $result "gpu" ($mib * 1048576) "$([math]::Round($mib / 1024, 2)) GB in VRAM (nvidia-smi on $sshHost, pid $($pids -join ','))")
+    return (& $result "gpu" ($mib * 1048576) "$([math]::Round($mib * 1048576 / 1e9, 2)) GB in VRAM (nvidia-smi on $sshHost, pid $($pids -join ','))")
 }

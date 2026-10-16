@@ -246,7 +246,10 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      - the client-side fix for files bigger than the window (`kane-08`'s loop) is its own item after Phase 2;
      - Phase 2 goes before the "After the trial" list.
 
-     Phases 3–6 each still need their own go.
+     **Phase 2 done 2026-10-16:** PRs #128 to #130, then a live window on the server (the twin profile's round trip,
+     one graded task per engine through the real harness, the batch probing both llama.cpp seats; `docs/llamacpp-trial.md`
+     → "Phase 2 live window"). The window found one defect, the ssh placement check missing a seat whose router id is
+     rewritten, fixed in the PR that records it. Phases 3–6 each still need their own go; next is the large-file fix.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
@@ -2741,7 +2744,8 @@ The trial needs a download, so it waits for the owner's go-ahead.
 own owner go-ahead after the gate before it. Ollama stays running and unmodified until Phase 6, so rollback is pointing
 a profile back; every engine is a new era (re-probe every seat, re-measure every context and VRAM figure, never compare
 across engines as if nothing changed); `ollama-*` provider ids are never renamed, because 278 summary rows cite them.
-- **Phase 2, engine adapter (Gate G1 go 2026-10-16; approved by the owner the same day).** GPU placement for llama.cpp
+- **Phase 2, engine adapter (Gate G1 go 2026-10-16; approved by the owner the same day; done the same day, PRs #128
+  to #130 plus the live window).** GPU placement for llama.cpp
   hosts is `nvidia-smi --query-compute-apps` over ssh (owner, 2026-10-16). Mirror `tests/agents/opencode.ps1`: `tests/engines/ollama.ps1`
   (extracted) and `tests/engines/llamacpp.ps1` behind one interface (liveness, version, served models, served context,
   prompt-loss detection, GPU placement, base URL), and move the call sites behind it (`Get-OllamaPromptTruncation`,

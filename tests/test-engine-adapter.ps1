@@ -327,6 +327,8 @@ exit 0
             $p = Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat
             Check "placement: a rewritten router id is found: gpu" "$($p.Verdict) $($p.VramBytes)" "gpu $(14894 * 1048576)"
             Has   "...the detail names the pid"                $p.Detail 'pid 181743'
+            # decimal GB, as the harness's vramGB (bytes / 1e9) and the Ollama adapter report it
+            Has   "...the detail's GB agrees with VramBytes"   $p.Detail '^15\.62 GB in VRAM'
             Check "placement: a rewritten id, not on the GPU: cpu-only" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3:8b").Verdict "cpu-only"
             Check "...the 3b (no rewrite) is cpu-only"         (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen2.5-coder-3b-cpu").Verdict "cpu-only"
             Check "...asked by the router id itself"           (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3.6:CODING").Verdict "gpu"
