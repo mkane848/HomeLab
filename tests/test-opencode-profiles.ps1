@@ -35,10 +35,10 @@ $fixture = Join-Path $tmp "repo"
 $bin = Join-Path $tmp "bin"
 $record = Join-Path $tmp "record.txt"
 New-Item -ItemType Directory -Force (Join-Path $fixture "profiles\parked"), (Join-Path $fixture "desktop\scripts"), $bin | Out-Null
-foreach ($p in "dev-workflow-quality", "dev-workflow-resident", "dev-desktop-only", "dev-node3", "select-model") {
+foreach ($p in "dev-workflow-server", "dev-workflow-server-llamacpp", "dev-workflow-quality", "dev-workflow-resident", "dev-desktop-only", "dev-node3", "select-model") {
     Set-Content (Join-Path $fixture "profiles\$p.sh") "# fixture"
 }
-Set-Content (Join-Path $fixture "profiles\parked\dev-workflow-server.sh") "# fixture"
+Set-Content (Join-Path $fixture "profiles\parked\dev-coder.sh") "# fixture"
 
 # Stand-in launcher: records what the shim passed it.
 Set-Content (Join-Path $fixture "desktop\scripts\opencode.ps1") @'
@@ -66,7 +66,11 @@ try {
     Check "short name, any case"         (Resolve-OpencodeProfile "Resident" $pd) "dev-workflow-resident"
     Check "dev- prefix dropped"          (Resolve-OpencodeProfile "desktop-only" $pd) "dev-desktop-only"
     Check "dev- prefix dropped (node3)"  (Resolve-OpencodeProfile "node3" $pd) "dev-node3"
-    Check "parked profile is not live"   (Resolve-OpencodeProfile "server" $pd) ""
+    Check "parked profile is not live"   (Resolve-OpencodeProfile "coder" $pd) ""
+    Check "server -> dev-workflow-server" (Resolve-OpencodeProfile "server" $pd) "dev-workflow-server"
+    Check "server-llamacpp -> the llama.cpp twin" (Resolve-OpencodeProfile "server-llamacpp" $pd) "dev-workflow-server-llamacpp"
+    Check "full name of the twin"        (Resolve-OpencodeProfile "dev-workflow-server-llamacpp" $pd) "dev-workflow-server-llamacpp"
+    Check "llamacpp alone is not a profile" (Resolve-OpencodeProfile "llamacpp" $pd) ""
     Check "select-model is not a profile" (Resolve-OpencodeProfile "select-model" $pd) ""
     Check "subcommand run is not a profile"   (Resolve-OpencodeProfile "run" $pd) ""
     Check "subcommand debug is not a profile" (Resolve-OpencodeProfile "debug" $pd) ""

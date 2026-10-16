@@ -241,8 +241,12 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      - **Round:** 11 of 15, level with Ollama's 11, 12, 11, 11, in about two thirds of the time.
 
      Ollama 0.34.3, 0.40.3 and 0.40.4 all still cut silently. The window is closed and the server's Ollama is back as
-     the default. **Phase 2 (the engine adapter, placement over `nvidia-smi`, a client-side fix for files bigger than
-     the window) needs its own approval**; Phases 3–6 are outlined in "Replacing Ollama" below.
+     the default. **Phase 2 approved 2026-10-16 (owner)**, as outlined in "Replacing Ollama" below, with three decisions:
+     - placement on a llama.cpp host is read with `nvidia-smi --query-compute-apps` over ssh (no HTTP wrapper);
+     - the client-side fix for files bigger than the window (`kane-08`'s loop) is its own item after Phase 2;
+     - Phase 2 goes before the "After the trial" list.
+
+     Phases 3–6 each still need their own go.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
@@ -2737,7 +2741,8 @@ The trial needs a download, so it waits for the owner's go-ahead.
 own owner go-ahead after the gate before it. Ollama stays running and unmodified until Phase 6, so rollback is pointing
 a profile back; every engine is a new era (re-probe every seat, re-measure every context and VRAM figure, never compare
 across engines as if nothing changed); `ollama-*` provider ids are never renamed, because 278 summary rows cite them.
-- **Phase 2, engine adapter (only after a Go).** Mirror `tests/agents/opencode.ps1`: `tests/engines/ollama.ps1`
+- **Phase 2, engine adapter (Gate G1 go 2026-10-16; approved by the owner the same day).** GPU placement for llama.cpp
+  hosts is `nvidia-smi --query-compute-apps` over ssh (owner, 2026-10-16). Mirror `tests/agents/opencode.ps1`: `tests/engines/ollama.ps1`
   (extracted) and `tests/engines/llamacpp.ps1` behind one interface (liveness, version, served models, served context,
   prompt-loss detection, GPU placement, base URL), and move the call sites behind it (`Get-OllamaPromptTruncation`,
   `Get-OllamaGpuPlacement`, the `^ollama-(.+)$` provider regexes in `run-tasks-batch.ps1`, the served-context check in

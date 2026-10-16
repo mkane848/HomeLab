@@ -165,11 +165,13 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
         },
+        // tool_call false: the same weights FAILED the probe on node3 (2026-09-20);
+        // the server copy was never probed, so assume no tools until it is.
         "glm4:9b": {
-          "name": "GLM4 9B (Server)",
+          "name": "GLM4 9B (Server, NO TOOLS)",
           "attachment": true,
           "reasoning": false,
-          "tool_call": true,
+          "tool_call": false,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
@@ -552,6 +554,136 @@
       },
       "options": {
         "baseURL": "{env:OLLAMA_NODE3_BASE_URL}"
+      }
+    },
+
+    // ---- llama.cpp providers (docs/roadmap.md -> "Replacing Ollama", Phase 2) ----
+    // One provider per host again, one llama-server (router mode) per host. Only
+    // the server has one so far (server/docker/docker-compose.llamacpp.yml, port
+    // 8090); the desktop and node3 blocks are registered ahead of Phases 4 and 5
+    // and mirror the same three seats, so those hosts have NO llama-server until
+    // then. limit.context equals `c` in server/llamacpp/models.ini
+    // (tests/test-profiles.ps1 checks it against /props).
+
+    "llamacpp-server": {
+      "models": {
+        // Model ids are the preset's section names / aliases
+        // (server/llamacpp/models.ini), same tags as the ollama-server seats.
+        // Text only: the vision projector (mmproj) is not loaded, so these do not
+        // list image input even where the Ollama copy does. No "npm" field: OpenCode
+        // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
+        "qwen3.6:35b-a3b-coding": {
+          "name": "Qwen3.6 35B-A3B Coding (Server, main seat, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
+        },
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Server, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "qwen2.5-coder-3b-cpu": {
+          "name": "Qwen 2.5 Coder 3B (Server, CPU, small, llama.cpp)",
+          "attachment": false,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:LLAMACPP_SERVER_BASE_URL}"
+      }
+    },
+
+    // Desktop: no llama-server yet (Phase 4).
+    "llamacpp-desktop": {
+      "models": {
+        // Model ids are the preset's section names / aliases
+        // (server/llamacpp/models.ini), same tags as the ollama-desktop seats.
+        // Text only: the vision projector (mmproj) is not loaded, so these do not
+        // list image input even where the Ollama copy does. No "npm" field: OpenCode
+        // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
+        "qwen3.6:35b-a3b-coding": {
+          "name": "Qwen3.6 35B-A3B Coding (Desktop, main seat, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
+        },
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Desktop, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "qwen2.5-coder-3b-cpu": {
+          "name": "Qwen 2.5 Coder 3B (Desktop, CPU, small, llama.cpp)",
+          "attachment": false,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:LLAMACPP_DESKTOP_BASE_URL}"
+      }
+    },
+
+    // Node3: no llama-server yet (Phase 5).
+    "llamacpp-node3": {
+      "models": {
+        // Model ids are the preset's section names / aliases
+        // (server/llamacpp/models.ini), same tags as the ollama-node3 seats.
+        // Text only: the vision projector (mmproj) is not loaded, so these do not
+        // list image input even where the Ollama copy does. No "npm" field: OpenCode
+        // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
+        "qwen3.6:35b-a3b-coding": {
+          "name": "Qwen3.6 35B-A3B Coding (Node3, main seat, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
+        },
+        "qwen3:8b": {
+          "name": "Qwen3 8B (Node3, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "qwen2.5-coder-3b-cpu": {
+          "name": "Qwen 2.5 Coder 3B (Node3, CPU, small, llama.cpp)",
+          "attachment": false,
+          "reasoning": false,
+          "tool_call": false,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 16384, "output": 2048 }
+        }
+      },
+      "options": {
+        "baseURL": "{env:LLAMACPP_NODE3_BASE_URL}"
       }
     }
   },
