@@ -54,6 +54,13 @@ export DEV_DESKTOP_MODELS="qwen3:8b qwen2.5-coder:7b deepseek-r1:14b"
 export OLLAMA_DESKTOP_URL="http://localhost:11434"
 export OLLAMA_DESKTOP_BASE_URL="${OLLAMA_DESKTOP_BASE_URL:-http://localhost:11434/v1}"
 
+# llama.cpp providers (docs/roadmap.md -> "Replacing Ollama", Phase 2). {env:...} has
+# no fallbacks, so every live profile exports the server's endpoint even if it seats
+# nothing there. The desktop and node3 have no llama-server until Phases 4 and 5.
+export LLAMACPP_SERVER_BASE_URL="${LLAMACPP_SERVER_BASE_URL:-http://${SERVER_IP:-SERVER_IP}:8090/v1}"
+export LLAMACPP_SERVER_SSH="${LLAMACPP_SERVER_SSH:-server}"
+export LLAMACPP_DESKTOP_BASE_URL="${LLAMACPP_DESKTOP_BASE_URL:-http://localhost:8090/v1}"
+
 export OPENCODE_MODEL="ollama-desktop/qwen3:8b"
 export OPENCODE_SMALL_MODEL="ollama-desktop/qwen2.5-coder:7b"
 
