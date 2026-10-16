@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the batch drives Ollama and llama.cpp hosts through the engine adapters, and the registry gets an `engine`
+  column (Phase 2b of "Replacing Ollama", 2026-10-16).**
+  - **The batch no longer knows Ollama's endpoints.** In `run-tasks-batch.ps1`, discovery, liveness, version,
+    served models, the preflight and the probe call all go through `tests/engines/<engine>.ps1`, each loaded into
+    its own module and called through `Invoke-Engine`. `Get-EngineHosts`, `Test-EngineEndpoint` and
+    `Get-EngineKind` replace the `^ollama-` parsing. A `llamacpp-<host>` provider is probed with
+    `test-toolcalls.ps1 -Engine llamacpp`.
+  - **The registry gets an `engine` column.** `tests/run-tasks-models.tsv` is now `tag engine hosts desc`. Existing
+    rows were filled once (`ollama`, `opencode-go`). Two `llamacpp` rows (`qwen3:8b` and `qwen3.6:35b-a3b-coding` on
+    the server) come from the trial's probe PASSes.
+  - **The probe logs:** the batch reads both `toolcalls-summary.tsv` and `toolcalls-summary-llamacpp.tsv`, and a
+    probe result is stale on host + engine + engine version. Neither log's format changed.
+  - **New adapter function `Get-EngineSeatTags`:** the probe menu lists a llama.cpp model once, by its alias.
+  - **Console text:**
+    - the hosted note says "probes local engines only";
+    - `[drop]` says "engine version";
+    - a down host reads "<Engine> not answering at <root>".
+  - **Guards:**
+    - new `tests/test-batch-engines.ps1` (99 checks, eight controls);
+    - `test-engine-adapter.ps1` gains 4 checks (119);
+    - `test-hosted-seats.ps1` and `test-gpu-placement.ps1` change their fixtures only (registry shape,
+      `function global:` stubs).
+
 - **tests: the serving engine is behind an adapter, and a new contextExceeded outcome (Phase 2 of "Replacing
   Ollama", 2026-10-16).**
   - **The adapter.** `tests/engines/ollama.ps1` holds the Ollama code extracted from `test-tasks.ps1`, behaviour
