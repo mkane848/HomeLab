@@ -22,6 +22,12 @@ export DEV_NODE3_MODELS="general embed"
 export OLLAMA_SERVER_URL="http://localhost:11434"
 export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://localhost:11434/v1}"
 
+# llama.cpp providers (docs/roadmap.md -> "Replacing Ollama", Phase 2). {env:...} has
+# no fallbacks, so every live profile exports the server's endpoint even if it seats
+# nothing there. The desktop and node3 have no llama-server until Phases 4 and 5.
+export LLAMACPP_SERVER_BASE_URL="${LLAMACPP_SERVER_BASE_URL:-http://${SERVER_IP:-SERVER_IP}:8090/v1}"
+export LLAMACPP_SERVER_SSH="${LLAMACPP_SERVER_SSH:-server}"
+
 # Don't let opencode auto-load ~/.claude/skills into every request (10 synced
 # SKILL.md files = ~1.5k standing tokens of the preamble; measured 16851 total
 # vs the ~11.4k baseline). Lean global scope; projects opt in via skills.paths.
@@ -31,6 +37,7 @@ if [[ -n "${NODE3_IP:-}" ]]; then
     export DEV_TIERS_NODE3=true
     export OLLAMA_NODE3_URL="http://${NODE3_IP}:11434"
     export OLLAMA_NODE3_BASE_URL="http://${NODE3_IP}:11434/v1"
+    export LLAMACPP_NODE3_BASE_URL="http://${NODE3_IP}:8090/v1"
     export OPENCODE_MODEL="ollama-node3/qwen3:8b"
     export OPENCODE_SMALL_MODEL="ollama-server/qwen2.5-coder:7b"
     echo "[profile] Third node ACTIVE ($NODE3_IP): general + embed models"

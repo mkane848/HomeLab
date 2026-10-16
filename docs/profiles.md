@@ -89,6 +89,7 @@ against its intent manifest (purpose, tier flags, main/small model, and whether 
 | Profile | Purpose | Main / small model |
 |---------|---------|--------------------|
 | `dev-workflow-server` | Default since 2026-10-13. qwen3.6 on the server at 64k with a CPU companion, desktop tier off | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` (both server) |
+| `dev-workflow-server-llamacpp` | Twin of `dev-workflow-server` on llama.cpp (Replacing Ollama, Phase 2): the same seats from the server's `llama-server` on port 8090, provider `llamacpp-server`. Launch with `opencode server-llamacpp`; needs the llama.cpp stack up on the server | `llamacpp-server/qwen3.6:35b-a3b-coding` / `llamacpp-server/qwen2.5-coder-3b-cpu` |
 | `dev-workflow-quality` | The desktop fallback. qwen3.6 drives in-thread at 64k with a CPU companion, `/plan` on demand | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` |
 | `dev-workflow-resident` | Same, but keeps the 7B coder resident as a no-tools code/review model | `qwen3:8b` / `qwen2.5-coder:7b` |
 | `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
@@ -264,6 +265,9 @@ tools with no per-session toggling.
 | `OLLAMA_SERVER_BASE_URL` | OpenCode `ollama-server` provider endpoint | default `http://localhost:11434/v1` |
 | `OLLAMA_DESKTOP_BASE_URL` | OpenCode `ollama-desktop` provider endpoint | desktop-only (`localhost`), local-only, full |
 | `OLLAMA_NODE3_BASE_URL` | OpenCode `ollama-node3` provider endpoint | dev-node3 |
+| `LLAMACPP_SERVER_BASE_URL` | OpenCode `llamacpp-server` provider endpoint (`http://SERVER_IP:8090/v1`); exported by every live profile because `{env:...}` has no fallbacks | all live profiles |
+| `LLAMACPP_DESKTOP_BASE_URL` / `LLAMACPP_NODE3_BASE_URL` | `llamacpp-desktop` / `llamacpp-node3` endpoints; no llama-server runs there until Phases 4 and 5 | desktop profiles / dev-node3 |
+| `LLAMACPP_SERVER_SSH` | ssh target for the harness's llama.cpp placement check (default `server`) | all live profiles |
 
 ## `dev-node3` interplay with `.env`
 
