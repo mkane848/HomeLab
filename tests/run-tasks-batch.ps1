@@ -24,18 +24,18 @@
 # Modes (asked first, or -Mode):
 #   Tasks - the task batch through test-tasks.ps1.
 #   Probe - tests/test-toolcalls.ps1 on every host that is up. Every result is
-#           logged to tests/results/toolcalls-summary.tsv with host + Ollama
+#           logged to tests/results/toolcalls-summary.tsv with host + engine
 #           version, and a PASS adds the seat to run-tasks-models.tsv (that
 #           file's definition: "a row per tag the probe measured PASS on").
 #   Both  - probe, then the task batch on every available seat whose probe
-#           PASSes on its host's CURRENT Ollama version.
+#           PASSes on its host's CURRENT engine version.
 # Menus show each seat's last probe result. Seats the live opencode config
 # does not know are dropped before they can burn a run as _INFRA_.
 #
 # Non-interactive: each parameter given skips its prompt, -Yes skips the
 # confirmations. -Tasks/-Models take ids or 'all'; in Probe/Both mode -Models
 # picks what to probe and also takes 'new' (no result on the host's current
-# Ollama version). -OnlyMissing skips task x model pairs that already have a
+# engine version). -OnlyMissing skips task x model pairs that already have a
 # graded row in tests/results/tasks-summary.tsv. -RunTimeout/-CommandTimeout
 # override the per-run caps for every invocation (0 = test-tasks.ps1
 # defaults, 900/300). "One run of everything that
@@ -59,8 +59,8 @@
 # `opencode-go`, run as `opencode-go/<tag>`. They cost the owner money per token:
 #   - Offered only when `opencode models opencode-go` lists the model, the API key
 #     file exists (~/.config/opencode/.secrets/opencode-go-api-key; checked, never
-#     read) and the live `opencode debug config` resolves. No /api/tags or Ollama
-#     version check, and no probe: test-toolcalls.ps1 is Ollama-only, so these
+#     read) and the live `opencode debug config` resolves. No liveness or engine
+#     version check, and no probe: test-toolcalls.ps1 probes local engines only, so these
 #     seats were smoke-tested (`opencode run --auto` wrote a file, 2026-10-06),
 #     not probed. Probe mode never touches them and Both mode leaves them out.
 #   - Never picked by 'all'. Name them (-Models opencode-go/<tag>) or use the
@@ -155,7 +155,11 @@ $manifestPath = if ($TaskManifest) { [System.IO.Path]::GetFullPath($TaskManifest
 $testTasksPs1 = Join-Path $scriptDir "test-tasks.ps1"
 $toolcallsPs1 = Join-Path $scriptDir "test-toolcalls.ps1"
 $registryPath = Join-Path $scriptDir "run-tasks-models.tsv"
-$probeLogPath = Join-Path $scriptDir "results\toolcalls-summary.tsv"
+# One probe log per engine (test-toolcalls.ps1 writes each in its own shape; Get-ProbeLog reads both).
+$probeLogPaths = @{
+    ollama   = Join-Path $scriptDir "results\toolcalls-summary.tsv"
+    llamacpp = Join-Path $scriptDir "results\toolcalls-summary-llamacpp.tsv"
+}
 $taskResultsDir = if ($ResultsDir) { [System.IO.Path]::GetFullPath($ResultsDir) } else { Join-Path $scriptDir "results" }
 $summaryPath  = Join-Path $taskResultsDir "tasks-summary.tsv"
 $realSummaryPath = Join-Path $taskResultsDir "real-tasks-summary.tsv"
@@ -175,6 +179,39 @@ if (-not (Test-Path -LiteralPath $manifestPath)) {
 if (-not (Test-Path -LiteralPath $testTasksPs1)) {
     Write-Host "ERROR: test-tasks.ps1 not found next to this script" -ForegroundColor Red
     exit 1
+}
+
+# The engine adapters (tests/engines/<engine>.ps1, shared with test-tasks.ps1).
+# test-tasks.ps1 serves one model per process and dot-sources the one adapter its
+# provider needs. This script drives hosts of BOTH engines at once, and the two
+# adapters define the same function names, so each is loaded into a module of its
+# own ([psmoduleinfo]::new runs the adapter text at a module's top scope without
+# importing anything) and called through Invoke-Engine. Nothing lands in this
+# script's scope, so neither engine's definitions can clobber the other's.
+$script:EngineModules = @{}
+foreach ($engineKind in "ollama", "llamacpp") {
+    $engineAdapter = Join-Path $scriptDir ("engines\{0}.ps1" -f $engineKind)
+    if (-not (Test-Path -LiteralPath $engineAdapter)) {
+        Write-Host "ERROR: no adapter for engine '$engineKind' (expected $engineAdapter)." -ForegroundColor Red
+        exit 1
+    }
+    $script:EngineModules[$engineKind] = [psmoduleinfo]::new([scriptblock]::Create([IO.File]::ReadAllText($engineAdapter)))
+}
+
+function Invoke-Engine {
+    # Call an adapter function of one engine: Invoke-Engine ollama Get-EngineVersion @{ Root = $r }
+    param([string]$Kind, [string]$Function, [hashtable]$Params = @{})
+    return (& $script:EngineModules[$Kind] { param($fn, $p) & $fn @p } $Function $Params)
+}
+
+function Get-EngineKind {
+    # "llamacpp-server/qwen3:8b" or "llamacpp-server" -> llamacpp; "ollama-*" -> ollama;
+    # a hosted provider (opencode-go) or anything else -> $null.
+    param([string]$Id)
+    $provider = ($Id -split "/", 2)[0]
+    if ($provider -like 'ollama-*') { return "ollama" }
+    if ($provider -like 'llamacpp-*') { return "llamacpp" }
+    return $null
 }
 
 $manifest  = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
@@ -356,72 +393,107 @@ function Split-IdList {
 }
 
 function Get-ProviderEndpoint {
-    # "ollama-node3/qwen3:8b" -> $env:OLLAMA_NODE3_BASE_URL, the same variable
-    # the profile exports and opencode.jsonc resolves through {env:...}.
-    # Non-ollama providers (opencode-go and friends) return $null: they are not
-    # host-scoped and there is no local endpoint to probe.
+    # "ollama-node3/qwen3:8b" -> $env:OLLAMA_NODE3_BASE_URL, "llamacpp-server/x" ->
+    # $env:LLAMACPP_SERVER_BASE_URL: the variable the profile exports and
+    # opencode.jsonc resolves through {env:...}. The engine adapter names it
+    # (Get-EngineBaseUrlVar); a host it does not know falls back to the same
+    # PREFIX_HOST_BASE_URL shape. Non-engine providers (opencode-go and friends)
+    # return $null: they are not host-scoped and there is no local endpoint to probe.
+    # BaseUrl is the variable's value as set (the /v1 surface); Root is the host's
+    # root URL the adapter's endpoints hang off.
     param([string]$ModelId)
 
     $provider = ($ModelId -split "/")[0]
-    if ($provider -notmatch '^ollama-(.+)$') { return $null }
-    $varName = "OLLAMA_{0}_BASE_URL" -f $Matches[1].ToUpper().Replace("-", "_")
+    $kind = Get-EngineKind $provider
+    if (-not $kind) { return $null }
+    $varName = Invoke-Engine $kind "Get-EngineBaseUrlVar" @{ ProviderId = $provider }
+    if (-not $varName) {
+        $varName = "{0}_{1}_BASE_URL" -f $kind.ToUpper(), ($provider.Substring($kind.Length + 1).ToUpper().Replace("-", "_"))
+    }
+    $baseUrl = [Environment]::GetEnvironmentVariable($varName)
     return [pscustomobject]@{
         Provider = $provider
+        Engine   = $kind
         VarName  = $varName
-        BaseUrl  = [Environment]::GetEnvironmentVariable($varName)
+        BaseUrl  = $baseUrl
+        Root     = $(if ($baseUrl) { $baseUrl -replace '/v1/?$', '' -replace '/$', '' } else { $null })
     }
 }
 
 function Split-ModelId {
-    # "ollama-node3/qwen3:8b" -> Host node3, Tag qwen3:8b. ":latest" is dropped
-    # so "laguna-xs-2.1" (config/registry) and "laguna-xs-2.1:latest"
-    # (/api/tags) are the same model.
+    # "ollama-node3/qwen3:8b" -> Engine ollama, Host node3, Tag qwen3:8b.
+    # ":latest" is dropped so "laguna-xs-2.1" (config/registry) and
+    # "laguna-xs-2.1:latest" (/api/tags) are the same model.
     param([string]$ModelId)
     $provider, $tag = $ModelId -split "/", 2
-    $hostLabel = if ($provider -match '^ollama-(.+)$') { $Matches[1] } else { $null }
-    return [pscustomobject]@{ Provider = $provider; Host = $hostLabel; Tag = ($tag -replace ':latest$', '') }
+    $kind = Get-EngineKind $provider
+    $hostLabel = if ($kind) { $provider.Substring($kind.Length + 1) } else { $null }
+    return [pscustomobject]@{ Provider = $provider; Engine = $kind; Host = $hostLabel; Tag = ($tag -replace ':latest$', '') }
 }
 
-function Get-OllamaHosts {
-    # Every host with OLLAMA_<HOST>_BASE_URL set: is it up, which Ollama
-    # version, which tags. One /api/tags + /api/version call per host.
-    $hosts = foreach ($label in "desktop", "node3", "server") {
-        $url = [Environment]::GetEnvironmentVariable("OLLAMA_$($label.ToUpper())_BASE_URL")
-        if (-not $url) { continue }
-        $root = $url -replace '/v1/?$', '' -replace '/$', ''
-        try {
-            $tags = Invoke-RestMethod -Uri "$root/api/tags" -TimeoutSec 5 -ErrorAction Stop
-            $ver  = (Invoke-RestMethod -Uri "$root/api/version" -TimeoutSec 5 -ErrorAction Stop).version
-            [pscustomobject]@{ Label = $label; Root = $root; Up = $true; Version = $ver
-                               Tags = @($tags.models | ForEach-Object { $_.name -replace ':latest$', '' }) }
-        } catch {
-            [pscustomobject]@{ Label = $label; Root = $root; Up = $false; Version = $null; Tags = @() }
+function Get-EngineHosts {
+    # Every engine host whose base URL is set (OLLAMA_<HOST>_BASE_URL,
+    # LLAMACPP_<HOST>_BASE_URL): is it up, which engine version, which tags.
+    # Everything engine-specific comes from the adapters. Tags are every name a
+    # client may send (Ollama's tags; llama.cpp's ids plus aliases), SeatTags one
+    # per model (what the probe menu lists).
+    $hosts = foreach ($kind in "ollama", "llamacpp") {
+        foreach ($label in "desktop", "node3", "server") {
+            $provider = "$kind-$label"
+            $root = Invoke-Engine $kind "Get-EngineBaseUrl" @{ ProviderId = $provider }
+            if (-not $root) { continue }
+            $o = [ordered]@{ Provider = $provider; Engine = $kind; Label = $label; Root = $root
+                             Up = $false; Version = $null; Tags = @(); SeatTags = @() }
+            if (Invoke-Engine $kind "Test-EngineAlive" @{ Root = $root; TimeoutSec = 5 }) {
+                $o.Up = $true
+                $o.Version = Invoke-Engine $kind "Get-EngineVersion" @{ Root = $root }
+                $o.Tags = @(@(Invoke-Engine $kind "Get-EngineServedModels" @{ Root = $root }) | Where-Object { $_ } | ForEach-Object { $_ -replace ':latest$', '' })
+                $o.SeatTags = @(@(Invoke-Engine $kind "Get-EngineSeatTags" @{ Root = $root }) | Where-Object { $_ } | ForEach-Object { $_ -replace ':latest$', '' })
+            }
+            [pscustomobject]$o
         }
     }
     return @($hosts)
 }
 
+function Get-EngineDisplayName {
+    param([string]$Kind)
+    switch ($Kind) { "ollama" { "Ollama" } "llamacpp" { "llama.cpp" } default { $Kind } }
+}
+
 function Get-ProbeLog {
-    # Latest tests/test-toolcalls.ps1 result per "host/tag". Empty if none.
+    # Latest tests/test-toolcalls.ps1 result per model id ("ollama-desktop/qwen3:8b").
+    # Reads both engines' logs, which have different shapes: the Ollama log
+    # (timestamp host ollamaVersion model status sec detail; its engine is implied)
+    # and the llama.cpp log (timestamp host engine engineVersion model ...). Each row
+    # is normalised to engine + engineVersion, so the key and the STALE rule are the
+    # same for both. Empty if none.
     $last = @{}
-    if (Test-Path -LiteralPath $probeLogPath) {
-        foreach ($row in (Import-Csv -LiteralPath $probeLogPath -Delimiter "`t")) {
-            $last["$($row.host)/$($row.model -replace ':latest$', '')"] = $row
+    foreach ($kind in "ollama", "llamacpp") {
+        $path = $probeLogPaths[$kind]
+        if (-not $path -or -not (Test-Path -LiteralPath $path)) { continue }
+        foreach ($row in (Import-Csv -LiteralPath $path -Delimiter "`t")) {
+            $names = @($row.PSObject.Properties.Name)
+            $engine = if ($names -contains "engine" -and $row.engine) { $row.engine } else { $kind }
+            $version = if ($names -contains "engineVersion") { $row.engineVersion } else { $row.ollamaVersion }
+            $norm = [pscustomobject]@{ timestamp = $row.timestamp; host = $row.host; engine = $engine; engineVersion = $version
+                                       model = $row.model; status = $row.status; sec = $row.sec; detail = $row.detail }
+            $last["$engine-$($row.host)/$($row.model -replace ':latest$', '')"] = $norm
         }
     }
     return $last
 }
 
 function Get-ProbeState {
-    # PASS / FAIL / ... on the host's CURRENT Ollama version, else "STALE"
-    # (probed on an older version) or "NONE" (never probed). A probe result is
-    # only evidence for the version it ran against.
+    # PASS / FAIL / ... on the host's CURRENT engine version, else "STALE"
+    # (probed on an older version or build) or "NONE" (never probed). A probe
+    # result is only evidence for the host + engine + version it ran against.
     param([string]$ModelId)
     $m   = Split-ModelId $ModelId
-    $row = $probeLog["$($m.Host)/$($m.Tag)"]
+    $row = $probeLog["$($m.Provider)/$($m.Tag)"]
     if (-not $row) { return "NONE" }
-    $cur = $hostVersions[$m.Host]
-    if ($cur -and $row.ollamaVersion -ne $cur) { return "STALE" }
+    $cur = $hostVersions[$m.Provider]
+    if ($cur -and $row.engineVersion -ne $cur) { return "STALE" }
     return $row.status
 }
 
@@ -429,30 +501,45 @@ function Format-ProbeNote {
     param([string]$ModelId)
     if (Test-HostedModelId $ModelId) { return "[hosted: smoke-tested, not probed; billed per token, spend-capped]" }
     $m   = Split-ModelId $ModelId
-    $row = $probeLog["$($m.Host)/$($m.Tag)"]
+    $row = $probeLog["$($m.Provider)/$($m.Tag)"]
     if (-not $row) { return "[probe: none logged]" }
-    $note = "[probe: $($row.status) on $($row.ollamaVersion), $($row.timestamp.Substring(0,10))"
-    $cur = $hostVersions[$m.Host]
-    if ($cur -and $cur -ne $row.ollamaVersion) { $note += "; host now $cur" }
+    $note = "[probe: $($row.status) on $($row.engineVersion), $($row.timestamp.Substring(0,10))"
+    $cur = $hostVersions[$m.Provider]
+    if ($cur -and $cur -ne $row.engineVersion) { $note += "; host now $cur" }
     return "$note]"
 }
 
 function Get-RegistryRows {
-    # tests/run-tasks-models.tsv -> list of @{ Tag; Hosts; Desc }. Comment and
-    # header lines are skipped, as in the #36 reader.
+    # tests/run-tasks-models.tsv -> list of @{ Tag; Engine; Hosts; Desc }. Comment
+    # and header lines are skipped, as in the #36 reader. Columns are found from
+    # the header (tag engine hosts desc); a file still in the old tag hosts desc
+    # shape reads as engine ollama, or opencode-go for a hosted row.
     $rows = New-Object System.Collections.Generic.List[pscustomobject]
     if (-not (Test-Path -LiteralPath $registryPath)) { return $rows }
+    $cEngine = -1; $cHosts = 1; $cDesc = 2
     foreach ($line in Get-Content -LiteralPath $registryPath) {
         $t = $line.Trim()
         if (-not $t -or $t.StartsWith('#')) { continue }
         $cols = $t -split "`t"
         if ($cols.Count -lt 2) { continue }
         $tag = $cols[0].Trim()
-        if (-not $tag -or $tag -eq "tag") { continue }
+        if ($tag -eq "tag") {
+            $names = @($cols | ForEach-Object { $_.Trim() })
+            $cEngine = [array]::IndexOf($names, "engine")
+            $cHosts  = [array]::IndexOf($names, "hosts")
+            $cDesc   = [array]::IndexOf($names, "desc")
+            continue
+        }
+        if (-not $tag) { continue }
+        $hosts = @(($cols[$cHosts] -split '\s+') | Where-Object { $_ })
+        $engine = if ($cEngine -ge 0 -and $cols.Count -gt $cEngine) { $cols[$cEngine].Trim() }
+                  elseif ($hosts -contains "opencode-go") { "opencode-go" }
+                  else { "ollama" }
         $rows.Add([pscustomobject]@{
-            Tag   = $tag
-            Hosts = @(($cols[1] -split '\s+') | Where-Object { $_ })
-            Desc  = $(if ($cols.Count -ge 3) { $cols[2] } else { "" })
+            Tag    = $tag
+            Engine = $engine
+            Hosts  = $hosts
+            Desc   = $(if ($cDesc -ge 0 -and $cols.Count -gt $cDesc) { $cols[$cDesc] } else { "" })
         })
     }
     return $rows
@@ -460,34 +547,39 @@ function Get-RegistryRows {
 
 function Add-RegistrySeat {
     # A probe PASS is exactly what a registry row asserts, so Probe/Both mode
-    # records it: add the host to an existing row, or append a new row.
-    # Rewrites the file LF-only with a trailing newline (it is committed LF and
-    # had no final newline, so a plain Add-Content glued rows together).
-    param([string]$Tag, [string]$HostLabel, [string]$Version)
+    # records it: add the host to the existing row of that tag AND engine, or
+    # append a new row (with its engine). Rewrites the file LF-only with a
+    # trailing newline (it is committed LF and had no final newline, so a plain
+    # Add-Content glued rows together).
+    param([string]$Tag, [string]$Engine, [string]$HostLabel, [string]$Version)
     $lines = New-Object System.Collections.Generic.List[string]
     foreach ($l in ([IO.File]::ReadAllText($registryPath) -split '\r?\n')) { $lines.Add($l) }
     while ($lines.Count -gt 0 -and -not $lines[$lines.Count - 1].Trim()) { $lines.RemoveAt($lines.Count - 1) }
+    $header = @($lines | Where-Object { $_ -match '^tag\t' } | Select-Object -First 1)
+    if (-not $header -or (($header[0] -split "`t") -notcontains "engine")) {
+        throw "Add-RegistrySeat: $registryPath has no 'engine' column (header: tag<TAB>engine<TAB>hosts<TAB>desc)"
+    }
     $changed = $false
     $found = $false
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $l = $lines[$i]
-        if (-not $l.Trim() -or $l.TrimStart().StartsWith('#')) { continue }
+        if (-not $l.Trim() -or $l.TrimStart().StartsWith('#') -or $l -match '^tag\t') { continue }
         $cols = $l -split "`t"
-        if (($cols[0].Trim() -replace ':latest$', '') -ne $Tag) { continue }
+        if (($cols[0].Trim() -replace ':latest$', '') -ne $Tag -or $cols[1].Trim() -ne $Engine) { continue }
         $found = $true
-        $hostsNow = @(($cols[1] -split '\s+') | Where-Object { $_ })
+        $hostsNow = @(($cols[2] -split '\s+') | Where-Object { $_ })
         if ($hostsNow -contains $HostLabel) { break }
-        $cols[1] = (@($hostsNow) + $HostLabel) -join " "
-        if ($cols.Count -ge 3) { $cols[2] = "$($cols[2]); measured PASS on $HostLabel ($Version)" }
+        $cols[2] = (@($hostsNow) + $HostLabel) -join " "
+        if ($cols.Count -ge 4) { $cols[3] = "$($cols[3]); measured PASS on $HostLabel ($Version)" }
         $lines[$i] = $cols -join "`t"
         $changed = $true
-        Write-Host "  registry: added $HostLabel to $Tag" -ForegroundColor DarkGray
+        Write-Host "  registry: added $HostLabel to $Tag ($Engine)" -ForegroundColor DarkGray
         break
     }
     if (-not $found) {
-        $lines.Add(("{0}`t{1}`tmeasured PASS on {1} ({2}), added by run-tasks-batch probe {3}" -f $Tag, $HostLabel, $Version, (Get-Date -Format "yyyy-MM-dd")))
+        $lines.Add(("{0}`t{1}`t{2}`tmeasured PASS on {2} ({3}), added by run-tasks-batch probe {4}" -f $Tag, $Engine, $HostLabel, $Version, (Get-Date -Format "yyyy-MM-dd")))
         $changed = $true
-        Write-Host "  registry: added $Tag ($HostLabel)" -ForegroundColor DarkGray
+        Write-Host "  registry: added $Tag ($Engine, $HostLabel)" -ForegroundColor DarkGray
     }
     if ($changed) {
         [IO.File]::WriteAllText($registryPath, (($lines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
@@ -514,7 +606,7 @@ function Get-AvailableModelSeats {
     }
     foreach ($r in $rows) {
         foreach ($hostName in $r.Hosts) {
-            if ($hostName -eq "opencode-go") {
+            if ($r.Engine -eq "opencode-go" -or $hostName -eq "opencode-go") {
                 $id = "opencode-go/$($r.Tag)"
                 $why = Get-HostedSeatGate -ModelId $id -State $hostedState
                 if ($why) {
@@ -524,20 +616,27 @@ function Get-AvailableModelSeats {
                 }
                 continue
             }
-            $h = $ollamaHosts | Where-Object { $_.Label -eq $hostName }
+            if (@("ollama", "llamacpp") -notcontains $r.Engine) {
+                Write-Host ("  [skip] {0} - unknown engine '{1}' in the registry" -f $r.Tag, $r.Engine) -ForegroundColor DarkGray
+                continue
+            }
+            $provider = "$($r.Engine)-$hostName"
+            $h = $engineHosts | Where-Object { $_.Provider -eq $provider }
             if (-not $h) {
-                Write-Host ("  [skip] ollama-{0} - OLLAMA_{1}_BASE_URL is not set in this shell (source a profile first)" -f $hostName, $hostName.ToUpper()) -ForegroundColor DarkGray
+                $varName = (Get-ProviderEndpoint -ModelId $provider).VarName
+                Write-Host ("  [skip] {0} - {1} is not set in this shell (source a profile first)" -f $provider, $varName) -ForegroundColor DarkGray
                 continue
             }
             if (-not $h.Up) {
-                Write-Host ("  [skip] ollama-{0} - host not answering /api/tags" -f $hostName) -ForegroundColor DarkGray
+                Write-Host ("  [skip] {0} - host not answering" -f $provider) -ForegroundColor DarkGray
                 continue
             }
-            $id = "ollama-$hostName/$($r.Tag -replace ':latest$', '')"
+            $id = "$provider/$($r.Tag -replace ':latest$', '')"
             if ($h.Tags -contains ($r.Tag -replace ':latest$', '')) {
                 if (-not $seats.Contains($id)) { $seats.Add($id) }
             } else {
-                Write-Host ("  [skip] ollama-{0} - tag '{1}' not pulled there yet" -f $hostName, $r.Tag) -ForegroundColor DarkGray
+                $what = if ($r.Engine -eq "ollama") { "pulled" } else { "served" }
+                Write-Host ("  [skip] {0} - tag '{1}' not {2} there yet" -f $provider, $r.Tag, $what) -ForegroundColor DarkGray
             }
         }
     }
@@ -613,7 +712,7 @@ function Get-AgentVersionDrift {
 
 function Test-HostedModelId {
     # A hosted seat: the OpenCode Go provider, billed per token, not host-scoped,
-    # never probed (test-toolcalls.ps1 drives Ollama's /api/chat only).
+    # never probed (test-toolcalls.ps1 probes local engines only).
     param([string]$ModelId)
     return ($ModelId -match '^opencode-go/')
 }
@@ -780,7 +879,7 @@ function Get-ProviderRefusal {
 
 function Get-CpuOnlyRun {
     # The _CPUONLY_ transcript a run left behind (test-tasks.ps1 exit -5: after
-    # the run Ollama had the seat entirely in system RAM, so its host was not
+    # the run the engine had the seat entirely in system RAM, so its host was not
     # using the GPU), or $null. The condition outlives the run: a container that
     # lost its GPU stays that way until it is recreated, and every further run
     # would measure the CPU (2026-10-12: a first batch crawled for 31 minutes).
@@ -989,25 +1088,26 @@ if (-not $Mode) {
     Write-Host ""
 }
 
-$ollamaHosts  = Get-OllamaHosts
-$hostVersions = @{}
-foreach ($h in $ollamaHosts) { if ($h.Up) { $hostVersions[$h.Label] = $h.Version } }
+$engineHosts  = Get-EngineHosts
+$hostVersions = @{}   # provider (ollama-desktop, llamacpp-server, ...) -> the engine version it answers with
+foreach ($h in $engineHosts) { if ($h.Up) { $hostVersions[$h.Provider] = $h.Version } }
 $probeLog = Get-ProbeLog
 
 # --- 2a. tool-call probe (Probe / Both) --------------------------------------
 if ($Mode -ne "Tasks") {
     Write-Host "=== Tool-call probe: hosts ===" -ForegroundColor Cyan
-    foreach ($h in $ollamaHosts) {
-        if ($h.Up) { Write-Host ("  [UP]   {0,-8} {1}  Ollama {2}" -f $h.Label, $h.Root, $h.Version) -ForegroundColor Green }
-        else       { Write-Host ("  [DOWN] {0,-8} {1}  - its models are left out" -f $h.Label, $h.Root) -ForegroundColor Yellow }
+    foreach ($h in $engineHosts) {
+        $eng = Get-EngineDisplayName $h.Engine
+        if ($h.Up) { Write-Host ("  [UP]   {0,-8} {1}  {2} {3}" -f $h.Label, $h.Root, $eng, $h.Version) -ForegroundColor Green }
+        else       { Write-Host ("  [DOWN] {0,-8} {1}  - its {2} models are left out" -f $h.Label, $h.Root, $eng) -ForegroundColor Yellow }
     }
     Write-Host ""
 
     $probeOptions = New-Object System.Collections.Generic.List[string]
     $newIdx       = New-Object System.Collections.Generic.List[int]
-    foreach ($h in ($ollamaHosts | Where-Object Up)) {
-        foreach ($t in ($h.Tags | Where-Object { $_ -notmatch $EMBED_PATTERN } | Sort-Object)) {
-            $id = "ollama-$($h.Label)/$t"
+    foreach ($h in ($engineHosts | Where-Object Up)) {
+        foreach ($t in ($h.SeatTags | Where-Object { $_ -notmatch $EMBED_PATTERN } | Sort-Object)) {
+            $id = "$($h.Provider)/$t"
             if ((Get-ProbeState $id) -in "NONE", "STALE") { $newIdx.Add($probeOptions.Count) }
             $probeOptions.Add($id)
         }
@@ -1027,7 +1127,7 @@ if ($Mode -ne "Tasks") {
                     else { Split-IdList $probeModels }
     } else {
         Write-Host "=== Select models to probe ===" -ForegroundColor Cyan
-        Write-Host "  ('new' = the $($newIdx.Count) with no probe result on their host's current Ollama version)" -ForegroundColor DarkGray
+        Write-Host "  ('new' = the $($newIdx.Count) with no probe result on their host's current engine version)" -ForegroundColor DarkGray
         $labels = @($probeOptions | ForEach-Object { "{0,-46} {1}" -f $_, (Format-ProbeNote $_) })
         $idx = Select-FromList -Prompt "Models to probe" -Options $labels -NewIdx @($newIdx)
         $probeIds = @($idx | ForEach-Object { $probeOptions[$_] })
@@ -1042,10 +1142,15 @@ if ($Mode -ne "Tasks") {
             $go = Read-Host "Proceed with the probe? (y/N)"
             if ($go.Trim().ToLower() -ne "y") { Write-Host "Cancelled."; exit 0 }
         }
-        foreach ($grp in ($probeIds | ForEach-Object { Split-ModelId $_ } | Group-Object Host)) {
-            $h = $ollamaHosts | Where-Object { $_.Label -eq $grp.Name -and $_.Up }
+        foreach ($grp in ($probeIds | ForEach-Object { Split-ModelId $_ } | Group-Object Provider)) {
+            $h = $engineHosts | Where-Object { $_.Provider -eq $grp.Name -and $_.Up }
             if (-not $h) { Write-Host "  [SKIP] $($grp.Name): host not up or not configured" -ForegroundColor Yellow; continue }
-            & $toolcallsPs1 -OllamaHost $h.Root -HostLabel $h.Label -Model @($grp.Group | ForEach-Object Tag) -LogFile $probeLogPath
+            $probeTags = @($grp.Group | ForEach-Object Tag)
+            if ($h.Engine -eq "llamacpp") {
+                & $toolcallsPs1 -Engine llamacpp -EngineHost $h.Root -HostLabel $h.Label -Model $probeTags -LogFile $probeLogPaths[$h.Engine]
+            } else {
+                & $toolcallsPs1 -OllamaHost $h.Root -HostLabel $h.Label -Model $probeTags -LogFile $probeLogPaths[$h.Engine]
+            }
         }
 
         # Read results back from the log, not from console output.
@@ -1065,7 +1170,7 @@ if ($Mode -ne "Tasks") {
     foreach ($id in $probeOptions) {
         if ((Get-ProbeState $id) -eq "PASS") {
             $m = Split-ModelId $id
-            Add-RegistrySeat -Tag $m.Tag -HostLabel $m.Host -Version $hostVersions[$m.Host]
+            Add-RegistrySeat -Tag $m.Tag -Engine $m.Engine -HostLabel $m.Host -Version $hostVersions[$m.Provider]
         }
     }
     if ($Mode -eq "Probe") { exit 0 }
@@ -1180,16 +1285,16 @@ foreach ($m in $selectedModels) {
             }
             $hostedCaps[$m] = $cap
         }
-        Write-Host "  note: $m is hosted - smoke-tested (opencode run --auto wrote a file, 2026-10-06), not probed: test-toolcalls.ps1 is Ollama-only." -ForegroundColor DarkGray
+        Write-Host "  note: $m is hosted - smoke-tested (opencode run --auto wrote a file, 2026-10-06), not probed: test-toolcalls.ps1 probes local engines only." -ForegroundColor DarkGray
         $kept.Add($m)
         continue
     }
     $state = Get-ProbeState $m
     if ($state -eq "FAIL" -or ($Mode -eq "Both" -and $state -ne "PASS")) {
-        Write-Host "  [drop] $m - probe $state on this host's current Ollama version" -ForegroundColor Yellow
+        Write-Host "  [drop] $m - probe $state on this host's current engine version" -ForegroundColor Yellow
         continue
     }
-    if ($null -ne $registeredIds -and $m -match '^ollama-' -and -not $registeredIds.ContainsKey($m)) {
+    if ($null -ne $registeredIds -and (Get-EngineKind $m) -and -not $registeredIds.ContainsKey($m)) {
         Write-Host "  [drop] $m - not registered in the live opencode config. Add it to opencode/global/opencode.jsonc and run .\desktop\scripts\sync-opencode.ps1 -Template" -ForegroundColor Yellow
         continue
     }
@@ -1290,21 +1395,21 @@ if (($selectedTasks -contains "lfc-02-scryfall-headers") -and $env:MANAPOOL_API_
 # against a host that is not answering measures nothing, so every host this
 # batch would touch gets checked BEFORE the hours are spent. Costs ~1s per host.
 
-function Test-OllamaEndpoint {
-    # /api/tags is the cheapest check that proves Ollama itself is answering
-    # rather than just that something holds the port. The tag count comes back
-    # too, so a host serving zero models still reads as suspicious.
-    param([string]$BaseUrl)
+function Test-EngineEndpoint {
+    # The adapter's liveness check is the cheapest one that proves the engine
+    # itself is answering rather than just that something holds the port
+    # (Ollama /api/tags, llama-server /health). The served-model count comes back
+    # too, so a host serving zero models still reads as suspicious. Root is the
+    # host's root (Get-ProviderEndpoint strips the profile's /v1 surface).
+    param([string]$Provider, [string]$Root)
 
-    # Profiles export the .../v1 OpenAI-compatible surface; /api/tags is on the
-    # native root.
-    $root = $BaseUrl -replace '/v1/?$', ''
-    try {
-        $tags = Invoke-RestMethod -Uri "$root/api/tags" -TimeoutSec 5 -ErrorAction Stop
-        return [pscustomobject]@{ Ok = $true; Detail = "{0} model tag(s)" -f @($tags.models).Count }
-    } catch {
-        return [pscustomobject]@{ Ok = $false; Detail = $_.Exception.Message }
+    $kind = Get-EngineKind $Provider
+    if (-not (Invoke-Engine $kind "Test-EngineAlive" @{ Root = $Root; TimeoutSec = 5 })) {
+        return [pscustomobject]@{ Ok = $false; Detail = "$(Get-EngineDisplayName $kind) not answering at $Root" }
     }
+    $served = Invoke-Engine $kind "Get-EngineServedModels" @{ Root = $Root }
+    $unit = if ($kind -eq "ollama") { "model tag(s)" } else { "model id(s)" }
+    return [pscustomobject]@{ Ok = $true; Detail = "{0} {1}" -f @($served | Where-Object { $_ }).Count, $unit }
 }
 
 Write-Host "=== Endpoint preflight ===" -ForegroundColor Cyan
@@ -1332,7 +1437,7 @@ foreach ($id in $endpointIds) {
         })
         continue
     }
-    $probe = Test-OllamaEndpoint -BaseUrl $p.BaseUrl
+    $probe = Test-EngineEndpoint -Provider $p.Provider -Root $p.Root
     $preflight.Add([pscustomobject]@{
         Provider = $p.Provider
         Ok       = $probe.Ok
@@ -1530,7 +1635,7 @@ foreach ($run in $runList) {
     $cpuOnly = Get-CpuOnlyRun -ResultsDir $taskResultsDir -Before $filesBefore -TaskId $run.Task -ModelLabel $run.Model
     if ($cpuOnly) {
         $left = @($runList | Select-Object -Skip $runNum | Where-Object { ($_.Model -split '/', 2)[0] -eq $runProvider }).Count
-        $cpuOnlyHosts[$runProvider] = "run $runNum of $total ($($run.Task) x $($run.Model)): Ollama had the seat entirely in system RAM after the run, so its host was not using the GPU ($cpuOnly). $left run(s) not started on $runProvider. Fix the GPU (server: docs/troubleshooting.md -> `"Container lost the GPU`"), then re-run the rest with -OnlyMissing."
+        $cpuOnlyHosts[$runProvider] = "run $runNum of $total ($($run.Task) x $($run.Model)): $(Get-EngineDisplayName (Get-EngineKind $runProvider)) had the seat entirely in system RAM after the run, so its host was not using the GPU ($cpuOnly). $left run(s) not started on $runProvider. Fix the GPU (server: docs/troubleshooting.md -> `"Container lost the GPU`"), then re-run the rest with -OnlyMissing."
         Write-Host ""
         Write-Host "  [GPU] ${runProvider}: its host was not using the GPU - skipping its remaining $left run(s). Other hosts carry on." -ForegroundColor Red
     }

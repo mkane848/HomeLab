@@ -332,7 +332,7 @@ exit $LASTEXITCODE
     Copy-Item -LiteralPath $BatchPath -Destination "$tree\tests\run-tasks-batch.ps1"
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination "$tree\tests" -Recurse -Force
-    Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`thosts`tdesc`nqwen3:8b`tdesktop server`tlocal seat`n")
+    Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`tengine`thosts`tdesc`nqwen3:8b`tollama`tdesktop server`tlocal seat`n")
     Write-Fixture "$tree\costs\go-rates.tsv" "model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource`n"
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
     $bm = @{ tasks = @(foreach ($id in "fx-cpu", "t1", "t2", "t3") { [ordered]@{ id = $id; title = "fixture $id" } }) }
@@ -373,7 +373,7 @@ exit /b 0
 '@) -replace "`r?`n", "`r`n")
     Write-Fixture "$tmp\batch-driver.ps1" @'
 param([string]$Script, [string]$ArgsFile)
-function Invoke-RestMethod {
+function global:Invoke-RestMethod {
     param($Uri, $TimeoutSec)
     if ("$Uri" -match '/api/tags$') { return [pscustomobject]@{ models = @([pscustomobject]@{ name = "qwen3:8b" }) } }
     if ("$Uri" -match '/api/version$') { return [pscustomobject]@{ version = "0.34.3" } }

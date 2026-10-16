@@ -80,6 +80,26 @@ function Get-EngineServedModels {
     return $null
 }
 
+function Get-EngineSeatTags {
+    # One tag per model, the way a client addresses it: the preset's `alias` when
+    # it has one (router mode rewrites a colon id such as qwen3.6:35b-a3b-coding
+    # to qwen3.6:CODING, and the alias keeps the exact tag), else the id. The
+    # batch's probe menu lists these, so one model is not offered twice.
+    param([string]$Root)
+    foreach ($u in @("$Root/models", "$Root/v1/models")) {
+        try {
+            $data = @((Invoke-RestMethod -Uri $u -TimeoutSec 10).data)
+            $tags = @()
+            foreach ($m in $data) {
+                $aliases = @(@($m.aliases) | Where-Object { $_ })
+                if ($aliases.Count -gt 0) { $tags += [string]$aliases[0] } elseif ($m.id) { $tags += [string]$m.id }
+            }
+            if ($tags.Count -gt 0) { return @($tags | Select-Object -Unique) }
+        } catch { }
+    }
+    return $null
+}
+
 function Get-EngineServedContext {
     # First the seat's own launch args in GET /models (`--ctx-size N`): known for a
     # seat that is not loaded, and touching nothing. The preset sets `c` explicitly

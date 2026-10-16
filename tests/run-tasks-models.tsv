@@ -3,37 +3,43 @@
 # tag on the listed host(s) (see docs/start-here.md + AGENTS.md Gotchas -
 # failing models like the qwen2.5-coder / deepseek-r1 / glm4 families are
 # never offered as seats). run-tasks-batch.ps1 reads this and intersects it
-# with each live host's /api/tags, so:
+# with what each live host serves (the engine adapter's served-model list), so:
 #   - adding a new tool-capable model = one row here, the script is never edited
-#   - a host that is down, or a tag not pulled there yet, stops being offered
-# Columns: tag<TAB>hosts<TAB>desc. hosts = whitespace-separated provider host
-# tokens (desktop | node3 | server) matching the OLLAMA_<HOST>_BASE_URL env
-# each profile exports.
-# Hosted seats are the exception: host token `opencode-go` means the OpenCode Go
+#   - a host that is down, or a tag not served there yet, stops being offered
+# Columns: tag<TAB>engine<TAB>hosts<TAB>desc. engine = ollama | llamacpp |
+# opencode-go: the serving engine, and with a host the seat's provider
+# (ollama-<host>/<tag>, llamacpp-<host>/<tag>). One tag on two engines is two
+# rows, because a probe PASS is evidence for one engine only. hosts =
+# whitespace-separated host tokens (desktop | node3 | server) matching the
+# OLLAMA_<HOST>_BASE_URL / LLAMACPP_<HOST>_BASE_URL env each profile exports.
+# Hosted seats are the exception: engine `opencode-go`, host token `opencode-go`,
+# means the OpenCode Go
 # subscription (model id opencode-go/<tag>), billed per token. Those rows were
-# smoke-tested, NOT probed - test-toolcalls.ps1 is Ollama-only - each one wrote a
+# smoke-tested, NOT probed - the probe covers local engines only - each one wrote a
 # file through `opencode run --auto` on 2026-10-06, and the owner approved them
 # as seats. run-tasks-batch.ps1 offers one only when `opencode models
 # opencode-go` lists it, the API key file exists and the live config resolves;
 # never under 'all' (use -Models hosted, or name it), and never above its spend
 # cap (-SpendCapShare of the monthly allowance in costs/go-rates.tsv; a seat with
 # no rate row there is refused).
-tag	hosts	desc
-qwen3:8b	desktop node3 server	general light seat; measured PASS on desktop (0.34.1), node3 (2026-09-20) and server (0.34.3, 2026-10-12, baked 32k)
-qwen3:14b	desktop	main seat; measured PASS on desktop (0.34.1); deliberately absent from node3
-qwen3.5:9b	desktop	local GGUF import, vision; measured PASS on desktop (0.34.1)
-qwen3-coder:30b-a3b	desktop	review-gate auditor seat; measured PASS on desktop (0.34.1)
-devstral:24b	desktop	edge fit, drives offload; measured PASS on desktop (0.34.1)
-devstral-small-2:24b	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
-laguna-xs-2.1	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
-nemotron-3.5-lightning	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
-north-mini-code-1.0	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
-qwen3.6:35b-a3b-coding	desktop server	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22; server PASS (0.34.3, 2026-10-12, baked 64k)
-lfm2.5:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
-ministral-3:8b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
-ornith:9b	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
-qwen3.7-plus	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
-qwen3.8-max	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
-kimi-k2.7-code	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
-glm-5.2	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
-deepseek-v4-pro	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+tag	engine	hosts	desc
+qwen3:8b	ollama	desktop node3 server	general light seat; measured PASS on desktop (0.34.1), node3 (2026-09-20) and server (0.34.3, 2026-10-12, baked 32k)
+qwen3:14b	ollama	desktop	main seat; measured PASS on desktop (0.34.1); deliberately absent from node3
+qwen3.5:9b	ollama	desktop	local GGUF import, vision; measured PASS on desktop (0.34.1)
+qwen3-coder:30b-a3b	ollama	desktop	review-gate auditor seat; measured PASS on desktop (0.34.1)
+devstral:24b	ollama	desktop	edge fit, drives offload; measured PASS on desktop (0.34.1)
+devstral-small-2:24b	ollama	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+laguna-xs-2.1	ollama	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+nemotron-3.5-lightning	ollama	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+north-mini-code-1.0	ollama	desktop	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22
+qwen3.6:35b-a3b-coding	ollama	desktop server	measured PASS on desktop (0.34.3), added by run-tasks-batch probe 2026-09-22; server PASS (0.34.3, 2026-10-12, baked 64k)
+lfm2.5:8b	ollama	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+ministral-3:8b	ollama	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+ornith:9b	ollama	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
+qwen3:8b	llamacpp	server	measured PASS through llama-server on server (build b11561, 2026-10-13, llama.cpp trial step 4)
+qwen3.6:35b-a3b-coding	llamacpp	server	main seat; measured PASS through llama-server on server (build b11561, 2026-10-13, llama.cpp trial step 4, also with MTP)
+qwen3.7-plus	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+qwen3.8-max	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+kimi-k2.7-code	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+glm-5.2	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+deepseek-v4-pro	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed

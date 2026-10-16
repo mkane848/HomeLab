@@ -41,7 +41,7 @@ function Has([string]$name, [string]$text, [string]$pattern) { Check $name ($tex
 $ollamaPath = Join-Path $PSScriptRoot "engines\ollama.ps1"
 $llamaPath  = Join-Path $PSScriptRoot "engines\llamacpp.ps1"
 $interface = @("Get-EngineBaseUrlVar", "Get-EngineBaseUrl", "Test-EngineAlive", "Get-EngineVersion", "Format-EngineVersion",
-               "Get-EngineServedModels", "Get-EngineServedContext", "Get-EnginePromptLossSetup", "Get-EnginePromptLoss",
+               "Get-EngineServedModels", "Get-EngineSeatTags", "Get-EngineServedContext", "Get-EnginePromptLossSetup", "Get-EnginePromptLoss",
                "Get-EnginePromptLossText", "Get-EngineGpuPlacement")
 
 function Get-Ast([string]$Path) {
@@ -136,6 +136,7 @@ try {
         Reset-Routes; Route '/api/tags$' ([pscustomobject]@{ models = @([pscustomobject]@{ name = "qwen3:8b" }, [pscustomobject]@{ name = "qwen3.6:35b-a3b-coding" }) })
         Check "alive: /api/tags answers"                       (Test-EngineAlive -Root "http://fx.invalid") "True"
         Check "served models"                                  ((Get-EngineServedModels -Root "http://fx.invalid") -join ",") "qwen3:8b,qwen3.6:35b-a3b-coding"
+        Check "seat tags: the served names themselves"         ((Get-EngineSeatTags -Root "http://fx.invalid") -join ",") "qwen3:8b,qwen3.6:35b-a3b-coding"
         Reset-Routes; Route '/api/tags$' "THROW"
         Check "alive: unreachable"                             (Test-EngineAlive -Root "http://fx.invalid") "False"
         Check "served models: unreachable is null"             ($null -eq (Get-EngineServedModels -Root "http://fx.invalid")) "True"
@@ -249,6 +250,13 @@ exit 0
                 [pscustomobject]@{ id = "qwen3.6:CODING"; aliases = @("qwen3.6:35b-a3b-coding"); status = [pscustomobject]@{ value = "loaded" } },
                 [pscustomobject]@{ id = "qwen3:8B"; aliases = @("qwen3:8b"); status = [pscustomobject]@{ value = "unloaded" } }) })
             Check "served models: ids and aliases from /models" ((Get-EngineServedModels -Root "http://h") -join ",") "qwen3.6:CODING,qwen3.6:35b-a3b-coding,qwen3:8B,qwen3:8b"
+            Check "seat tags: one per model, the alias when it has one" ((Get-EngineSeatTags -Root "http://h") -join ",") "qwen3.6:35b-a3b-coding,qwen3:8b"
+            Reset-Routes
+            Route '//h/models$' "THROW"
+            Route '/v1/models$' ([pscustomobject]@{ data = @([pscustomobject]@{ id = "only" }, [pscustomobject]@{ id = "other"; aliases = @() }) })
+            Check "seat tags: an id without an alias, via /v1/models" ((Get-EngineSeatTags -Root "http://h") -join ",") "only,other"
+            Reset-Routes; Route '/models$' "THROW"; Route '/v1/models$' "THROW"
+            Check "seat tags: unreachable is null"             ($null -eq (Get-EngineSeatTags -Root "http://h")) "True"
             Reset-Routes
             Route '//h/models$' "THROW"
             Route '/v1/models$' ([pscustomobject]@{ data = @([pscustomobject]@{ id = "only" }) })
