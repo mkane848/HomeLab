@@ -217,7 +217,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        old one, and the llama.cpp trial pins it). No round has run under it yet, so its effect on pass rates is unmeasured.
    - **Moved to "After the trial" (2026-10-13).** A control run with the model on the server and the tools on node3
      (the contention test is done, step 5); the harness's `Resolve-TaskBase` still needs a per-host repo root for it.
-4. **Engine trial on the server: next (owner, 2026-10-13).** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama,
+4. **Engine trial on the server: Phase 1 done 2026-10-16, Gate G1 go.** llama.cpp's CUDA server (`--n-cpu-moe`) beside Ollama,
    on the same GGUF. Measure speed, and whether turning the front-drop into an explicit error ends the lost briefs
    (below, "Replacing Ollama"). It runs after step 3, so there's a baseline. **The premise still holds:** lost
    briefs are the commonest failure in the replicated rounds. **During the window daily use goes to
@@ -229,10 +229,20 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      `server/llamacpp/models.ini`, `server/scripts/llamacpp-check.sh`, `tests/probe-overflow.ps1`, and `-Engine llamacpp`
      on `tests/test-toolcalls.ps1` and `tests/bench-speed.ps1`, each with a guard. None of it has run against a real
      server: the session that wrote it could not reach one, and the guards ran on PowerShell 7.4.6 on Linux and, since 2026-10-12, on the desktop (Windows, PowerShell 7.4.20).
-   - **Phase 1 has not started and needs the owner** (status and checklist: [llamacpp-trial.md](llamacpp-trial.md) →
-     "Status and handoff"): the four guards on Windows (done), the second Ollama round under classifier 2 as the
-     like-for-like baseline (round 2 above: done, 12 of 15 in each rep; round 3 adds two more reps), then the runbook on the server. `sudo` steps (the
-     GPU-loss drill) are the owner's. Phases 2–6 are not started; outline in "Replacing Ollama" below.
+   - **Phase 1: done 2026-10-13 to 16, Gate G1 go** ([llamacpp-trial.md](llamacpp-trial.md) → "Results"). Every row
+     passes:
+     - **Overflow mechanism.** An over-long request is an explicit HTTP 400 that OpenCode recovers from, with zero
+       silent lost briefs (Ollama: 3 of 15). 74 overflows were recovered. 4 lost-brief runs looped to the cap
+       re-reading files larger than the window; the owner reads them as "loud, not silent".
+     - **Speed.** With Ollama's own MTP copied, prefill is 106–109% and decode 112–118% of Ollama's, with 1,477 MiB of
+       VRAM free against 782.
+     - **Tool probe:** PASS for both seats.
+     - **Soak:** 144 of 144 cycles clean, through a real `daemon-reload`.
+     - **Round:** 11 of 15, level with Ollama's 11, 12, 11, 11, in about two thirds of the time.
+
+     Ollama 0.34.3, 0.40.3 and 0.40.4 all still cut silently. The window is closed and the server's Ollama is back as
+     the default. **Phase 2 (the engine adapter, placement over `nvidia-smi`, a client-side fix for files bigger than
+     the window) needs its own approval**; Phases 3–6 are outlined in "Replacing Ollama" below.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.

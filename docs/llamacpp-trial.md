@@ -11,7 +11,11 @@ The repo files for the trial are `server/docker/docker-compose.llamacpp.yml`, `s
 reach the server); **the commands below are for the owner, or an agent session on the desktop over SSH.** Anything
 that needs `sudo` on the server is the owner's ([network-topology](network-topology.md) → "SSH access").
 
-## Status and handoff (2026-10-13)
+## Status and handoff (2026-10-13; Phase 1 done 2026-10-16)
+
+**2026-10-16: Phase 1 is done and Gate G1 is go** ("Results" below). The window is closed: llama-server is down, the
+server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to `dev-workflow-server`. Phase 2 (the
+engine adapter) needs its own approval. The rest of this section is the handoff as it stood before the window.
 
 **Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
 (`bench-speed.ps1`, `test-gpu-placement.ps1`, `runHost`, the harness's GPU-placement check), and PR #116 added this
@@ -37,7 +41,7 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
   and `python` that actually runs. Windows PowerShell 5.1 is no longer a target (owner, 2026-10-12).
 - [x] The like-for-like baseline: one more Ollama nudged round of the 15 on the server under **classifier 2**, from the
   desktop, into a private `-ResultsDir`. It needs Ollama exactly as it is today, so it comes before the window below.
-- [ ] **Next (owner, 2026-10-13: server-side work first, nothing else moving on the server meanwhile).** Announce
+- [x] **Done 2026-10-13 to 16 (owner, 2026-10-13: server-side work first, nothing else moving on the server meanwhile).** Announce
   one GPU window and work the runbook top to bottom (steps 0–9). Step 1 can end the trial early: if 0.40.3 says
   EXPLICIT-ERROR, stop and report to the owner. **The daily default is the server since 2026-10-13**
   (`dev-workflow-server`), so the announcement matters: during the window daily use goes to `opencode quality` (the
@@ -46,8 +50,10 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
   over, because the baseline rounds ran with it.
   **Route chosen 2026-10-13: a Claude Code session on the desktop**, started with
   [`agent-notes/prompt-llamacpp-window.md`](agent-notes/prompt-llamacpp-window.md).
-- [ ] Owner, with `sudo`: step 8's E1, `sudo systemctl daemon-reload` against the running llama container.
-- [ ] Append the numbers and the Gate G1 verdict under "Results" by a PR of their own, with the roadmap and CHANGELOG
+- [x] ~~Owner, with `sudo`: step 8's E1, `sudo systemctl daemon-reload` against the running llama container.~~ A real
+  `daemon-reload` (snapd, 2026-10-15 04:37 UTC) came during the soak and the GPU was kept; the owner's drill was not
+  run ("Results" → step 8).
+- [x] Append the numbers and the Gate G1 verdict under "Results" by a PR of their own, with the roadmap and CHANGELOG
   entries the gate section asks for.
 
 **Open items the runbook already carries, listed so they aren't lost:**
@@ -60,7 +66,7 @@ started nor approved ([roadmap](roadmap.md) → "Replacing Ollama" lists them).
   reading is the placement.
 - The compaction plugin is pinned to OpenCode 1.18.34, and `probe-overflow.ps1` embeds that version's overflow patterns;
   re-copy them if OpenCode is upgraded during the trial.
-- "Known unknowns" at the end of this file are all still unknown.
+- ~~"Known unknowns" at the end of this file are all still unknown.~~ Answered in "Results" → step 2 (2026-10-13).
 
 ## The question and what would answer it
 
@@ -334,6 +340,183 @@ and the [Ollama releases](https://github.com/ollama/ollama/releases). Short name
 
 ## Results
 
-*Not run yet (status as of 2026-10-13, see "Status and handoff"). Appended by the PR that records them.*
+**Phase 1 ran 2026-10-13 to 16** on the server, from a Claude Code session on the desktop (run host: the desktop for every
+task run). Raw rows: `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv`, `bench-speed.tsv`. Task runs
+are assisted (nudged) and stay in the private results (`llamacpp-c2`, `llamacpp-lostbrief`, `llamacpp-round`).
+
+**Gate G1: go.** Every row passes (table at the end of this section). The mechanism row passes on the owner's reading,
+"loud, not silent" (4 of 12 lost-brief runs looped to the cap and are reported as not recovered). The drill row rests
+on a real `daemon-reload` that happened during the soak, not on the owner's `sudo` drill. Phase 2 is not started: it
+needs its own approval.
+
+### Declared amendments (made during the window, each before the measurement it affects)
+
+| amendment | why | effect |
+|---|---|---|
+| `alias` per seat in `models.ini`; the checker accepts aliases and FAILs a `:` section without one | router mode rewrites colon names (`qwen3.6:35b-a3b-coding` → `qwen3.6:CODING`), so the seat ids OpenCode sends did not exist | none on measurements; the response's `model` field still shows the rewritten id |
+| `device = none` for the CPU 3b | `n-gpu-layers = 0` still took 332 MiB of VRAM (a CUDA context); `device = none` takes 0 | the runbook's named fallback |
+| MTP speculative decoding copied from Ollama (`spec-type = draft-mtp`, `spec-draft-n-max = 2`) | Ollama 0.34.3 runs its bundled llama-server with exactly these flags (its own log, below), so leaving them out compared unlike settings | **the speed row is judged on the MTP arm**; the no-MTP sweep is kept as supplementary data; step 7 ran with MTP |
+| harness: an `opencode run` that exits 1 with only context-overflow errors and ends on a finished step is graded (`Get-OverflowRecovery`, `tests/test-overflow-recovery.ps1`) | opencode 1.18.34 exits 1 after any overflow even when it compacted and finished; C2 (14 overflows, an edit, 130/130 tests) was filed as infrastructure | Ollama never sends this error, so no Ollama row is affected; an unrecovered overflow says "overflow killed the run" |
+| `server/scripts/llamacpp-soak.sh` | step 8's E3 had no script | — |
+| order: the soak (E3) ran before the round's last two tasks (`wp-5b`, `wp-6f`) | Windows Update restarted the desktop at 00:29 on 2026-10-14, mid-`wp-5b`; the owner chose to start the soak first | none expected: the two runs measure the same preset |
+
+### Step 1. Premise: Ollama still cuts silently
+
+| engine | sent | evaluated | verdict |
+|---|---|---|---|
+| Ollama 0.34.3 (scratch container, `qwen3:8b`, 4096) | ~5,356 | 2,050 (38%) | SILENT-TRUNCATION |
+| Ollama 0.40.3 (scratch container, same) | ~5,361 | 2,050 (38%) | SILENT-TRUNCATION |
+| Ollama 0.40.4 (node3, `qwen3:8b`, 32768; supplementary, 2026-10-14) | ~42,631 | 16,386 (38%) | SILENT-TRUNCATION |
+
+The needle in the first line was lost every time. **Why**, from Ollama 0.34.3's own log and source: Ollama runs its
+bundled llama-server (0.4.1-dev, `391fac164`) with `--context-shift --keep 4` (and `--no-jinja --chat-template chatml`,
+the vision projector, `--spec-type draft-mtp --spec-draft-n-max 2`, `-b 512 -ub 512`), and its Go front end cuts the
+prompt itself (`llm/llama_server.go:318` at v0.34.3). A per-request `shift: false` on `/api/chat` or `/api/generate`
+turns the cut into a 400 (`:299`, `server/sched.go:134`), but there is no environment variable and `/v1`
+(`openai/openai.go`) has no such field, and the 400's text matches none of OpenCode 1.18.34's 27 overflow patterns.
+A `/v1`→`/api/chat` proxy with `shift: false` plus an error rewrite would close it; not pursued (owner, 2026-10-13: the
+plan is to leave Ollama).
+
+### Step 2. Bring-up (known unknowns)
+
+| unknown | answer |
+|---|---|
+| Ollama's `qwen3.6` blob loads in llama.cpp | **yes**, read-only from the Ollama volume, in ~15 s |
+| `parallel = 1` gives one slot with the full `c` | **yes**: `total_slots` 1, `n_ctx` 65536 |
+| `n-gpu-layers = 0` leaves the CPU 3b with no VRAM | **no**: 332 MiB (a CUDA context). `device = none`: 0 MiB |
+| the image's healthcheck works as written | **yes** |
+| router mode counts models, not VRAM | **confirmed**: `qwen3:8b` beside `qwen3.6` fails on a 4.87 GB CUDA allocation, and `POST /models/load` answers `{"success":true}` before the failure (read `GET /models` for `loaded` / `failed`) |
+| colon names | rewritten by router mode (above); fixed with `alias` |
+| the offload line | not logged at the default level |
+| the real overflow response | HTTP 400, `exceed_context_size_error`, with `n_prompt_tokens` and `n_ctx` in the body (step 6 C1) |
+| `<think>` output | split out as `reasoning_content` (`reasoning_format: deepseek`), never inline. In OpenCode's run transcripts it looks the same as on Ollama: no reasoning parts, no `<think>` text, 0 reasoning tokens recorded (`wp-0a` on both engines) |
+| the vision projector | not loaded: the seat is text-only (noted for Phase 2) |
+
+### Step 3. Sampling
+
+Copied from what Ollama applies to each tag: `qwen3.6` temperature 0.6, top-k 20, top-p 0.95, min-p 0, repeat penalty 1,
+presence penalty 0; `qwen3:8b` the same without the presence penalty. `llamacpp-check.sh --ollama-url`: 0 FAIL, 23 OK.
+
+### Step 4. Tool-call probe through `/v1` (H3)
+
+| seat | llama-server | Ollama 0.34.3 (cold load, page cache warm) |
+|---|---|---|
+| `qwen3.6:35b-a3b-coding` | PASS, 7.1 s (2.3 s with MTP) | 68 s |
+| `qwen3:8b` | PASS, 3.0 s | 60.3 s |
+
+### Step 5. Placement and speed (H2)
+
+Swept `n-cpu-moe` 16–24 on both arms; the pre-registered rule picks the lowest value with ≥ 700 MiB free: **16**.
+
+| arm, `n-cpu-moe` 16 | VRAM free | prefill 3k / 30k / 60k (tok/s) | decode 3k / 30k / 60k (tok/s) |
+|---|---|---|---|
+| Ollama 0.34.3 baseline | ~782 MiB | 688 / 692 / 674 | 73.1 / 65.0 / 60.6 |
+| llama.cpp, MTP (**judged**) | 1,477 MiB | 728 / 754 / 721 (106 / 109 / 107%) | 86.4 / 76.6 / 67.9 (118 / 118 / 112%) |
+| llama.cpp, no MTP (supplementary) | 2,383 MiB | 746 / 763 / 732 | 65.9 / 59.2 / 54.3 (90 / 91 / 89.6%) |
+
+The full sweep (one rep per size; rows in `tests/results/bench-speed.tsv`):
+
+| `n-cpu-moe` | no MTP: VRAM free | prefill 3k / 30k / 60k | decode 3k / 30k / 60k | MTP: VRAM free | prefill 3k / 30k / 60k | decode 3k / 30k / 60k |
+|---|---|---|---|---|---|---|
+| 16 | 2,383 MiB | 746 / 763 / 732 | 65.9 / 59.2 / 54.3 | 1,477 MiB | 728 / 754 / 721 | 86.4 / 76.6 / 67.9 |
+| 18 | 3,315 MiB | 683 / 699 / 668 | 61.9 / 56.9 / 51.9 | 2,407 MiB | 667 / 685 / 655 | 75.0 / 75.0 / 68.2 |
+| 20 | 4,245 MiB | 658 / 633 / 609 | 57.4 / 54.0 / 50.2 | 3,337 MiB | 657 / 628 / 600 | 71.1 / 66.1 / 63.6 |
+| 22 | 5,107 MiB | 571 / 590 / 564 | 55.1 / 51.2 / 46.9 | 4,201 MiB | 565 / 586 / 556 | 70.4 / 66.7 / 63.1 |
+| 24 | 6,037 MiB | 560 / 538 / 518 | 51.1 / 48.2 / 44.8 | 5,131 MiB | 520 / 534 / 514 | 62.6 / 59.7 / 58.5 |
+
+Each step of two more expert layers on the CPU frees about 0.9 GB of VRAM and costs a few percent of speed (up to 13% in
+one step). MTP costs about 0.9 GB and buys 21–35% decode, for 0–7% of prefill. Host RAM in use 2.0–2.3 GB. Speed row: **pass** (on the MTP arm).
+
+### Step 6. Overflow (H1)
+
+- **C1:** an oversized request gets HTTP 400 `exceed_context_size_error` with `n_prompt_tokens` and `n_ctx`, and
+  OpenCode 1.18.34's patterns classify it (`probe-overflow.ps1`: EXPLICIT-ERROR).
+- **C2:** `wp-2b` through OpenCode: the first request overflowed (69,574 tokens), then 14 overflow → compaction cycles,
+  the brief kept in every summary (the compaction requests themselves fit, ~6k), then an edit and visible tests
+  130/130, ending on `stop`. opencode exited 1 anyway, which is what the harness amendment above handles. The
+  compaction plugin does not match OpenCode's post-overflow message ("…large media attachments"), so it did not rewrite
+  it.
+
+### Step 7. Task rounds (H1, H4)
+
+**Lost-brief set**, 3 reps, nudged, classifier 2, 45-minute cap:
+
+| task | result | overflows (each run) | wall (s) |
+|---|---|---|---|
+| `wp-2b` | 3 / 3 | 9, 2, 6 | 571, 327, 555 |
+| `wp-4a` | 2 / 3 | **43 (timeout)**, 12, 14 | 2,700, 901, 1,288 |
+| `wp-5a` | 3 / 3 | 3, 4, 8 | 767, 688, 860 |
+| `kane-08` | 0 / 3 | **16, 18, 19 (all timeouts)** | 2,700 × 3 |
+
+- **Zero silent lost briefs** (Ollama baseline: 3 of 15). No run asked what its task was (`askedForTask`), and every
+  compaction summary kept the brief.
+- **58 overflows recovered** in the 8 finished runs. **4 runs did not recover**: each re-read the same large files after
+  every compaction, overflowed again, and looped until the cap (`kane-08` rep 3: 75 tool calls, all reads of
+  `signals.ts` / `signals.test.ts`, 0 edits).
+- **Why:** `kane-08`'s two files are ~131 KB and ~185 KB, roughly 40k + 56k tokens against a 64k window, so the task
+  cannot be done by reading whole files on any engine (on Ollama the same task lost its brief three times). `wp-4a`'s six
+  files are ~60k tokens, at OpenCode's 57,344-token compaction threshold: it looped once in three. The fix is client-side
+  (read ranges or search instead of whole files): Phase 2.
+- **Reading of the mechanism row (owner, 2026-10-14): loud, not silent.** The looping runs never lost a brief silently;
+  every overflow was an explicit, logged error. They count under "ends cleanly" and are reported as **not recovered: 4 of
+  12**.
+
+**Round of 15**, nudged, classifier 2. A Windows Update restart of the desktop (2026-10-14 00:29) cut it off during
+`wp-5b`. `wp-5b` and `wp-6f` ran on 2026-10-16 at the same commit and settings, after the soak, and the summary rows of
+the first 13 were rebuilt from their run JSONs:
+
+| | |
+|---|---|
+| passed | **11 of 15** on every gate: `real-01`, `real-03`, `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`, `wp-4a`, `wp-6a`, `wp-6f`, `wp-7a`, `wp-9a` |
+| failed | `real-02` (0 edits: "AGENTS.md is already up to date"); `wp-3b` (hidden tests 210/210, but 612 lines changed against a 400-line ceiling); `wp-5a` (0 edits: after a compaction it named its task and asked "Shall I proceed?"; classifier 3 would have nudged it, the trial holds classifier 2); `wp-5b` (2 visible tests broken, hidden tests 246/247; it failed in every Ollama round too) |
+| overflows | 16, all recovered (`wp-2b` 3, `wp-4a` 7, `wp-5a` 5, `wp-5b` 1) |
+| wall time | 5,191 s for the 15 tasks; the four Ollama classifier-2 rounds took 6,054 to 10,114 s (mean 8,016) |
+| Ollama classifier-2 rounds | every gate: 11, 12, 11, 11 of 15 (mean 11.25); hidden tests alone: 12, 12, 11, 11 (the roadmap's "12 of 15 in each rep" for round 2 counts this way). `nudged-server-2` and `-3`, two rounds each, 2026-10-12/13; `wp-5b` failed in all four, `real-02` in three. The first server round (classifier 1) scored 10 both ways |
+| this round, both ways | every gate: **11 of 15**; hidden tests alone: **12 of 15** (`wp-3b` passes its hidden tests and fails only the line ceiling) |
+
+Screen: **pass.** 11 of 15 against Ollama's 11, 12, 11, 11 (every gate), and 12 against 12, 12, 11, 11 (hidden tests
+alone): level with Ollama either way, at about two thirds of the wall time. As the gate says, this rules out a collapse
+and cannot show a win.
+
+### Step 8. Operations (H5)
+
+- **E1: the GPU was kept through a real `daemon-reload`, which happened by itself during the soak.** At 04:37:48 UTC on
+  2026-10-15, snapd ran `systemctl daemon-reload` (`Reload requested from client PID … ('systemctl') (unit
+  snapd.service)`, for a `core22` refresh). That is the same kind of event that silently cost Ollama's container the GPU on
+  2026-10-12, and it came while `qwen3.6` was loaded (soak cycle 77, loaded 04:34). Every later load landed on the GPU
+  at the same VRAM (cycles 78–143), the healthcheck (`nvidia-smi -L` inside the container) stayed `healthy`, and on
+  2026-10-16 the in-container `nvidia-smi -L` still listed the RTX 4070 Ti SUPER. **Gap:** nothing asked the model that
+  was loaded during the reload for a generation before it was unloaded at 04:44, and the owner's own `sudo` drill was
+  not run (the owner was away; the window closed on the natural event). The explicit device nodes plus the GPU-aware
+  healthcheck, already the fix on the Ollama compose file, hold for this container too.
+- **E2: no HTTP signal.** `/props` (router or per model) and `/slots` carry no placement; `/metrics` is off and carries
+  none; `GET /models` shows each child's *configured* args (`--device none`, `--n-cpu-moe 16`), not where it actually
+  runs. **What works:** `nvidia-smi --query-compute-apps=pid,used_memory` over ssh, with `ps` mapping each child pid
+  (`--port`, `--alias`) to its seat. With `qwen3.6` (GPU) and the CPU 3b both loaded, only `qwen3.6` was listed
+  (14,930 MiB); a GPU seat missing from that list is the CPU signature. Each reply's `timings.predicted_per_second` is
+  an HTTP hint (85 tok/s for `qwen3.6`, 14.5 for the CPU 3b) but not a signal: CPU contention alone has taken
+  `qwen3.6` to ~20 tok/s. Phase 2's placement check needs the ssh call or a small HTTP wrapper for `nvidia-smi`.
+- **E3 soak: clean.** 2026-10-14 15:44 to 2026-10-15 15:44 UTC, `qwen3:8b` and `qwen3.6` alternately every 10 min
+  (`server/scripts/llamacpp-soak.sh`): **144 of 144 cycles ok**. Every load succeeded and every request returned 200;
+  the container stayed `healthy` with 0 restarts.
+
+  | seat | cycles | load (s) | VRAM after load | host RAM in use, mean per 6 h block |
+  |---|---|---|---|---|
+  | `qwen3:8b` | 72 | 3.1 every time | 7,545 MiB every time | 1,709 / 1,710 / 1,722 / 1,697 MiB |
+  | `qwen3.6:35b-a3b-coding` | 72 | 6.1 (once 12.1, the first) | 14,899 MiB every time | 2,172 / 2,180 / 2,195 / 2,167 MiB |
+
+  No growth in either column, and no hang. The day's apt and snap timers ran inside the window, including the reload
+  above.
+
+### Gate G1, row by row
+
+| | criterion | result |
+|---|---|---|
+| must | tool probe through `/v1` | **pass** (step 4) |
+| must | explicit, classified overflow; recovers or ends cleanly; zero silent lost briefs | **pass**, read as "loud": 0 silent losses; 58 + 16 overflows recovered; 4 lost-brief runs looped to the cap (not recovered, reported) |
+| must | GPU loss detectable, and detected in the drill | **pass**: the GPU was kept through a real `daemon-reload` (E1, natural; the owner's `sudo` drill not run), and a lost GPU is detectable over ssh (`nvidia-smi --query-compute-apps`), not over HTTP (E2) |
+| must | soak clean | **pass**: 144 of 144 cycles, flat VRAM and RAM, 0 restarts |
+| speed | ≥ 90% at equal or better headroom | **pass** on the MTP arm (106–118%, 1,477 MiB free) |
+| screen | round no worse than Ollama's by more than 2 | **pass**: 11 of 15 (12 on hidden tests alone), level with Ollama |
 
 [opencode-provider-npm]: https://raw.githubusercontent.com/sst/opencode/v1.18.34/packages/opencode/src/provider/provider.ts

@@ -1,0 +1,5 @@
+timestamp	host	engine	engineVersion	model	numCtx	sentTokensEst	reportedPromptTokens	httpStatus	verdict	needleFound	opencodeOverflow	note
+2026-10-13T16:30:24	server-scratch-0.34.3	ollama	0.34.3	qwen3:8b	4096	5356	2050		SILENT-TRUNCATION	False		sent ~5356 tokens, engine evaluated 2050 (38%)
+2026-10-13T16:36:31	server-scratch-0.40.3	ollama	0.40.3	qwen3:8b	4096	5361	2050		SILENT-TRUNCATION	False		sent ~5361 tokens, engine evaluated 2050 (38%)
+2026-10-13T17:14:34	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	65536	85231		400	EXPLICIT-ERROR		True	{ "error": { "code": 400, "message": "request (88160 tokens) exceeds the available context size (65536 tokens), try increasing it", "type": "exceed_context_size_error", "n_prompt_tokens": 88160, "n_ctx": 65536 } }
+2026-10-14T16:41:25	node3	ollama	0.40.4	qwen3:8b	32768	42631	16386		SILENT-TRUNCATION	False		sent ~42631 tokens, engine evaluated 16386 (38%)

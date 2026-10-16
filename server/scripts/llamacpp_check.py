@@ -48,6 +48,11 @@ SAMPLING = {
     "frequency_penalty": ("frequency-penalty",),
     "repeat_last_n": ("repeat-last-n",),
     "seed": ("seed", "s"),
+    # Not sampling, but applied the same way: Ollama 0.34.3 serves a tag with this
+    # parameter through its bundled llama-server with `--spec-type draft-mtp
+    # --spec-draft-n-max N` (its own log, trial step 5, 2026-10-13). Speculative
+    # decoding changes speed, not output, so leaving it out skews only the speed row.
+    "draft_num_predict": ("spec-draft-n-max",),
 }
 
 results = []  # (level, subject, message)
@@ -136,6 +141,13 @@ def static_checks(ini, seats):
             say("FAIL", tag, "c = %s but server-seats.tsv num_ctx = %s" % (c, seat["num_ctx"]))
         else:
             say("OK", tag, "context %s equals server-seats.tsv" % c)
+        # Router mode reads `name:tag` as a quant tag and rewrites it (qwen3.6:35b-a3b-coding ->
+        # qwen3.6:CODING); only an alias keeps the Ollama tag addressable (trial step 2, 2026-10-13).
+        if ":" in tag:
+            if sec.get("alias") == tag:
+                say("OK", tag, "alias keeps the exact tag addressable")
+            else:
+                say("FAIL", tag, "a ':' in the section name is rewritten by router mode; add `alias = %s`" % tag)
         par = pick(sec, glob, "parallel", "np")
         if par != "1":
             say("FAIL", tag, "parallel = %s (must be 1: c is shared across slots)" % par)
@@ -188,6 +200,12 @@ def sampling_checks(ini, ollama_url):
                 say("OK", tag, "%s = %s matches Ollama" % (SAMPLING[oname][0], have))
             else:
                 say("FAIL", tag, "%s = %s but Ollama applies %s = %s" % (SAMPLING[oname][0], have, oname, value))
+            if oname == "draft_num_predict":
+                kinds = (pick(ini[tag], glob, "spec-type") or "").split(",")
+                if "draft-mtp" in kinds:
+                    say("OK", tag, "spec-type includes draft-mtp, as Ollama serves it")
+                else:
+                    say("FAIL", tag, "Ollama drafts with MTP (draft_num_predict = %s); the preset needs spec-type = draft-mtp" % value)
 
 
 def live_checks(ini, url):
@@ -202,7 +220,14 @@ def live_checks(ini, url):
     for path in ("/v1/models", "/models"):
         try:
             _, body = http_json(base + path)
-            ids = {m.get("id") or m.get("name") for m in body.get("data", []) if isinstance(m, dict)}
+            # Router mode rewrites a section name with a ':' (qwen3:8b -> qwen3:8B, read as a
+            # quant tag), so a seat is listed when its tag is the id or one of its aliases
+            # (the preset's `alias` key; trial step 2, 2026-10-13).
+            ids = set()
+            for m in body.get("data", []):
+                if isinstance(m, dict):
+                    ids.add(m.get("id") or m.get("name"))
+                    ids.update(a for a in (m.get("aliases") or []) if isinstance(a, str))
             if ids:
                 break
         except Exception:  # noqa: BLE001
