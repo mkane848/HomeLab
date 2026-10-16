@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: llama.cpp OpenCode providers, env defaults and a server twin profile (Phase 2 of "Replacing Ollama",
+  2026-10-16).**
+  - `opencode/global/opencode.jsonc` gains `llamacpp-server`, `llamacpp-desktop` and `llamacpp-node3` (each
+    `{env:LLAMACPP_*_BASE_URL}`), with the preset's three seats: `qwen3.6:35b-a3b-coding` 65536 / 8192,
+    `qwen3:8b` 32768 / 4096, and `qwen2.5-coder-3b-cpu` 16384 / 2048 with no tools. All are text-only, because the
+    vision projector is not loaded. The desktop and node3 blocks are there ahead of Phases 4 and 5; neither host
+    runs a llama-server yet.
+  - **Fix:** `ollama-server`'s `glm4:9b` is now `tool_call: false`. The same weights failed the probe on node3, and
+    node3's block already said so.
+  - **New live profile `dev-workflow-server-llamacpp`** (`opencode server-llamacpp`): `dev-workflow-server` with both
+    seats on the server's llama-server. Every live profile now exports `LLAMACPP_SERVER_BASE_URL` and
+    `LLAMACPP_SERVER_SSH`, and `desktop/scripts/opencode.ps1` passes and restores them.
+  - **`tests/test-profiles.ps1`:**
+    - the served-context check reads llama-server's `GET /props?model=<seat>&autoload=false`
+      (`default_generation_settings.n_ctx`);
+    - the tier and base-URL maps know `llamacpp-*`;
+    - model listing reads `aliases`;
+    - the round-trip probes accept `reasoning_content`.
+  - **`tests/test-opencode-profiles.ps1`** covers the twin's short name.
+  - **Verified offline:** the template resolves every new model with its `limit` (`OPENCODE_CONFIG` pointed at a
+    copy, `opencode debug config`). Not yet run live against llama-server: that needs a short server window.
+
 - **docs: llama.cpp trial Phase 1 results, Gate G1 go (2026-10-13 to 16).** The runbook ran on the server from a
   Claude Code session on the desktop. The numbers are in `docs/llamacpp-trial.md` → "Results"; summary in
   `docs/roadmap.md` step 4.

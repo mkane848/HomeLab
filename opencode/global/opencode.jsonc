@@ -574,7 +574,7 @@
         // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Server, main seat, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -583,7 +583,7 @@
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Server, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -592,7 +592,7 @@
         },
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Server, CPU, small, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": false,
           "tool_call": false,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -615,7 +615,7 @@
         // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Desktop, main seat, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -624,7 +624,7 @@
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Desktop, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -633,7 +633,7 @@
         },
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Desktop, CPU, small, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": false,
           "tool_call": false,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -656,7 +656,7 @@
         // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Node3, main seat, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -665,7 +665,7 @@
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Node3, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
@@ -674,7 +674,7 @@
         },
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Node3, CPU, small, llama.cpp)",
-          "attachment": true,
+          "attachment": false,
           "reasoning": false,
           "tool_call": false,
           "modalities": { "input": ["text"], "output": ["text"] },
