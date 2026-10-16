@@ -750,7 +750,7 @@ function Get-ResultFileNames {
 function Get-NewRunFiles {
     # The files one test-tasks.ps1 invocation left in the results folder:
     # tasks-<task>-<label>_<stamp>.json + .jsonl for a graded run,
-    # tasks-<task>-<label>_<INFRA|TIMEOUT|TRUNCATED>_<stamp>.jsonl for one that
+    # tasks-<task>-<label>_<INFRA|TIMEOUT|TRUNCATED|CPUONLY|CTXEXCEEDED>_<stamp>.jsonl for one that
     # was not. $Before is Get-ResultFileNames from before the run.
     param([string]$ResultsDir, [hashtable]$Before, [string]$TaskId, [string]$ModelLabel)
     $prefix = "tasks-{0}-{1}_" -f $TaskId, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_')
@@ -821,7 +821,7 @@ function Measure-RunSpend {
             continue
         }
         $total += Get-UsageCostUsd -Usage (Get-TranscriptTokenUsage -Path $f.FullName) -Rate $Rate
-        $sources.Add($(if ($f.Name -match '_(INFRA|TIMEOUT|TRUNCATED)_') { "$($Matches[1]) transcript tokens" }
+        $sources.Add($(if ($f.Name -match '_(INFRA|TIMEOUT|TRUNCATED|CPUONLY|CTXEXCEEDED)_') { "$($Matches[1]) transcript tokens" }
                        elseif ($jsonCost.ContainsKey($f.BaseName)) { "transcript tokens (its run JSON has no costEstimate)" }
                        else { "transcript tokens (no run JSON)" }))
     }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the serving engine is behind an adapter, and a new contextExceeded outcome (Phase 2 of "Replacing
+  Ollama", 2026-10-16).**
+  - **The adapter.** `tests/engines/ollama.ps1` holds the Ollama code extracted from `test-tasks.ps1`, behaviour
+    unchanged. `tests/engines/llamacpp.ps1` defines the same interface (liveness, version, served models, served
+    context, prompt loss, GPU placement, base URL). `test-tasks.ps1` picks one by the provider prefix of `-Model`.
+    `Get-OllamaGpuPlacement` and `Get-OllamaPromptTruncation` moved into the Ollama adapter.
+  - **llama.cpp specifics:**
+    - the version is the router's `build_info`;
+    - the served context is the seat's `--ctx-size` in `GET /models`, else `/props?model=<seat>&autoload=false`,
+      so the check never loads a seat;
+    - prompt loss is "not applicable: refused explicitly";
+    - GPU placement is `nvidia-smi --query-compute-apps` over ssh (owner, 2026-10-16), via the new
+      `LLAMACPP_<HOST>_SSH`.
+  - **Run JSON:** every run records `engine` (name, version, baseUrl). The Ollama fields keep their meaning.
+  - **contextExceeded.** An agent exit of 1 whose only errors are context overflows and that did not recover is
+    exit -6 with a `_CTXEXCEEDED_` transcript and no row. It was `_INFRA_` "overflow killed the run". A timeout
+    holding overflows stays `_TIMEOUT_` and names them.
+  - **Batch:** `run-tasks-batch.ps1`'s spend accounting labels `_CPUONLY_` and `_CTXEXCEEDED_` transcripts.
+  - **Guards:**
+    - new `tests/test-engine-adapter.ps1` and `tests/test-context-exceeded.ps1`;
+    - `test-overflow-recovery.ps1` expects `_CTXEXCEEDED_` for its dead-overflow case;
+    - `test-gpu-placement.ps1` and `test-prompt-truncation.ps1` load their functions from the Ollama adapter;
+    - every guard that copies the harness also copies `tests/engines/`.
+  - **Not yet run live** against llama-server; that needs a short server window. The batch's `engine` column and its
+    `ollama-` parsing come next.
+
 - **docs: llama.cpp trial Phase 1 results, Gate G1 go (2026-10-13 to 16).** The runbook ran on the server from a
   Claude Code session on the desktop. The numbers are in `docs/llamacpp-trial.md` → "Results"; summary in
   `docs/roadmap.md` step 4.

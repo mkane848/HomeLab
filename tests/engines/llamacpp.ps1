@@ -4,7 +4,8 @@
 # engine trial (docs/llamacpp-trial.md -> Results):
 #   - version: the router's /props carries build_info ("b11561-abcdef0").
 #   - served models: GET /models (router mode: id, aliases, status.value).
-#   - served context: GET /props?model=<seat> -> default_generation_settings.n_ctx.
+#   - served context: the seat's `--ctx-size` in GET /models (loaded or not), else
+#     GET /props?model=<seat>&autoload=false -> default_generation_settings.n_ctx.
 #     Seat ids are the preset's `alias`, because router mode rewrites colon names.
 #   - prompt loss: none to detect. An over-long request is refused explicitly
 #     (HTTP 400 exceed_context_size_error), opencode logs a ContextOverflowError, and
@@ -80,14 +81,27 @@ function Get-EngineServedModels {
 }
 
 function Get-EngineServedContext {
+    # First the seat's own launch args in GET /models (`--ctx-size N`): known for a
+    # seat that is not loaded, and touching nothing. The preset sets `c` explicitly
+    # (llamacpp-check.sh enforces it), so the configured size is the served size.
+    # Then /props?model=<seat>&autoload=false, which never loads a seat as a side
+    # effect (router mode would otherwise autoload it).
     param([string]$Root, [string]$Tag)
     try {
-        $props = Invoke-RestMethod -Uri ("$Root/props?model=" + [uri]::EscapeDataString($Tag)) -TimeoutSec 10
+        $data = @((Invoke-RestMethod -Uri "$Root/models" -TimeoutSec 10).data)
+        $m = $data | Where-Object { $_.id -ceq $Tag -or (@($_.aliases) -ccontains $Tag) } | Select-Object -First 1
+        if ($m -and $m.status -and $m.status.args) {
+            $a = @($m.status.args); $i = [array]::IndexOf($a, "--ctx-size")
+            if ($i -ge 0 -and $i + 1 -lt $a.Count -and "$($a[$i + 1])" -match '^\d+$') { return [int]$a[$i + 1] }
+        }
+    } catch { }
+    try {
+        $props = Invoke-RestMethod -Uri ("$Root/props?model=" + [uri]::EscapeDataString($Tag) + "&autoload=false") -TimeoutSec 10
         $n = $props.default_generation_settings.n_ctx
         if ($null -ne $n -and "$n" -match '^\d+$') { return [int]$n }
-        return "unset (no n_ctx in /props?model=)"
+        return "unset (no --ctx-size in /models, no n_ctx in /props?model=)"
     } catch {
-        return "unknown (/props?model= failed)"
+        return "unknown (no --ctx-size in /models, /props?model= failed)"
     }
 }
 

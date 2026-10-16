@@ -256,13 +256,22 @@ exit 0
             Reset-Routes; Route '/models$' "THROW"; Route '/v1/models$' "THROW"
             Check "served models: unreachable is null"         ($null -eq (Get-EngineServedModels -Root "http://h")) "True"
 
-            Reset-Routes; Route '/props\?model=qwen3\.6%3A35b-a3b-coding$' ([pscustomobject]@{ default_generation_settings = [pscustomobject]@{ n_ctx = 65536 } })
+            # /models first: an unloaded seat's own launch args, found by its alias; /props never asked
+            Reset-Routes
+            Route '/models$' ([pscustomobject]@{ data = @(
+                [pscustomobject]@{ id = "qwen3:8B"; aliases = @("qwen3:8b"); status = [pscustomobject]@{ value = "unloaded"; args = @("/app/llama-server", "--alias", "qwen3:8B", "--ctx-size", "32768", "--parallel", "1") } }) })
+            Route '/props\?model=' "THROW"
+            Check "served context: --ctx-size from /models (unloaded seat, by alias)" (Get-EngineServedContext -Root "http://h" -Tag "qwen3:8b") 32768
+            Check "...without asking /props"                   (@($script:Calls | Where-Object { $_ -match '/props' }).Count) 0
+            # no args for the seat: /props?model= with autoload=false
+            Reset-Routes; Route '/models$' ([pscustomobject]@{ data = @() })
+            Route '/props\?model=qwen3\.6%3A35b-a3b-coding&autoload=false$' ([pscustomobject]@{ default_generation_settings = [pscustomobject]@{ n_ctx = 65536 } })
             Check "served context: /props?model= n_ctx"       (Get-EngineServedContext -Root "http://h" -Tag "qwen3.6:35b-a3b-coding") 65536
-            Check "...the seat id is URL-encoded"              ($script:Calls[0]) "http://h/props?model=qwen3.6%3A35b-a3b-coding"
-            Reset-Routes; Route '/props\?model=' ([pscustomobject]@{ default_generation_settings = [pscustomobject]@{} })
-            Check "served context: no n_ctx"                   (Get-EngineServedContext -Root "http://h" -Tag "x") "unset (no n_ctx in /props?model=)"
-            Reset-Routes; Route '/props\?model=' "THROW"
-            Check "served context: request failed"             (Get-EngineServedContext -Root "http://h" -Tag "x") "unknown (/props?model= failed)"
+            Check "...URL-encoded, and never autoloads"        (@($script:Calls)[-1]) "http://h/props?model=qwen3.6%3A35b-a3b-coding&autoload=false"
+            Reset-Routes; Route '/models$' "THROW"; Route '/props\?model=' ([pscustomobject]@{ default_generation_settings = [pscustomobject]@{} })
+            Check "served context: no n_ctx"                   (Get-EngineServedContext -Root "http://h" -Tag "x") "unset (no --ctx-size in /models, no n_ctx in /props?model=)"
+            Reset-Routes; Route '/models$' "THROW"; Route '/props\?model=' "THROW"
+            Check "served context: request failed"             (Get-EngineServedContext -Root "http://h" -Tag "x") "unknown (no --ctx-size in /models, /props?model= failed)"
 
             $s = Get-EnginePromptLossSetup -Root "http://h" -LogDir $tmp -ProviderId "llamacpp-server"
             Check "prompt loss: not enabled (refused explicitly)" $s.Enabled "False"
@@ -364,7 +373,7 @@ function Invoke-RestMethod {
     if ($u -match '/api/version$') { return [pscustomobject]@{ version = '0.34.3' } }
     if ($u -match '/api/show$') { return [pscustomobject]@{ parameters = 'num_ctx    65536' } }
     if ($u -match '/api/ps$') { return [pscustomobject]@{ models = @([pscustomobject]@{ name = 'fx:latest'; model = 'fx:latest'; size = 10e9; size_vram = 6e9 }) } }
-    if ($u -match '/props\?model=fx%3Atag$') { return [pscustomobject]@{ default_generation_settings = [pscustomobject]@{ n_ctx = 49152 } } }
+    if ($u -match '/props\?model=fx%3Atag&autoload=false$') { return [pscustomobject]@{ default_generation_settings = [pscustomobject]@{ n_ctx = 49152 } } }
     if ($u -match '/props$') { return [pscustomobject]@{ build_info = 'b11561-abcdef0' } }
     throw "fixture: no endpoint $u"
 }
