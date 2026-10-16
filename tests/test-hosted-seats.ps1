@@ -49,8 +49,14 @@ function Get-Functions([string]$Path, [string[]]$Names, [switch]$Optional) {
 foreach ($text in (Get-Functions $ScriptPath @("Test-HostedModelId", "Get-HostedSeatGate", "ConvertTo-RateValue", "Get-GoRates",
         "Get-SpendCap", "Get-TranscriptTokenUsage", "Get-UsageCostUsd", "Get-ResultFileNames", "Get-NewRunFiles", "Get-ProviderRefusal", "Measure-RunSpend",
         "Get-GoPlan", "Get-MeterBounds", "Get-PlanStatus", "Format-PlanMeter", "Get-PlanStop",
-        "Get-CapStatus", "Format-Usd", "Format-SpendCap", "Get-RegistryRows", "Get-AvailableModelSeats"))) {
+        "Get-CapStatus", "Format-Usd", "Format-SpendCap", "Get-RegistryRows", "Get-AvailableModelSeats",
+        "Invoke-Engine", "Get-EngineKind", "Get-ProviderEndpoint"))) {
     Invoke-Expression $text
+}
+# The engine adapters, loaded as the batch loads them (one module each).
+$script:EngineModules = @{}
+foreach ($k in "ollama", "llamacpp") {
+    $script:EngineModules[$k] = [psmoduleinfo]::new([scriptblock]::Create([IO.File]::ReadAllText((Join-Path $PSScriptRoot "engines\$k.ps1"))))
 }
 # The run JSON's estimate comes from test-tasks.ps1; the batch's transcript
 # estimate must match it. Optional so this guard does not break if they move.
@@ -83,13 +89,13 @@ function Step([hashtable]$Tokens) {
 
 $registryFixture = @"
 # fixture registry
-tag`thosts`tdesc
-qwen3:8b`tdesktop node3`tlocal seat
-qwen3:14b`tdesktop`tlocal seat
-alpha`topencode-go`thosted
-beta`topencode-go`thosted
-gamma`topencode-go`thosted, not listed by opencode
-delta`topencode-go`thosted, no rate row
+tag`tengine`thosts`tdesc
+qwen3:8b`tollama`tdesktop node3`tlocal seat
+qwen3:14b`tollama`tdesktop`tlocal seat
+alpha`topencode-go`topencode-go`thosted
+beta`topencode-go`topencode-go`thosted
+gamma`topencode-go`topencode-go`thosted, not listed by opencode
+delta`topencode-go`topencode-go`thosted, no rate row
 "@ -replace "`r`n", "`n"
 $ratesFixture = @"
 model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource
@@ -176,9 +182,9 @@ try {
     Write-Host "-- offered seats (the real Get-AvailableModelSeats; local rows unchanged)"
     $registryPath = Join-Path $tmp "registry.tsv"
     Write-Fixture $registryPath $registryFixture
-    $ollamaHosts = @(
-        [pscustomobject]@{ Label = "desktop"; Root = "http://d"; Up = $true; Version = "0.34.3"; Tags = @("qwen3:8b", "qwen3:14b") },
-        [pscustomobject]@{ Label = "node3"; Root = "http://n"; Up = $false; Version = $null; Tags = @() }
+    $engineHosts = @(
+        [pscustomobject]@{ Provider = "ollama-desktop"; Engine = "ollama"; Label = "desktop"; Root = "http://d"; Up = $true; Version = "0.34.3"; Tags = @("qwen3:8b", "qwen3:14b") },
+        [pscustomobject]@{ Provider = "ollama-node3"; Engine = "ollama"; Label = "node3"; Root = "http://n"; Up = $false; Version = $null; Tags = @() }
     )
     $localExpected = "ollama-desktop/qwen3:14b ollama-desktop/qwen3:8b"
     $hostedState = [pscustomobject]@{ Listed = @{ "opencode-go/alpha" = $true; "opencode-go/beta" = $true; "opencode-go/delta" = $true }; KeyExists = $true; KeyFile = "k"; ConfigOk = $true }
@@ -346,7 +352,7 @@ try {
     $realReg = Get-Content -LiteralPath (Join-Path $PSScriptRoot "run-tasks-models.tsv")
     $realRateRows = Get-GoRates -Path (Join-Path $repoRoot "costs\go-rates.tsv")
     foreach ($tag in "qwen3.7-plus", "qwen3.8-max", "kimi-k2.7-code", "glm-5.2", "deepseek-v4-pro") {
-        Check "registry: $tag is an opencode-go row" (@($realReg | Where-Object { $_ -match ("^" + [regex]::Escape($tag) + "`topencode-go`t") }).Count) 1
+        Check "registry: $tag is an opencode-go row" (@($realReg | Where-Object { $_ -match ("^" + [regex]::Escape($tag) + "`topencode-go`topencode-go`t") }).Count) 1
         $c = Get-SpendCap -ModelId "opencode-go/$tag" -Rates $realRateRows -Share 0.2
         Check "costs/go-rates.tsv: opencode-go/$tag has a rate row and a cap" ($null -eq $c.Refusal -and $c.Usd -gt 0) "True"
     }
@@ -427,7 +433,7 @@ exit /b 0
     # function shadows the cmdlet inside the script), then the real batch.
     Write-Fixture "$tmp\driver.ps1" @'
 param([string]$Script, [string]$ArgsFile)
-function Invoke-RestMethod {
+function global:Invoke-RestMethod {
     param($Uri, $TimeoutSec)
     if ("$Uri" -match '/api/tags$') { return [pscustomobject]@{ models = @([pscustomobject]@{ name = "qwen3:8b" }) } }
     if ("$Uri" -match '/api/version$') { return [pscustomobject]@{ version = "0.34.3" } }
@@ -500,7 +506,7 @@ exit $LASTEXITCODE
     Has   "gamma (not listed by opencode) is not offered" $r.Out '\[skip\] opencode-go/gamma - not listed by `opencode models opencode-go`'
     Has   "delta (no rate row) is refused, and why"   $r.Out '\[drop\] opencode-go/delta - no row in costs/go-rates\.tsv.*-NoSpendCap'
     Check "...and never runs"                         (RunsOf $r "opencode-go/delta") ""
-    Has   "hosted seats are marked smoke-tested, not probed" $r.Out 'opencode-go/alpha is hosted - smoke-tested .* not probed: test-toolcalls\.ps1 is Ollama-only'
+    Has   "hosted seats are marked smoke-tested, not probed" $r.Out 'opencode-go/alpha is hosted - smoke-tested .* not probed: test-toolcalls\.ps1 probes local engines only'
     Has   "preflight: alpha's cap in dollars"         $r.Out '\[CAP\]  opencode-go/alpha  \$2\.00 cap \(20% of \$10\.00 monthly\)'
     Has   "preflight: beta's cap in dollars"          $r.Out '\[CAP\]  opencode-go/beta  \$20\.00 cap \(20% of \$100\.00 monthly\)'
     Check "alpha: the _INFRA_ run (`$1.20) counts, so it stops after t1 (`$2.20)" (RunsOf $r "opencode-go/alpha") "fx-infra,t1"

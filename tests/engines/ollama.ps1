@@ -22,6 +22,8 @@
 #                                       `ollamaVersion` field carry ("ollama version is 0.34.3",
 #                                       "unknown (...)", "n/a (...)")
 #   Get-EngineServedModels -Root        ids the host serves, or $null when it does not answer
+#   Get-EngineSeatTags -Root            one tag per served model, as a client addresses it
+#                                       (llama.cpp: the alias when it has one), or $null
 #   Get-EngineServedContext -Root -Tag  the context window the host serves the model with:
 #                                       an [int], or a string saying why not
 #   Get-EnginePromptLossSetup -Root -LogDir -ProviderId
@@ -83,6 +85,13 @@ function Get-EngineServedModels {
         $r = Invoke-RestMethod -Uri "$Root/api/tags" -TimeoutSec 10
         return @($r.models | ForEach-Object { $_.name } | Where-Object { $_ })
     } catch { return $null }
+}
+
+function Get-EngineSeatTags {
+    # The tags a client addresses the host's models by, one per model (Ollama:
+    # the served names themselves). The batch's probe menu lists these.
+    param([string]$Root)
+    return (Get-EngineServedModels -Root $Root)
 }
 
 function Get-EngineServedContext {
