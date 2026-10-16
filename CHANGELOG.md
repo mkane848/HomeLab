@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: llama.cpp trial Phase 1 results, Gate G1 go (2026-10-13 to 16).** The runbook ran on the server from a
+  Claude Code session on the desktop. The numbers are in `docs/llamacpp-trial.md` → "Results"; summary in
+  `docs/roadmap.md` step 4.
+  - **The premise holds.** Ollama 0.34.3, 0.40.3 and (node3) 0.40.4 all cut an over-long prompt silently, keeping 38%.
+    The cut is Ollama's own Go code plus `--context-shift --keep 4` on its bundled llama-server.
+  - **llama-server instead refuses loudly**, with HTTP 400 `exceed_context_size_error`, which OpenCode classifies and
+    recovers from. 74 overflows were recovered across step 7, with zero silent lost briefs; the Ollama baseline lost
+    3 of 15. 4 of 12 lost-brief runs looped to the 45-minute cap: `kane-08`'s two files are ~96k tokens against a 64k
+    window. The owner read them as "loud, not silent", and the fix (reading in ranges) is Phase 2's.
+  - **Faster at matched settings.** Ollama runs MTP speculative decoding, so the preset copies it. At
+    `n-cpu-moe = 16`, prefill is 106–109% and decode 112–118% of Ollama's, with 1,477 MiB of VRAM free against 782.
+  - **Tool probe:** PASS for both seats.
+  - **Soak:** 144 of 144 cycles, flat VRAM and RAM, 0 restarts, through a real `daemon-reload` (snapd). The GPU was
+    kept; the owner's `sudo` drill was not run.
+  - **Round of 15:** 11 (12 on hidden tests alone), level with Ollama's classifier-2 rounds, in about two thirds of
+    their wall time.
+  - **Placement:** llama-server has no HTTP placement signal; `nvidia-smi --query-compute-apps` over ssh is exact.
+  - **Changes on the way:**
+    - `server/llamacpp/models.ini` gains an `alias` per seat (router mode rewrites colon names), `device = none` for
+      the CPU 3b (`n-gpu-layers = 0` still took 332 MiB), Ollama's sampling, `n-cpu-moe = 16` and MTP.
+    - `server/scripts/llamacpp_check.py` accepts aliases and maps `draft_num_predict`.
+    - `server/scripts/llamacpp-soak.sh` is new.
+    - `tests/test-tasks.ps1` grades an `opencode run` that exits 1 only because it recovered from context overflows
+      (`Get-OverflowRecovery`; new guard `tests/test-overflow-recovery.ps1`). opencode 1.18.34 exits 1 after any
+      overflow; Ollama never sends one, so no Ollama row changes.
+  - **Raw rows:** `tests/results/overflow-probe.tsv`, `toolcalls-summary-llamacpp.tsv` and `bench-speed.tsv`. Task
+    runs are assisted and stay private.
+  - **The window is closed.** llama-server is down, the `ollama/ollama:0.40.3` image is removed, and the server's
+    Ollama serves `qwen3.6` on the GPU again. Phase 2 needs its own approval.
+
 - **results: node3's `qwen3:8b` re-run, speed was not what held it back (2026-10-13/14).** The roadmap's "After the
   trial" item 2, run early from the desktop while node3 was free: the seven public tasks it had old rows for, two reps
   each, unassisted, with the seat all on the GPU (flash attention, `q8_0` KV) and its small model pinned to node3.
