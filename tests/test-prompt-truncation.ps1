@@ -16,15 +16,19 @@
 # must hit, the kane-09 run must not. Exit 1 on any failure.
 #
 # Usage:  .\tests\test-prompt-truncation.ps1 [-ScriptPath <a test-tasks.ps1>]
-param([string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"))
+param(
+    [string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"),
+    [string]$EnginePath = (Join-Path $PSScriptRoot "engines\ollama.ps1")
+)
 
 $ErrorActionPreference = "Stop"
 $errs = $null
-$ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
+# The function lives in the Ollama engine adapter (tests/engines/ollama.ps1).
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($EnginePath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fn = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)) |
     Where-Object { $_.Name -eq "Get-OllamaPromptTruncation" } | Select-Object -First 1
-if (-not $fn) { Write-Host "FAIL: Get-OllamaPromptTruncation not found in $ScriptPath"; exit 2 }
+if (-not $fn) { Write-Host "FAIL: Get-OllamaPromptTruncation not found in $EnginePath"; exit 2 }
 Invoke-Expression $fn.Extent.Text
 
 $script:fail = 0
@@ -86,6 +90,7 @@ try {
     foreach ($d in @("tests/tasks", "bin", "repo", "ollama")) { New-Item -ItemType Directory -Path (Join-Path $fx $d) -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $fx "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $fx "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $fx "tests") -Recurse -Force
     $repo = Join-Path $fx "repo"
     git -C $repo init -q
     git -C $repo config user.email "t@example.invalid"

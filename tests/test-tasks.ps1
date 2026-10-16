@@ -78,7 +78,11 @@
 # trial): an exit of 1 whose only errors are context overflows the engine refused
 # explicitly, followed by a step that finished with "stop", did reach the model
 # and finish; it is graded and its run JSON records `overflowRecovery`
-# (Get-OverflowRecovery; tests/test-overflow-recovery.ps1).
+# (Get-OverflowRecovery; tests/test-overflow-recovery.ps1). The same overflows with no
+# such recovery are not infrastructure either: exit -6, a `_CTXEXCEEDED_` transcript, no
+# summary row (the request outgrew the served context; tests/test-context-exceeded.ps1).
+# The engine behind a provider (ollama-*, llamacpp-*) is an adapter,
+# tests/engines/<engine>.ps1 (tests/test-engine-adapter.ps1).
 #
 # Which model/setting combos to compare is the whole point - run the same task
 # on each seat and the pass/fail table is the tuning signal. No config or
@@ -195,7 +199,7 @@ param(
     # held it constant).
     [ValidateSet(2, 3)][int]$StopClassifier = 3,
     # After each run that exited 0 against an Ollama provider, ask that host's
-    # /api/ps where -Model sits (Get-OllamaGpuPlacement). Loaded with none of it
+    # /api/ps where -Model sits (Get-EngineGpuPlacement). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
     # (exit -5, a _CPUONLY_ transcript, no row), because its time and its
     # truncation behaviour measure the host, not the model. 2026-10-12: the
@@ -1161,77 +1165,6 @@ function Resolve-RecoveredOverflow {
     return $Run
 }
 
-function Get-OllamaGpuPlacement {
-    # Where an Ollama host has the model $Tag loaded, from /api/ps: its total
-    # size and the part of it in VRAM. Verdicts:
-    #   "gpu"        some of it is in VRAM (a 35B MoE on a 16 GB card is split:
-    #                60% on the server's 4070 Ti SUPER, 12.5 of 21 GB on the desktop)
-    #   "cpu-only"   loaded, and none of it in VRAM: the host was not using its GPU
-    #   "not-loaded" /api/ps answers but the model is not in it (unloaded already)
-    #   "unchecked"  /api/ps did not answer
-    # A container that lost its GPU keeps answering from the CPU (2026-10-12:
-    # qwen3.6 at 38 GB, 100% CPU), so nothing else in a run notices. Only the
-    # model asked about counts: the CPU-pinned 3b beside it is 0% GPU by design.
-    param([string]$Root, [string]$Tag, [int]$TimeoutSec = 10)
-    $want = if ($Tag -match ':') { $Tag } else { "${Tag}:latest" }
-    $result = { param($verdict, $total, $vram, $detail)
-        $share = if ($null -ne $total -and $total -gt 0) { [math]::Round($vram / $total, 3) } else { $null }
-        [pscustomobject]@{ Verdict = $verdict; Model = $want; TotalBytes = $total; VramBytes = $vram; Share = $share; Detail = $detail } }
-    try {
-        $ps = Invoke-RestMethod -Uri "$Root/api/ps" -TimeoutSec $TimeoutSec
-    } catch {
-        return (& $result "unchecked" $null $null "$Root/api/ps did not answer")
-    }
-    $loaded = @($ps.models | Where-Object { $_ -and (($_.name -ieq $want) -or ($_.model -ieq $want)) })
-    if ($loaded.Count -eq 0) { return (& $result "not-loaded" $null $null "$want is not loaded on $Root") }
-    $total = [double]$loaded[0].size
-    $vram = [double]$loaded[0].size_vram
-    if ($total -gt 0 -and $vram -le 0) { return (& $result "cpu-only" $total $vram "$want is entirely in system RAM ($([math]::Round($total / 1e9, 2)) GB, size_vram 0)") }
-    return (& $result "gpu" $total $vram "$([math]::Round($total / 1e9, 2)) GB, $([math]::Round($vram / 1e9, 2)) GB in VRAM")
-}
-
-function Get-OllamaPromptTruncation {
-    # Ollama's "truncating input prompt" warnings logged between $Since and
-    # $Until. When a request is longer than the served num_ctx, Ollama keeps
-    # the first `keep` tokens (4) and the tail of the window and drops the
-    # rest - the system prompt, the tool schemas and the task go first. The
-    # model then answers whatever is left, usually in prose, and the writes
-    # gate used to file that as liar mode. On 2026-10-03 asohav-05/06 did this
-    # on all four runs: the repo's 280 KB CLAUDE.md at their pins made the
-    # first request ~83k tokens against qwen3.6's 65,536.
-    # The log has no request id, so a second run against the same Ollama at
-    # the same time would be blamed too; the harness runs one at a time.
-    param([string]$LogDir, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
-    $hits = @()
-    if (-not $LogDir -or -not (Test-Path -LiteralPath $LogDir)) { return $hits }
-    # server.log is current; Ollama renames it to server-1.log (and so on) when
-    # it restarts, so a restart mid-run leaves part of the run in a rotated file.
-    # server.log is always read: Windows does not keep LastWriteTime current on
-    # a file another process holds open (it read 14:37 at 17:30 on 2026-10-03).
-    # Rotated files are closed, so their timestamp is trustworthy.
-    $files = @(Get-ChildItem -LiteralPath $LogDir -Filter "server*.log" -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -eq "server.log" -or $_.LastWriteTime -ge $Since.LocalDateTime })
-    foreach ($f in $files) {
-        # Ollama is still writing server.log: share ReadWrite or the open fails.
-        try {
-            $fs = New-Object System.IO.FileStream($f.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-        } catch { continue }
-        $reader = New-Object System.IO.StreamReader($fs)
-        try {
-            while ($null -ne ($line = $reader.ReadLine())) {
-                if ($line -notmatch 'truncating input prompt') { continue }
-                if ($line -notmatch '^time=(\S+)') { continue }
-                $t = [DateTimeOffset]::MinValue
-                if (-not [DateTimeOffset]::TryParse($Matches[1], [ref]$t)) { continue }
-                if ($t -ge $Since -and $t -le $Until) { $hits += $line }
-            }
-        } finally {
-            $reader.Dispose()
-        }
-    }
-    return $hits
-}
-
 # -NudgeAfterCompaction's message: what an auto-continue plugin would send
 # instead of opencode's own. It keeps the owner's approvals (owner, 2026-10-04:
 # while tuning is early, more approvals rather than fewer) and drops the open
@@ -1538,49 +1471,42 @@ Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor Da
 # 32k run and a 64k run of the same task are indistinguishable afterwards
 # (the 64k context trial, docs/roadmap.md -> "Context budget").
 $providerId = ($Model -split '/', 2)[0]
+$modelTag = ($Model -split '/', 2)[1]
+# The engine adapter (tests/engines/<engine>.ps1, chosen by the provider prefix;
+# a provider that is neither ollama-* nor llamacpp-* loads the Ollama one, which
+# finds no base URL for it and so records "not checked").
+$engineKind = if ($providerId -like 'llamacpp-*') { "llamacpp" } else { "ollama" }
+$engineAdapter = Join-Path $PSScriptRoot ("engines\{0}.ps1" -f $engineKind)
+if (-not (Test-Path -LiteralPath $engineAdapter)) {
+    Write-Host "ERROR: no adapter for engine '$engineKind' (expected $engineAdapter)." -ForegroundColor Red
+    exit 1
+}
+. $engineAdapter
 $numCtx = $null
-$ollamaRoot = $null
-$ollamaBaseVar = switch ($providerId) {
-    "ollama-desktop" { "OLLAMA_DESKTOP_BASE_URL" }
-    "ollama-server"  { "OLLAMA_SERVER_BASE_URL" }
-    "ollama-node3"   { "OLLAMA_NODE3_BASE_URL" }
-    default          { $null }
+$engineBaseVar = Get-EngineBaseUrlVar -ProviderId $providerId
+$engineRoot = Get-EngineBaseUrl -ProviderId $providerId
+$engineVersionRaw = $null
+if ($engineRoot) {
+    $engineVersionRaw = Get-EngineVersion -Root $engineRoot
+    $numCtx = Get-EngineServedContext -Root $engineRoot -Tag $modelTag
 }
-if (-not $ollamaBaseVar) {
-    $ollamaVersion = "n/a ($providerId is not an Ollama provider)"
-} else {
-    $ollamaBase = [Environment]::GetEnvironmentVariable($ollamaBaseVar)
-    if (-not $ollamaBase) {
-        $ollamaVersion = "unknown ($ollamaBaseVar is unset)"
-    } else {
-        $ollamaRoot = $ollamaBase.TrimEnd('/') -replace '/v1$', ''
-        try {
-            $ollamaVersion = "ollama version is $((Invoke-RestMethod -Uri "$ollamaRoot/api/version" -TimeoutSec 10).version)"
-        } catch {
-            $ollamaVersion = "unknown ($ollamaRoot/api/version unreachable)"
-        }
-        try {
-            $showBody = @{ model = ($Model -split '/', 2)[1] } | ConvertTo-Json
-            $show = Invoke-RestMethod -Uri "$ollamaRoot/api/show" -Method Post -ContentType "application/json" -Body $showBody -TimeoutSec 10
-            $ctxLine = @($show.parameters -split "`n" | Where-Object { $_ -match '^\s*num_ctx\s+(\d+)' })
-            $numCtx = if ($ctxLine.Count -gt 0 -and $ctxLine[0] -match '(\d+)\s*$') { [int]$Matches[1] } else { "unset (server default)" }
-        } catch {
-            $numCtx = "unknown (/api/show failed)"
-        }
-    }
-}
-# What served the model, engine-neutral: Ollama is expected to be replaced
-# (owner, 2026-10-03), and a run under a different engine is a new era, so the
-# engine is recorded by name, not only through the Ollama-shaped
-# `ollamaVersion` (kept, so older result files still compare). An engine this
-# script does not know yet records "unknown" rather than borrowing Ollama's.
+$engineVersionText = Format-EngineVersion -ProviderId $providerId -Root $engineRoot -Version $engineVersionRaw
+# `ollamaVersion` keeps its Ollama-shaped text for Ollama runs (older result files
+# compare); a run on another engine has no Ollama version.
+$ollamaVersion = if ($script:EngineName -eq "ollama") { $engineVersionText } else { $null }
+# What served the model, engine-neutral: Ollama is being replaced (owner,
+# 2026-10-03), and a run under a different engine is a new era, so the engine is
+# recorded by name, not only through the Ollama-shaped `ollamaVersion` (kept, so
+# older result files still compare). A provider this script does not know
+# records "unknown" rather than borrowing Ollama's.
 $servingEngine = [ordered]@{
-    name     = $(if ($ollamaBaseVar) { "ollama" } else { "unknown" })
-    version  = $(if ("$ollamaVersion" -match '^ollama version is (\S+)') { $Matches[1] } else { $null })
-    endpoint = $ollamaRoot
+    name     = $(if ($engineBaseVar) { $script:EngineName } else { "unknown" })
+    version  = $engineVersionRaw
+    endpoint = $engineRoot
     provider = $providerId
 }
-
+# The same facts under the name later phases read: which engine, its version, where.
+$engineRecord = [ordered]@{ name = $servingEngine.name; version = $engineVersionRaw; baseUrl = $engineRoot }
 # Where the agent's tools ran: the machine hosting this harness (every read, edit,
 # shell command, install and test run), which is not necessarily the one serving
 # the model. The fleet's CPUs differ (a 5950X with 16 cores, a 5800X3D, a 3700X),
@@ -1598,25 +1524,14 @@ try {
     }
 } catch { }
 
-# Prompt-truncation check (Get-OllamaPromptTruncation): Ollama-specific, and
-# only a local Ollama's server.log is readable from here. Every graded run
-# records which it was, so another engine records "not checked", not a clean.
-$truncLogDir = $null
-if ($OllamaLogDir) {
-    $truncLogDir = $OllamaLogDir
-} elseif ($ollamaRoot -and @("localhost", "127.0.0.1", "::1") -contains ([uri]$ollamaRoot).Host) {
-    $truncLogDir = Join-Path $env:LOCALAPPDATA "Ollama"
-}
-$truncCheck = if ($truncLogDir -and (Test-Path -LiteralPath $truncLogDir)) {
-    "checked Ollama server.log in $truncLogDir"
-} elseif ($truncLogDir) {
-    $truncLogDir = $null; "not checked (no Ollama log directory at $truncLogDir)"
-} elseif ($ollamaRoot) {
-    "not checked ($ollamaRoot is not local; its server.log is on that host)"
-} else {
-    "not checked (no truncation detector for engine '$($servingEngine.name)', provider $providerId)"
-}
-# The agent and its version, recorded in every run JSON as `agent`. Rows from
+# Prompt-loss check (Get-EnginePromptLoss): what an engine that cuts an over-long
+# prompt silently leaves behind. Ollama's is its server.log, readable only when it
+# is local; llama-server refuses explicitly instead, so there is nothing to read.
+# Every graded run records which it was, so an engine without one records "not
+# checked" or "not applicable", not a clean.
+$promptLoss = Get-EnginePromptLossSetup -Root $engineRoot -LogDir $OllamaLogDir -ProviderId $providerId
+$truncLogDir = $promptLoss.LogDir
+$truncCheck = $promptLoss.Description# The agent and its version, recorded in every run JSON as `agent`. Rows from
 # another agent are a new era. `opencodeVersion` stays for the rows' continuity
 # (null under another agent).
 $agentVersionRaw = Get-AgentVersion
@@ -1651,7 +1566,7 @@ if ($NudgeOnStop) {
     } finally { $sha256.Dispose() }
     Write-Host ("stop nudge: on (up to {0} per run, classifier {4}; stop text sha256 {1}, lost-task text {2}); rows go to {3} only" -f $MaxStopNudges, $stopNudgeSha, $lostTaskNudgeSha, $resultsDir, $StopClassifier) -ForegroundColor DarkGray
 }
-Write-Host ("ollama: {0} | $($script:AgentName): {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $ollamaVersion, $agentVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" })) -ForegroundColor DarkGray
+Write-Host ("{5}: {0} | $($script:AgentName): {1} | num_ctx: {2} | limit.output: {3} | compacts at: {4}" -f $engineVersionText, $agentVersion, $(if ($null -ne $numCtx) { $numCtx } else { "n/a" }), $(if ($null -ne $outputLimit) { $outputLimit } else { "unknown" }), $(if ($compactionConfig) { $compactionConfig.threshold } else { "unknown" }), $script:EngineName) -ForegroundColor DarkGray
 
 $promptHashes = @{}
 $summaryRows = [System.Collections.Generic.List[string]]::new()
@@ -1852,27 +1767,26 @@ foreach ($tk in $tasksToRun) {
     # fit, not the model. Same treatment as any infrastructure failure: kept
     # transcript (_TRUNCATED_), no summary row. Exit -3 is this harness's code
     # for it (-1 timeout, -2 dead job host).
-    if ($truncLogDir -and $run.ExitCode -eq 0) {
-        $truncation = @(Get-OllamaPromptTruncation -LogDir $truncLogDir -Since $runStart -Until ([DateTimeOffset]::Now))
+    if ($promptLoss.Enabled -and $run.ExitCode -eq 0) {
+        $truncation = @(Get-EnginePromptLoss -Setup $promptLoss -Since $runStart -Until ([DateTimeOffset]::Now))
         if ($truncation.Count -gt 0) {
-            $truncWhat = ($truncation[0] -replace '^.*msg="truncating input prompt"\s*', '').Trim()
             $run.ExitCode = -3
-            $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("Ollama truncated the prompt {0} time(s) during the run ({1}): the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {2})." -f $truncation.Count, $truncWhat, $promptHashes[$tk.id])
+            $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("{0}: the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {1})." -f (Get-EnginePromptLossText -Hits $truncation), $promptHashes[$tk.id])
         }
     }
-    # Where did the host put the model? (Get-OllamaGpuPlacement.) Asked after the
+    # Where did the host put the model? (Get-EngineGpuPlacement.) Asked after the
     # run, while the seat is still loaded. Exit -5 is this harness's code for a
     # host that was not using its GPU (-1 timeout, -2 dead job host, -3 truncated
     # prompt, -4 no session to nudge).
     $gpuPlacement = $null
     if ($NoGpuCheck) {
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked (-NoGpuCheck)" }
-    } elseif (-not $ollamaRoot) {
-        # No root for one of two reasons: not an Ollama provider, or its base URL is unset.
-        $noRootWhy = if ($ollamaBaseVar) { "$ollamaBaseVar is unset" } else { "$providerId is not an Ollama provider" }
+    } elseif (-not $engineRoot) {
+        # No root for one of two reasons: not an engine provider, or its base URL is unset.
+        $noRootWhy = if ($engineBaseVar) { "$engineBaseVar is unset" } else { "$providerId is not an Ollama provider" }
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($noRootWhy)" }
     } elseif ($run.ExitCode -eq 0) {
-        $gp = Get-OllamaGpuPlacement -Root $ollamaRoot -Tag (($Model -split '/', 2)[1])
+        $gp = Get-EngineGpuPlacement -ProviderId $providerId -Root $engineRoot -Tag $modelTag
         $gpuPlacement = [ordered]@{
             checked = ($gp.Verdict -ne "unchecked"); verdict = $gp.Verdict; model = $gp.Model
             totalGB = $(if ($null -ne $gp.TotalBytes) { [math]::Round($gp.TotalBytes / 1e9, 2) } else { $null })
@@ -1888,6 +1802,19 @@ foreach ($tk in $tasksToRun) {
     # (Get-ContextEvents). Read before the transcript is archived.
     $ctxEvents = Get-ContextEvents -Path $run.TranscriptPath -NumCtx $numCtx
     $overflowRec = Get-OverflowRecovery -Path $run.TranscriptPath
+    # contextExceeded: the engine refused over-long requests explicitly
+    # (ContextOverflowError), the agent exited 1 on them and did not recover
+    # (Get-OverflowRecovery; a recovered one was graded above). The request
+    # outgrew the served context, which says something about the task's fit to the
+    # seat, not about an unreachable provider and not about the model's behaviour,
+    # so it is its own outcome rather than _INFRA_. Exit -6 is this harness's code
+    # for it (-1 timeout, -2 dead job host, -3 truncated prompt, -4 no session,
+    # -5 CPU-only). A timeout that holds unrecovered overflows (the run looped on
+    # them until the cap) stays _TIMEOUT_; its FAIL line names them below.
+    if ($run.ExitCode -eq 1 -and $overflowRec.OverflowErrors -gt 0 -and $overflowRec.OtherErrors -eq 0 -and -not $overflowRec.Recovered) {
+        $run.ExitCode = -6
+        $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("Context exceeded: every error in the run is a context overflow and the session never recovered from the last one. The request outgrew the served context window ({0} tokens), so this is neither infrastructure nor model behaviour: not graded, no summary row (prompt sha {1})." -f $(if ($null -ne $numCtx) { $numCtx } else { "unknown" }), $promptHashes[$tk.id])
+    }
     # A run that never reached the model is not a result. opencode exits 0 even
     # when the model refuses to write (real liar mode), so ANY non-zero exit is
     # infrastructure: unreachable provider, bad model id, crash. Grading those as
@@ -1897,7 +1824,7 @@ foreach ($tk in $tasksToRun) {
     # failed baseline already do.
     if ($run.ExitCode -ne 0) {
         $isTimeout = ($run.ExitCode -eq -1)
-        $kind      = if ($isTimeout) { "TIMEOUT" } elseif ($run.ExitCode -eq -3) { "TRUNCATED" } elseif ($run.ExitCode -eq -5) { "CPUONLY" } else { "INFRA" }
+        $kind      = if ($isTimeout) { "TIMEOUT" } elseif ($run.ExitCode -eq -3) { "TRUNCATED" } elseif ($run.ExitCode -eq -5) { "CPUONLY" } elseif ($run.ExitCode -eq -6) { "CTXEXCEEDED" } else { "INFRA" }
         if ($run.Detail) {
             $runDetail = $run.Detail
         } else {
@@ -1931,7 +1858,12 @@ foreach ($tk in $tasksToRun) {
     # never reaches this line (exit -5 above). Not loaded / no answer is a WARN:
     # nothing to judge, and nothing to fail on.
     if ($gpuPlacement -and $gpuPlacement.verdict -eq "gpu") {
-        Write-Result $tk.id "gpu placement" "PASS" ("{0}: {1} GB in total, {2} GB ({3}%) in VRAM" -f $gpuPlacement.model, $gpuPlacement.totalGB, $gpuPlacement.vramGB, [math]::Round(100 * $gpuPlacement.share))
+        if ($null -ne $gpuPlacement.share) {
+            Write-Result $tk.id "gpu placement" "PASS" ("{0}: {1} GB in total, {2} GB ({3}%) in VRAM" -f $gpuPlacement.model, $gpuPlacement.totalGB, $gpuPlacement.vramGB, [math]::Round(100 * $gpuPlacement.share))
+        } else {
+            # An engine that reports only the GPU part (llama.cpp, over nvidia-smi).
+            Write-Result $tk.id "gpu placement" "PASS" ("{0}: {1}" -f $gpuPlacement.model, $gpuPlacement.note)
+        }
     } elseif ($gpuPlacement -and @("not-loaded", "unchecked") -contains $gpuPlacement.verdict) {
         Write-Result $tk.id "gpu placement" "WARN" ("{0}. Recorded in gpuPlacement, not graded." -f $gpuPlacement.note)
     }
@@ -2214,6 +2146,9 @@ foreach ($tk in $tasksToRun) {
         runTimeoutSec   = $RunTimeout
         ollamaVersion   = $ollamaVersion
         servingEngine   = $servingEngine
+        # Which engine served the run, its version and where (tests/engines/<name>.ps1).
+        # Rows before the engine adapter (2026-10-16) have only servingEngine/ollamaVersion.
+        engine          = $engineRecord
         # Context overflows the engine refused explicitly (Get-OverflowRecovery), and
         # how many agent exits of 1 they caused that were graded as 0 (exitsLifted).
         overflowRecovery = $(if ($overflowRec.OverflowErrors -gt 0 -or $script:OverflowExitsLifted -gt 0) {

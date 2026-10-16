@@ -38,6 +38,7 @@
 # Usage:  .\tests\test-gpu-placement.ps1 [-ScriptPath <a test-tasks.ps1>] [-BatchPath <a run-tasks-batch.ps1>]
 param(
     [string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"),
+    [string]$EnginePath = (Join-Path $PSScriptRoot "engines\ollama.ps1"),
     [string]$BatchPath = (Join-Path $PSScriptRoot "run-tasks-batch.ps1")
 )
 
@@ -54,7 +55,8 @@ function Get-Functions([string]$Path, [string[]]$Names) {
         $fn.Extent.Text
     }
 }
-foreach ($t in (Get-Functions $ScriptPath @("Get-OllamaGpuPlacement"))) { Invoke-Expression $t }
+# The function lives in the Ollama engine adapter (tests/engines/ollama.ps1).
+foreach ($t in (Get-Functions $EnginePath @("Get-OllamaGpuPlacement"))) { Invoke-Expression $t }
 foreach ($t in (Get-Functions $BatchPath @("Get-ResultFileNames", "Get-NewRunFiles", "Get-CpuOnlyRun"))) { Invoke-Expression $t }
 
 $script:fail = 0
@@ -153,6 +155,7 @@ try {
     foreach ($d in @("$h/tests/tasks", "$h/bin", "$priv/hidden/fx", $repo)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $h "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $h "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $h "tests") -Recurse -Force
     '{"tasks":[]}' | Set-Content -LiteralPath (Join-Path $h "tests/tasks/manifest.json")
     Set-Content -LiteralPath (Join-Path $priv "hidden/fx/hidden.txt") -Value "hidden test"
     git -C $repo init -q
@@ -328,6 +331,7 @@ exit $LASTEXITCODE
     foreach ($d in "$tree\tests\tasks", "$tree\tests\results", "$tree\costs", $bin) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
     Copy-Item -LiteralPath $BatchPath -Destination "$tree\tests\run-tasks-batch.ps1"
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination "$tree\tests" -Recurse -Force
     Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`thosts`tdesc`nqwen3:8b`tdesktop server`tlocal seat`n")
     Write-Fixture "$tree\costs\go-rates.tsv" "model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource`n"
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"

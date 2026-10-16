@@ -16,7 +16,7 @@
 #   2. the real C2 transcript, when this machine has the private results;
 #   3. the REAL test-tasks.ps1 end to end against a fixture repo with a stand-in
 #      opencode: a recovered run (graded, row, overflowRecovery), an overflow the
-#      session never finished after (_INFRA_, says so), another error (_INFRA_), and a
+#      session never finished after (_CTXEXCEEDED_, says so; tests/test-context-exceeded.ps1), another error (_INFRA_), and a
 #      clean run (no overflowRecovery);
 #   4. a control: the same run with the hook removed must leave the recovered run
 #      ungraded, or this guard is not testing the hook.
@@ -109,6 +109,7 @@ try {
         foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
         Copy-Item -LiteralPath $harnessPath -Destination (Join-Path $root "tests/test-tasks.ps1")
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $root "tests") -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $root "tests") -Recurse -Force
         $repo = Join-Path $root "repo"
         git -C $repo init -q
         git -C $repo config user.email "t@example.invalid"
@@ -189,7 +190,8 @@ exit 2
     Check "the console says it was graded as exit 0"                   ($h.Output -match 'exited 1 after 2 context-overflow error\(s\) it recovered from') "True"
     Write-Host "-- end to end: an overflow the session never finished after"
     Check "no summary row"                                             ([bool](Row $h "fx-dead")) "False"
-    Check "an _INFRA_ transcript"                                      (Infra $h "fx-dead") 1
+    Check "no _INFRA_ transcript: it is its own outcome (_CTXEXCEEDED_)" (Infra $h "fx-dead") 0
+    Check "a _CTXEXCEEDED_ transcript"                                 @(Get-ChildItem $h.Results -Filter "tasks-fx-dead-*_CTXEXCEEDED_*.jsonl").Count 1
     Check "the detail says overflow killed the run"                    ($h.Output -match 'refused 1 over-long request\(s\) explicitly .*overflow killed the run') "True"
     Write-Host "-- end to end: an overflow plus another error"
     Check "no summary row"                                             ([bool](Row $h "fx-other")) "False"

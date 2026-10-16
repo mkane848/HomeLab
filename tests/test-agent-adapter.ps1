@@ -111,6 +111,7 @@ try {
     foreach ($d in @("tests/tasks/hidden/fx", "tests/agents", "repo")) { New-Item -ItemType Directory -Path (Join-Path $e2e $d) -Force | Out-Null }
     Set-Content -LiteralPath (Join-Path $e2e "tests/tasks/hidden/fx/hidden.txt") -Value "hidden test"
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $e2e "tests") -Recurse -Force
     $frepo = Join-Path $e2e "repo"
     git -C $frepo init -q
     git -C $frepo config user.email "t@example.invalid"
