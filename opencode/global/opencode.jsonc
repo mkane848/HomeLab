@@ -26,7 +26,26 @@
   // this entry and re-run sync-opencode.ps1 -Template. The path is the
   // desktop's; on another host the plugin fails to load (opencode reports it
   // and carries on).
-  "plugin": ["file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js"],
+  //
+  // read-budget.js (2026-10-17) keeps one `read` from eating the window: it
+  // caps a read at ~8% of the model's context window (about 17,300 chars at
+  // 64k), tells the model to grep instead, and shrinks a file that has used
+  // 25% of the window since the last compaction to 100-line reads. Born of
+  // kane-08, where two whole-file reads of 131 and 185 KB overflowed the 64k
+  // window 17 to 19 times a run. Same in-place reference and same removal as
+  // above; HOMELAB_READ_MAX_CHARS=off switches it off for one launch. Guard:
+  // tests/test-read-budget.ps1 (FAILs on any opencode but 1.18.34).
+  "plugin": [
+    "file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js",
+    "file:///M:/Projects/dev-docs/opencode/plugins/read-budget.js"
+  ],
+
+  // Shell output is capped at 16 KB a call (opencode's `tool_output`, from
+  // core/src/config/tool-output.ts at v1.18.34, not in the documentation;
+  // `opencode debug config` keeps it, and a misspelt key is dropped without a
+  // word). Not yet measured live: whether the shell tool honours it is for the
+  // kane-08 / wp-4a round to show.
+  "tool_output": { "max_bytes": 16384 },
 
   // ---------------------------------------------------------------------
   // MODEL ENTRY SCHEMA - read this before adding a model.

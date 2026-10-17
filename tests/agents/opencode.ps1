@@ -267,27 +267,58 @@ function Start-AgentRunEnv {
     # session goes idle, so a message sent then would land in a session nobody
     # answers (and in the next follow-up's). -NudgeAfterCompaction and
     # -NudgeOnStop are what measure that behaviour.
+    # read-budget.js writes one JSON line per read it clamped to
+    # HOMELAB_READ_BUDGET_LOG; summarised after the run (Stop-AgentRunEnv).
     param([string[]]$Plugins = @())
-    $state = [pscustomobject]@{ PluginLog = $null }
+    $state = [pscustomobject]@{ PluginLog = $null; ReadLog = $null }
     if (@($Plugins | Where-Object { $_ -match 'compaction-continue' }).Count -gt 0) {
         $state.PluginLog = Join-Path ([System.IO.Path]::GetTempPath()) ("ccplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
         $env:HOMELAB_COMPACTION_PLUGIN_LOG = $state.PluginLog
         $env:HOMELAB_COMPACTION_IDLE_CONTINUE = "off"
     }
+    if (@($Plugins | Where-Object { $_ -match 'read-budget' }).Count -gt 0) {
+        $state.ReadLog = Join-Path ([System.IO.Path]::GetTempPath()) ("rbplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
+        $env:HOMELAB_READ_BUDGET_LOG = $state.ReadLog
+    }
     return $state
 }
 
 function Stop-AgentRunEnv {
-    # Undoes Start-AgentRunEnv. Returns the number of model calls that carried
-    # the plugin's rewritten continue message (every step after a compaction
-    # carries it, so this counts calls, not compactions), or $null without the
-    # plugin.
+    # Undoes Start-AgentRunEnv. Returns $null when none of our plugins was
+    # loaded, else an object with
+    #   CompactionRewrites  the number of model calls that carried the plugin's
+    #                       rewritten continue message (every step after a
+    #                       compaction carries it, so this counts calls, not
+    #                       compactions), or $null without that plugin;
+    #   ReadBudget          { clamps; byReason { cap; budget }; files } from the
+    #                       read-budget plugin's log (files = distinct paths),
+    #                       or $null without that plugin.
     param($State)
-    if (-not $State -or -not $State.PluginLog) { return $null }
-    Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue
-    $n = if (Test-Path -LiteralPath $State.PluginLog) { @(Select-String -LiteralPath $State.PluginLog -Pattern '"message":"rewrote').Count } else { 0 }
-    Remove-Item -LiteralPath $State.PluginLog -ErrorAction SilentlyContinue
-    return $n
+    if (-not $State) { return $null }
+    $rewrites = $null
+    if ($State.PluginLog) {
+        Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue
+        $rewrites = if (Test-Path -LiteralPath $State.PluginLog) { @(Select-String -LiteralPath $State.PluginLog -Pattern '"message":"rewrote').Count } else { 0 }
+        Remove-Item -LiteralPath $State.PluginLog -ErrorAction SilentlyContinue
+    }
+    $readBudget = $null
+    if ($State.ReadLog) {
+        Remove-Item Env:HOMELAB_READ_BUDGET_LOG -ErrorAction SilentlyContinue
+        $cap = 0; $budget = 0; $paths = @{}
+        if (Test-Path -LiteralPath $State.ReadLog) {
+            foreach ($line in (Get-Content -LiteralPath $State.ReadLog)) {
+                $e = $null
+                try { $e = $line | ConvertFrom-Json } catch { continue }
+                if (-not $e -or $e.message -ne "clamp") { continue }
+                if ($e.reason -eq "budget") { $budget++ } else { $cap++ }
+                if ($e.path) { $paths[[string]$e.path] = $true }
+            }
+        }
+        $readBudget = [pscustomobject]@{ clamps = $cap + $budget; byReason = [pscustomobject]@{ cap = $cap; budget = $budget }; files = $paths.Count }
+        Remove-Item -LiteralPath $State.ReadLog -ErrorAction SilentlyContinue
+    }
+    if (-not $State.PluginLog -and -not $State.ReadLog) { return $null }
+    return [pscustomobject]@{ CompactionRewrites = $rewrites; ReadBudget = $readBudget }
 }
 
 function Stop-OrphanAgent {
