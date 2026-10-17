@@ -1680,6 +1680,7 @@ foreach ($tk in $tasksToRun) {
     # compaction plugin's evidence log, with its idle continue off).
     $agentRunEnv = Start-AgentRunEnv -Plugins $agentPlugins
     $pluginRewrites = $null
+    $readBudget = $null
     $runStart = [DateTimeOffset]::Now
     try {
         $script:OverflowExitsLifted = 0
@@ -1757,10 +1758,15 @@ foreach ($tk in $tasksToRun) {
     } finally {
         Restore-TaskTestEnv $savedPushEnv
         Restore-TaskTestEnv $savedEnv
-        # Model calls that carried the plugin's rewritten continue message
+        # What the plugins logged (each part $null without its plugin): model
+        # calls that carried compaction-continue's rewritten continue message
         # (every step after a compaction carries it, so this counts calls, not
-        # compactions); $null without the plugin.
-        $pluginRewrites = Stop-AgentRunEnv -State $agentRunEnv
+        # compactions), and read-budget's clamps.
+        $agentEnvResult = Stop-AgentRunEnv -State $agentRunEnv
+        if ($agentEnvResult) {
+            $pluginRewrites = $agentEnvResult.CompactionRewrites
+            $readBudget = $agentEnvResult.ReadBudget
+        }
     }
     # A run whose prompt Ollama truncated never showed the model the whole
     # system prompt, tool list and task, so whatever it did measures the task's
@@ -2134,6 +2140,7 @@ foreach ($tk in $tasksToRun) {
         turns           = $turnsRun
         opencodePlugins = @($agentPlugins)
         compactionPluginRewrites = $pluginRewrites
+        readBudget      = $readBudget
         nudges          = $(if ($NudgeAfterCompaction) { [pscustomobject]@{ sent = $nudgesSent; max = $MaxNudges; textSha256 = $nudgeTextSha } } else { $null })
         stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $StopClassifier; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary

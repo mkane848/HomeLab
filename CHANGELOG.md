@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: read-budget plugin keeps one `read` from eating the window (the large-file fix, 2026-10-17).** `kane-08` read
+  two files of 131 and 185 KB whole (opencode's `read` returns up to 50 KB a call), overflowed the 64k window,
+  compacted and read them again 17 to 19 times a run until the 45-minute timeout, 3 of 3 runs, no edit.
+  `opencode/plugins/read-budget.js` lowers each read's own `limit` to `min(51200, window * 0.08 * 3.3)` chars (about
+  17,300 at 64k), appends a one-line hint to a clamped result, and shrinks a file that has used `window * 0.25 * 3.3`
+  chars since the last compaction to 100-line reads; it learns the window from `chat.params` and resets at each
+  compaction. Installed beside `compaction-continue.js` in the global template, with `tool_output.max_bytes` 16384
+  (key accepted by `opencode debug config`). The harness sets `HOMELAB_READ_BUDGET_LOG` per run and records
+  `readBudget` (`clamps`, `byReason`, `files`) in the run JSON; `Stop-AgentRunEnv` now returns `{ CompactionRewrites,
+  ReadBudget }`. New guard `tests/test-read-budget.ps1` (99 checks, including a live run in the real opencode 1.18.34:
+  a 130 KB read comes back as 17,486 chars). Not yet measured on a task: run JSONs from this change are a new era.
 - **fix: llama.cpp placement finds a seat whose router id was rewritten (found in the Phase 2 live window, 2026-10-16).**
   `Get-EngineGpuPlacement` (`tests/engines/llamacpp.ps1`) looked for `--alias <tag>` in `ps`, but llama-server's router
   (b11561) launches each child with `--alias <router id>` and rewrites colon ids, so `qwen3.6:35b-a3b-coding` (child

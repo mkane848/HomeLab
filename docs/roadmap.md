@@ -250,6 +250,16 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      one graded task per engine through the real harness, the batch probing both llama.cpp seats; `docs/llamacpp-trial.md`
      → "Phase 2 live window"). The window found one defect, the ssh placement check missing a seat whose router id is
      rewritten, fixed in the PR that records it. Phases 3–6 each still need their own go; next is the large-file fix.
+
+     **Large-file fix (2026-10-17).** Built, not yet measured live. `opencode/plugins/read-budget.js`
+     (`tests/test-read-budget.ps1`, 99 checks): each `read` is clamped to `min(51200, window * 0.08 * 3.3)` chars by
+     lowering its own `limit` (about 17,300 chars at 64k, 8,650 at 32k, no clamp at 200k), a clamped result ends in a
+     one-line hint to grep and read just those lines, and a file that has used `window * 0.25 * 3.3` chars since the
+     last compaction is read 100 lines at a time ([SWE-agent](https://arxiv.org/html/2405.15793v3), Table 3); the
+     counters reset at each compaction. The template also sets `tool_output.max_bytes` 16384 for shell output. In the
+     real opencode a scripted model that reads a 130 KB file whole gets 17,486 chars back at 64k. Run JSONs record
+     `readBudget`. The measurement still to do, in a server window: `kane-08` ×3 and `wp-4a` ×3 on llama.cpp (does the
+     loop end, and do the two tasks edit), then the 15-task round to check nothing else lost.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.

@@ -27,6 +27,7 @@ Catalog of every external source cited in these docs, plus the convention.
 | saving-swebench | "Saving SWE-Bench: A Benchmark Mutation Approach for Realistic Agent Evaluation", arXiv 2025 | <https://arxiv.org/html/2510.08996v2> |
 | reward-hacking | "Reward Hacking Benchmark", arXiv 2026 | <https://arxiv.org/abs/2605.02964> |
 | mirage-bench | "MIRAGE-Bench", arXiv 2025 | <https://arxiv.org/abs/2507.21017> |
+| swe-agent | "SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering", Yang et al., Princeton NLP, arXiv 2024 (v3). Its file viewer shows at most 100 lines at a time, and Table 3 (SWE-bench Lite) puts a 100-line window at 18.0 against 14.3 for 30 lines and 12.7 for the full file | <https://arxiv.org/html/2405.15793v3> |
 | dont-blame-llm | "Don't Blame the Large Language Model: How Scaffolding Evolution Shapes Coding Agent Quality", arXiv 2026 | <https://arxiv.org/pdf/2607.03691> |
 | swe-edit | "SWE-Edit: Rethinking Code Editing for Efficient SWE-Agent", Microsoft, arXiv 2026-05 | <https://arxiv.org/html/2604.26102> |
 | terminal-agents | "Building AI Coding Agents for the Terminal", arXiv 2026-03 | <https://arxiv.org/html/2603.05344v1> |
