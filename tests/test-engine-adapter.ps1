@@ -310,6 +310,43 @@ exit 0
             Set-Ssh "4242, 14930 MiB`n" $psBoth
             Check "placement: a seat with no process is not-loaded" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3:8b").Verdict "not-loaded"
             Check "...a longer alias is not a match"           (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3:8b-ext").Verdict "not-loaded"
+            # the router rewrites colon ids (b11561): the child carries `--alias <id>`, not the tag
+            $psRw = @"
+  100 /app/llama-server --host 0.0.0.0 --port 8090 --models-preset /config/models.ini --models-max 2
+  181743 /app/llama-server --host 127.0.0.1 --port 56367 --alias qwen3.6:CODING --ctx-size 65536 --parallel 1
+  181799 /app/llama-server --host 127.0.0.1 --port 56368 --alias qwen3:8B --ctx-size 32768 --parallel 1
+  181828 /app/llama-server --host 127.0.0.1 --port 59051 --alias qwen2.5-coder-3b-cpu --device none --parallel 1
+"@
+            $psRwNo36 = (@($psRw -split "`r?`n") | Where-Object { $_ -notmatch '181743' }) -join "`n"
+            Reset-Routes
+            Route '/models$' ([pscustomobject]@{ data = @(
+                [pscustomobject]@{ id = "qwen2.5-coder-3b-cpu"; aliases = @() },
+                [pscustomobject]@{ id = "qwen3.6:CODING"; aliases = @("qwen3.6:35b-a3b-coding") },
+                [pscustomobject]@{ id = "qwen3:8B"; aliases = @("qwen3:8b") }) })
+            Set-Ssh "181743, 14894 MiB`n" $psRw
+            $p = Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat
+            Check "placement: a rewritten router id is found: gpu" "$($p.Verdict) $($p.VramBytes)" "gpu $(14894 * 1048576)"
+            Has   "...the detail names the pid"                $p.Detail 'pid 181743'
+            # decimal GB, as the harness's vramGB (bytes / 1e9) and the Ollama adapter report it
+            Has   "...the detail's GB agrees with VramBytes"   $p.Detail '^15\.62 GB in VRAM'
+            Check "placement: a rewritten id, not on the GPU: cpu-only" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3:8b").Verdict "cpu-only"
+            Check "...the 3b (no rewrite) is cpu-only"         (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen2.5-coder-3b-cpu").Verdict "cpu-only"
+            Check "...asked by the router id itself"           (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3.6:CODING").Verdict "gpu"
+            # no cross-match: only the 8b's child is up, so the qwen3.6 seat is not loaded
+            Set-Ssh "181799, 9000 MiB`n" $psRwNo36
+            $p = Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat
+            Check "placement: another seat's child is not matched: not-loaded" $p.Verdict "not-loaded"
+            Has   "...the detail names what it looked for"     $p.Detail 'no process with --alias qwen3\.6:35b-a3b-coding or qwen3\.6:CODING\)$'
+            Check "...and the 8b is gpu"                       (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag "qwen3:8b").Verdict "gpu"
+            # /models unreachable or without a match: the tag alone, as before
+            Reset-Routes; Route '/models$' "THROW"
+            Set-Ssh "181743, 14894 MiB`n" $psRw
+            Check "placement: /models unreachable, only the rewritten id: not-loaded" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat).Verdict "not-loaded"
+            Set-Ssh "4242, 14930 MiB`n" $psBoth
+            Check "placement: /models unreachable, a child with the tag: gpu" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat).Verdict "gpu"
+            Reset-Routes; Route '/models$' ([pscustomobject]@{ data = @() })
+            Check "placement: /models without a match, a child with the tag: gpu" (Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat).Verdict "gpu"
+            Reset-Routes; Route '/models$' "THROW"
             Set-Ssh "" "" 255
             $p = Get-EngineGpuPlacement -ProviderId "llamacpp-server" -Root "http://h" -Tag $seat
             Check "placement: ssh failing is unchecked"        $p.Verdict "unchecked"

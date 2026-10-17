@@ -15,7 +15,8 @@ that needs `sudo` on the server is the owner's ([network-topology](network-topol
 
 **2026-10-16: Phase 1 is done and Gate G1 is go** ("Results" below). The window is closed: llama-server is down, the
 server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to `dev-workflow-server`. Phase 2 (the
-engine adapter) needs its own approval. The rest of this section is the handoff as it stood before the window.
+engine adapter) was approved the same day and is done: "Phase 2 live window" below. The rest of this section is
+the handoff as it stood before the window.
 
 **Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
 (`bench-speed.ps1`, `test-gpu-placement.ps1`, `runHost`, the harness's GPU-placement check), and PR #116 added this
@@ -507,6 +508,34 @@ and cannot show a win.
 
   No growth in either column, and no hang. The day's apt and snap timers ran inside the window, including the reload
   above.
+
+### Phase 2 live window (2026-10-16)
+
+About 50 minutes on the server after PRs #128, #129 and #130 merged, from the desktop (PowerShell 7.4, OpenCode
+1.18.34, llama.cpp build b11561, Ollama 0.34.3). The stack files on the server matched `main` byte for byte. Live
+OpenCode config: the repo template staged by hand (the local half of `sync-opencode.ps1 -Template`; before it, the live
+file was the pre-#128 template exactly).
+
+| check | result |
+|---|---|
+| `GET /props?model=qwen3%3A8b&autoload=false` on an unloaded seat | HTTP 400 "model is not loaded"; all three seats still `unloaded` afterwards: the check never loads a seat |
+| `/v1/models` shape | `{data, object}`; each entry has `id`, `aliases`, `status`, `context_length` and more. Colon ids are rewritten (`qwen3:8B`, `qwen3.6:CODING`); the exact tag is in `aliases` |
+| the llama.cpp adapter's functions, live | version `b11561-e937b17a2`; served context 65536 / 32768 / 16384 from `--ctx-size` in `/models`; seat tags listed once each |
+| `test-profiles.ps1 -Profile dev-workflow-server-llamacpp -RoundTrip` | 21 PASS, 0 FAIL, 0 WARN (with `LLAMACPP_SERVER_*` set in the shell; it is not a User-level default on the desktop, so a plain shell WARNs and skips the host checks) |
+| `kane-12-error-handler-400` on `llamacpp-server/qwen3.6` | every gate PASS, 54 s; run JSON `engine` llamacpp b11561, `ollamaVersion` null, `numCtx` 65536 |
+| the same task on `ollama-server/qwen3.6` | every gate PASS, 67 s; `engine` ollama 0.34.3, `gpuPlacement` `gpu`, 13.59 of 22.68 GB in VRAM |
+| `run-tasks-batch.ps1 -Mode Probe` on both llama.cpp seats | all four hosts found across both engines; `qwen3:8b` and `qwen3.6` PASS (two rows in `toolcalls-summary-llamacpp.tsv`) |
+
+**One defect, fixed in the same PR as this record.** The ssh placement check reported `qwen3.6` as `not-loaded` while
+it held 14.9 GB of VRAM. The router launches each child with `--alias <router id>` (`qwen3.6:CODING`), not the seat's
+tag, and the check matched the tag only; the 3b, whose id has no colon, was found. It now resolves the tag through
+`/models` and matches the tag, the id or any alias. Checked live before the window closed: the fixed check read `gpu` for
+`qwen3.6` (pid 195733), and the same task re-run through the fixed harness graded every gate PASS with `gpuPlacement`
+`gpu`. That run also showed the note in GiB (14.56) beside the field in GB (15.64), so the note now uses decimal GB like
+the Ollama adapter.
+
+All three task runs went to a scratch results folder, not `tests/results/`: one run per engine checks the plumbing and is not
+a benchmark row.
 
 ### Gate G1, row by row
 

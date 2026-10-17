@@ -170,15 +170,26 @@ function Get-EngineGpuPlacement {
     $psr = & $ssh @("ps", "-eo", "pid,args")
     if ($psr.ExitCode -ne 0) { return (& $result "unchecked" $null "ssh $sshHost ps failed (exit $($psr.ExitCode)): $((($psr.Lines | Select-Object -First 2) -join ' ').Trim())") }
 
-    # pids whose command line carries `--alias <seat>` (the router's child per model)
+    # The router launches each child with `--alias <router id>` and rewrites colon ids
+    # (b11561: tag qwen3.6:35b-a3b-coding, id qwen3.6:CODING), so the names a child may
+    # carry are the tag, the id and the aliases /models lists for it. Unreachable or no
+    # match: the tag alone. Case-sensitive, as Get-EngineServedContext matches.
+    $names = @($want)
+    try {
+        $m = @((Invoke-RestMethod -Uri "$Root/models" -TimeoutSec 10).data) |
+            Where-Object { $_.id -ceq $want -or (@($_.aliases) -ccontains $want) } | Select-Object -First 1
+        if ($m) { $names = @(@($want, "$($m.id)") + @(@($m.aliases) | ForEach-Object { "$_" }) | Where-Object { $_ } | Select-Object -Unique) }
+    } catch { }
+
+    # pids whose command line carries `--alias <one of those names>` (the router's child per model)
     $pids = @()
     foreach ($line in $psr.Lines) {
         if ($line -notmatch '^\s*(\d+)\s+(.*)$') { continue }
         $procId = $Matches[1]; $tok = @($Matches[2] -split '\s+')
         $i = [array]::IndexOf($tok, "--alias")
-        if ($i -ge 0 -and $i + 1 -lt $tok.Count -and $tok[$i + 1] -ceq $want) { $pids += $procId }
+        if ($i -ge 0 -and $i + 1 -lt $tok.Count -and $names -ccontains $tok[$i + 1]) { $pids += $procId }
     }
-    if ($pids.Count -eq 0) { return (& $result "not-loaded" $null "$want is not loaded on $sshHost (no process with --alias $want)") }
+    if ($pids.Count -eq 0) { return (& $result "not-loaded" $null "$want is not loaded on $sshHost (no process with --alias $($names -join ' or '))") }
 
     # GPU processes: "pid, 14930 MiB"
     $mib = 0.0; $onGpu = $false
@@ -187,5 +198,5 @@ function Get-EngineGpuPlacement {
         if ($pids -contains $Matches[1]) { $onGpu = $true; $mib += [double]$Matches[2] }
     }
     if (-not $onGpu) { return (& $result "cpu-only" 0 "$want (pid $($pids -join ',')) is not among the GPU compute processes on ${sshHost}: it runs on the CPU") }
-    return (& $result "gpu" ($mib * 1048576) "$([math]::Round($mib / 1024, 2)) GB in VRAM (nvidia-smi on $sshHost, pid $($pids -join ','))")
+    return (& $result "gpu" ($mib * 1048576) "$([math]::Round($mib * 1048576 / 1e9, 2)) GB in VRAM (nvidia-smi on $sshHost, pid $($pids -join ','))")
 }

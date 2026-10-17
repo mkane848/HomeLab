@@ -2,3 +2,5 @@ timestamp	host	engine	engineVersion	model	status	sec	detail
 2026-10-13T16:51:40	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	PASS	7.1	tool_calls -> write_file {"path":"a.txt","content":"hello"}
 2026-10-13T16:51:43	server	llamacpp	b11561-e937b17a2	qwen3:8b	PASS	3	tool_calls -> write_file {"path": "a.txt", "content": "hello"}
 2026-10-13T17:27:50	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	PASS	2.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-10-16T14:23:51	server	llamacpp	b11561-e937b17a2	qwen3:8b	PASS	4.5	tool_calls -> write_file {"path": "a.txt", "content": "hello"}
+2026-10-16T14:24:04	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	PASS	13	tool_calls -> write_file {"path":"a.txt","content":"hello"}
