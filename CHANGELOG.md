@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the read-budget plugin, measured (2026-10-17/18).** The window ran on the server's llama-server under step 7's
+  settings (nudged, classifier 2, 45-minute cap); the rows are private and assisted.
+  - **`kane-08`: 2 of 3** (was 0 of 3, every run looping to the timeout). **`wp-4a`: 3 of 3** (was 2 of 3).
+  - **The 15-task round: 14 of 15** (step 7's llama.cpp round: 11; Ollama classifier-2 rounds: 11, 12, 11, 11). Only
+    `wp-5b` failed, as before.
+  - **Context:** 0 overflows in all 21 runs. Only the per-read cap acted (26 reads in the round, 18 in the six runs);
+    the per-file budget never fired, and no shell output reached the 16 KB `tool_output` cap.
+  - **Recorded:** `docs/llamacpp-trial.md` → "Read-budget window", the roadmap's "Large-file fix" entry, AGENTS.md
+    and the template's `tool_output` comment.
+  - **Also recorded:** OpenCode appends a folder's instruction file to the first read under it, so a capped read
+    can return more than the cap (29,204 chars, of which 11.9 KB was `CLAUDE.md`).
 - **feat: read-budget plugin keeps one `read` from eating the window (the large-file fix, 2026-10-17).** `kane-08` read
   two files of 131 and 185 KB whole (opencode's `read` returns up to 50 KB a call), overflowed the 64k window,
   compacted and read them again 17 to 19 times a run until the 45-minute timeout, 3 of 3 runs, no edit.
