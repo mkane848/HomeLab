@@ -16,7 +16,7 @@ that needs `sudo` on the server is the owner's ([network-topology](network-topol
 **2026-10-16: Phase 1 is done and Gate G1 is go** ("Results" below). The window is closed: llama-server is down, the
 server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to `dev-workflow-server`. Phase 2 (the
 engine adapter) was approved the same day and is done: "Phase 2 live window" below. The large-file fix that followed
-was measured 2026-10-17/18: "Read-budget window" below (`kane-08` 2 of 3, the round 14 of 15, the window closed
+was measured 2026-10-17/18: "Read-budget window" below (`kane-08` 3 of 5, the round 41 of 45 over three reps, the window closed
 again with Ollama back on the GPU). The rest of this section is
 the handoff as it stood before the window.
 
@@ -597,16 +597,43 @@ The large-file fix, measured: `opencode/plugins/read-budget.js` (PR #132; [roadm
     instability: it failed three of the four Ollama rounds.
   - `wp-3b` and `wp-5a` were capped, 1 and 5 reads.
 
-**Not measured:** the shell cap. The 139 shell results across the 21 transcripts were all under 16,384 chars (the
+**Replicates (2026-10-18, owner: "if there are any tests that we can run in 5 hours or less, let's prioritize
+those").** Two more reps of the round, each followed by `kane-08`, with the same settings, `read-budget-reps`:
+
+| | rep 1 (above) | rep 2 | rep 3 | all |
+|---|---|---|---|---|
+| round, every gate | 14 | 14 | 13 | **41 of 45** (mean 13.7) |
+| `kane-08` (with the three above) | | FAIL | PASS | **3 of 5** |
+| overflows | 0 | 0 | 0 | **0 in 53 runs**, with the six above |
+| reads capped in the round | 26 | 27 | 30 | the per-file budget never fired |
+
+- **Per task, over the three rounds:**
+  - 13 tasks passed 3 of 3, among them `wp-7a`, `real-01` and `wp-5a`, which had moved between the Ollama reps.
+  - `real-02` passed 2 of 3 (rep 3: 1 of 111 hidden tests, the env-var list).
+  - `wp-5b` passed 0 of 3, the same hidden test each time. It has failed every round on either engine.
+- **`kane-08` rep 4 failed on the code.** Three of the suite's tests went red (kindred and outlet cases). It had no
+  overflow, 4 compactions and 2 nudges.
+- **The plugin's actions:**
+  - The most capped reads in one run was 9 (`wp-5a`, rep 3).
+  - All 32 runs were on the GPU.
+- **The comparison:** Ollama's four classifier-2 rounds made 45 of 60 (mean 11.25). Step 7's single llama.cpp round
+  made 11.
+
+**Not measured:** the shell cap. The 327 shell results across the 53 transcripts were all under 16,384 chars (the
 longest was 9,930), so `tool_output.max_bytes` never applied.
 
 **How far this goes:**
 
-- These are single assisted runs, one round and three reps.
-- The tasks' own instability is known: `wp-7a`, `real-01` and `real-02` moved between the Ollama reps.
-- So 14 against 11 or 12 is a strong showing, not yet a settled difference.
-- The plugin also makes these rows a new client era (`opencodePlugins` lists two plugins), so they are compared with
-  step 7 only as before-and-after, not pooled with it.
+- These are assisted runs: three rounds and five `kane-08` runs.
+- The step 7 llama.cpp round without the plugin is a single round. The like-for-like four-round baseline is Ollama's,
+  on a different engine.
+- So the clean claims are:
+  - the loop and the overflows are gone;
+  - the round is at least as good, 13.7 against 11 to 12.
+- How much of the round's gain is the plugin rather than the engine plus noise would take llama.cpp rounds without the
+  plugin (`HOMELAB_READ_MAX_CHARS=off`). That run is not done.
+- The plugin makes these rows a new client era (`opencodePlugins` lists two plugins), so they are compared with step 7
+  only as before-and-after, not pooled with it.
 
 ### Gate G1, row by row
 

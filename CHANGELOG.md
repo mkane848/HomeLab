@@ -10,9 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **docs: the read-budget plugin, measured (2026-10-17/18).** The window ran on the server's llama-server under step 7's
   settings (nudged, classifier 2, 45-minute cap); the rows are private and assisted.
   - **`kane-08`: 2 of 3** (was 0 of 3, every run looping to the timeout). **`wp-4a`: 3 of 3** (was 2 of 3).
-  - **The 15-task round: 14 of 15** (step 7's llama.cpp round: 11; Ollama classifier-2 rounds: 11, 12, 11, 11). Only
-    `wp-5b` failed, as before.
-  - **Context:** 0 overflows in all 21 runs. Only the per-read cap acted (26 reads in the round, 18 in the six runs);
+  - **Three 15-task rounds: 14, 14 and 13 of 15**, 41 of 45 (step 7's llama.cpp round: 11; Ollama classifier-2
+    rounds: 11, 12, 11, 11). `wp-5b` failed all three, as before, and `real-02` failed one. `kane-08` passed 3 of 5 in
+    all.
+  - **Context:** 0 overflows in all 53 runs. Only the per-read cap acted (26, 27 and 30 reads in the three rounds);
     the per-file budget never fired, and no shell output reached the 16 KB `tool_output` cap.
   - **Recorded:** `docs/llamacpp-trial.md` → "Read-budget window", the roadmap's "Large-file fix" entry, AGENTS.md
     and the template's `tool_output` comment.
