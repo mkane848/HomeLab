@@ -15,7 +15,9 @@ that needs `sudo` on the server is the owner's ([network-topology](network-topol
 
 **2026-10-16: Phase 1 is done and Gate G1 is go** ("Results" below). The window is closed: llama-server is down, the
 server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to `dev-workflow-server`. Phase 2 (the
-engine adapter) was approved the same day and is done: "Phase 2 live window" below. The rest of this section is
+engine adapter) was approved the same day and is done: "Phase 2 live window" below. The large-file fix that followed
+was measured 2026-10-17/18: "Read-budget window" below (`kane-08` 2 of 3, the round 14 of 15, the window closed
+again with Ollama back on the GPU). The rest of this section is
 the handoff as it stood before the window.
 
 **Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
@@ -536,6 +538,75 @@ the Ollama adapter.
 
 All three task runs went to a scratch results folder, not `tests/results/`: one run per engine checks the plumbing and is not
 a benchmark row.
+
+### Read-budget window (2026-10-17/18)
+
+The large-file fix, measured: `opencode/plugins/read-budget.js` (PR #132; [roadmap](roadmap.md) → "Large-file fix
+(2026-10-17)"), on the server's llama-server in a window of its own. Setup:
+
+- **Environment:** the desktop as run host (PowerShell 7.4, OpenCode 1.18.34, harness at `2539127`), llama.cpp build
+  b11561, `qwen3.6` at 64k with 14.9 GB on the GPU throughout.
+- **Settings:** step 7's settings exactly: nudged, classifier 2, a 45-minute cap, the CPU 3b on the server's Ollama as
+  the small model.
+- **Config:** the live OpenCode config was the merged template, staged by hand: both plugins, and
+  `tool_output.max_bytes` 16384.
+- **Results:** private and assisted, in `read-budget-lostbrief` and `read-budget-round`.
+
+**The two tasks that looped**, 3 reps each, alternating:
+
+| task | result | overflows (each run) | compactions | reads capped | wall (s) |
+|---|---|---|---|---|---|
+| `kane-08` | **2 / 3** (step 7: 0 / 3) | 0, 0, 0 (step 7: 16, 18, 19) | 4, 2, 1 | 2 each | 1,960, 1,198, 547 |
+| `wp-4a` | **3 / 3** (step 7: 2 / 3) | 0, 0, 0 (step 7: 43, 12, 14) | 1, 0, 1 | 4 each | 322, 189, 352 |
+
+- **The loop is gone.** Each `kane-08` run read `signals.ts` and `signals.test.ts` from line 1 once, the cap returned
+  339 and 349 lines with the grep hint, and the model went on with grep and ranged reads. The peak prompt was 58,432
+  tokens, under the 64k window.
+- **`kane-08` rep 2 failed on the code, not the context.**
+  - One of its own new tests was red: Flame-Blessed Bolt's "would die … instead" case.
+  - It used both nudges, and its last step hit the 8,192-token output cap.
+  - The informational acceptance run (the owner's tests at the upstream fix `e952198`) failed the same case, 237 of 238.
+- **Acceptance on the other two `kane-08` runs:**
+  - Rep 1 passed every gate but acceptance, at 236 of 238 (the sacrifice-cost case).
+  - Rep 3 passed every gate and acceptance, 238 of 238.
+- **Only the cap acted.** The per-file budget (`byReason.budget`) never fired in any run.
+- **The cap counts more than the slice.** The first `read` under a folder that holds an instruction file gets that file
+  appended by OpenCode (`apps/commander-recommender/CLAUDE.md`, 11.9 KB). The capped read of `signals.ts` therefore
+  returned 29,204 chars: a 17,093-char slice plus the instructions. Those chars also count toward the file's budget. It
+  did no harm here, and it is OpenCode's behaviour, not the plugin's.
+
+**Round of 15**, same settings:
+
+| | |
+|---|---|
+| passed | **14 of 15** on every gate, and on hidden tests alone |
+| failed | `wp-5b` (hidden tests 246/247, "spends 1 Bond when the requested Delta is negative"; it failed every earlier round too) |
+| overflows | **0** (step 7's round: 16, all recovered) |
+| reads capped | 26, in 9 of the 15 tasks, at most 5 in one run; the budget never fired |
+| wall time | 5,690 s (step 7's round: 5,191 s) |
+| against | step 7's llama.cpp round: 11 every gate / 12 hidden tests alone. Ollama classifier-2 rounds: 11, 12, 11, 11 every gate |
+
+- **Compared with step 7's round:**
+  - `real-02`, `wp-3b` and `wp-5a` passed this time.
+  - `real-02` and `wp-5a` had made no edits there.
+  - `wp-3b` had exceeded the 400-line ceiling there.
+- **The cap was not the whole cause of the gain.** The cap never touched six tasks: `real-01`, `real-02`, `real-03`,
+  `wp-0a`, `wp-9a` and `wp-6f`.
+  - Five of them passed, as in step 7, so the plugin cost nothing there.
+  - `real-02` is one of the six, and it passed this time without the plugin acting. That gain is the task's own
+    instability: it failed three of the four Ollama rounds.
+  - `wp-3b` and `wp-5a` were capped, 1 and 5 reads.
+
+**Not measured:** the shell cap. The 139 shell results across the 21 transcripts were all under 16,384 chars (the
+longest was 9,930), so `tool_output.max_bytes` never applied.
+
+**How far this goes:**
+
+- These are single assisted runs, one round and three reps.
+- The tasks' own instability is known: `wp-7a`, `real-01` and `real-02` moved between the Ollama reps.
+- So 14 against 11 or 12 is a strong showing, not yet a settled difference.
+- The plugin also makes these rows a new client era (`opencodePlugins` lists two plugins), so they are compared with
+  step 7 only as before-and-after, not pooled with it.
 
 ### Gate G1, row by row
 

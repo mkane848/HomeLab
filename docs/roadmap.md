@@ -251,15 +251,23 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      → "Phase 2 live window"). The window found one defect, the ssh placement check missing a seat whose router id is
      rewritten, fixed in the PR that records it. Phases 3–6 each still need their own go; next is the large-file fix.
 
-     **Large-file fix (2026-10-17).** Built, not yet measured live. `opencode/plugins/read-budget.js`
+     **Large-file fix (2026-10-17), measured 2026-10-17/18.** `opencode/plugins/read-budget.js`
      (`tests/test-read-budget.ps1`, 99 checks): each `read` is clamped to `min(51200, window * 0.08 * 3.3)` chars by
      lowering its own `limit` (about 17,300 chars at 64k, 8,650 at 32k, no clamp at 200k), a clamped result ends in a
      one-line hint to grep and read just those lines, and a file that has used `window * 0.25 * 3.3` chars since the
      last compaction is read 100 lines at a time ([SWE-agent](https://arxiv.org/html/2405.15793v3), Table 3); the
      counters reset at each compaction. The template also sets `tool_output.max_bytes` 16384 for shell output. In the
      real opencode a scripted model that reads a 130 KB file whole gets 17,486 chars back at 64k. Run JSONs record
-     `readBudget`. The measurement still to do, in a server window: `kane-08` ×3 and `wp-4a` ×3 on llama.cpp (does the
-     loop end, and do the two tasks edit), then the 15-task round to check nothing else lost.
+     `readBudget`. **Measured** in a server window on llama.cpp under step 7's settings (assisted; `docs/llamacpp-trial.md`
+     → "Read-budget window"):
+     - **The loop is gone.** `kane-08` passed 2 of 3 (step 7: 0 of 3, every run a timeout with 16 to 19 overflows) and
+       `wp-4a` passed 3 of 3 (2 of 3), with 0 overflows in all six runs.
+     - **The round scored 14 of 15** on every gate (step 7's llama.cpp round: 11; Ollama: 11, 12, 11, 11). Only `wp-5b`
+       failed, as in every earlier round, and the round had no overflows.
+     - **Only the cap acted.** The per-file budget never fired, and the 16 KB shell cap was never reached, the longest
+       shell output being 9,930 chars.
+     - **How far it goes:** these are single assisted runs, so the gain is strong but not yet settled. One task the cap
+       never touched (`real-02`) also improved.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.

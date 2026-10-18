@@ -43,8 +43,8 @@
   // Shell output is capped at 16 KB a call (opencode's `tool_output`, from
   // core/src/config/tool-output.ts at v1.18.34, not in the documentation;
   // `opencode debug config` keeps it, and a misspelt key is dropped without a
-  // word). Not yet measured live: whether the shell tool honours it is for the
-  // kane-08 / wp-4a round to show.
+  // word). Not yet seen to apply: in the 21 runs of 2026-10-17/18 no shell
+  // output reached 16 KB (longest 9,930 chars).
   "tool_output": { "max_bytes": 16384 },
 
   // ---------------------------------------------------------------------
