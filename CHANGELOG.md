@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: run JSONs record whether the read-budget plugin was switched off (2026-10-19).** `readBudget` gains `loaded`,
+  `off` and `capOverride`, read by the OpenCode adapter (`Stop-AgentRunEnv`) from the plugin's own first `loaded` log line,
+  i.e. what the plugin saw of `HOMELAB_READ_MAX_CHARS` inside opencode. Before this, a run with `HOMELAB_READ_MAX_CHARS=off`
+  recorded the plugin as loaded with zero clamps, the same as a plugin-on run that never clamped, and the evidence log was
+  deleted after the run; the plugin-off rounds of 2026-10-19 can only be told apart by their results folder. Existing
+  fields are unchanged, so this is not a new era. `tests/test-read-budget.ps1`: 106 checks (was 99), including a run with
+  `HOMELAB_READ_MAX_CHARS=off`, a log with no `loaded` line, the `loaded` line's format in the plugin, and a control that
+  ignores the line (fails 2).
+
 - **fix: `sync-opencode.ps1` stages locally; copying to another machine is opt-in (2026-10-19).** The script pushed the
   OpenCode config, agents, commands and every `.secrets/` file to the Ubuntu server on each run. That fit September, when
   the server was to be an OpenCode client; it is a model host only now (its stale OpenCode 1.18.30 client and

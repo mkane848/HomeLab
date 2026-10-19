@@ -276,6 +276,17 @@ check("default export has server()", typeof mod.default.server, "function")
   check("a second copy for the same directory: no hooks", Object.keys(await mod.default.server({ directory: join(dir, "p1") })).length, 0)
   check("...a copy for another directory still loads", Object.keys(await mod.default.server({ directory: join(dir, "p2") })).length, 5)
   check("no log variable, no input: loads without throwing", typeof (await mod.default.server({})), "object")
+  // The harness records these two fields from this line (readBudget.off, .capOverride).
+  const loaded1 = JSON.parse(readFileSync(logFile, "utf8").trim().split("\n")[0])
+  check("...the loaded line says off false, capOverride null by default", [loaded1.off, loaded1.capOverride], [false, null])
+  const offLog = join(dir, "server-off.jsonl")
+  process.env.HOMELAB_READ_BUDGET_LOG = offLog
+  process.env.HOMELAB_READ_MAX_CHARS = "off"
+  await mod.default.server({ directory: join(dir, "p3") })
+  delete process.env.HOMELAB_READ_BUDGET_LOG
+  delete process.env.HOMELAB_READ_MAX_CHARS
+  const loadedOff = JSON.parse(readFileSync(offLog, "utf8").trim().split("\n")[0])
+  check("...with HOMELAB_READ_MAX_CHARS=off it says off true, capOverride 'off'", [loadedOff.message, loadedOff.off, loadedOff.capOverride], ["loaded", true, "off"])
 }
 
 process.exit(failed ? 1 : 0)

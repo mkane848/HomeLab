@@ -25,11 +25,14 @@
 #     the later offset, the hint is its last line (about 10 s; SKIP if opencode
 #     cannot start);
 #   - the real test-tasks.ps1 with a stand-in opencode: readBudget recorded in
-#     the run JSON from the evidence log (clamps, byReason, files), null without
-#     the plugin, the log variable restored and the log removed;
+#     the run JSON from the evidence log (clamps, byReason, files, and loaded /
+#     off / capOverride from the plugin's first "loaded" line, so a run with
+#     HOMELAB_READ_MAX_CHARS=off says so itself; the 2026-10-19 plugin-off
+#     rounds could only be told apart by their folder name), null without the
+#     plugin, the log variable restored and the log removed;
 #   - controls, each of which must make at least one check fail: the before
 #     hook's limit mutation removed (unit and live), the budget reset removed,
-#     and the harness's readBudget recording removed;
+#     the harness's readBudget recording removed, and the loaded line ignored;
 #   - the installed opencode is the version the hooks were read at
 #     (-PinnedOpencode): a different one FAILS until someone re-reads
 #     session/tools.ts, read.ts and compaction.ts and moves the pin.
@@ -111,7 +114,12 @@ if ($a[0] -ne 'run') { exit 2 }
 Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("log=" + $env:HOMELAB_READ_BUDGET_LOG)
 if ($env:HOMELAB_READ_BUDGET_LOG) {
     $l = $env:HOMELAB_READ_BUDGET_LOG
-    Add-Content -LiteralPath $l -Value '{"message":"loaded"}'
+    # The real plugin's "loaded" line: what it saw of HOMELAB_READ_MAX_CHARS.
+    if (-not $env:FIXTURE_NO_LOADED) {
+        $o = ("$env:HOMELAB_READ_MAX_CHARS".Trim().ToLower() -eq 'off')
+        Add-Content -LiteralPath $l -Value (@{ message = 'loaded'; off = $o; capOverride = $(if ($env:HOMELAB_READ_MAX_CHARS) { $env:HOMELAB_READ_MAX_CHARS } else { $null }) } | ConvertTo-Json -Compress)
+        Add-Content -LiteralPath $l -Value '{"message":"loaded","off":false,"capOverride":"999"}'
+    }
     Add-Content -LiteralPath $l -Value '{"message":"clamp","sessionID":"s","path":"/w/a.ts","offset":1,"asked":null,"set":300,"reason":"cap","chars":17000}'
     Add-Content -LiteralPath $l -Value '{"message":"clamp","sessionID":"s","path":"/w/b.ts","offset":1,"asked":null,"set":300,"reason":"cap","chars":17000}'
     Add-Content -LiteralPath $l -Value '{"message":"clamp","sessionID":"s","path":"/w/a.ts","offset":900,"asked":null,"set":100,"reason":"budget","chars":4000}'
@@ -130,15 +138,23 @@ exit 0
         $env:FIXTURE_SEEN = Join-Path $tmp "seen.txt"
         $tt = Join-Path $tmp "tests/test-tasks.ps1"
         $leaked = $null
+        $origMax = [Environment]::GetEnvironmentVariable("HOMELAB_READ_MAX_CHARS")
+        Remove-Item Env:HOMELAB_READ_MAX_CHARS -ErrorAction SilentlyContinue
         try {
             $env:FIXTURE_PLUGINS = "1"
             $withOut = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
-            Remove-Item Env:FIXTURE_PLUGINS
             $leaked = [Environment]::GetEnvironmentVariable("HOMELAB_READ_BUDGET_LOG")
+            $env:HOMELAB_READ_MAX_CHARS = "off"
+            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "off") *>&1 | Out-String
+            Remove-Item Env:HOMELAB_READ_MAX_CHARS
+            $env:FIXTURE_NO_LOADED = "1"
+            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "noloaded") *>&1 | Out-String
+            Remove-Item Env:FIXTURE_NO_LOADED, Env:FIXTURE_PLUGINS
             $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
         } finally {
             $env:PATH = $origPath
-            Remove-Item Env:FIXTURE_SEEN, Env:FIXTURE_PLUGINS -ErrorAction SilentlyContinue
+            Remove-Item Env:FIXTURE_SEEN, Env:FIXTURE_PLUGINS, Env:FIXTURE_NO_LOADED, Env:HOMELAB_READ_MAX_CHARS -ErrorAction SilentlyContinue
+            if ($null -ne $origMax) { $env:HOMELAB_READ_MAX_CHARS = $origMax }
         }
         if (-not (Test-Path -LiteralPath (Join-Path $tmp "seen.txt"))) {
             Write-Host "FAIL the harness never reached opencode run; its output:"
@@ -147,15 +163,21 @@ exit 0
         }
         $seen = @(Get-Content -LiteralPath (Join-Path $tmp "seen.txt"))
         $jWith = Get-ChildItem (Join-Path $tmp "with") -Filter "tasks-fx-readbudget-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
+        $jOff = Get-ChildItem (Join-Path $tmp "off") -Filter "tasks-fx-readbudget-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
+        $jNoLoaded = Get-ChildItem (Join-Path $tmp "noloaded") -Filter "tasks-fx-readbudget-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
         $jWithout = Get-ChildItem (Join-Path $tmp "without") -Filter "tasks-fx-readbudget-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
         Check "$Label with the plugin: the run got an evidence log path"   ($seen[0] -match '^log=.+rbplugin-.+\.jsonl$') "True"
         Check "$Label ...readBudget.clamps counts the clamp lines only"   $jWith.readBudget.clamps 3
         Check "$Label ...byReason splits cap and budget"                  "$($jWith.readBudget.byReason.cap)/$($jWith.readBudget.byReason.budget)" "2/1"
         Check "$Label ...files counts distinct paths"                     $jWith.readBudget.files 2
+        Check "$Label ...loaded, off and capOverride from the first loaded line" "$($jWith.readBudget.loaded)/$($jWith.readBudget.off)/$($null -eq $jWith.readBudget.capOverride)" "True/False/True"
         Check "$Label ...the log variable does not outlive the run"       ([string]::IsNullOrEmpty($leaked)) "True"
         Check "$Label ...the evidence log is removed"                     (Test-Path -LiteralPath ($seen[0] -replace '^log=', '')) "False"
         Check "$Label ...compactionPluginRewrites stays null (no such plugin)" ($null -eq $jWith.compactionPluginRewrites) "True"
-        Check "$Label without the plugin: no evidence log"                $seen[1] "log="
+        Check "$Label HOMELAB_READ_MAX_CHARS=off: readBudget records off and the override" "$($jOff.readBudget.loaded)/$($jOff.readBudget.off)/$($jOff.readBudget.capOverride)" "True/True/off"
+        Check "$Label no loaded line: loaded false, off and capOverride null" "$($jNoLoaded.readBudget.loaded)/$($null -eq $jNoLoaded.readBudget.off)/$($null -eq $jNoLoaded.readBudget.capOverride)" "False/True/True"
+        Check "$Label ...its clamps are still counted"                    $jNoLoaded.readBudget.clamps 3
+        Check "$Label without the plugin: no evidence log"                $seen[-1] "log="
         Check "$Label ...readBudget null"                                 ($null -eq $jWithout.readBudget) "True"
     } finally {
         if (Test-Path (Join-Path $tmp "repo")) { git -C (Join-Path $tmp "repo") worktree prune 2>$null }
@@ -211,6 +233,15 @@ try {
     $delta = $script:fail - $before
     $script:fail = $before; $script:total = $totalBefore
     Test-Control "harness without the readBudget recording" $delta
+
+    $noLoaded = $adapter.Replace("`$loadedLine = `$e; continue", "continue")
+    if ($noLoaded -eq $adapter) { Check "control setup: the loaded-line reading is in the adapter" $false $true }
+    Set-Content -LiteralPath (Join-Path $agentsCopy "opencode.ps1") -Value $noLoaded -NoNewline
+    $before = $script:fail; $totalBefore = $script:total; $script:quiet = $true
+    try { Test-HarnessRecording $agentsCopy "control:" } finally { $script:quiet = $false }
+    $delta = $script:fail - $before
+    $script:fail = $before; $script:total = $totalBefore
+    Test-Control "harness that ignores the plugin's loaded line" $delta
 } finally {
     Remove-Item -Recurse -Force $ctl -ErrorAction SilentlyContinue
 }
