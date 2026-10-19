@@ -1254,6 +1254,30 @@ function Get-StopKind {
     return $null
 }
 
+function Format-ContextOverflowWarning {
+    # The "context" WARN for requests longer than the served context, worded for
+    # what the engine does with one. An engine that refuses explicitly (llama-server:
+    # HTTP 400, a ContextOverflowError the agent handles) drops nothing; Ollama cuts
+    # the front off silently. The FrontDrops arithmetic fires on both, because a
+    # refused request is still an over-long one, so the refusals decide the wording
+    # when there are any: on 2026-10-19 the plugin-off rounds on llama.cpp printed
+    # "Ollama dropped the oldest messages" for 42 explicit refusals. Returns $null
+    # when there is nothing to warn about.
+    param($FrontDrops, [int]$OverflowErrors, [string]$EngineName, $NumCtx, [string]$AgentName)
+    $ctxText = if ($null -ne $NumCtx) { "$NumCtx" } else { "unknown" }
+    if ($OverflowErrors -gt 0) {
+        return ("the engine refused {0} over-long request(s) explicitly (ContextOverflowError against a {1}-token context); {2} handled each one and the run went on. Nothing was dropped silently. Recorded in overflowRecovery, not graded." -f $OverflowErrors, $ctxText, $AgentName)
+    }
+    $drops = @($FrontDrops)
+    if ($drops.Count -eq 0) { return $null }
+    $fd = $drops[0]
+    $head = "a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3})" -f $drops.Count, $fd.step, $fd.estimatedRequest, $ctxText
+    if ($EngineName -eq "llamacpp") {
+        return ("$head by the 3-characters-a-token estimate, but llama-server refuses an over-long request explicitly and refused none in this run: the estimate ran high, nothing was dropped. Recorded in contextEvents, not graded.")
+    }
+    return ("$head; Ollama dropped the oldest messages, the task prompt with them, and the model carried on without it. Recorded in contextEvents, not graded.")
+}
+
 function Get-ContextEvents {
     # What happened to the session's context window, from the run's events
     # (docs/roadmap.md -> "Context overflow"):
@@ -1890,12 +1914,11 @@ foreach ($tk in $tasksToRun) {
         if ($capHit) { $writeNote += " (the last step then hit the output cap at $($run.Ending.OutputTokens) tokens)" }
         Write-Result $tk.id "writes gate" "PASS" "$($run.Writes) write/edit calls$writeNote"
     }
-    # Context events are recorded, not graded: a front-drop is what this seat
-    # does in a real session too, so the gates still judge the end state.
-    if ($ctxEvents.FrontDrops.Count -gt 0) {
-        $fd = $ctxEvents.FrontDrops[0]
-        Write-Result $tk.id "context" "WARN" ("a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3}); Ollama dropped the oldest messages, the task prompt with them, and the model carried on without it. Recorded in contextEvents, not graded." -f $ctxEvents.FrontDrops.Count, $fd.step, $fd.estimatedRequest, $numCtx)
-    }
+    # Context events are recorded, not graded: a front-drop or a refused request
+    # is what this seat does in a real session too, so the gates still judge the
+    # end state. The wording follows the engine (Format-ContextOverflowWarning).
+    $overflowWarn = Format-ContextOverflowWarning -FrontDrops $ctxEvents.FrontDrops -OverflowErrors $overflowRec.OverflowErrors -EngineName $script:EngineName -NumCtx $numCtx -AgentName $script:AgentName
+    if ($overflowWarn) { Write-Result $tk.id "context" "WARN" $overflowWarn }
     if ($ctxEvents.AskedForTask.Count -gt 0) {
         $af = $ctxEvents.AskedForTask[0]
         Write-Result $tk.id "context" "WARN" ("the model asked what its task was {0} time(s) (first at step {1}: `"{2}`"): it had lost the prompt, to a front-drop or a compaction. Recorded in contextEvents, not graded." -f $ctxEvents.AskedForTask.Count, $af.step, $af.phrase)
