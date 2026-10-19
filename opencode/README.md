@@ -44,27 +44,31 @@ OpenCode merges configs in this order (later overrides earlier):
 3. **Custom** — `OPENCODE_CONFIG` env var
 4. **Project** — `opencode.json` in project root
 
-## Syncing to the Ubuntu Server
+## Staging the config (and copying it to another machine)
 
-Once your Windows config is where you want it, push it (and your skills/agents
-scaffolding) to the server in one shot:
+The template `opencode/global/opencode.jsonc` is staged into `~/.config/opencode/`
+on the machine you run the script on. Nothing leaves the machine by default:
 
 ```powershell
-# from M:\Projects\dev-docs
+# from the dev-docs checkout
 .\desktop\scripts\sync-opencode.ps1
 ```
 
-This uses `SSH_USER` and `SERVER_IP` from the dev-docs `.env`, then:
-1. Creates `~/.config/opencode/{.secrets,skills,agents,tools,commands,plugins,themes}` on the server
-2. Copies `opencode.jsonc`
-3. Copies everything in `.secrets/`
+1. Fills the plugin-path placeholder with this checkout's `file:///` URL.
+2. Backs up a changed live `opencode.jsonc` (`opencode.jsonc.bak-yyyyMMdd-HHmmss`),
+   prints what changes, writes the new one (identical: nothing written).
+3. Stages `opencode/agents/*.md` and `opencode/commands/*.md`.
+4. Runs `opencode debug config` and reports whether it loads and whether each plugin
+   path exists (warnings only).
 
-> Note: skills/agents/etc. directories are created empty on the server — but
-> see **Imported Skills** below for the script that populates them from
-> `dev-docs`. `node_modules/` in your local config is intentionally skipped.
->
-> Requires SSH access (password prompts each call, or set up key auth with
-> `ssh-copy-id`). Restart any running OpenCode session after syncing.
+Copying to another machine is opt-in and only to a machine with the `opencode-client`
+role in [`machines.tsv`](../machines.tsv): `-Push <machine>` (host and user from `.env`;
+`-RemoteRepoRoot <path>` makes the plugin paths name the target's checkout), and
+`-Secrets name1,name2` (only with `-Push`, only the files named) for API keys.
+The server is a model host only and has no OpenCode client, so `-Push server` is
+refused. Requires SSH access (password prompts each call, or key auth).
+Restart any running OpenCode session after syncing. `node_modules/` in your local
+config is intentionally skipped.
 
 ## Imported Skills (from Claude)
 

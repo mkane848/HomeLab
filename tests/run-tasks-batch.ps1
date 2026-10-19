@@ -1295,7 +1295,7 @@ foreach ($m in $selectedModels) {
         continue
     }
     if ($null -ne $registeredIds -and (Get-EngineKind $m) -and -not $registeredIds.ContainsKey($m)) {
-        Write-Host "  [drop] $m - not registered in the live opencode config. Add it to opencode/global/opencode.jsonc and run .\desktop\scripts\sync-opencode.ps1 -Template" -ForegroundColor Yellow
+        Write-Host "  [drop] $m - not registered in the live opencode config. Add it to opencode/global/opencode.jsonc and run .\desktop\scripts\sync-opencode.ps1" -ForegroundColor Yellow
         continue
     }
     if ($state -ne "PASS") {

@@ -666,7 +666,7 @@ opencode debug config | grep -A2 ollama-server
 # Confirm the model is reachable
 curl.exe $OLLAMA_SERVER_BASE_URL/models
 
-# Redeploy the template after editing opencode/global/opencode.jsonc
+# Re-stage the template locally after editing opencode/global/opencode.jsonc
 .\desktop\scripts\sync-opencode.ps1
 ```
 

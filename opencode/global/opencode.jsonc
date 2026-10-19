@@ -19,13 +19,18 @@
 
   // Keeps a session working after an automatic compaction (installed
   // 2026-10-05; docs/roadmap.md -> "Context overflow"). Referenced in place
-  // from the desktop's main checkout, like the project skill paths, so it
-  // follows whatever branch M:\Projects\dev-docs has checked out. It rests on
+  // from the checkout, like the project skill paths, so it follows whatever
+  // branch that checkout has out. The plugin paths start with a placeholder token
+  // (two underscores, REPO_URL, two underscores) that staging
+  // (sync-opencode.ps1, via desktop/scripts/opencode-template.ps1) swaps for
+  // THIS checkout's file:/// URL, so the template names no machine.
+  // Never copy the template to ~/.config/opencode by hand, the token would
+  // stay in. It rests on
   // EXPERIMENTAL opencode hooks read at 1.18.34: after `opencode upgrade`, run
   // tests/test-compaction-plugin.ps1 before trusting it. To take it out, delete
   // this entry and re-run sync-opencode.ps1 -Template. The path is the
-  // desktop's; on another host the plugin fails to load (opencode reports it
-  // and carries on).
+  // staged checkout's; if that path is missing, the plugin fails to load
+  // (opencode reports it and carries on; sync-opencode.ps1 checks it).
   //
   // read-budget.js (2026-10-17) keeps one `read` from eating the window: it
   // caps a read at ~8% of the model's context window (about 17,300 chars at
@@ -36,8 +41,8 @@
   // above; HOMELAB_READ_MAX_CHARS=off switches it off for one launch. Guard:
   // tests/test-read-budget.ps1 (FAILs on any opencode but 1.18.34).
   "plugin": [
-    "file:///M:/Projects/dev-docs/opencode/plugins/compaction-continue.js",
-    "file:///M:/Projects/dev-docs/opencode/plugins/read-budget.js"
+    "__REPO_URL__/opencode/plugins/compaction-continue.js",
+    "__REPO_URL__/opencode/plugins/read-budget.js"
   ],
 
   // Shell output is capped at 16 KB a call (opencode's `tool_output`, from
