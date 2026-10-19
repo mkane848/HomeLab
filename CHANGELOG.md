@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix: `sync-opencode.ps1` stages locally; copying to another machine is opt-in (2026-10-19).** The script pushed the
   OpenCode config, agents, commands and every `.secrets/` file to the Ubuntu server on each run. That fit September, when
   the server was to be an OpenCode client; it is a model host only now (its stale OpenCode 1.18.30 client and
-  2026-09-10 config are retired: backed up 2026-10-19 to `~/backups/opencode-client-2026-10-19.tar.gz` in the owner's
-  home on the server, removal pending), and the push would have put a config that cannot
+  2026-09-10 config were removed 2026-10-19, with a backup in `~/backups/opencode-client-2026-10-19.tar.gz` in the
+  owner's home on the server), and the push would have put a config that cannot
   work there and copied API keys off the desktop.
   - **Local by default:** no network and no `.env`. A changed live `opencode.jsonc` is backed up
     (`opencode.jsonc.bak-<stamp>`) with a diff summary; identical content writes nothing. Afterwards `opencode debug config`

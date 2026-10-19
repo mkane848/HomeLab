@@ -2,7 +2,7 @@
 #
 # Why this exists: the script used to ALWAYS scp the OpenCode config and every
 # .secrets/ file to the Ubuntu server, which has been a model host only for a long
-# time (its OpenCode client was retired 2026-10-19). It also needed .env just to stage
+# time (its OpenCode client was removed 2026-10-19). It also needed .env just to stage
 # locally, and the template hard-coded this PC's checkout in its plugin paths. Now the
 # default is local-only, the plugin paths come from a placeholder token filled in with
 # the checkout that stages them, and copying to another machine is opt-in
