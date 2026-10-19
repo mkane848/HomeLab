@@ -262,12 +262,14 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      → "Read-budget window"):
      - **The loop is gone.** `kane-08` passed 2 of 3 (step 7: 0 of 3, every run a timeout with 16 to 19 overflows) and
        `wp-4a` passed 3 of 3 (2 of 3), with 0 overflows in all six runs.
-     - **The round scored 14 of 15** on every gate (step 7's llama.cpp round: 11; Ollama: 11, 12, 11, 11). Only `wp-5b`
-       failed, as in every earlier round, and the round had no overflows.
+     - **Three rounds scored 14, 14 and 13 of 15** on every gate, 41 of 45 (step 7's llama.cpp round: 11; Ollama: 11,
+       12, 11, 11). `wp-5b` failed all three, as in every earlier round, and `real-02` failed one. `kane-08` passed 3 of
+       5. No run overflowed, 53 runs in all.
      - **Only the cap acted.** The per-file budget never fired, and the 16 KB shell cap was never reached, the longest
        shell output being 9,930 chars.
-     - **How far it goes:** these are single assisted runs, so the gain is strong but not yet settled. One task the cap
-       never touched (`real-02`) also improved.
+     - **How far it goes:** the runs are assisted, and the only llama.cpp round without the plugin is a single one. So
+       "the loop is gone" is settled, and "the round is at least as good" is too. How much of the gain is the plugin
+       would take llama.cpp rounds with `HOMELAB_READ_MAX_CHARS=off`.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
