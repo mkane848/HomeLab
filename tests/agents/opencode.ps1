@@ -290,9 +290,13 @@ function Stop-AgentRunEnv {
     #                       rewritten continue message (every step after a
     #                       compaction carries it, so this counts calls, not
     #                       compactions), or $null without that plugin;
-    #   ReadBudget          { clamps; byReason { cap; budget }; files } from the
-    #                       read-budget plugin's log (files = distinct paths),
-    #                       or $null without that plugin.
+    #   ReadBudget          { clamps; byReason { cap; budget }; files; loaded;
+    #                       off; capOverride } from the read-budget plugin's log
+    #                       (files = distinct paths; loaded, off and capOverride
+    #                       from its first "loaded" line, i.e. what the plugin
+    #                       saw of HOMELAB_READ_MAX_CHARS inside opencode; off
+    #                       and capOverride are $null when it never logged
+    #                       loading), or $null without that plugin.
     param($State)
     if (-not $State) { return $null }
     $rewrites = $null
@@ -304,17 +308,21 @@ function Stop-AgentRunEnv {
     $readBudget = $null
     if ($State.ReadLog) {
         Remove-Item Env:HOMELAB_READ_BUDGET_LOG -ErrorAction SilentlyContinue
-        $cap = 0; $budget = 0; $paths = @{}
+        $cap = 0; $budget = 0; $paths = @{}; $loadedLine = $null
         if (Test-Path -LiteralPath $State.ReadLog) {
             foreach ($line in (Get-Content -LiteralPath $State.ReadLog)) {
                 $e = $null
                 try { $e = $line | ConvertFrom-Json } catch { continue }
+                if ($e -and $e.message -eq "loaded" -and -not $loadedLine) { $loadedLine = $e; continue }
                 if (-not $e -or $e.message -ne "clamp") { continue }
                 if ($e.reason -eq "budget") { $budget++ } else { $cap++ }
                 if ($e.path) { $paths[[string]$e.path] = $true }
             }
         }
-        $readBudget = [pscustomobject]@{ clamps = $cap + $budget; byReason = [pscustomobject]@{ cap = $cap; budget = $budget }; files = $paths.Count }
+        $readBudget = [pscustomobject]@{ clamps = $cap + $budget; byReason = [pscustomobject]@{ cap = $cap; budget = $budget }; files = $paths.Count
+            loaded = [bool]$loadedLine
+            off = $(if ($loadedLine -and $null -ne $loadedLine.off) { [bool]$loadedLine.off } else { $null })
+            capOverride = $(if ($loadedLine -and $loadedLine.capOverride) { [string]$loadedLine.capOverride } else { $null }) }
         Remove-Item -LiteralPath $State.ReadLog -ErrorAction SilentlyContinue
     }
     if (-not $State.PluginLog -and -not $State.ReadLog) { return $null }
