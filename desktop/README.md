@@ -53,7 +53,7 @@ Scripts and configs for the personal desktop machine — the native-Vulkan Ollam
 - `scripts/opencode-profiles.ps1` + `scripts/install-opencode-profiles.ps1` — `opencode <profile>` from any PowerShell
 - `scripts/models.ps1` — catalog-aware model installer (see above)
 - `scripts/sync-wezterm.ps1` — deploy the WezTerm config (`..\..\wezterm\wezterm.lua`) to `C:\Users\<you>\.wezterm.lua`
-- `scripts/sync-opencode.ps1` — deploy `opencode/global/opencode.jsonc` to `~/.config/opencode/`
+- `scripts/sync-opencode.ps1` — stage `opencode/global/opencode.jsonc` (+ agents, commands) into `~/.config/opencode/` on this machine, with a backup and a diff; `-Push <machine>` copies to another `opencode-client` machine (`machines.tsv`)
 - `scripts/pin-ollama-desktop.ps1` — **stop the native Ollama from silently
   auto-upgrading.** The server's Ollama is pinned by its image tag; the desktop
   is a native Inno Setup install whose tray app auto-updates, and upstream

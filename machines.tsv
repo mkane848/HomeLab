@@ -1,0 +1,4 @@
+name	roles	note
+server	model-host	Model host only (Ollama + llama-server). OpenCode runs on the desktop; the server has no OpenCode client.
+desktop	model-host opencode-client tool-run-host	The daily OpenCode client and the harness run host.
+node3	model-host	Tool-run host planned (5950X); the harness cannot use it yet, so opencode-client is not set.

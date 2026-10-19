@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: `sync-opencode.ps1` stages locally; copying to another machine is opt-in (2026-10-19).** The script pushed the
+  OpenCode config, agents, commands and every `.secrets/` file to the Ubuntu server on each run. That fit September, when
+  the server was to be an OpenCode client; it is a model host only now (its stale OpenCode 1.18.30 client and
+  2026-09-10 config are retired: backed up 2026-10-19 to `~/backups/opencode-client-2026-10-19.tar.gz` in the owner's
+  home on the server, removal pending), and the push would have put a config that cannot
+  work there and copied API keys off the desktop.
+  - **Local by default:** no network and no `.env`. A changed live `opencode.jsonc` is backed up
+    (`opencode.jsonc.bak-<stamp>`) with a diff summary; identical content writes nothing. Afterwards `opencode debug config`
+    is run and each plugin path checked (warnings only). `-Template` stays as a no-op alias.
+  - **Opt-in copy:** `-Push <machine>` only for a machine with the `opencode-client` role in the new `machines.tsv`
+    (`server`: model-host; `desktop`: model-host, opencode-client, tool-run-host; `node3`: model-host); otherwise exit 1
+    and nothing sent. `-Secrets a,b` only with `-Push`, only the named files, never "all". `-RemoteRepoRoot` fixes the
+    pushed plugin paths for the target's checkout.
+  - **No machine path in the template:** the plugin entries start with `__REPO_URL__`, which staging replaces with the
+    staging checkout's `file:///` URL (`desktop/scripts/opencode-template.ps1`, shared with the guard). The CI runner and
+    node3 can stage it from wherever the repo lives. No other script or guard reads the template.
+  - **Guard:** `tests/test-sync-opencode.ps1` (61 checks, four controls).
 - **docs: the read-budget plugin, measured (2026-10-17/18).** The window ran on the server's llama-server under step 7's
   settings (nudged, classifier 2, 45-minute cap); the rows are private and assisted.
   - **`kane-08`: 2 of 3** (was 0 of 3, every run looping to the timeout). **`wp-4a`: 3 of 3** (was 2 of 3).
