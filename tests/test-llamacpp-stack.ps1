@@ -74,7 +74,20 @@ $badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*mode
 Check "every model path in the preset is an Ollama blob under the /ollama mount" $badPaths.Count 0
 
 # --- the checker, the real thing -----------------------------------------------
-$bash = Get-Command bash -ErrorAction SilentlyContinue
+# A bash that can read the checker by its Windows path. On Windows the first `bash` on PATH can be
+# WSL's launcher (C:\Windows\System32\bash.exe). On the desktop it exits 1 without starting ("WSL2 is
+# unable to start since virtualization is not enabled"), so every checker scenario failed there
+# (2026-10-19) while CI's Git bash passed; with WSL running, it would get C:\ paths it can't open.
+# Git's own paths come first, and each candidate must pass the probe.
+$bash = $null
+$bashCandidates = @("C:\Program Files\Git\bin\bash.exe", "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe" |
+    Where-Object { Test-Path -LiteralPath $_ }) + @(Get-Command bash -All -ErrorAction SilentlyContinue | ForEach-Object { $_.Source })
+foreach ($b in $bashCandidates) {
+    $ErrorActionPreference = "Continue"
+    $o = & $b -c 'test -f "$1" && echo 42' probe $checker 2>&1 | Out-String
+    $ErrorActionPreference = "Stop"
+    if ($LASTEXITCODE -eq 0 -and $o.Trim() -eq "42") { $bash = Get-Command $b; break }
+}
 # A python that RUNS: on Windows python3 can be the Microsoft Store placeholder (on PATH, exits 49).
 $python = $null
 foreach ($cand in "python3", "python") {
