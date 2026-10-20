@@ -196,6 +196,8 @@ try {
     $drops = @([pscustomobject]@{ step = 1; estimatedRequest = 67195 }, [pscustomobject]@{ step = 3; estimatedRequest = 70463 })
     $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
     CheckValue "nothing over the context: no warning"                    ($null -eq $w) $true
+    $w = Format-ContextOverflowWarning -FrontDrops $null -OverflowErrors $null -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "no context events at all (null): no warning"             ($null -eq $w) $true
     $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
     CheckValue "Ollama front-drops: the silent-drop wording"             ($w -match '^a request overflowed num_ctx 2 time\(s\) \(first before step 1: ~67195 tokens against 65536\); Ollama dropped the oldest messages') $true
     $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 42 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"

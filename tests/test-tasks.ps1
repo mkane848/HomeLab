@@ -1268,7 +1268,8 @@ function Format-ContextOverflowWarning {
     if ($OverflowErrors -gt 0) {
         return ("the engine refused {0} over-long request(s) explicitly (ContextOverflowError against a {1}-token context); {2} handled each one and the run went on. Nothing was dropped silently. Recorded in overflowRecovery, not graded." -f $OverflowErrors, $ctxText, $AgentName)
     }
-    $drops = @($FrontDrops)
+    # @($null) is one element, not none: a run with no context events passes $null.
+    $drops = @($FrontDrops | Where-Object { $null -ne $_ })
     if ($drops.Count -eq 0) { return $null }
     $fd = $drops[0]
     $head = "a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3})" -f $drops.Count, $fd.step, $fd.estimatedRequest, $ctxText

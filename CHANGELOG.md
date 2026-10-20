@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refusals as such (count and served context; `overflowRecovery` has the numbers), keeps the silent-drop wording for
   Ollama, and calls a llama.cpp estimate with no refusal an over-estimate. Console text only: no gate, row or run-JSON
   field changes (a run with refusals but no front-drop estimate now also gets the WARN). Guards:
-  `tests/test-context-events.ps1` (9 new checks on the function) and `tests/test-overflow-recovery.ps1` (the recovered
-  fixture run prints the refusal WARN and no "Ollama dropped"; against the old harness that check fails).
+  `tests/test-context-events.ps1` (10 new checks on the function, one for a run with no context events at all, which
+  must not warn) and `tests/test-overflow-recovery.ps1` (the recovered fixture run prints the refusal WARN and no
+  "Ollama dropped"; against the old harness that check fails); `tests/test-cap-hit.ps1` now loads the function too,
+  because the writes-gate block it runs ends on that WARN.
 
 - **tests: run JSONs record whether the read-budget plugin was switched off (2026-10-19).** `readBudget` gains `loaded`,
   `off` and `capOverride`, read by the OpenCode adapter (`Stop-AgentRunEnv`) from the plugin's own first `loaded` log line,
