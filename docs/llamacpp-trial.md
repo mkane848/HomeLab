@@ -17,7 +17,8 @@ that needs `sudo` on the server is the owner's ([network-topology](network-topol
 server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to `dev-workflow-server`. Phase 2 (the
 engine adapter) was approved the same day and is done: "Phase 2 live window" below. The large-file fix that followed
 was measured 2026-10-17/18: "Read-budget window" below (`kane-08` 3 of 5, the round 41 of 45 over three reps, the window closed
-again with Ollama back on the GPU). The rest of this section is
+again with Ollama back on the GPU). Its plugin-off control ran 2026-10-19/20: "Plugin-off control" below (four reps, 54
+of 60 on against 50 of 60 off, 0 against 146 refused requests; `kane-08` 6 of 10). The rest of this section is
 the handoff as it stood before the window.
 
 **Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
@@ -631,9 +632,62 @@ longest was 9,930), so `tool_output.max_bytes` never applied.
   - the loop and the overflows are gone;
   - the round is at least as good, 13.7 against 11 to 12.
 - How much of the round's gain is the plugin rather than the engine plus noise would take llama.cpp rounds without the
-  plugin (`HOMELAB_READ_MAX_CHARS=off`). That run is not done.
+  plugin (`HOMELAB_READ_MAX_CHARS=off`). That control ran 2026-10-19/20: "Plugin-off control" below.
 - The plugin makes these rows a new client era (`opencodePlugins` lists two plugins), so they are compared with step 7
   only as before-and-after, not pooled with it.
+
+### Plugin-off control (2026-10-19/20)
+
+The same round of 15, four reps, with the plugin switched off (`HOMELAB_READ_MAX_CHARS=off`). The plugin-on arm got
+a fourth rep the same night, and `kane-08` five more runs.
+
+- **Setup:** step 7's settings and the same client config as the plugin-on rounds, both plugins in the config, on
+  llama.cpp build b11561. The desktop was the run host, from `main` at `2fad0e1` (2026-10-19) and `c9f60bd` (the night).
+- **Results:** private and assisted. The plugin-off rows are in `read-budget-off`, with a README there; the new
+  plugin-on rows are in `read-budget-reps`.
+- **Telling the arms apart:** the first 38 plugin-off runs predate `readBudget.off` (PR #136). They are told apart by
+  their folder, by the plugin's own `loaded` line (read live, `"off":true`) and by 0 capped reads. The 19 night runs
+  record `readBudget.off: true`.
+
+| 15-task round, every gate | rep 1 | rep 2 | rep 3 | rep 4 | all |
+|---|---|---|---|---|---|
+| plugin on | 14 | 14 | 13 | 13 | **54 of 60** (mean 13.5) |
+| plugin off | 13 | 13 | 12 | 12 | **50 of 60** (mean 12.5) |
+| runs that overflowed, on / off | | | | | **0 of 60 / 15 of 60** |
+| refusals, on / off | | | | | **0 / 146** |
+
+- **Three tasks make the whole difference.** The other 12 passed every run in both arms.
+
+  | task | plugin on | plugin off | what failed |
+  |---|---|---|---|
+  | `wp-4a` | 4 of 4 | 2 of 4 | refusals each run off (42, 13, 41, 3); rep 3 timed out at 45 min with no row; rep 4 failed one hidden test |
+  | `real-02` | 2 of 4 | 0 of 4 | one hidden docs-coverage test each time (the newer modules or the env vars), both arms; it never overflowed |
+  | `wp-5b` | 0 of 4 | 0 of 4 | the same hidden test as every earlier round; off, two runs ended context-exceeded (`_CTXEXCEEDED_`, no row) |
+
+- **Overflows came back without the plugin.** They hit five tasks: `wp-4a`, `wp-2b` (7, 3, 2, 3), `wp-5a` (6, 0, 3, 6),
+  `wp-7a` (7 in one run) and `wp-5b`.
+  - Every one was an explicit refusal (HTTP 400, `ContextOverflowError`). Nothing was dropped silently.
+  - opencode recovered all but three runs: the two `wp-5b` context-exceeded runs and the `wp-4a` timeout.
+  - With the plugin on there were none in 73 runs: the 60 above plus the 13 `kane-08` and `wp-4a` runs of
+    "Read-budget window".
+- **Time:** the overflowing tasks slowed down without the plugin.
+  - `wp-4a`: 526 to 2,671 s, plus the timeout. On: 194 to 445 s.
+  - `wp-2b`: 220 to 637 s. On: 114 to 129 s.
+- **`kane-08`, five more runs with the plugin on:** 3 passed every gate.
+  - The other two had red suites, 3 and 2 tests (kindred and outlet cases), each with both nudges spent and its last
+    step at the output cap.
+  - None overflowed. Each had 2 to 5 compactions and 2 to 4 capped reads, and took 1,107 to 2,228 s.
+  - With the five above that is **6 of 10** (before the plugin: 0 of 3, all looping).
+  - The informational acceptance run passed 2 of tonight's 5.
+- **The plugin's actions:**
+  - Rep 4's plugin-on round capped 26 reads, at most 6 in one run (`wp-4a`).
+  - The per-file budget has still never fired, in 73 plugin-on runs.
+  - All 73 were on the GPU.
+- **How far this goes:** both arms are assisted, on one engine, four reps each.
+  - That the plugin removes the overflows is settled: 0 against 146 refusals.
+  - It is worth about one task a round: 54 against 50 of 60, all of it `wp-4a` and `real-02`.
+  - `real-02`'s 2-of-4 against 0-of-4 is the weaker half: its failing check is a docs-coverage one, never an overflow.
+    It could be noise.
 
 ### Gate G1, row by row
 
