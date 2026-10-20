@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the read-budget plugin-off control (2026-10-19/20).** Four reps of the 15-task round on llama.cpp with
+  `read-budget.js` switched off (`HOMELAB_READ_MAX_CHARS=off`). The plugin-on arm got a fourth rep the same night and
+  `kane-08` five more runs, all assisted, under step 7's settings.
+  - **Score:** the round made 54 of 60 with the plugin on and 50 of 60 off.
+  - **Overflows:** 15 of 60 plugin-off runs had refused requests, 146 in all. Every one was explicit and nothing was
+    dropped silently; two `wp-5b` runs ended context-exceeded and one `wp-4a` timed out. Plugin on: 0 in 73 runs.
+  - **The gap** is `wp-4a` (4 of 4 on, 2 of 4 off) and `real-02` (2 of 4, 0 of 4, never an overflow). The other 12
+    tasks passed every run either way, `wp-5b` none.
+  - **`kane-08`** with the plugin is now 6 of 10.
+
+  Written up in `docs/llamacpp-trial.md` → "Plugin-off control", `docs/roadmap.md` step 4 and the AGENTS.md
+  read-budget bullet. The rows are private, in `read-budget-off` (with a README) and `read-budget-reps`.
+
 - **fix: the context-overflow warning is worded for the engine that served the run (2026-10-19).** `test-tasks.ps1`
   printed "Ollama dropped the oldest messages, the task prompt with them" for every request its token estimate put over
   `num_ctx`, llama.cpp runs included. On llama.cpp that is false: llama-server refuses an over-long request with HTTP 400,

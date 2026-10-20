@@ -267,9 +267,15 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        5. No run overflowed, 53 runs in all.
      - **Only the cap acted.** The per-file budget never fired, and the 16 KB shell cap was never reached, the longest
        shell output being 9,930 chars.
-     - **How far it goes:** the runs are assisted, and the only llama.cpp round without the plugin is a single one. So
-       "the loop is gone" is settled, and "the round is at least as good" is too. How much of the gain is the plugin
-       would take llama.cpp rounds with `HOMELAB_READ_MAX_CHARS=off`.
+     - **How far it goes:** the runs are assisted. "The loop is gone" is settled, and "the round is at least as good"
+       is too.
+     - **The plugin-off control (2026-10-19/20, `HOMELAB_READ_MAX_CHARS=off`, four reps each arm; `docs/llamacpp-trial.md`
+       → "Plugin-off control"):**
+       - The round made 54 of 60 with the plugin on and 50 of 60 off.
+       - Without the plugin, 15 of 60 runs overflowed (146 explicit refusals), against 0 in 73 plugin-on runs.
+       - The whole gap is `wp-4a` (4 of 4 on, 2 of 4 off) and `real-02` (2 of 4, 0 of 4; never an overflow, so possibly
+         noise).
+       - `kane-08` with the plugin is 6 of 10.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
