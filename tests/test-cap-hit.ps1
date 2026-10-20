@@ -28,7 +28,9 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit") {
+# Format-ContextOverflowWarning: the writes-gate block run below ends on the
+# context WARN, which calls it.
+foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit", "Format-ContextOverflowWarning") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text

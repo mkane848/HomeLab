@@ -17,7 +17,11 @@
 #     a drop a warm prompt cache hides, the model asking what its task is;
 #   - real transcripts committed under tests/results/ that the 2026-10-04 audit
 #     classified;
-#   - Get-CompactionThreshold against opencode 1.18.34's formula.
+#   - Get-CompactionThreshold against opencode 1.18.34's formula;
+#   - Format-ContextOverflowWarning, the console WARN: Ollama's silent-drop
+#     wording only for Ollama, explicit refusals (llama-server) named as such,
+#     and a llama.cpp estimate with no refusal called an over-estimate (the
+#     2026-10-19 llama.cpp rounds printed "Ollama dropped" for 42 refusals).
 # Exit 1 on any failure; a missing fixture is a failure, not a skip.
 #
 # Usage:  .\tests\test-context-events.ps1 [-ScriptPath <a test-tasks.ps1>] [-ResultsDir <tests/results>]
@@ -31,7 +35,7 @@ $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$null, [ref]$errs)
 if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
-foreach ($name in "Get-ContextEvents") {
+foreach ($name in "Get-ContextEvents", "Format-ContextOverflowWarning") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
@@ -187,6 +191,26 @@ try {
     CheckValue "limit.input, default reserved = min(20k, out)" (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } $null) -ModelId "ollama-desktop/m").threshold 57344
     CheckValue "limit.input with reserved 16000"              (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } 16000) -ModelId "ollama-desktop/m").threshold 45440
     CheckValue "unknown model: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/other")) $true
+
+    Write-Host "-- Format-ContextOverflowWarning (the console WARN, worded per engine)"
+    $drops = @([pscustomobject]@{ step = 1; estimatedRequest = 67195 }, [pscustomobject]@{ step = 3; estimatedRequest = 70463 })
+    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "nothing over the context: no warning"                    ($null -eq $w) $true
+    $w = Format-ContextOverflowWarning -FrontDrops $null -OverflowErrors $null -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "no context events at all (null): no warning"             ($null -eq $w) $true
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "Ollama front-drops: the silent-drop wording"             ($w -match '^a request overflowed num_ctx 2 time\(s\) \(first before step 1: ~67195 tokens against 65536\); Ollama dropped the oldest messages') $true
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 42 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "llama.cpp refusals: says refused explicitly, with count" ($w -match '^the engine refused 42 over-long request\(s\) explicitly \(ContextOverflowError against a 65536-token context\); opencode handled each one') $true
+    CheckValue "...and never says Ollama dropped anything"               ($w -match 'Ollama|dropped the oldest') $false
+    CheckValue "...and points at overflowRecovery"                       ($w -match 'Recorded in overflowRecovery, not graded\.$') $true
+    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 3 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "refusals with no front-drop estimate still warn"         ($w -match '^the engine refused 3 ') $true
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
+    CheckValue "llama.cpp estimate with no refusal: an over-estimate"    ($w -match 'refused none in this run: the estimate ran high, nothing was dropped') $true
+    CheckValue "...and never says Ollama dropped anything"               ($w -match 'Ollama') $false
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "ollama" -NumCtx $null -AgentName "opencode"
+    CheckValue "num_ctx unknown: says so"                                ($w -match 'against unknown\)') $true
 } finally {
     Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
 }

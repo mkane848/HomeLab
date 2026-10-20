@@ -15,7 +15,8 @@
 #   1. the REAL functions on synthetic transcripts, one per edge;
 #   2. the real C2 transcript, when this machine has the private results;
 #   3. the REAL test-tasks.ps1 end to end against a fixture repo with a stand-in
-#      opencode: a recovered run (graded, row, overflowRecovery), an overflow the
+#      opencode: a recovered run (graded, row, overflowRecovery, a context WARN
+#      that names the explicit refusals and not an Ollama drop), an overflow the
 #      session never finished after (_CTXEXCEEDED_, says so; tests/test-context-exceeded.ps1), another error (_INFRA_), and a
 #      clean run (no overflowRecovery);
 #   4. a control: the same run with the hook removed must leave the recovered run
@@ -188,6 +189,8 @@ exit 2
     Check "run JSON overflowRecovery.overflowErrors"                   (Json $h "fx-recovered").overflowRecovery.overflowErrors 2
     Check "run JSON overflowRecovery.exitsLifted"                      (Json $h "fx-recovered").overflowRecovery.exitsLifted 1
     Check "the console says it was graded as exit 0"                   ($h.Output -match 'exited 1 after 2 context-overflow error\(s\) it recovered from') "True"
+    Check "a context WARN names the 2 explicit refusals"               ($h.Output -match '(?s)\[WARN\]\s+context\s+->\s*the engine refused 2 over-long request\(s\) explicitly') "True"
+    Check "...and no line says Ollama dropped messages"                ($h.Output -match 'Ollama dropped') "False"
     Write-Host "-- end to end: an overflow the session never finished after"
     Check "no summary row"                                             ([bool](Row $h "fx-dead")) "False"
     Check "no _INFRA_ transcript: it is its own outcome (_CTXEXCEEDED_)" (Infra $h "fx-dead") 0
