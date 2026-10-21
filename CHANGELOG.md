@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: four Ollama rounds with the read-budget plugin on (2026-10-20/21).** The 15-task round on the server's
+  Ollama (0.34.3) with `read-budget.js` on, step 7's settings, assisted: the engine comparison's missing cell.
+  - **Score:** 47 of 60 (12, 12, 11, 12), against Ollama's 45 before the plugin and llama.cpp's 54 with it.
+  - **Overflow:** no front-drops in 60 runs (13 of the 60 earlier classifier-2 Ollama runs had one); the cap clamped
+    116 reads.
+  - **Where the engines differ:** five tasks, all favouring llama.cpp (`real-02` 2 against 0 of 4, `wp-6f` 4 against
+    2, `real-03`, `wp-5a` and `wp-7a` 4 against 3), none through an overflow. Suggestive, not settled.
+
+  Written up in `docs/llamacpp-trial.md` → "Ollama with the plugin", `docs/roadmap.md` step 4 and the AGENTS.md
+  read-budget bullet. The rows are private, in `ollama-read-budget` (with a README).
+
 - **fix: `test-llamacpp-stack.ps1` finds a bash that works (2026-10-20).** The guard took the first `bash` on PATH.
   On the desktop that is WSL's launcher (`C:\WINDOWS\system32\bash.exe`), which exits 1 there without starting
   ("WSL2 is unable to start since virtualization is not enabled"). So 14 of its checks failed on the desktop while CI,

@@ -18,8 +18,9 @@ server's Ollama serves `qwen3.6` on the GPU again, and daily use can go back to 
 engine adapter) was approved the same day and is done: "Phase 2 live window" below. The large-file fix that followed
 was measured 2026-10-17/18: "Read-budget window" below (`kane-08` 3 of 5, the round 41 of 45 over three reps, the window closed
 again with Ollama back on the GPU). Its plugin-off control ran 2026-10-19/20: "Plugin-off control" below (four reps, 54
-of 60 on against 50 of 60 off, 0 against 146 refused requests; `kane-08` 6 of 10). The rest of this section is
-the handoff as it stood before the window.
+of 60 on against 50 of 60 off, 0 against 146 refused requests; `kane-08` 6 of 10), and four plugin-on reps on
+Ollama 2026-10-20/21: "Ollama with the plugin" below (47 of 60 against llama.cpp's 54, no front-drops). The rest of this section is the
+handoff as it stood before the window.
 
 **Where it stands.** Phase 0 (the repo half) is on `main`: PR #115 landed the stranded work of #114
 (`bench-speed.ps1`, `test-gpu-placement.ps1`, `runHost`, the harness's GPU-placement check), and PR #116 added this
@@ -688,6 +689,54 @@ a fourth rep the same night, and `kane-08` five more runs.
   - It is worth about one task a round: 54 against 50 of 60, all of it `wp-4a` and `real-02`.
   - `real-02`'s 2-of-4 against 0-of-4 is the weaker half: its failing check is a docs-coverage one, never an overflow.
     It could be noise.
+
+### Ollama with the plugin (2026-10-20/21)
+
+Four reps of the same 15-task round on the server's Ollama with the plugin on. This is the engine comparison's missing
+cell: the four Ollama rounds of the baseline predate the plugin, and every plugin-on round so far was llama.cpp.
+
+- **Setup:** `ollama-server/qwen3.6:35b-a3b-coding` on Ollama 0.34.3 (65536 ctx), step 7's settings and client config,
+  both plugins on (`readBudget.loaded: true, off: false` in all 60 run JSONs). The desktop was the run host, from `main`
+  at `ddc626f` (rep 1, 2026-10-20 evening) and `499f224` (reps 2 to 4, overnight; it adds only PR #139's guard
+  fix). No llama.cpp window was opened.
+- **Results:** private and assisted, in `ollama-read-budget` (with a README).
+
+| 15-task round, every gate | rep 1 | rep 2 | rep 3 | rep 4 | all |
+|---|---|---|---|---|---|
+| Ollama, before the plugin | 11 | 12 | 11 | 11 | 45 of 60 |
+| **Ollama, plugin on** | **12** | **12** | **11** | **12** | **47 of 60** |
+| llama.cpp, plugin on | 14 | 14 | 13 | 13 | 54 of 60 |
+
+- **Where the engines differ.** Ten tasks score the same on both. The other five all favour llama.cpp:
+
+  | task | llama.cpp | Ollama | what failed on Ollama |
+  |---|---|---|---|
+  | `real-02` | 2 of 4 | 0 of 4 | the same hidden docs-coverage tests (newer env vars, newer modules) |
+  | `wp-6f` | 4 of 4 | 2 of 4 | one hidden test both times ("clears every Hero's marked Strain when Combat ends") |
+  | `real-03` | 4 of 4 | 3 of 4 | a misread: it linked Discord's own Terms and Privacy URLs instead of writing the bot's pages |
+  | `wp-5a` | 4 of 4 | 3 of 4 | one hidden test |
+  | `wp-7a` | 4 of 4 | 3 of 4 | one hidden test (a slice 7 guard) |
+
+  `wp-5b` failed all eight runs.
+- **None of Ollama's failures was an overflow.** No front-drops in 60 runs (before the plugin, 13 of the 60 classifier-2
+  Ollama runs had one: Ollama cutting the oldest messages, task prompt first, without an error). No run asked for its
+  task, and no failing run ended at the output cap (one passing `wp-6f` run did). The peak prompt was 60,886 tokens.
+  - 19 runs compacted (llama.cpp: 16 of 60).
+  - The cap clamped 116 reads, at most 7 in one run (llama.cpp: 109). The per-file budget still never fired.
+  - 27 stop nudges in 21 runs (22 `empty`, 5 `announce`).
+  - All 60 runs were on the GPU, 13.59 of 22.68 GB in VRAM.
+  - The front-drop count is the harness's token estimate from the transcript. Ollama's own record of a cut is in its
+    `server.log`, which the harness reads only for a local Ollama, so it was not checked here.
+- **Time:** the 60 runs took 428 minutes on Ollama and 295 on llama.cpp. That mixes engine speed with how much work each
+  run chose to do; `bench-speed.ps1` (Step 5) is the clean speed measurement.
+- **How far this goes:** both arms are assisted, four reps each, run on different days.
+  - The plugin removes the overflows on both engines: no front-drops on Ollama, no refusals on llama.cpp. It moves
+    Ollama's round only a little, 47 against 45.
+  - llama.cpp leads by 7 tasks in 60. The five tasks that differ all lean the same way (a sign test gives p of about
+    0.06), but none differs by more than two runs in four, and none of the failures has a mechanism the engine explains.
+    That makes it suggestive, not settled.
+  - The engines still differ in what happens when a request is too long: Ollama drops silently, llama.cpp refuses
+    (Step 1, Step 6).
 
 ### Gate G1, row by row
 
