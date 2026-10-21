@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: refuse a run when the agent's search tools do not work (2026-10-21).** node3's first round (tools on node3,
+  model on the server) scored 10 of 15 because every grep and glob call errored: opencode 1.18.34 had no ripgrep there
+  and could not unpack the one it downloaded (Windows PowerShell's `Expand-Archive` failed inside the scheduled task),
+  83 calls in 12 runs, none flagged. The OpenCode adapter gains `Test-AgentTools`: `opencode debug rg search` finds a
+  nonce in a throwaway folder before any task, under the run's environment. `test-tasks.ps1` refuses (exit 1, nothing
+  run) when it fails, warns when the opencode version is not 1.18.34, and records `agentTools` in every run JSON (a new
+  field; rows before have none). New guard `tests/test-agent-tools.ps1` (30 checks, three controls);
+  `test-agent-adapter.ps1`'s interface and fixture adapter gain the function. node3 now has the desktop's ripgrep 15.1.0
+  in `~/.cache/opencode/bin`, and its rerun is in `ollama-read-budget-node3-rg`.
+
 - **chore: node3 is an OpenCode client and tool-run host (2026-10-21).** Step 2 of node3 as the run host.
   `machines.tsv` gives node3 `opencode-client tool-run-host`. On node3: `C:\HomeLab\repos\HomeLab` fast-forwarded
   to `8e201e8` from a git bundle (no GitHub credentials there); `sync-opencode.ps1` run there, so the plugin paths
