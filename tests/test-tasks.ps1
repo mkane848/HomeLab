@@ -286,6 +286,46 @@ if (-not (Test-Path -LiteralPath $wtRoot)) {
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $allTasks = @($manifest.tasks)
 
+function Set-TaskRepoRoots {
+    # The manifests name each task's checkout as this desktop has it (M:/Projects/LFCbot,
+    # C:/Projects/KaneEnabler, ...). Another run host keeps its checkouts elsewhere (node3:
+    # C:/HomeLab/repos/...), so tests/repo-roots.tsv maps a manifest path prefix to a local
+    # one per machine: host (as [Environment]::MachineName gives it, any case), manifest
+    # prefix, local prefix, tab-separated, '#' comments. The longest matching prefix wins,
+    # and only at a path boundary. No file or no row for this machine: nothing changes.
+    # A remapped task keeps its manifest path in `manifestRepo` for the run JSON.
+    # test-tasks.ps1 and run-tasks-batch.ps1 hold identical copies (tests/test-repo-roots.ps1 checks).
+    param($Tasks, [string]$MapPath, [string]$Machine)
+    if (-not (Test-Path -LiteralPath $MapPath)) { return @() }
+    $norm = { param([string]$p) ($p -replace '\\', '/').TrimEnd('/') }
+    $rows = @(Get-Content -LiteralPath $MapPath | Where-Object { $_.Trim() -and -not $_.TrimStart().StartsWith('#') } | ForEach-Object {
+        $f = $_ -split "`t"
+        if ($f.Count -ge 3 -and $f[0].Trim() -ne 'host' -and $f[0].Trim() -ieq $Machine) {
+            [pscustomobject]@{ From = (& $norm $f[1].Trim()); To = (& $norm $f[2].Trim()) }
+        }
+    } | Sort-Object { $_.From.Length } -Descending)
+    $changed = @()
+    foreach ($t in @($Tasks)) {
+        if (-not $t.repo) { continue }
+        $r = & $norm $t.repo
+        foreach ($row in $rows) {
+            if ($r -ieq $row.From -or $r.StartsWith($row.From + '/', [StringComparison]::OrdinalIgnoreCase)) {
+                $new = $row.To + $r.Substring($row.From.Length)
+                $t | Add-Member -NotePropertyName manifestRepo -NotePropertyValue $t.repo -Force
+                $t.repo = $new
+                $changed += "$($t.id): $($t.manifestRepo) -> $new"
+                break
+            }
+        }
+    }
+    return $changed
+}
+$repoRootsMap = Join-Path $scriptDir "repo-roots.tsv"
+$repoRemaps = @(Set-TaskRepoRoots $allTasks $repoRootsMap ([Environment]::MachineName))
+if ($repoRemaps.Count) {
+    Write-Host "repo roots: $($repoRemaps.Count) task checkout(s) mapped for $([Environment]::MachineName) by $repoRootsMap" -ForegroundColor DarkGray
+}
+
 function Resolve-TaskSelection {
     # Which manifest tasks to run. A task with a `retired` object ({date,
     # reason, see}) stays in the manifest - its id, pin and rows are history -
@@ -2187,6 +2227,10 @@ foreach ($tk in $tasksToRun) {
         } else { $null })
         gpuPlacement    = $gpuPlacement
         runHost         = $runHost
+        # The checkout graded, on this run host, and the manifest's path when
+        # tests/repo-roots.tsv mapped it (null: the manifest's path was used as is).
+        repoPath        = $tk.repo
+        repoManifestPath = $(if ($tk.PSObject.Properties['manifestRepo']) { $tk.manifestRepo } else { $null })
         phaseSeconds    = $phaseSec
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).

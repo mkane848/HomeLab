@@ -1,0 +1,9 @@
+# Where each run host keeps the task repos, when that differs from the manifests' paths.
+# Read by Set-TaskRepoRoots in test-tasks.ps1 and run-tasks-batch.ps1. Tab-separated:
+# host = [Environment]::MachineName (the run JSON's runHost.name), any case; manifest prefix; local prefix.
+# A machine with no row (the desktop) uses the manifests' paths unchanged. Guard: tests/test-repo-roots.ps1.
+host	manifestPrefix	localPrefix
+# node3 (machine name read 2026-10-21): the task repos imported from git bundles on 2026-10-13.
+DANA-DESKTOP	C:/Projects/KaneEnabler	C:/HomeLab/repos/KaneEnabler
+DANA-DESKTOP	M:/Projects/LFCbot	C:/HomeLab/repos/LFCbot
+DANA-DESKTOP	M:/TTRPG/A Story of Heroes and Villains	C:/HomeLab/repos/ASoHaV

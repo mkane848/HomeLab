@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a per-host repo-root map, the first step of node3 as the run host (2026-10-21).** The manifests name each
+  task's checkout as the desktop has it (`M:/Projects/LFCbot`, `C:/Projects/KaneEnabler`, `M:/TTRPG/…`), and node3
+  keeps them in `C:\HomeLab\repos\` with no `M:` drive, so the harness could not find a task there.
+  `tests/repo-roots.tsv` maps a manifest prefix to a local one per machine, and `Set-TaskRepoRoots` (one identical copy
+  in `test-tasks.ps1` and `run-tasks-batch.ps1`) applies it when the manifest loads. A machine with no row, the desktop,
+  is unchanged. Run JSONs record `repoPath` and `repoManifestPath` from this change. Guard: `tests/test-repo-roots.ps1`
+  (31 checks). The map holds node3's three rows (`DANA-DESKTOP` → `C:/HomeLab/repos/…`).
+
 - **docs: four Ollama rounds with the read-budget plugin on (2026-10-20/21).** The 15-task round on the server's
   Ollama (0.34.3) with `read-budget.js` on, step 7's settings, assisted: the engine comparison's missing cell.
   - **Score:** 47 of 60 (12, 12, 11, 12), against Ollama's 45 before the plugin and llama.cpp's 54 with it.
