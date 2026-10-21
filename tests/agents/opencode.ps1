@@ -25,6 +25,8 @@
 #   Invoke-AgentRun                   start or continue (-SessionId) a run; appends the
 #                                     agent's raw transcript to -Transcript
 #   Stop-OrphanAgent -WtPath          kill agent processes left running against a worktree
+#   Test-AgentTools [-Version]        whether the agent's own tools work on this machine
+#                                     (before any run); { checked; ok; detail; seconds }
 #   Read-AgentEvents -Path            the transcript as neutral events (below)
 #
 # Neutral events (Read-AgentEvents), one per transcript line the agent wrote:
@@ -327,6 +329,50 @@ function Stop-AgentRunEnv {
     }
     if (-not $State.PluginLog -and -not $State.ReadLog) { return $null }
     return [pscustomobject]@{ CompactionRewrites = $rewrites; ReadBudget = $readBudget }
+}
+
+# The opencode version Test-AgentTools was written against: `opencode debug rg`
+# and the ripgrep lookup behind it (packages/core/src/ripgrep/binary.ts at
+# v1.18.34). On another version re-read that file, then move this.
+$script:AgentToolsCheckedVersion = "1.18.34"
+
+function Test-AgentTools {
+    # Do the agent's search tools work on this machine? opencode's grep and glob
+    # run ripgrep, which it finds as rg.exe on PATH, else in its cache
+    # (~/.cache/opencode/bin), else downloads and unpacks with Windows
+    # PowerShell's Expand-Archive. On 2026-10-21 that unpacking failed on node3
+    # inside a scheduled task ("module could not be loaded"): every grep and glob
+    # call of a 15-task round errored (83 calls, 12 runs), the model searched
+    # blind, and the round read like a weaker seat (10 of 15). So before any run,
+    # `opencode debug rg search` (the same lookup, no model) looks for a nonce in
+    # a throwaway folder, under this process's environment. It also installs
+    # ripgrep where unpacking works. Returns { checked; ok; detail; seconds };
+    # checked is $false on another opencode version, because `debug rg` is an
+    # undocumented debugging command.
+    param([string]$Version = (Get-AgentVersion), [int]$TimeoutSec = 180)
+    if ($Version -ne $script:AgentToolsCheckedVersion) {
+        return [pscustomobject]@{ checked = $false; ok = $null; seconds = $null
+            detail = "not checked: opencode $(if ($Version) { $Version } else { '(no version)' }) is not $script:AgentToolsCheckedVersion, the version this check was written against" }
+    }
+    $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("agenttools-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
+    $nonce = "toolprobe" + [guid]::NewGuid().ToString("N").Substring(0, 16)
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    try {
+        Set-Content -LiteralPath (Join-Path $dir "probe.txt") -Value "x $nonce y"
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $r = Run-NativeTimed "opencode" @("debug", "rg", "search", $nonce) $dir $TimeoutSec
+        $secs = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+        $out = ($r.Output | Out-String)
+        if ($r.ExitCode -eq 0 -and $out.Contains($nonce) -and $out.Contains("probe.txt")) {
+            return [pscustomobject]@{ checked = $true; ok = $true; seconds = $secs; detail = "ripgrep search works (opencode debug rg search found the probe file)" }
+        }
+        $tail = (@($r.Output | Where-Object { "$_".Trim() } | Select-Object -Last 3) -join " | ")
+        $why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif ($r.ExitCode -ne 0) { "exit $($r.ExitCode)" } else { "exit 0 but the probe file was not found" }
+        return [pscustomobject]@{ checked = $true; ok = $false; seconds = $secs
+            detail = "ripgrep search does not work ($why): $tail" }
+    } finally {
+        Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Stop-OrphanAgent {

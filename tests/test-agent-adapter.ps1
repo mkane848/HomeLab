@@ -58,7 +58,7 @@ $adapterAst = [System.Management.Automation.Language.Parser]::ParseFile($adapter
 Check "the adapter parses" $errs.Count 0
 $defined = @($adapterAst.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | ForEach-Object Name)
 $required = "Read-AgentEvents", "Get-AgentVersion", "Get-AgentConfig", "Get-AgentModelIds", "Test-AgentAutoupdatePinned",
-            "Get-AgentModelSettings", "Start-AgentRunEnv", "Stop-AgentRunEnv", "Invoke-AgentRun", "Stop-OrphanAgent"
+            "Get-AgentModelSettings", "Start-AgentRunEnv", "Stop-AgentRunEnv", "Invoke-AgentRun", "Stop-OrphanAgent", "Test-AgentTools"
 Check "every interface function is defined" (@($required | Where-Object { $defined -notcontains $_ }) -join ", ") ""
 . $adapterPath
 Check "AgentName" $script:AgentName "opencode"
@@ -137,6 +137,7 @@ function Get-AgentModelSettings { param([string]$ModelId) [pscustomobject]@{ Out
 function Start-AgentRunEnv { param([string[]]$Plugins) [pscustomobject]@{} }
 function Stop-AgentRunEnv { param($State) $null }
 function Stop-OrphanAgent { param([string]$WtPath) }
+function Test-AgentTools { param([string]$Version) [pscustomobject]@{ checked = $true; ok = $true; detail = "fixture tools work"; seconds = 0 } }
 function Invoke-AgentRun {
     param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec, [string]$SessionId = "", [string]$Transcript = "")
     $out = if ($Transcript) { $Transcript } else { Join-Path $env:TEMP ("fixture-run-" + [guid]::NewGuid().ToString("N") + ".log") }
@@ -188,6 +189,7 @@ function Read-AgentEvents {
     Check "tokens counted from it (two turns)" ("{0}/{1}/{2}" -f $j.usage.input, $j.usage.output, $j.usage.steps) "2000/100/2"
     Check "the follow-up reached the same session" ($calls -join " || ") "|fix src.txt || fx-session-1|check it"
     Check "the sampling note is the agent's" $j.samplingControl "fixture agent: nothing to pin"
+    Check "the tools check is the agent's" ("{0}|{1}" -f $j.agentTools.ok, $j.agentTools.detail) "True|fixture tools work"
     Check "the console names the agent" ([bool]($log -match 'fixture run')) "True"
     Check "an agent with no adapter: exit 1, says so" ("{0}|{1}" -f $missingExit, [bool]($missing -match "no adapter for agent 'nosuch'")) "1|True"
 } finally {

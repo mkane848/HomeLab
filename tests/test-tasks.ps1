@@ -1613,6 +1613,23 @@ $agentPlugins = @($agentSettings.Plugins)
 if ($agentPlugins.Count -gt 0) {
     Write-Host ("{0} plugins: {1}" -f $script:AgentName, ($agentPlugins -join ', ')) -ForegroundColor DarkGray
 }
+# The agent's own tools on this machine (Test-AgentTools), once, before any task.
+# A search tool that errors on every call does not fail a run: the model works
+# blind, and the row reads as a weaker seat (node3, 2026-10-21: every grep and
+# glob of a round failed, 10 of 15). Broken = refused, nothing run; a version the
+# check was not written for is a WARN. Recorded in every run JSON as `agentTools`.
+$agentTools = $null
+if (-not $DryRun) {
+    $agentTools = Test-AgentTools -Version $agentVersionRaw
+    if (-not $agentTools.checked) {
+        Write-Host ("WARN: {0} tools {1}" -f $script:AgentName, $agentTools.detail) -ForegroundColor Yellow
+    } elseif (-not $agentTools.ok) {
+        Write-Host ("ERROR: {0}'s tools do not work on {1}: {2}. Nothing was run: every run here would grade a model that could not search." -f $script:AgentName, [Environment]::MachineName, $agentTools.detail) -ForegroundColor Red
+        exit 1
+    } else {
+        Write-Host ("{0} tools: {1} ({2} s)" -f $script:AgentName, $agentTools.detail, $agentTools.seconds) -ForegroundColor DarkGray
+    }
+}
 # -NudgeAfterCompaction: which message the nudged runs got.
 $nudgeTextSha = $null
 if ($NudgeAfterCompaction) {
@@ -2236,6 +2253,9 @@ foreach ($tk in $tasksToRun) {
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.
         agent           = [pscustomobject]@{ name = $script:AgentName; version = $agentVersion }
+        # The pre-run check of the agent's own tools (Test-AgentTools: checked, ok,
+        # detail, seconds). Rows before 2026-10-21 have no such field.
+        agentTools      = $agentTools
         numCtx          = $numCtx
         promptTruncation = $(if ($truncLogDir) { "$truncCheck - none during the run" } else { $truncCheck })
         contextEvents   = [pscustomobject]@{
