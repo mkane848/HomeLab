@@ -276,10 +276,10 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
        - The whole gap is `wp-4a` (4 of 4 on, 2 of 4 off) and `real-02` (2 of 4, 0 of 4; never an overflow, so possibly
          noise).
        - `kane-08` with the plugin is 6 of 10.
-     - **On Ollama with the plugin (2026-10-20, one rep; `docs/llamacpp-trial.md` → "Ollama with the plugin"):** 12 of
-       15, against 11 to 12 before the plugin and llama.cpp's 13 to 14 with it. No front-drops in 15 runs (13 of 60
-       before). The one task that differs from llama.cpp, `real-03`, was a misread, so one rep does not settle the
-       engine.
+     - **On Ollama with the plugin (2026-10-20/21, four reps; `docs/llamacpp-trial.md` → "Ollama with the plugin"):**
+       47 of 60 (12, 12, 11, 12), against 45 before the plugin and llama.cpp's 54 with it. No front-drops in 60 runs
+       (13 of 60 before). The five tasks that differ all favour llama.cpp, none by more than two runs in four and none
+       through an overflow: suggestive, not settled.
 5. **Fit the work to each machine (owner, 2026-10-12: no machine's potential wasted).** This replaces "make the
    server where things run", which would have put every test run on the weakest CPU. **Its remaining work starts
    after the trial** (owner, 2026-10-13: few moving parts at once); first in "After the trial" below.
