@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **chore: node3 is an OpenCode client and tool-run host (2026-10-21).** Step 2 of node3 as the run host.
+  `machines.tsv` gives node3 `opencode-client tool-run-host`. On node3: `C:\HomeLab\repos\HomeLab` fast-forwarded
+  to `8e201e8` from a git bundle (no GitHub credentials there); `sync-opencode.ps1` run there, so the plugin paths
+  name node3's own checkout; `.secrets/opencode-go-api-key` is an empty placeholder, so hosted Go seats do not work
+  from node3. `tests/test-sync-opencode.ps1` used node3 as its refused machine; it now adds a fixture model-host row.
+
 - **tests: a per-host repo-root map, the first step of node3 as the run host (2026-10-21).** The manifests name each
   task's checkout as the desktop has it (`M:/Projects/LFCbot`, `C:/Projects/KaneEnabler`, `M:/TTRPG/…`), and node3
   keeps them in `C:\HomeLab\repos\` with no `M:` drive, so the harness could not find a task there.

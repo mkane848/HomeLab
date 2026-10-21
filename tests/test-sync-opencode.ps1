@@ -54,6 +54,8 @@ function New-Checkout([string]$root) {
     Copy-Item (Join-Path $repoRoot "desktop/scripts/opencode-template.ps1") (Join-Path $root "desktop/scripts/")
     Copy-Item (Join-Path $repoRoot "opencode/global/opencode.jsonc") (Join-Path $root "opencode/global/")
     Copy-Item (Join-Path $repoRoot "machines.tsv") $root
+    # A model host with no client role, so the refusal below never depends on how a real machine is set up.
+    Add-Content -LiteralPath (Join-Path $root "machines.tsv") -Value "fx-model`tmodel-host`tfixture: model host only"
     Copy-Item (Join-Path $repoRoot "opencode/plugins/*.js") (Join-Path $root "opencode/plugins/")
     Set-Content -LiteralPath (Join-Path $root "opencode/agents/fx-agent.md") -Value "agent v1"
     Set-Content -LiteralPath (Join-Path $root "opencode/commands/fx-cmd.md") -Value "command v1"
@@ -160,8 +162,8 @@ try {
     Check "-Push server: exit 1" $r.Code 1
     Check "...says why" ($r.Out -match "no opencode-client role") "True"
     Check "...no ssh/scp" ($r.Ssh.Count + $r.Scp.Count) 0
-    $r = Run-Sync $co @("-Push", "node3")
-    Check "-Push node3 (model host only so far): exit 1, nothing sent" "$($r.Code)/$($r.Ssh.Count + $r.Scp.Count)" "1/0"
+    $r = Run-Sync $co @("-Push", "fx-model")
+    Check "-Push fx-model (model host only): exit 1, nothing sent" "$($r.Code)/$($r.Ssh.Count + $r.Scp.Count)" "1/0"
     $r = Run-Sync $co @("-Push", "nope")
     Check "-Push of an unknown machine: exit 1, nothing sent" "$($r.Code)/$($r.Ssh.Count + $r.Scp.Count)" "1/0"
     $r = Run-Sync $co @("-Secrets", "a-key")
