@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: `test-llamacpp-stack.ps1` finds a bash that works (2026-10-20).** The guard took the first `bash` on PATH.
+  On the desktop that is WSL's launcher (`C:\WINDOWS\system32\bash.exe`), which exits 1 there without starting
+  ("WSL2 is unable to start since virtualization is not enabled"). So 14 of its checks failed on the desktop while CI,
+  with Git's bash, passed. It now tries Git's install paths first, then every `bash` on PATH, and keeps the first one
+  that can read the checker by its Windows path, the same way it already looks for a `python` that runs. With none, the
+  checker part is a SKIP as before. On the desktop, with WSL's bash still first on PATH, the guard passes; a control copy
+  offered only WSL's bash reports SKIP.
+
 - **docs: the read-budget plugin-off control (2026-10-19/20).** Four reps of the 15-task round on llama.cpp with
   `read-budget.js` switched off (`HOMELAB_READ_MAX_CHARS=off`). The plugin-on arm got a fourth rep the same night and
   `kane-08` five more runs, all assisted, under step 7's settings.
