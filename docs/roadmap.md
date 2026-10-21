@@ -335,7 +335,9 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 **After the trial, in order (owner, 2026-10-13).** None of these starts before the trial's results are recorded.
 1. **node3 as the run host** (step 5): a per-host repo-root map in the harness (the manifests hard-code `M:/…` and
    `C:/Projects/…`, and node3 has only `C:\HomeLab\repos\`), node3's OpenCode config, the harness checkout there, then
-   the control run: model on the server, tools on node3.
+   the control run: model on the server, tools on node3. **Started 2026-10-21 (owner):** the map is in
+   (`tests/repo-roots.tsv`, `Set-TaskRepoRoots`, guard `tests/test-repo-roots.ps1`; run JSONs record `repoPath`).
+   It holds node3's three rows (machine name `DANA-DESKTOP`).
 2. ~~**`qwen3:8b` re-run on the fixed node3.**~~ **Done 2026-10-13, early, while node3 was free during the trial
    window: speed was not what held it back.** All on the GPU and running at about the server's speed, it fully passed
    0 of 12 graded rows (7 public tasks × 2, unassisted; 2 more timed out), against 1 of 6 valid old rows. Its record is
