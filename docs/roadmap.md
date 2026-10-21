@@ -302,19 +302,59 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      other work cost it about 60% of its decode speed, so nothing else runs on that CPU
      ([target-setup.md](target-setup.md) → "Machine roles"; rows in `tests/results/bench-speed-contention.tsv`). The
      desktop's speed row for the same seat is in `bench-speed.tsv`: prefill 319 / 268 / 200 and decode 31 / 36 / 29 tok/s,
-     against the server's 688 / 692 / 674 and 73 / 65 / 61. Still to do: a control run with the model on
-     the server and the tools first on the desktop, then on node3. A separate `bench-cpu.ps1` (vitest at 1, 4, 8 and 16
-     workers on a pinned repo) is only worth writing if the runs leave the worker scaling unanswered. The rule it
-     produces goes into `target-setup.md`.
+     against the server's 688 / 692 / 674 and 73 / 65 / 61. **The control run is done (2026-10-21):** the model on the
+     server, the tools first on the desktop (the four Ollama plugin-on reps, 47 of 60), then on node3 (12 of 15). The run
+     host does not change the results, and node3's CPU is not faster at this work: "node3's control round" below. A
+     separate `bench-cpu.ps1` (vitest at 1, 4, 8 and 16 workers on a pinned repo) is only worth writing if a task with a
+     whole-suite run joins the round; none of the 15 has one, so the worker scaling stays unmeasured.
+   - **node3's control round (2026-10-21).** The 15-task round of the Ollama plugin-on reps (assisted, stop classifier 2,
+     `-RunTimeout 2700`, the private manifest), with OpenCode and the harness on node3 and `qwen3.6` on the server.
+     Results in the private `results/ollama-read-budget-node3-rg`; the first attempt, `ollama-read-budget-node3`, is kept
+     as the record of what follows.
+
+     | | node3, first attempt | node3 | desktop, 4 reps |
+     |---|---|---|---|
+     | Passed | 10 of 15 | **12 of 15** | 47 of 60 (11.75 a rep) |
+     | Tool calls that errored | 91 of 514 (18%) | 7 of 520 (1.3%) | 45 of 1,769 (2.5%) |
+     | Round wall-clock | 115 min | 130 min | 107 min a rep |
+
+     - **Per task, every result is inside the desktop's spread.** `real-02` and `wp-5b` fail on both hosts (0 of 4 on the
+       desktop; `wp-5b` on the same hidden test). `wp-7a` (3 of 4 on the desktop) failed with partial work: 17 edits, 24 of
+       353 hidden tests red. Every run had `gpuPlacement` gpu (60% in VRAM) and the read-budget plugin loaded from node3's
+       own checkout.
+     - **node3's CPU is slightly slower here.** The suites in this round are short, and the 5800X3D's faster cores win:
+       baseline, suite and acceptance medians of 1.7 s on node3 against 1.5 s on the desktop for eight of the 15 tasks,
+       5.8 against 5.4 s on `wp-5b`, within 0.2 s either way at 2.2 to 3.8 s on five more, and mixed on `real-01`
+       (baseline 7.3 against 8.1 s, suite 8.3 against 7.7 s). An npm install of a fresh worktree takes 30 to 41 s there (the
+       desktop reused its worktrees, so it has no installs to compare). The wall-clock gap is the model's own work, which runs on
+       the server either way (`wp-5b`: 79 steps and 81k output tokens, against 35 to 73 steps on the desktop). **Moving the
+       tools off the desktop frees it; it does not speed the round up.** The same day the desktop crashed mid-round and node3
+       carried on.
+     - **The first attempt read 10 of 15 because search was broken on node3.** opencode 1.18.34's grep and glob need ripgrep,
+       which it looks for on `PATH`, then in `~/.cache/opencode/bin`, and otherwise downloads and unpacks with Windows
+       PowerShell's `Expand-Archive`. node3 had none, and inside the scheduled task that ran the round the unpacking failed
+       ("module could not be loaded"): all 83 grep and glob calls in 12 of 15 runs errored. Nothing flagged it, because a tool
+       error is not an infrastructure failure. The three tasks that differed (`wp-3a`, `wp-5a`, `wp-7a`) were the runs that
+       searched most. The harness now refuses to run when the search does not work (`Test-AgentTools`, PR #143,
+       `tests/test-agent-tools.ps1`), and node3 has the desktop's ripgrep 15.1.0 in its cache.
+     - **A run host needs `core.autocrlf false` in the task repos.** node3's system git had `core.autocrlf true` (the
+       desktop's global `false` overrides the same system setting), so the hidden tests, copied byte for byte from the
+       private checkout, were CRLF there. The acceptance hash in every run JSON caught it at once (`98cf7bfd3a10` against
+       the desktop's `7976ebded682` for `real-01`), and that round was stopped. Fix: `core.autocrlf false` set locally in all
+       five repos and a renormalize (`git rm --cached -r . ; git reset --hard`, owner-approved); the hashes then matched.
+     - **How a round is driven:** a one-shot scheduled task on node3 (S4U, the account's own identity) runs the round script
+       and logs to a file, so neither an ssh drop nor the desktop sleeping or crashing ends it; the results are copied back
+       with `scp`. node3 is also a PC people use: a round runs there only when it is free.
    - **node3 is up (2026-10-12) and has the toolchain.** Sleep and hibernate are off on AC (uptime 21 days), and it
      now has PowerShell 7.6.6, git, Python, Node 24.18.0, npm 11.16.0, pnpm 10.33.0 and OpenCode 1.18.34: the same
      versions as the desktop, installed by the owner's approval, with `node.exe` and the OpenCode binaries
      byte-identical to the desktop's (`gh` was skipped; task runs do not need it). Still missing there: the task repos
      are there since 2026-10-13: `C:\HomeLab\repos\` holds `LFCbot`, `ASoHaV`, `KaneEnabler`, `HomeLab` and `HomeLab-private`,
      imported from git bundles sent over SSH (no GitHub credentials typed on that PC; `origin` is the real URL with pushing disabled;
-     every commit the two manifests pin is present: 16, 36 and 12 for the three task repos). Still missing there: a per-host
-     repo-root map in the harness (the manifests hard-code `M:/…` and `C:/Projects/…` paths, and node3 has only a `C:` drive), an
-     OpenCode config, and the harness checkout at a chosen commit.
+     every commit the two manifests pin is present: 16, 36 and 12 for the three task repos). **Since 2026-10-21 it runs the
+     harness:** the per-host repo-root map (`tests/repo-roots.tsv`), the `opencode-client` and `tool-run-host` roles in
+     `machines.tsv`, an OpenCode config staged on node3 from its own checkout (`C:\HomeLab\repos\HomeLab`, updated from git
+     bundles; at `6f4164a` since 2026-10-21), and the two fixes the control round needed (above).
    - **node3's own seat is held back by its Ollama settings (measured 2026-10-12).** `qwen3:8b` there (Ollama 0.34.2, no
      flash attention, f16 KV cache, 32k context) takes 10.36 GB on a 10 GB card, so 19% spills to system RAM: decode 17
      tok/s at 16k and 11.7 at 30k. With `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0`, tried on a temporary
@@ -333,11 +373,10 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    route; a client's own stop hook is the portable one.
 
 **After the trial, in order (owner, 2026-10-13).** None of these starts before the trial's results are recorded.
-1. **node3 as the run host** (step 5): a per-host repo-root map in the harness (the manifests hard-code `M:/…` and
-   `C:/Projects/…`, and node3 has only `C:\HomeLab\repos\`), node3's OpenCode config, the harness checkout there, then
-   the control run: model on the server, tools on node3. **Started 2026-10-21 (owner):** the map is in
-   (`tests/repo-roots.tsv`, `Set-TaskRepoRoots`, guard `tests/test-repo-roots.ps1`; run JSONs record `repoPath`).
-   It holds node3's three rows (machine name `DANA-DESKTOP`).
+1. ~~**node3 as the run host** (step 5).~~ **Done 2026-10-21.** The repo-root map (PR #141), node3's OpenCode client
+   (PR #142), the tools check (PR #143), and the control round: 12 of 15 with the tools on node3, against the desktop's
+   47 of 60, so the run host does not change the results (step 5 → "node3's control round"). node3 and the desktop are
+   both run hosts now; the owner games on either, so a round runs on whichever is free (owner, 2026-10-21).
 2. ~~**`qwen3:8b` re-run on the fixed node3.**~~ **Done 2026-10-13, early, while node3 was free during the trial
    window: speed was not what held it back.** All on the GPU and running at about the server's speed, it fully passed
    0 of 12 graded rows (7 public tasks × 2, unassisted; 2 more timed out), against 1 of 6 valid old rows. Its record is
