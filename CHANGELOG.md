@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `-ShowAcceptance`, the model is given the tests it is graded on (milestone 3, 2026-10-22).** Real use has
+  no hidden tests: the planner writes the failing test and the executor makes it pass, so that test is the only gate a
+  dispatcher can select on (`docs/target-setup.md` milestones 3 and 4). With the switch, a task's `acceptance.dir` files
+  go into the checkout before the model's run and are named in the prompt; editing them is a guard-rail FAIL; they come
+  out again after the run and grading is the hidden-test path unchanged, so a shown round compares directly with a
+  hidden one on the same tasks. Rows need their own results folder (an `ACCEPTANCE-SHOWN` marker, like `ASSISTED`), are
+  not mirrored publicly, and record `acceptanceShown`. New guard `tests/test-show-acceptance.ps1` (16 checks, 2 controls).
+
 - **tests: a task's checkout holds only its base's history (2026-10-22).** The checkout under `tests/.worktrees/<id>`
   was a `git worktree` of the owner's real repo, so every later commit (the task's real fix among them), the owner's
   other branches and stashes, and the model's own commits from earlier trials were one `git log --all` or `git show` away;
