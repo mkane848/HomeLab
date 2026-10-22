@@ -5,17 +5,15 @@ fleet, different door — see [vscode.md](vscode.md)
 instead.) Every command below has been run on this desktop and the output is
 what you should actually see.
 
-**Right now (2026-10-13):** the server (`SERVER_IP`) is back (replacement
-board, 2026-10-11) and serves the main seat: the default profile is
-`dev-workflow-server`, `qwen3.6` at 64k on the server, the same weights as the
-desktop's at about twice the speed ([roadmap.md](roadmap.md) → "Next up"). You
-still run OpenCode here on the desktop; only the model is remote. **When the
-server is down, or during an engine-trial window** (the llama.cpp trial stops
-the server's seat), use `dev-workflow-quality`: the same seat on this desktop,
+**Right now (2026-10-22):** the server (`SERVER_IP`) serves the main seat.
+The default profile is `dev-workflow-server-llamacpp`: `qwen3.6` at 64k on the
+server's llama.cpp. `dev-workflow-server` is the same seat on the server's
+Ollama. You still run OpenCode here on the desktop; only the model is remote.
+**When the server is down, or during an engine-trial window,** use
+`dev-workflow-quality`: the same seat on this desktop,
 `.\desktop\scripts\opencode.ps1 -Profile dev-workflow-quality` or `opencode quality`.
 Step 1 below is only needed for that fallback (and for VS Code).
-(The third node is live too — `dev-node3` serves `qwen3:8b` general + embed on
-the 3080 FE; see [profiles.md](profiles.md).)
+`dev-node3` serves `qwen3:8b` on the 3080 FE; see [profiles.md](profiles.md).
 
 ---
 
@@ -41,16 +39,11 @@ what those three lines did and how to tell when one of them didn't work.
 **What it does:** starts `ollama serve` if it isn't running, then *bakes* a
 context size into each model it manages and prints the contract:
 
-```
-[startup] Context contract (must match opencode.jsonc limit.context):
-  qwen3:14b              32768
-  qwen3:8b               32768
-  qwen2.5-coder:3b       16384
-  deepseek-r1:14b        16384  (deepseek-r1-16k@16384, deepseek-r1-32k@32768)
-  qwen2.5-coder:7b       16384  (qwen2.5-coder-16k@16384)
-  qwen2.5-coder:14b      32768
-[startup] Desktop ready.
-```
+It prints a "Context contract" table that must match `limit.context` in
+`opencode.jsonc`. The sizes are set in `$contextModels` in `startup.ps1`:
+65536 for the six MoE and hybrid executor seats (including `qwen3.6`), 32768
+for `qwen3:14b`, `qwen3:8b`, `qwen2.5-coder:14b` and the devstral pair, and
+16384 for the rest.
 
 **What "baking" means.** A model's *context* is how many tokens it can hold at
 once — your prompt, the files it has read, and its own reply all share that
@@ -79,13 +72,13 @@ curl.exe -s http://localhost:11434/api/version
 curl.exe -s http://localhost:11434/api/tags
 ```
 
-The first returns the running version — `{"version":"0.34.1"}` as of
-2026-09-19. The second lists every installed model. If either hangs or refuses,
-Ollama isn't up — check `Get-Process ollama`.
+The first returns the running version (the desktop is on `0.34.3`). The second
+lists every installed model. If either hangs or refuses, Ollama isn't up —
+check `Get-Process ollama`.
 
-> **If the version differs from the one above**, the desktop has auto-updated
-> again (it is a native install, so the server's image pin does not cover it).
-> Re-run `.\tests\test-toolcalls.ps1` before trusting any agent seat — see the
+> **If the version differs from `0.34.3`**, the desktop has auto-updated (it is
+> a native install, so the server's image pin does not cover it). Re-run
+> `.\tests\test-toolcalls.ps1` before trusting any agent seat. See the
 > tool-calling section below.
 
 > **`curl.exe`, not `curl`.** In PowerShell, `curl` is an *alias* for
@@ -114,13 +107,13 @@ Ollama isn't up — check `Get-Process ollama`.
 You should see this line before the UI appears:
 
 ```
-[opencode] profile=dev-workflow-server OPENCODE_MODEL=ollama-server/qwen3.6:35b-a3b-coding
+[opencode] profile=dev-workflow-server-llamacpp OPENCODE_MODEL=llamacpp-server/qwen3.6:35b-a3b-coding
 ```
 
-(Before 2026-10-13 the default was `dev-workflow-quality`, which prints
-`ollama-desktop/qwen3.6:35b-a3b-coding`.) The server profile has no desktop
-seat, so the launcher neither warms nor unloads anything on the desktop; the
-server keeps its seat loaded for 4 hours after the last request.
+(The default was `dev-workflow-server` from 2026-10-13 to 2026-10-22, and
+`dev-workflow-quality` before that.) The server profiles have no desktop seat,
+so the launcher neither warms nor unloads anything on the desktop. The
+server's Ollama keeps its seat loaded for 4 hours after the last request.
 
 **What a profile is.** A profile is a shell script that exports environment
 variables — nothing more. It doesn't install anything or start anything. It
@@ -135,7 +128,9 @@ export DEV_TIERS_DESKTOP=false
 ```
 
 OpenCode's config refers to those variables as `{env:OPENCODE_MODEL}`, so the
-profile is what fills in the blanks.
+profile is what fills in the blanks. (That sample is the Ollama twin,
+`dev-workflow-server.sh`. The default, `dev-workflow-server-llamacpp.sh`, sets
+the same variables to `llamacpp-server/...` ids.)
 
 **Two things that trip people up:**
 
@@ -161,7 +156,8 @@ once (it adds one guarded line to your PowerShell profiles; `-Uninstall` takes i
 out), open a new terminal, and then:
 
 ```powershell
-opencode server                  # qwen3.6 on the server (the default)
+opencode server-llamacpp         # qwen3.6 on the server's llama.cpp (the default)
+opencode server                  # the same seat on the server's Ollama
 opencode quality                 # qwen3.6 + the CPU 3b on this desktop
 opencode resident                # qwen3:8b + the 7b coder
 opencode desktop-only run "..."  # anything after the name goes to opencode
@@ -179,8 +175,9 @@ is the only thing that counts:
 opencode debug config
 ```
 
-Look for `"model": "ollama-desktop/qwen3:14b"` and, under
-`provider.ollama-desktop.models`, a `limit` block on every model. If `limit` is
+Look for `"model"` set to the profile's `OPENCODE_MODEL` (under the default
+profile, `llamacpp-server/qwen3.6:35b-a3b-coding`), and a `limit` block on that
+model's entry in its provider. If `limit` is
 missing, see [`troubleshooting.md`](troubleshooting.md) — that exact bug made
 every request fail for weeks.
 
@@ -335,15 +332,9 @@ agent then executes with a concrete list instead of a vague goal.
 > which tools the current model may use. `/plan` is a command that dispatches a
 > different agent. In Plan mode nothing is ever written to disk.
 
-**Status:** `/plan` runs on the main agent — the planner subagent
-(`opencode/agents/planner.md`) was deleted on 2026-09-17. It had been pinned to
-`deepseek-r1-32k`, which cannot call the write tool: it answered at length and
-claimed "The task tool has written `docs/implementation-tasks.md`" without
-writing anything. The write path itself is proven (qwen3:14b writes files
-correctly), so this should work; the thing to check the first time you run it
-is simply whether `docs/implementation-tasks.md` actually appears on disk. If
-it does not, the model described the call instead of making it — same failure,
-and worth reporting.
+**Check the first time you run it:** `docs/implementation-tasks.md` must
+actually appear on disk. If it does not, the model described the write instead
+of making it. Report that.
 
 ---
 
@@ -366,11 +357,10 @@ first. That costs ~14 seconds to reload *and* throws away the cached prompt
 prefix, so the next turn re-processes everything from scratch.
 
 This is why the small model is a 3B. A 3B pair like the one above stays put
-(`qwen3:14b` + 3b was **13.29 GB**). The old setup paired a 14B (11.27 GB) with
-a 7B (5.22 GB) = 16.5 GB, which does not fit — so every title generation
-silently evicted the main agent.
+(`qwen3:14b` + 3b was **13.29 GB**). A 14B with a 7B companion would be 16.5 GB,
+which does not fit, and every title generation would evict the main agent.
 
-**The default seat breaks that arithmetic on purpose.** `qwen3.6:35b-a3b-coding`
+**The desktop's qwen3.6 seat breaks that arithmetic on purpose** (`dev-workflow-quality`). `qwen3.6:35b-a3b-coding`
 is 21.13 GB at 64k — bigger than the card — so Ollama puts as much of it on the
 GPU as fits (12.51 GB) and runs the rest from system RAM — and Ollama maps the
 whole model file into RAM, so the process held 16.56 GB, not just the 8.6 GB
@@ -443,7 +433,7 @@ So the layering is:
 
 | Layer | Contains | Why |
 |---|---|---|
-| Global (`opencode/global/opencode.jsonc`) | no MCP servers, 8 skills | every project pays this cost |
+| Global (`opencode/global/opencode.jsonc`) | no MCP servers, two skill sources (`frontend-design`, `ui-ux-pro-max`) | every project pays this cost |
 | Project (`<project>/opencode.jsonc`) | whatever that project needs | only that project pays |
 
 Copy [`opencode/project-override/opencode.jsonc`](../opencode/project-override/opencode.jsonc)
