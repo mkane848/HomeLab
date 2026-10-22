@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out again after the run and grading is the hidden-test path unchanged, so a shown round compares directly with a
   hidden one on the same tasks. Rows need their own results folder (an `ACCEPTANCE-SHOWN` marker, like `ASSISTED`), are
   not mirrored publicly, and record `acceptanceShown`. New guard `tests/test-show-acceptance.ps1` (16 checks, 2 controls).
+- **chore: llama.cpp is the executor's engine; the launcher's default is `dev-workflow-server-llamacpp` (2026-10-22).**
+  Owner's decision: on the 15 real tasks the server's llama-server scored 54 of 60 against Ollama's 47 (four reps
+  each, read-budget plugin on), with no overflowing runs, which meets "Replacing Ollama" Phase 3's condition for
+  flipping the default. `desktop/scripts/opencode.ps1` now defaults to the llama.cpp twin (`-Profile
+  dev-workflow-server` keeps Ollama); AGENTS.md, `roadmap.md` ("After the trial" item 8, Phase 3) and `target-setup.md`
+  say so. Benchmark rounds run on `llamacpp-server` from here: a new era. Phase 3's server-side half (restart policy,
+  `status.sh`, `startup.sh`, the systemd unit) is still to do, and a round driven from node3 records llama.cpp's GPU
+  placement as unchecked (no ssh key for the server there).
+
 
 - **tests: a task's checkout holds only its base's history (2026-10-22).** The checkout under `tests/.worktrees/<id>`
   was a `git worktree` of the owner's real repo, so every later commit (the task's real fix among them), the owner's
