@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: README, docs index, CONTRIBUTING and start-here brought up to date and shortened (2026-10-22).** The
+  README is about half its length (1,321 to 732 words): a machine/role table replaces the old architecture diagram,
+  and the history moved out to the docs that hold it. Facts corrected against AGENTS.md: the default profile is
+  `dev-workflow-server-llamacpp`; the server is the model host (no "down" or "awaiting repair"); node3 is a live
+  model host and run host; six live and seven parked profiles; the global config ships two skill sources; the
+  `llamacpp-*` providers; the desktop's Ollama is 0.34.3. No script changed.
 
 - **docs: the model sweep's case and plan, and the fleet's other uses (2026-10-22).** `docs/roadmap.md` → "After the
   trial" item 9: why re-testing other model families makes sense on the mature harness and llama.cpp, the 2026-10-22
