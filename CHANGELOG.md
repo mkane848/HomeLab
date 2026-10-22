@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: node3 is a run host; its control round (2026-10-21).** Step 5 of the roadmap and "After the trial" item 1
+  are done. With `qwen3.6` on the server and the tools on node3, the 15-task round (Ollama, read-budget plugin on,
+  assisted, classifier 2) scored 12 of 15, against the desktop's 47 of 60 over four reps: the run host does not change
+  results. node3's 5950X is slightly slower on these short suites (1.7 against 1.5 s for most tasks), and the round's
+  wall-clock is the model's, so the gain is a free desktop, not speed. The first attempt read 10 of 15 because every
+  grep and glob call failed there (no ripgrep, and unpacking it failed inside the scheduled task; fixed, and checked
+  before every run since PR #143), and an earlier one was stopped after its first task when the acceptance hash showed CRLF
+  hidden tests (`core.autocrlf true` in node3's system git; set `false` in the five repos). `roadmap.md` step 5 carries
+  the table and both lessons, `target-setup.md` the run-host rule (either machine, whichever is free; both are game PCs),
+  and AGENTS.md's machine line no longer says the harness cannot use node3.
 - **tests: refuse a run when the agent's search tools do not work (2026-10-21).** node3's first round (tools on node3,
   model on the server) scored 10 of 15 because every grep and glob call errored: opencode 1.18.34 had no ripgrep there
   and could not unpack the one it downloaded (Windows PowerShell's `Expand-Archive` failed inside the scheduled task),
