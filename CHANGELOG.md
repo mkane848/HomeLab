@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a task's checkout holds only its base's history (2026-10-22).** The checkout under `tests/.worktrees/<id>`
+  was a `git worktree` of the owner's real repo, so every later commit (the task's real fix among them), the owner's
+  other branches and stashes, and the model's own commits from earlier trials were one `git log --all` or `git show` away;
+  a 2026-10-21 scan found one hosted run listing future commits (not the fix), and Anthropic's evals guide reports the
+  same kind of leak. Before every run the checkout's `.git` is now rebuilt from the pinned base alone (no branch, tag,
+  stash or remote; HEAD detached), from git bundles cached by SHA, because `upload-pack` refuses LFCbot's `.git` (owned by
+  another account) whatever `safe.directory` is passed. `node_modules` survives; the acceptance or solution commit comes in
+  only after the model's run. Every run JSON records `checkout`. New guard `tests/test-sealed-checkout.ps1` (19 checks;
+  `main`'s worktree harness fails 12); `test-no-push.ps1`'s stand-in now adds its own GitHub remote, since the checkout has
+  none. Rows from here on run in a new kind of checkout, though what the model can see of the base is unchanged.
 - **docs: the first rounds under stop classifier 3 (2026-10-21/22).** "After the trial" item 3 is done. Five
   server-served rounds (tools on node3 ×4, the desktop ×1) scored 57 of 75 (76% per run) against classifier 2's 47 of
   60 (78%), with the same 9 of 15 tasks passing every time and the same two never; classifier 3's `question` nudge did
@@ -14,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the round scored 22 of 25 at about a third of the server's speed, and `real-02` passed both runs there (3 of 9 on the
   desktop's GPU, 1 of 16 on the server's Ollama, same weights and parameters): a lead worth a deliberate test, not a
   finding. `roadmap.md` carries the table; AGENTS.md's stop-nudge entry notes the result.
+
 
 - **tests: record tool errors per run, and report pass^k (2026-10-21).** Every run JSON now records `toolErrors`
   (calls, errors, per tool, and `allFailing`: tools called at least 3 times that errored every time), and the console
