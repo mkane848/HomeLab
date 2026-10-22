@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same kind of leak. Before every run the checkout's `.git` is now rebuilt from the pinned base alone (no branch, tag,
   stash or remote; HEAD detached), from git bundles cached by SHA, because `upload-pack` refuses LFCbot's `.git` (owned by
   another account) whatever `safe.directory` is passed. `node_modules` survives; the acceptance or solution commit comes in
-  only after the model's run. Every run JSON records `checkout`. New guard `tests/test-sealed-checkout.ps1` (20 checks;
+  only after the model's run. Every run JSON records `checkout`. New guard `tests/test-sealed-checkout.ps1` (19 checks;
   `main`'s worktree harness fails 12); `test-no-push.ps1`'s stand-in now adds its own GitHub remote, since the checkout has
   none. Rows from here on run in a new kind of checkout, though what the model can see of the base is unchanged.
 
