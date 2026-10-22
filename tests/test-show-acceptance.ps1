@@ -1,0 +1,160 @@
+# test-show-acceptance.ps1 - regression guard for test-tasks.ps1 -ShowAcceptance (milestone 3).
+#
+# Why this exists: in real use there are no hidden tests. A planner writes the
+# failing test and the executor makes it pass, so the given test is the only gate
+# a dispatcher could select on (docs/target-setup.md -> "Milestones" 3 and 4).
+# -ShowAcceptance gives the model the task's acceptance.dir tests before its run,
+# names them in the prompt, fails the run if it edits them, and then grades exactly
+# as a hidden-test run does. Its rows must never mix with hidden-test rows.
+#
+# What it does: the REAL test-tasks.ps1 end to end, with a private manifest whose
+# task has hidden tests in a folder outside the fixture repo, and a fixture agent
+# that records what it sees (the test file present? the prompt naming it?). Cases:
+#   - shown, the agent fixes the source: the test is there before the run and
+#     named in the prompt; graded PASS; the scope sees only the source change;
+#     the run JSON records acceptanceShown (files, hash, nothing tampered); the
+#     test is gone from the checkout afterwards; no row in the public mirror;
+#   - shown, the agent edits the test instead: scope FAIL naming the file;
+#     `tampered` records it;
+#   - hidden (no switch), the same agent: the test is absent and not named;
+#   - a task with no acceptance.dir: refused with a FAIL, the agent never called;
+#   - the folders: a shown run into tests/results, or into a folder that holds
+#     hidden-test rows, is refused; a hidden run into a marked folder is refused;
+#     the ACCEPTANCE-SHOWN marker is written.
+# Exit 1 on any failure.
+#
+# Usage:  .\tests\test-show-acceptance.ps1 [-ScriptPath <a test-tasks.ps1>]
+param([string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"))
+
+$ErrorActionPreference = "Stop"
+$script:fail = 0
+function Check([string]$name, $actual, $expected) {
+    $ok = ("$actual" -eq "$expected")
+    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
+    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
+}
+
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("show-acc-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
+$psExe = (Get-Process -Id $PID).Path
+try {
+    $e2e = Join-Path $tmp "e2e"
+    foreach ($d in @("tests/agents", "repo")) { New-Item -ItemType Directory -Path (Join-Path $e2e $d) -Force | Out-Null }
+    Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $e2e "tests") -Recurse -Force
+    $repo = Join-Path $e2e "repo"
+    git -C $repo init -q; git -C $repo config user.email "t@example.invalid"; git -C $repo config user.name "t"
+    Set-Content -LiteralPath (Join-Path $repo "src.txt") -Value "buggy"
+    'if ((Test-Path tests/hidden.test.txt) -and (Get-Content tests/hidden.test.txt -Raw).Contains("expects fixed") -and (Get-Content src.txt -Raw).Trim() -ne "fixed") { Write-Host "Tests  1 failed (2)"; exit 1 }; Write-Host "Tests  2 passed (2)"; exit 0' | Set-Content -LiteralPath (Join-Path $repo "check.ps1")
+    git -C $repo add -A; git -C $repo commit -q -m base
+    $base = (git -C $repo rev-parse HEAD).Trim()
+
+    # The private side: a manifest outside the repo and the hidden tests beside it.
+    $priv = Join-Path $tmp "priv"
+    New-Item -ItemType Directory -Path (Join-Path $priv "tasks/hidden/fx/tests") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $priv "tasks/hidden/fx/tests/hidden.test.txt") -Value "expects fixed"
+    $common = [ordered]@{ repo = $repo; benchBaseCommit = $base; grading = "acceptance"; scope = "guardrails"
+        testDir = "."; testCmd = @($psExe, "-NoProfile", "-File", "check.ps1"); installFlags = @(); prompt = "fix src.txt" }
+    $t1 = [ordered]@{ id = "fx-shown"; title = "fx"; branch = "bench/fx-shown"; acceptance = [ordered]@{ dir = "hidden/fx" } } + $common
+    $t2 = [ordered]@{ id = "fx-noacc"; title = "fx"; branch = "bench/fx-noacc" } + $common
+    @{ tasks = @($t1, $t2) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $priv "tasks/manifest.json")
+
+    @'
+$script:AgentName = "fixture"
+$script:AgentSamplingNote = "fixture agent: nothing to pin"
+function Get-AgentVersion { "0.1.0" }
+function Get-AgentConfig { $null }
+function Get-AgentModelIds { param($Config) $null }
+function Test-AgentAutoupdatePinned { param($Config, [string]$EnvValue) $true }
+function Get-AgentModelSettings { param([string]$ModelId) [pscustomobject]@{ OutputLimit = 4096; Compaction = $null; Plugins = @() } }
+function Start-AgentRunEnv { param([string[]]$Plugins) [pscustomobject]@{} }
+function Stop-AgentRunEnv { param($State) $null }
+function Stop-OrphanAgent { param([string]$WtPath) }
+function Test-AgentTools { param([string]$Version) [pscustomobject]@{ checked = $true; ok = $true; detail = "fixture tools work"; seconds = 0 } }
+function Invoke-AgentRun {
+    param([string]$WtPath, [string]$ModelId, [string]$Prompt, [string]$PromptHash, [int]$TimeoutSec, [string]$SessionId = "", [string]$Transcript = "")
+    $test = Join-Path $WtPath "tests\hidden.test.txt"
+    [ordered]@{ testPresent = (Test-Path -LiteralPath $test); promptNamesIt = $Prompt.Contains("tests/hidden.test.txt") } | ConvertTo-Json | Set-Content -LiteralPath $env:FX_PROBE
+    if ($env:FX_MODE -eq "tamper") { Set-Content -LiteralPath $test -Value "expects nothing" }
+    else { Set-Content -LiteralPath (Join-Path $WtPath "src.txt") -Value "fixed" }
+    $out = Join-Path $env:TEMP ("fixture-run-" + [guid]::NewGuid().ToString("N") + ".log")
+    Add-Content -LiteralPath $out -Value @("start|s1", "tool|s1|edit|src.txt", "say|s1|done", "end|s1|stop|100|5")
+    return [pscustomobject]@{ ExitCode = 0; Writes = (Get-WriteCount -Path $out); ElapsedSec = 0.1; TranscriptPath = $out; Ending = (Get-TranscriptEnding -Path $out) }
+}
+function Read-AgentEvents {
+    param([string]$Path)
+    $events = New-Object System.Collections.Generic.List[object]
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return , $events }
+    foreach ($l in [IO.File]::ReadAllLines($Path)) {
+        $f = $l -split '\|'
+        switch ($f[0]) {
+            "start" { $events.Add([pscustomobject]@{ Kind = "step-start"; SessionId = $f[1] }) }
+            "tool"  { $events.Add([pscustomobject]@{ Kind = "tool"; SessionId = $f[1]; Tool = $f[2]; Status = "completed"; Input = $null; Paths = @($f[3]); OutputChars = 0 }) }
+            "say"   { $events.Add([pscustomobject]@{ Kind = "text"; SessionId = $f[1]; Text = $f[2]; CompactionContinue = $false }) }
+            "end"   { $events.Add([pscustomobject]@{ Kind = "step-end"; SessionId = $f[1]; Finish = $f[2]; HasTokens = $true; Input = [int]$f[3]; Output = [int]$f[4]; Reasoning = 0; CacheRead = 0; CacheWrite = 0 }) }
+        }
+    }
+    return , $events
+}
+'@ | Set-Content -LiteralPath (Join-Path $e2e "tests/agents/fixture.ps1")
+
+    $harness = Join-Path $e2e "tests/test-tasks.ps1"
+    $manifest = Join-Path $priv "tasks/manifest.json"
+    function Invoke-Fx([string]$TaskId, [string]$Dir, [string]$Mode, [switch]$Show) {
+        $env:FX_PROBE = Join-Path $tmp ("probe-" + [guid]::NewGuid().ToString("N") + ".json"); $env:FX_MODE = $Mode
+        $a = @{ Agent = "fixture"; Task = $TaskId; Model = "fixture/m"; SkipInstall = $true; RunTimeout = 60; OllamaLogDir = (Join-Path $e2e "no-log"); TaskManifest = $manifest; ResultsDir = $Dir }
+        if ($Show) { $a.ShowAcceptance = $true }
+        $log = & $harness @a *>&1 | Out-String
+        $exit = $LASTEXITCODE
+        $probe = if (Test-Path -LiteralPath $env:FX_PROBE) { Get-Content -Raw -LiteralPath $env:FX_PROBE | ConvertFrom-Json } else { $null }
+        $json = Get-ChildItem -LiteralPath $Dir -Filter "tasks-$TaskId-*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
+        $j = if ($json) { Get-Content -Raw -LiteralPath $json.FullName | ConvertFrom-Json } else { $null }
+        if ($json) { Remove-Item -LiteralPath $json.FullName }
+        return [pscustomobject]@{ Log = $log; Exit = $exit; Probe = $probe; Json = $j }
+    }
+    $shownDir = Join-Path $priv "results/shown"
+    $wt = Join-Path $e2e "tests/.worktrees/fx-shown"
+
+    Write-Host "-- shown, the agent fixes the source"
+    $r = Invoke-Fx fx-shown $shownDir fix -Show
+    if (-not $r.Json) { Write-Host (($r.Log -split "`n" | Select-Object -Last 25) -join "`n") }
+    Check "the test is in the checkout before the run, and the prompt names it" ("{0}|{1}" -f $r.Probe.testPresent, $r.Probe.promptNamesIt) "True|True"
+    Check "graded on the hidden-test path: acceptance PASS" $r.Json.acceptance.status "PASS"
+    Check "...the scope sees only the source change" ("{0}|{1}" -f $r.Json.gates.scope, ($r.Json.scopeDetail.files -join ",")) "PASS|src.txt"
+    Check "the run JSON records what was shown, nothing tampered" ("{0}|{1}|{2}" -f ($r.Json.acceptanceShown.files -join ","), ($r.Json.acceptanceShown.hash.Length), @($r.Json.acceptanceShown.tampered).Count) "tests/hidden.test.txt|12|0"
+    Check "the given test is not left in the checkout" (Test-Path -LiteralPath (Join-Path $wt "tests/hidden.test.txt")) "False"
+    Check "the folder is marked ACCEPTANCE-SHOWN" (Test-Path -LiteralPath (Join-Path $shownDir "ACCEPTANCE-SHOWN")) "True"
+    $pub = Join-Path $e2e "tests/results/real-tasks-public.tsv"
+    Check "no row in the public mirror" $(if (Test-Path -LiteralPath $pub) { @(Get-Content -LiteralPath $pub | Select-Object -Skip 1).Count } else { 0 }) 0
+
+    Write-Host "-- shown, the agent edits the test instead"
+    $r = Invoke-Fx fx-shown $shownDir tamper -Show
+    Check "scope FAIL naming the test" ([bool]($r.Log -match 'FAIL\] scope \(acceptance tests left alone\)' -and $r.Log -match 'tests/hidden\.test\.txt \(edited\)')) "True"
+    Check "...recorded as tampered, and the gate fails" ("{0}|{1}" -f ($r.Json.acceptanceShown.tampered -join ","), $r.Json.gates.scope) "tests/hidden.test.txt (edited)|FAIL"
+    Check "...and the real hidden test still grades the unfixed source FAIL" $r.Json.acceptance.status "FAIL"
+
+    Write-Host "-- hidden (no switch), the same agent"
+    $hiddenDir = Join-Path $priv "results/hidden"
+    $r = Invoke-Fx fx-shown $hiddenDir fix
+    Check "the test is absent and not named" ("{0}|{1}" -f $r.Probe.testPresent, $r.Probe.promptNamesIt) "False|False"
+    Check "...graded PASS, nothing recorded as shown" ("{0}|{1}" -f $r.Json.acceptance.status, ($null -eq $r.Json.acceptanceShown)) "PASS|True"
+
+    Write-Host "-- a task with no acceptance.dir"
+    $r = Invoke-Fx fx-noacc (Join-Path $priv "results/shown2") fix -Show
+    Check "refused with a FAIL, the agent never called" ("{0}|{1}" -f [bool]($r.Log -match '-ShowAcceptance needs a task whose acceptance tests are an acceptance.dir folder'), ($null -eq $r.Probe)) "True|True"
+
+    Write-Host "-- the folders"
+    $r = Invoke-Fx fx-shown (Join-Path $e2e "tests/results") fix -Show
+    Check "a shown run into tests/results is refused before any work (the private-manifest rule or its own)" ("{0}|{1}|{2}" -f $r.Exit, [bool]($r.Log -match 'must not join|outside this repo'), ($null -eq $r.Probe)) "1|True|True"
+    $r = Invoke-Fx fx-shown $hiddenDir fix -Show
+    Check "a shown run into a folder of hidden-test rows is refused" ("{0}|{1}" -f $r.Exit, [bool]($r.Log -match 'need a results folder of their own')) "1|True"
+    $r = Invoke-Fx fx-shown $shownDir fix
+    Check "a hidden run into a marked folder is refused" ("{0}|{1}" -f $r.Exit, [bool]($r.Log -match 'were shown their acceptance tests')) "1|True"
+} finally {
+    Remove-Item Env:FX_PROBE, Env:FX_MODE -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+}
+
+Write-Host ""
+if ($script:fail) { Write-Host "$($script:fail) FAILED"; exit 1 }
+Write-Host "all passed"
+exit 0

@@ -198,6 +198,17 @@ param(
     # kept so a round can be repeated under it (the llama.cpp trial's baseline
     # held it constant).
     [ValidateSet(2, 3)][int]$StopClassifier = 3,
+    # Milestone 3 (docs/target-setup.md -> "Milestones"): the acceptance tests are
+    # given to the model instead of hidden. In real use a planner writes the
+    # failing test and the executor makes it pass; that is the only gate a
+    # dispatcher could select on, since real use has no hidden tests. The task's
+    # acceptance.dir files are put into the checkout before the run and named in
+    # the prompt ("make them pass, do not edit them"); after the run they must be
+    # byte for byte unchanged (an edit is a guard-rail failure), they are taken
+    # out again, and grading is the hidden-test path unchanged. Rows are their
+    # own kind: they need their own -ResultsDir (an ACCEPTANCE-SHOWN marker keeps
+    # them apart) and are not mirrored to tests/results/real-tasks-public.tsv.
+    [switch]$ShowAcceptance,
     # After each run that exited 0 against an Ollama provider, ask that host's
     # /api/ps where -Model sits (Get-EngineGpuPlacement). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
@@ -273,8 +284,26 @@ if (-not $assistedRun -and (Test-Path -LiteralPath $assistedMarker)) {
     Write-Host "ERROR: $resultsDir holds assisted (nudged) runs ($assistedMarker); an unassisted run's rows don't belong there. Pass another -ResultsDir." -ForegroundColor Red
     exit 1
 }
+# The same separation for -ShowAcceptance: rows graded on tests the model was
+# given are not rows graded on hidden ones.
+$shownMarker = Join-Path $resultsDir "ACCEPTANCE-SHOWN"
+if ($ShowAcceptance -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '/') -eq [System.IO.Path]::GetFullPath($publicResultsDir).TrimEnd('\', '/'))) {
+    Write-Host "ERROR: -ShowAcceptance gives the model its acceptance tests; those rows must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
+    exit 1
+}
+if ($ShowAcceptance -and $hasRows -and -not (Test-Path -LiteralPath $shownMarker)) {
+    Write-Host "ERROR: -ShowAcceptance runs need a results folder of their own, and $resultsDir already holds rows graded on hidden tests. Pass -ResultsDir <a folder of its own>." -ForegroundColor Red
+    exit 1
+}
+if (-not $ShowAcceptance -and (Test-Path -LiteralPath $shownMarker)) {
+    Write-Host "ERROR: $resultsDir holds runs that were shown their acceptance tests ($shownMarker); a hidden-test run's rows don't belong there. Pass another -ResultsDir." -ForegroundColor Red
+    exit 1
+}
 if (-not (Test-Path -LiteralPath $resultsDir)) {
     New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
+}
+if ($ShowAcceptance -and -not (Test-Path -LiteralPath $shownMarker)) {
+    Set-Content -LiteralPath $shownMarker -Value "Rows in this folder come from -ShowAcceptance runs: the model was given the acceptance tests it is graded on. Don't compare them with hidden-test rows as if the tests were unseen."
 }
 if ($assistedRun -and -not (Test-Path -LiteralPath $assistedMarker)) {
     Set-Content -LiteralPath $assistedMarker -Value "Rows in this folder come from assisted runs ($assistedSwitches): the harness sent extra messages into the session. Don't compare them with unassisted rows as if the model ran alone."
@@ -1082,6 +1111,55 @@ function Get-AcceptanceDirFiles {
     })
 }
 
+# -ShowAcceptance: put the task's acceptance.dir files into the checkout before
+# the model's run. Returns what Remove-ShownAcceptance needs: each file's
+# relative path and bytes, whether the base already had a file there, and the
+# folder's fingerprint (the same hash Invoke-Acceptance reports). $null when the
+# task has no acceptance.dir (the caller refuses the run).
+function Add-ShownAcceptance {
+    param($Task, [string]$WtPath, [string]$Head)
+    if (-not $Task.acceptance -or -not $Task.acceptance.dir) { return $null }
+    $dirFiles = Get-AcceptanceDirFiles $Task
+    if (-not $dirFiles) { return $null }
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $ms = New-Object System.IO.MemoryStream
+        foreach ($df in $dirFiles) { $nb = [Text.Encoding]::UTF8.GetBytes($df.Rel + "`n"); $ms.Write($nb, 0, $nb.Length); $ms.Write($df.Bytes, 0, $df.Bytes.Length) }
+        $hash = ([BitConverter]::ToString($sha256.ComputeHash($ms.ToArray())) -replace '-', '').Substring(0, 12).ToLowerInvariant()
+    } finally { $sha256.Dispose() }
+    $files = @()
+    foreach ($df in $dirFiles) {
+        $inBase = @((Run-Native "git" @("-C", $WtPath, "ls-tree", "--name-only", $Head, "--", $df.Rel)).Output | Where-Object { $_ }).Count -gt 0
+        $full = Join-Path $WtPath $df.Rel
+        $parent = Split-Path -Parent $full
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        [System.IO.File]::WriteAllBytes($full, $df.Bytes)
+        $files += [pscustomobject]@{ Rel = $df.Rel; Bytes = $df.Bytes; InBase = $inBase }
+    }
+    return [pscustomobject]@{ Files = $files; Hash = $hash }
+}
+
+# After the run: which shipped files the model changed or removed, then the
+# checkout put back as a hidden-test run would leave it (a file the base had is
+# checked out from the base, one it lacked is deleted), so every gate after
+# this sees only the model's own change. Returns the tampered paths.
+function Remove-ShownAcceptance {
+    param($Shown, [string]$WtPath, [string]$Head)
+    $tampered = @()
+    foreach ($f in $Shown.Files) {
+        $full = Join-Path $WtPath $f.Rel
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { $tampered += "$($f.Rel) (deleted)"; continue }
+        $now = [System.IO.File]::ReadAllBytes($full)
+        if (-not [System.Linq.Enumerable]::SequenceEqual([byte[]]$now, [byte[]]$f.Bytes)) { $tampered += "$($f.Rel) (edited)" }
+    }
+    foreach ($f in $Shown.Files) {
+        $full = Join-Path $WtPath $f.Rel
+        if ($f.InBase) { Run-Native "git" @("-C", $WtPath, "checkout", $Head, "--", $f.Rel) | Out-Null }
+        else { Remove-Item -LiteralPath $full -Force -ErrorAction SilentlyContinue }
+    }
+    return , $tampered
+}
+
 function Invoke-Acceptance {
     param($Task, [string]$WtPath)
 
@@ -1810,6 +1888,18 @@ foreach ($tk in $tasksToRun) {
     } elseif ($EditFormat -eq "edit") {
         $prompt += "`n`nMake all your source changes with targeted substring search-replace edits (the edit tool), not whole-file rewrites."
     }
+    # -ShowAcceptance names the tests the model is given (Add-ShownAcceptance
+    # puts them in place just before the run). Part of the prompt, so the hash.
+    $shownFiles = @()
+    if ($ShowAcceptance) {
+        $shownFiles = @(Get-AcceptanceDirFiles $tk | ForEach-Object Rel)
+        if (-not $tk.acceptance -or -not $tk.acceptance.dir -or $shownFiles.Count -eq 0) {
+            Write-Result $tk.id "acceptance shown" "FAIL" "-ShowAcceptance needs a task whose acceptance tests are an acceptance.dir folder; $($tk.id) has none (or it is empty)"
+            $overallPass = $false
+            continue
+        }
+        $prompt += "`n`nAcceptance tests for this task are already in the repository: " + ($shownFiles -join ", ") + ". Change the source so that they pass, and run them to check. Do not edit, move or delete these test files."
+    }
     if (-not $promptHashes.ContainsKey($tk.id)) {
         # SHA256.HashData / Convert.ToHexString are .NET 5+ only - not present under
         # Windows PowerShell 5.1 (.NET Framework). Create()+ComputeHash()+BitConverter
@@ -1864,6 +1954,13 @@ foreach ($tk in $tasksToRun) {
         continue
     }
 
+    # -ShowAcceptance: the named tests go into the checkout now, after the baseline.
+    $shown = $null
+    $shownTampered = @()
+    if ($ShowAcceptance) {
+        $shown = Add-ShownAcceptance -Task $tk -WtPath $wt.Wt -Head $wt.Head
+        Write-Host ("    acceptance shown: {0} file(s) put in the checkout ({1})" -f $shown.Files.Count, $shown.Hash) -ForegroundColor DarkGray
+    }
     # The model's own shell gets the pinned environment too: a test it sees pass
     # has to be one the gates can run (opencode inherits this process's env).
     $savedEnv = Set-TaskTestEnv $tk
@@ -2096,6 +2193,12 @@ foreach ($tk in $tasksToRun) {
         Write-Host ("    context: {0} compaction(s), peak prompt {1} tokens{2}" -f $ctxEvents.Compactions, $ctxEvents.PeakPromptTokens, $(if ($ctxEvents.EndedAfterCompaction) { "; the run ended right after the last one" } else { "" })) -ForegroundColor DarkGray
     }
 
+    # -ShowAcceptance: check the given tests are untouched, then take them out,
+    # so every gate below sees what a hidden-test run would (Remove-ShownAcceptance).
+    if ($shown) {
+        $shownTampered = Remove-ShownAcceptance -Shown $shown -WtPath $wt.Wt -Head $wt.Head
+    }
+
     # --- grade 1: diff scope -------------------------------------------------
     $changed = Get-TreeChanges $wt.Wt
     $allowed = @($tk.allowFiles)
@@ -2114,6 +2217,12 @@ foreach ($tk in $tasksToRun) {
         $scopeDetail = [pscustomobject]@{ mode = "guardrails"; files = $stats.Files; lines = $stats.Lines; hits = $guardrail.Hits }
         Write-Result $tk.id "scope (guard rails)" $(if ($guardrail.Ok) { "PASS" } else { "FAIL" }) $guardrail.Detail
         if (-not $guardrail.Ok) { $overallPass = $false }
+        if ($shownTampered.Count -gt 0) {
+            Write-Result $tk.id "scope (acceptance tests left alone)" "FAIL" ("the model changed the acceptance tests it was given: {0}" -f ($shownTampered -join ", "))
+            $guardrail = [pscustomobject]@{ Ok = $false; Detail = $guardrail.Detail; Hits = @($guardrail.Hits) + @($shownTampered | ForEach-Object { "$_ (acceptance test given to the model)" }); Files = $guardrail.Files; Lines = $guardrail.Lines }
+            $scopeDetail.hits = $guardrail.Hits
+            $overallPass = $false
+        }
     } elseif ($changed.Count -eq 0) {
         Write-Result $tk.id "scope" "FAIL" "no changes at all - the model did not touch the worktree"
         $overallPass = $false
@@ -2368,6 +2477,9 @@ foreach ($tk in $tasksToRun) {
         # "sealed" holds only the base's history, `commits` of it. Rows before
         # 2026-10-22 ran in a git worktree of the real repo and have no field.
         checkout        = $wt.Checkout
+        # -ShowAcceptance: the tests the model was given (files, fingerprint) and
+        # any it changed. Null on a hidden-test run; rows before 2026-10-22 have none.
+        acceptanceShown = $(if ($shown) { [ordered]@{ files = @($shown.Files | ForEach-Object Rel); hash = $shown.Hash; tampered = @($shownTampered) } } else { $null })
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.
@@ -2406,7 +2518,7 @@ foreach ($tk in $tasksToRun) {
         $realRows.Add((@($result.timestamp, $tk.id, $Model, $ModelLabel, $wt.Head, $run.ExitCode, $run.Writes,
                          $gateSummary.scope, $gateSummary.suite, $acceptanceRecord.status, $acceptanceRecord.hash, $gateSummary.failsOnOld,
                          $result.elapsedSec) -join "`t"))
-        if ($privateRun -and -not $assistedRun) {
+        if ($privateRun -and -not $assistedRun -and -not $ShowAcceptance) {
             # The public mirror: opaque id, model, versions, verdicts. No commit,
             # prompt, path or test detail. Assisted runs aren't mirrored: the
             # public file has no column to say a run was nudged.
