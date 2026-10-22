@@ -27,6 +27,9 @@ you're after.
   firewall rules each machine needs.
 - **[model-architecture.md](model-architecture.md)** — which models live
   where, and why a given model is on a given host.
+- **[fleet-side-projects.md](fleet-side-projects.md)** — what else the
+  hardware can do (video, VFX, 3D, home-lab services), per machine; a planning
+  list, nothing scheduled.
 
 ## War stories & troubleshooting
 

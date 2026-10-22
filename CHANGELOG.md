@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the model sweep's case and plan, and the fleet's other uses (2026-10-22).** `docs/roadmap.md` → "After the
+  trial" item 9: why re-testing other model families makes sense on the mature harness and llama.cpp, the 2026-10-22
+  web check (DeepSeek's 2026 models, V4-Pro and V4-Flash, fit no machine here; the R1 distills are the local DeepSeek
+  option), and the staged probe → triage round → pass^k plan, set for after milestone 3's measurement. A new
+  `docs/fleet-side-projects.md` lists what else the hardware can run (video, images, audio, VFX, 3D, home-lab
+  services, LLM side projects) per machine, with CUDA as the constraint that makes the server and node3 the creative
+  machines. New sources are in `docs/references.md` ("Model landscape", "Side-project tools").
+
 - **tests: `-ShowAcceptance`, the model is given the tests it is graded on (milestone 3, 2026-10-22).** Real use has
   no hidden tests: the planner writes the failing test and the executor makes it pass, so that test is the only gate a
   dispatcher can select on (`docs/target-setup.md` milestones 3 and 4). With the switch, a task's `acceptance.dir` files
