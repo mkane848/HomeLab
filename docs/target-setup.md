@@ -7,8 +7,8 @@
 > - **The planning side** is still the hosted orchestrator shortlist (roadmap → "Hosted seats on the real tasks").
 > - **The harness and the dispatcher do not run on the server, and no Linux port is needed.** Measured
 >   2026-10-12: four busy threads on the server cost `qwen3.6` about 60% of its decode (the routing rule under
->   "Machine roles"). The harness runs where the tools run: the desktop today, node3 once it is the run host
->   (roadmap → "After the trial"). This amends the "server-centric" requirement below, which is kept as written.
+>   "Machine roles"). The harness runs where the tools run: the desktop or node3, both run hosts since
+>   2026-10-21 (roadmap → step 5, "node3's control round"). This amends the "server-centric" requirement below, which is kept as written.
 > - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
 
 What the fleet should look like once the server POSTs, derived from how the
@@ -133,6 +133,13 @@ The load was `yes` processes, one core each; a real `vitest` or `tsc` also takes
 on the damage, from one rep per condition (`tests/results/bench-speed-contention.tsv`). It is why the harness's tools
 run on the desktop or node3, never on the server.
 
+**Between the desktop and node3, either will do (measured 2026-10-21).** The 15-task round with its tools on node3 scored
+12 of 15 against the desktop's 47 of 60, so the run host does not change the results. On these short test suites node3's
+5950X is slightly slower than the 5800X3D (1.7 against 1.5 s for most), and a round's wall-clock is set by the model on the
+server, so the choice is about which machine is free, not which CPU is faster. Both are also game PCs: a round runs only on
+one nobody is using. A new run host needs `core.autocrlf false` in the task repos and ripgrep where opencode finds it; the
+harness checks the second before any run (roadmap → step 5, "node3's control round").
+
 **One front door.** OpenCode (or the dispatcher) should see one endpoint, and
 routing to whichever host is up happens behind it. Today that is spread over
 four profiles and three provider blocks in `opencode.jsonc`, and it is the
@@ -148,7 +155,7 @@ routing between.
 | Executor | `qwen3.6:35b-a3b-coding` @64k on the **server**, `-NudgeOnStop` | 46 of 60 on the 15 real tasks over four reps (classifier 2); 14 of 15 tasks pass at least once |
 | Executor fallback | the same seat on the desktop (`dev-workflow-quality`) | same weights; about half the speed |
 | Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix (roadmap → "After the trial") |
-| Run host | the desktop today; node3 after the trial | the routing rule under "Machine roles" |
+| Run host | node3 or the desktop, whichever is free (both game PCs; since 2026-10-21) | the routing rule under "Machine roles"; node3's control round, 12 of 15 against the desktop's 47 of 60 (roadmap → step 5) |
 | Retired as executors | `qwen3.5:9b` (overflow crashes in half its work-package runs, 2026-10-13); `ministral-3:8b`, `lfm2.5:8b`, `ornith:9b` (below) | roadmap → "Next up" step 7 |
 | Unmeasured since the starting build | `laguna-xs-2.1`, `nemotron-3.5-lightning` | no runs on the real tasks |
 | Dispatcher | manual (the owner runs the batch) | until milestone 4 |
