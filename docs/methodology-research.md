@@ -168,6 +168,70 @@ a measured probe, not on a leaderboard.
 5. Do not add model candidates. Spend remaining compute on the control rematch
    and the raised-cap reruns already queued.
 
+## What the runs say against the research (2026-10-21)
+
+Read after node3's control round, against the lab and research posts below and the papers already catalogued. The
+runs are the 15 real tasks with `qwen3.6` on the server's Ollama (read-budget plugin on, assisted): the desktop's four
+plugin-on reps, node3's two rounds and the first classifier-3 round (private results; numbers from the run JSONs).
+
+**Strengthened.**
+- **Environment faults read as a weaker model.** Anthropic measured up to a 6-point swing on Terminal-Bench 2.0 from
+  resource configuration alone, more than the gaps that rank models ([Quantifying infrastructure noise in agentic
+  coding evals](https://www.anthropic.com/engineering/infrastructure-noise), 2026-02-05). Their evals guide warns that
+  trials failing on one shared environment limit are not independent ([Demystifying evals for AI
+  agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents), 2026-01-09). Here the same seat read
+  10 of 15 with search broken on node3 and 12 of 15 once fixed. That is the fourth such case in this repo, after
+  unreachable endpoints read as liar mode, prompt truncation read as liar mode, and a container that lost its GPU. **One
+  difference:** Anthropic's noise shows as infrastructure errors (out-of-memory kills); ours never crashed anything.
+  Each failed grep was handed back to the model and the run went on, so an infrastructure-error count would have read
+  zero. The tool error rate caught it: 18% of calls on node3 against 2.5% on the desktop. Hence `toolErrors` in every
+  run JSON and the pre-run tools check (AGENTS.md → `test-tool-errors.ps1`, `test-agent-tools.ps1`).
+- **The scaffold matters as much as the model** ([Don't Blame the Large Language
+  Model](https://arxiv.org/pdf/2607.03691)). Anthropic advises truncating tool output "with sensible default parameter
+  values" and caps Claude Code's tool responses at 25,000 tokens by default ([Writing effective tools for AI
+  agents](https://www.anthropic.com/engineering/writing-tools-for-agents), 2025-09-11); SWE-agent windows file views
+  ([SWE-agent](https://arxiv.org/html/2405.15793v3)). The read-budget plugin moved llama.cpp from 50 to 54 of 60 and its
+  overflowing runs from 15 of 60 to 0, and Ollama from 45 to 47. Its cap is about 8% of the window per read; 25,000 of
+  Claude's 200,000 tokens is 12.5%, the same order.
+- **Agents stop with work undone, and a stop hook is the fix the field settled on.** Anthropic names agents that
+  "declare the job done" too early ([Effective harnesses for long-running
+  agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents), 2025-11-26), and Claude
+  Code, Codex, Goose and Qwen Code all ship a blocking `Stop` hook (the 2026-10-10 client research in the roadmap).
+  Before the nudge, runs ending on an announced next step failed 16 of 17; in the 75 runs of the desktop's four reps
+  and node3's rerun, the 17 that got one nudge passed 16. Not a controlled comparison.
+- **Compaction must keep the request.** Anthropic's advice is to tune a summary to "maximize recall" first and warns that
+  over-aggressive compaction loses context that matters later ([Effective context engineering for AI
+  agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), 2025-09-29). That is what
+  `compaction-continue.js` does, found here independently on `kane-08`.
+- **"64k context minimum" is necessary, not sufficient.** OpenClaw's and Hermes's docs advise at least 64k with local
+  models ([OpenClaw on Ollama](https://docs.ollama.com/integrations/openclaw)). At 64k, 15 of 60 llama.cpp runs still
+  overflowed until tool output was budgeted.
+
+**Disproved or weakened.**
+- **"node3's 5950X is the better CPU for the tools" (roadmap step 5, a stated hypothesis): not for this work.** Its
+  short suites ran slightly slower there (1.7 against 1.5 s for most tasks), and a round's wall-clock is the model's.
+  Anthropic's data suggests why: up to about 3× resource headroom, scores stayed within noise (p = 0.40); both run hosts
+  are far above the need.
+- **Liar mode as a property of the model** (the earlier reading through [Reward Hacking
+  Benchmark](https://arxiv.org/abs/2605.02964) and [MIRAGE-Bench](https://arxiv.org/abs/2507.21017)). Much of what was
+  first called liar mode here was the harness or the environment. The failure class is real; this repo's evidence for it
+  is thinner than first written.
+
+**Not seen in this range.** Chroma found reliability falling with input length across 18 models ([Context
+Rot](https://www.trychroma.com/research/context-rot), 2025-07-14). Inside a 64k window with the read budget on, pass rates
+by peak prompt were 79% (under 40k tokens), 82% (40k to 55k) and 75% (55k to 70k), over 75 runs. Runs that compacted
+passed 68% against 84%, but the harder tasks are the ones that compact, so that gap is confounded. The per-file read
+budget (SWE-agent's 100-line window) never fired: untested, not wrong.
+
+**A measure to adopt: pass^k beside the per-run rate.** pass@k is the chance that at least one of k tries passes, and
+pass^k that all k do (the evals guide). Over the desktop's four reps the round is 47 of 60 per run, 13 of 15 tasks at
+least once, and **9 of 15 every time** (pass^4 0.6). Over six rounds it is 71 of 90 and still 9 of 15. Work meant to run
+unattended after a plan is approved ([target-setup.md](target-setup.md)) needs the second number.
+`tests/summarize-rounds.ps1` reports both.
+
+**Not verified.** OpenAI's "Unrolling the Codex agent loop" (2026-01-23) and "Harness engineering" (2026-02-11) answer
+403 to the fetch tool, so only search summaries were read, and neither is cited here as evidence.
+
 ## References
 
 Every source for the claims above is catalogued with URL, author/lab, and date

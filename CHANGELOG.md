@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: record tool errors per run, and report pass^k (2026-10-21).** Every run JSON now records `toolErrors`
+  (calls, errors, per tool, and `allFailing`: tools called at least 3 times that errored every time), and the console
+  warns on `allFailing`. It is never graded. Over the 412 private transcripts held, the rule flags exactly the 9 runs of
+  node3's broken round (no ripgrep, 10 of 15) and nothing else. New `tests/summarize-rounds.ps1` reports per-task
+  pass@k and pass^k beside the per-run rate (Anthropic, "Demystifying evals for AI agents"): the desktop's four
+  plugin-on reps are 47 of 60 per run, 13 of 15 tasks at least once, 9 of 15 every time. Guards
+  `tests/test-tool-errors.ps1` (15 checks) and `tests/test-summarize-rounds.ps1` (27), with controls. **And a
+  write-up:** `docs/methodology-research.md` → "What the runs say against the research (2026-10-21)" reads the rounds
+  against Anthropic's engineering posts (infrastructure noise, evals, long-running harnesses, context engineering,
+  tools), Chroma's Context Rot and the papers already catalogued: what strengthened (environment faults read as weaker
+  models; scaffold over model; stop hooks; compaction keeping the request), what fell (node3's CPU as the better run
+  host; liar mode as a model property), and context rot not seen inside 64k. Six new rows in `docs/references.md`.
+
 - **docs: node3 is a run host; its control round (2026-10-21).** Step 5 of the roadmap and "After the trial" item 1
   are done. With `qwen3.6` on the server and the tools on node3, the 15-task round (Ollama, read-budget plugin on,
   assisted, classifier 2) scored 12 of 15, against the desktop's 47 of 60 over four reps: the run host does not change
@@ -17,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hidden tests (`core.autocrlf true` in node3's system git; set `false` in the five repos). `roadmap.md` step 5 carries
   the table and both lessons, `target-setup.md` the run-host rule (either machine, whichever is free; both are game PCs),
   and AGENTS.md's machine line no longer says the harness cannot use node3.
+
 - **tests: refuse a run when the agent's search tools do not work (2026-10-21).** node3's first round (tools on node3,
   model on the server) scored 10 of 15 because every grep and glob call errored: opencode 1.18.34 had no ripgrep there
   and could not unpack the one it downloaded (Windows PowerShell's `Expand-Archive` failed inside the scheduled task),

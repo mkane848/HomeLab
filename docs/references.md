@@ -142,6 +142,21 @@ weekly, so re-read before acting on them
 commit: re-check them when opencode's major or minor version moves (Ollama's
 on any upgrade).
 
+## Lab engineering posts and technical reports
+
+| ID | Source | URL |
+|---|---|---|
+| anthropic-infra-noise | "Quantifying infrastructure noise in agentic coding evals", Anthropic Engineering, 2026-02-05 (read 2026-10-21) — resource configuration alone moved Terminal-Bench 2.0 by 6 points (p < 0.01); within noise up to 3× headroom (p = 0.40); infrastructure errors 5.8% at 1×, 2.1% at 3×, 0.5% uncapped; skepticism for gaps under 3 points | <https://www.anthropic.com/engineering/infrastructure-noise> |
+| anthropic-evals | "Demystifying evals for AI agents", Anthropic Engineering, 2026-01-09 (read 2026-10-21) — pass@k vs pass^k; read the transcripts; grade outcomes, not paths; isolate trials, since failures on a shared environment limit are not independent; capability vs regression evals | <https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents> |
+| anthropic-long-running | "Effective harnesses for long-running agents", Anthropic Engineering, 2025-11-26 (read 2026-10-21) — agents that one-shot, or "declare the job done" too early; progress file, feature list, end-to-end testing | <https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents> |
+| anthropic-context | "Effective context engineering for AI agents", Anthropic Engineering, 2025-09-29 (read 2026-10-21) — context rot; compaction tuned to "maximize recall" first; tool-result clearing; note-taking; just-in-time retrieval with grep/glob | <https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents> |
+| anthropic-tools | "Writing effective tools for AI agents – with agents", Anthropic Engineering, 2025-09-11 (read 2026-10-21) — truncation and pagination "with sensible default parameter values"; Claude Code caps tool responses at 25,000 tokens by default; actionable error messages | <https://www.anthropic.com/engineering/writing-tools-for-agents> |
+| chroma-context-rot | "Context Rot: How Increasing Input Tokens Impacts LLM Performance", Hong, Troynikov and Huber, Chroma, 2025-07-14 (read 2026-10-21) — 18 models; reliability falls with input length even on simple tasks; distractors hurt | <https://www.trychroma.com/research/context-rot> |
+
+Where used: all six → [methodology-research.md](methodology-research.md) → "What the runs say against the research
+(2026-10-21)"; `anthropic-evals` also → AGENTS.md (`tests/summarize-rounds.ps1`). OpenAI's "Unrolling the Codex agent
+loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.
+
 ## Another page to cite from
 
 If a source is new and not yet here, add a row in the matching table. If a
