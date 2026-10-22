@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the first rounds under stop classifier 3 (2026-10-21/22).** "After the trial" item 3 is done. Five
+  server-served rounds (tools on node3 ×4, the desktop ×1) scored 57 of 75 (76% per run) against classifier 2's 47 of
+  60 (78%), with the same 9 of 15 tasks passing every time and the same two never; classifier 3's `question` nudge did
+  not fire in any of the 100 runs, so these rows neither support nor refute it. With the model on the desktop's own GPU
+  the round scored 22 of 25 at about a third of the server's speed, and `real-02` passed both runs there (3 of 9 on the
+  desktop's GPU, 1 of 16 on the server's Ollama, same weights and parameters): a lead worth a deliberate test, not a
+  finding. `roadmap.md` carries the table; AGENTS.md's stop-nudge entry notes the result.
+
 - **tests: record tool errors per run, and report pass^k (2026-10-21).** Every run JSON now records `toolErrors`
   (calls, errors, per tool, and `allFailing`: tools called at least 3 times that errored every time), and the console
   warns on `allFailing`. It is never graded. Over the 412 private transcripts held, the rule flags exactly the 9 runs of
