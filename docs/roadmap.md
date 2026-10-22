@@ -424,6 +424,13 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
    test (milestone 3) before a dispatcher can pick the passing attempt (milestone 4).
 7. **The desktop's role and "Replacing Ollama" Phase 4**, decided on Gate G1's result.
+8. **The engine: llama.cpp (owner, 2026-10-22).** The executor moves to the server's llama-server: on the 15 real tasks
+   it scored 54 of 60 against Ollama's 47 (four reps each, read-budget plugin on), with 0 overflowing runs. The launcher's
+   default is `dev-workflow-server-llamacpp` from 2026-10-22 ("Replacing Ollama" → Phase 3, whose "flip the default"
+   condition this meets), and benchmark rounds run on `llamacpp-server` from then on: a new era for the rows. Still to do
+   for the cutover: the server-side half of Phase 3 (the stack primary with a restart policy, `status.sh`, `startup.sh`,
+   the systemd unit), and the placement check from node3, which has no ssh key for the server, so a round driven from
+   there records llama.cpp's GPU placement as unchecked.
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.
@@ -2858,6 +2865,8 @@ across engines as if nothing changed); `ollama-*` provider ids are never renamed
   stopped, not removed, for a soak. `status.sh` reads `/health`, `/props`, `/models` and the GPU check;
   `llamacpp-check.sh` replaces `bake-models.sh`; `startup.sh`, `stop.sh` and the systemd unit gain an engine switch. A
   `dev-workflow-server-llamacpp` twin first; flip the default only after a round that matches the Ollama baseline.
+  **The default flipped 2026-10-22** (owner): four llama.cpp reps scored 54 of 60 against Ollama's 47; the server-side
+  items above are still to do.
   Repeat the `daemon-reload` drill after any Docker, driver or toolkit upgrade.
 - **Phase 4, desktop (RX 6800 XT, Vulkan, native).** First the missing baseline: `bench-speed.ps1` on the desktop under
   Ollama at the same three depths. Then a pinned `llama-bNNNN-bin-win-vulkan-x64.zip` in a versioned folder (no

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **chore: llama.cpp is the executor's engine; the launcher's default is `dev-workflow-server-llamacpp` (2026-10-22).**
+  Owner's decision: on the 15 real tasks the server's llama-server scored 54 of 60 against Ollama's 47 (four reps
+  each, read-budget plugin on), with no overflowing runs, which meets "Replacing Ollama" Phase 3's condition for
+  flipping the default. `desktop/scripts/opencode.ps1` now defaults to the llama.cpp twin (`-Profile
+  dev-workflow-server` keeps Ollama); AGENTS.md, `roadmap.md` ("After the trial" item 8, Phase 3) and `target-setup.md`
+  say so. Benchmark rounds run on `llamacpp-server` from here: a new era. Phase 3's server-side half (restart policy,
+  `status.sh`, `startup.sh`, the systemd unit) is still to do, and a round driven from node3 records llama.cpp's GPU
+  placement as unchecked (no ssh key for the server there).
+
 - **tests: a task's checkout holds only its base's history (2026-10-22).** The checkout under `tests/.worktrees/<id>`
   was a `git worktree` of the owner's real repo, so every later commit (the task's real fix among them), the owner's
   other branches and stashes, and the model's own commits from earlier trials were one `git log --all` or `git show` away;

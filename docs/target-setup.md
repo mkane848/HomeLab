@@ -152,7 +152,7 @@ routing between.
 | Position | Seat | Evidence |
 |---|---|---|
 | Planner | Claude Code (mode B) in practice; the hosted orchestrator test waits for a Go budget | roadmap → "Hosted seats on the real tasks" |
-| Executor | `qwen3.6:35b-a3b-coding` @64k on the **server**, `-NudgeOnStop` | 46 of 60 on the 15 real tasks over four reps (classifier 2); 14 of 15 tasks pass at least once |
+| Executor | `qwen3.6:35b-a3b-coding` @64k on the **server's llama-server** since 2026-10-22 (Ollama before), `-NudgeOnStop` | llama.cpp 54 of 60 on the 15 real tasks over four reps, Ollama 47 (read-budget plugin on); on Ollama, 9 of 15 tasks pass every run |
 | Executor fallback | the same seat on the desktop (`dev-workflow-quality`) | same weights; about half the speed |
 | Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix (roadmap → "After the trial") |
 | Run host | node3 or the desktop, whichever is free (both game PCs; since 2026-10-21) | the routing rule under "Machine roles"; node3's control round, 12 of 15 against the desktop's 47 of 60 (roadmap → step 5) |

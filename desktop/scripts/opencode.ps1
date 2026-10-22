@@ -8,7 +8,8 @@
 # coder model with a valid base URL.
 #
 # Usage (PowerShell, from the repo root):
-#   .\desktop\scripts\opencode.ps1                 # dev-workflow-server (default since 2026-10-13)
+#   .\desktop\scripts\opencode.ps1                 # dev-workflow-server-llamacpp (default since 2026-10-22)
+#   .\desktop\scripts\opencode.ps1 -Profile dev-workflow-server    # the same seat on the server's Ollama (the default 2026-10-13..22)
 #   .\desktop\scripts\opencode.ps1 -Profile dev-workflow-quality   # the desktop seat (server down, trial window)
 #   .\desktop\scripts\opencode.ps1 -Profile dev-workflow-resident
 #   .\desktop\scripts\opencode.ps1 run "do the thing"     # args pass through
@@ -20,8 +21,9 @@
 # the last profile.
 #
 # Options:
-#   -Profile <name>   profile basename under profiles/ (default dev-workflow-server; the
-#                     server's qwen3.6 is about 2x the desktop's speed, docs/roadmap.md).
+#   -Profile <name>   profile basename under profiles/ (default dev-workflow-server-llamacpp:
+#                     qwen3.6 on the server's llama-server, 54 of 60 against Ollama's 47 on the
+#                     real tasks; owner, 2026-10-22. Needs the llama.cpp stack up on the server).
 #   -ListProfiles     print the live profiles and exit.
 #   -NoWarm           do not pre-load the profile's desktop main seat (see below).
 #   -KeepLoaded       do not unload desktop models the profile does not use (see below).
@@ -29,7 +31,7 @@
 
 [CmdletBinding(PositionalBinding = $false)]
 param(
-    [string]$Profile = "dev-workflow-server",
+    [string]$Profile = "dev-workflow-server-llamacpp",
     [switch]$ListProfiles,
     [switch]$NoWarm,
     [switch]$KeepLoaded,
