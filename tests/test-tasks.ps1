@@ -1495,6 +1495,37 @@ function Get-OutsideWrites {
     return , $hits
 }
 
+# The agent's tool calls that errored, per tool. A tool that errors on every
+# call does not fail a run: the model gets the error back and works on without
+# it, and the row reads as a weaker seat. node3, 2026-10-21: no ripgrep, so all
+# 83 grep and glob calls of a round errored (12 of 15 runs), and the round read
+# 10 of 15 against 12 once fixed; no gate saw it. Recorded in every run JSON as
+# `toolErrors` and warned about, never graded. `allFailing` lists each tool
+# that was called at least -MinCalls times and errored every time: over the 412
+# private transcripts held on 2026-10-21 that is exactly the 9 runs of that
+# round, where an overall error rate above 10% also flags 4 healthy runs.
+function Get-ToolErrors {
+    param([string]$Path, [int]$MinCalls = 3)
+    $byTool = [ordered]@{}
+    $calls = 0; $errors = 0
+    if ($Path -and (Test-Path -LiteralPath $Path)) {
+        foreach ($e in (Read-AgentEvents -Path $Path)) {
+            if ($e.Kind -ne "tool") { continue }
+            $name = if ($e.Tool) { $e.Tool } else { "(unnamed)" }
+            if (-not $byTool.Contains($name)) { $byTool[$name] = [ordered]@{ calls = 0; errors = 0 } }
+            $byTool[$name].calls++; $calls++
+            if ($e.Status -eq "error") { $byTool[$name].errors++; $errors++ }
+        }
+    }
+    $allFailing = @($byTool.Keys | Where-Object { $byTool[$_].calls -ge $MinCalls -and $byTool[$_].errors -eq $byTool[$_].calls })
+    return [pscustomobject]@{
+        calls = $calls; errors = $errors
+        rate = $(if ($calls) { [math]::Round($errors / $calls, 3) } else { $null })
+        byTool = [pscustomobject]$byTool
+        allFailing = $allFailing
+    }
+}
+
 # What a run cost in dollars of model access, from the dated rates in
 # costs/go-rates.tsv (USD per 1M tokens; a blank rate counts as 0). $null for
 # a model with no rate row - every local seat, today. Reasoning tokens are
@@ -2198,6 +2229,10 @@ foreach ($tk in $tasksToRun) {
     if ($outsideWrites.Count -gt 0) {
         Write-Host ("    WARN: {0} write(s) outside the worktree (recorded as outsideWrites, not graded): {1}" -f $outsideWrites.Count, (($outsideWrites | ForEach-Object { "$($_.tool) $($_.path)" }) -join "; ")) -ForegroundColor Yellow
     }
+    $toolErrors = Get-ToolErrors -Path $(if ($transcriptFileField) { $transcriptDest } else { $run.TranscriptPath })
+    if ($toolErrors.allFailing.Count -gt 0) {
+        Write-Host ("    WARN: every call of {0} errored - check this machine's tools before trusting the row (recorded as toolErrors, not graded)" -f (($toolErrors.allFailing | ForEach-Object { "$_ ($($toolErrors.byTool.$_.calls))" }) -join ", ")) -ForegroundColor Yellow
+    }
     if ($runCost) {
         Write-Host ("    model access: about `${0:N4} ({1:N0} input, {2:N0} cached, {3:N0} output tokens; rates checked {4})" -f $runCost.usd, $runUsage.input, $runUsage.cacheRead, $runUsage.output, $runCost.rateChecked) -ForegroundColor DarkGray
     }
@@ -2275,6 +2310,9 @@ foreach ($tk in $tasksToRun) {
         # .ToArray(), not @(): @() around an empty generic List inside a hashtable
         # literal throws "Argument types do not match".
         outsideWrites   = $outsideWrites.ToArray()
+        # Errored tool calls per tool, and any tool that failed every call
+        # (Get-ToolErrors). Rows before 2026-10-21 have no such field.
+        toolErrors      = $toolErrors
     }
     Set-Content -LiteralPath $runFile -Value ($result | ConvertTo-Json -Depth 6) -Encoding utf8
 
