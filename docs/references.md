@@ -157,6 +157,32 @@ Where used: all six → [methodology-research.md](methodology-research.md) → "
 (2026-10-21)"; `anthropic-evals` also → AGENTS.md (`tests/summarize-rounds.ps1`). OpenAI's "Unrolling the Codex agent
 loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.
 
+## Model landscape (2026-10-22)
+
+Vendor and aggregator pages: they move weekly, so re-read before acting on them.
+
+| ID | Source | URL |
+|---|---|---|
+| fireworks-deepseek | "DeepSeek Models: V3.2, R1, Distills, and Production Caveats", Fireworks AI (read 2026-10-22) — R1 distills 1.5B to 70B (Qwen- and Llama-based); tool calling: R1 no, R1-0528 yes, distills "Varies; parsing issues reported" | <https://fireworks.ai/blog/deepseek-models> |
+| digitalapplied-h1-2026 | "Open-Weight Models H1 2026: DeepSeek, Qwen, Llama Recap", Digital Applied (read 2026-10-22) — DeepSeek V4 Preview 2026-04-24; V4-Pro 1.6T / 49B active, V4-Flash 284B / 13B active | <https://www.digitalapplied.com/blog/open-weight-models-h1-2026-retrospective-deepseek-qwen-llama> |
+| localaimaster-16gb | "Best Ollama Models for 16GB VRAM (2026)", LocalAIMaster, 2026-07-07, updated August 2026 (read 2026-10-22) — `gpt-oss:20b` first; Devstral 24B for agentic coding at short context | <https://localaimaster.com/vram/best-ollama-models-16gb-vram> |
+
+Where used: all three → [roadmap.md](roadmap.md) → "After the trial" item 9.
+
+## Side-project tools (2026-10-22)
+
+Project pages, read once for [fleet-side-projects.md](fleet-side-projects.md); re-read before installing anything.
+
+| ID | Source | URL |
+|---|---|---|
+| comfyui | ComfyUI, GitHub README (read 2026-10-22) — NVIDIA (CUDA), AMD on Windows and Linux, Intel XPU, Apple Silicon; video models incl. Wan 2.1/2.2, LTX-Video 2, HunyuanVideo 1.5, CogVideoX, Mochi | <https://github.com/comfyanonymous/ComfyUI> |
+| wan22 | Wan2.2, GitHub README (read 2026-10-22) — A14B MoE models need at least 80 GB on one GPU; TI2V-5B at least 24 GB with offload flags | <https://github.com/Wan-Video/Wan2.2> |
+| sam2 | SAM 2, Meta, GitHub README (read 2026-10-22) — prompt on one frame, masks propagated through the video | <https://github.com/facebookresearch/sam2> |
+| gsplat | gsplat, Nerfstudio, GitHub README (read 2026-10-22) — CUDA-accelerated Gaussian-splat rasterization | <https://github.com/nerfstudio-project/gsplat> |
+| faster-whisper | faster-whisper, SYSTRAN, GitHub README (read 2026-10-22) — CTranslate2, up to 4× faster than openai/whisper; CPU int8 or CUDA; no AMD listed | <https://github.com/SYSTRAN/faster-whisper> |
+| flamenco | Flamenco, Blender (read 2026-10-22) — open-source render manager, GPL 3.0, used in production by Blender Studio | <https://flamenco.blender.org/> |
+| immich-ml | Immich, "Hardware-Accelerated Machine Learning" (read 2026-10-22) — CUDA, ROCm, OpenVINO, ARM NN, RKNN; smart search and facial recognition | <https://docs.immich.app/features/ml-hardware-acceleration> |
+
 ## Another page to cite from
 
 If a source is new and not yet here, add a row in the matching table. If a

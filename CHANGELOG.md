@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model host and run host; six live and seven parked profiles; the global config ships two skill sources; the
   `llamacpp-*` providers; the desktop's Ollama is 0.34.3. No script changed.
 
+- **docs: the model sweep's case and plan, and the fleet's other uses (2026-10-22).** `docs/roadmap.md` → "After the
+  trial" item 9: why re-testing other model families makes sense on the mature harness and llama.cpp, the 2026-10-22
+  web check (DeepSeek's 2026 models, V4-Pro and V4-Flash, fit no machine here; the R1 distills are the local DeepSeek
+  option), and the staged probe → triage round → pass^k plan, set for after milestone 3's measurement. A new
+  `docs/fleet-side-projects.md` lists what else the hardware can run (video, images, audio, VFX, 3D, home-lab
+  services, LLM side projects) per machine, with CUDA as the constraint that makes the server and node3 the creative
+  machines. New sources are in `docs/references.md` ("Model landscape", "Side-project tools").
+
 - **tests: `-ShowAcceptance`, the model is given the tests it is graded on (milestone 3, 2026-10-22).** Real use has
   no hidden tests: the planner writes the failing test and the executor makes it pass, so that test is the only gate a
   dispatcher can select on (`docs/target-setup.md` milestones 3 and 4). With the switch, a task's `acceptance.dir` files
@@ -21,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out again after the run and grading is the hidden-test path unchanged, so a shown round compares directly with a
   hidden one on the same tasks. Rows need their own results folder (an `ACCEPTANCE-SHOWN` marker, like `ASSISTED`), are
   not mirrored publicly, and record `acceptanceShown`. New guard `tests/test-show-acceptance.ps1` (16 checks, 2 controls).
+
 - **chore: llama.cpp is the executor's engine; the launcher's default is `dev-workflow-server-llamacpp` (2026-10-22).**
   Owner's decision: on the 15 real tasks the server's llama-server scored 54 of 60 against Ollama's 47 (four reps
   each, read-budget plugin on), with no overflowing runs, which meets "Replacing Ollama" Phase 3's condition for
@@ -41,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only after the model's run. Every run JSON records `checkout`. New guard `tests/test-sealed-checkout.ps1` (19 checks;
   `main`'s worktree harness fails 12); `test-no-push.ps1`'s stand-in now adds its own GitHub remote, since the checkout has
   none. Rows from here on run in a new kind of checkout, though what the model can see of the base is unchanged.
+
 - **docs: the first rounds under stop classifier 3 (2026-10-21/22).** "After the trial" item 3 is done. Five
   server-served rounds (tools on node3 ×4, the desktop ×1) scored 57 of 75 (76% per run) against classifier 2's 47 of
   60 (78%), with the same 9 of 15 tasks passing every time and the same two never; classifier 3's `question` nudge did
@@ -169,6 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     staging checkout's `file:///` URL (`desktop/scripts/opencode-template.ps1`, shared with the guard). The CI runner and
     node3 can stage it from wherever the repo lives. No other script or guard reads the template.
   - **Guard:** `tests/test-sync-opencode.ps1` (61 checks, four controls).
+
 - **docs: the read-budget plugin, measured (2026-10-17/18).** The window ran on the server's llama-server under step 7's
   settings (nudged, classifier 2, 45-minute cap); the rows are private and assisted.
   - **`kane-08`: 2 of 3** (was 0 of 3, every run looping to the timeout). **`wp-4a`: 3 of 3** (was 2 of 3).
@@ -181,6 +192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and the template's `tool_output` comment.
   - **Also recorded:** OpenCode appends a folder's instruction file to the first read under it, so a capped read
     can return more than the cap (29,204 chars, of which 11.9 KB was `CLAUDE.md`).
+
 - **feat: read-budget plugin keeps one `read` from eating the window (the large-file fix, 2026-10-17).** `kane-08` read
   two files of 131 and 185 KB whole (opencode's `read` returns up to 50 KB a call), overflowed the 64k window,
   compacted and read them again 17 to 19 times a run until the 45-minute timeout, 3 of 3 runs, no edit.
@@ -192,6 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `readBudget` (`clamps`, `byReason`, `files`) in the run JSON; `Stop-AgentRunEnv` now returns `{ CompactionRewrites,
   ReadBudget }`. New guard `tests/test-read-budget.ps1` (99 checks, including a live run in the real opencode 1.18.34:
   a 130 KB read comes back as 17,486 chars). Not yet measured on a task: run JSONs from this change are a new era.
+
 - **fix: llama.cpp placement finds a seat whose router id was rewritten (found in the Phase 2 live window, 2026-10-16).**
   `Get-EngineGpuPlacement` (`tests/engines/llamacpp.ps1`) looked for `--alias <tag>` in `ps`, but llama-server's router
   (b11561) launches each child with `--alias <router id>` and rewrites colon ids, so `qwen3.6:35b-a3b-coding` (child
@@ -491,6 +504,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Phases 2–6 under "Replacing Ollama", which until now existed only in a planning session. `.gitignore` also gains
   `__pycache__/` and `*.pyc`: `tests/test-llamacpp-stack.ps1` imports `server/scripts/llamacpp_check.py`, so every
   machine that ran the guard was left with an untracked cache directory. Nothing else runs differently.
+
 - **The llama.cpp engine trial, Phase 0: protocol, server stack and tools (2026-10-12).** The owner approved Phases 0 and 1
   of replacing Ollama (server first, Ollama untouched). This is the repo half; nothing has run against a real server, because
   the session that wrote it could not reach one. Protocol, runbook and the pre-registered Gate G1 are in
@@ -586,6 +600,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Two of the four work-package misses (`wp-5a`, `wp-6f`) stopped with work undone and ran no test; the stop
     classifier (`Get-StopKind`) didn't read their closing sentences as a stop, and neither was a third run (`wp-3b`,
     which passed).
+
 - **Stop classifier 2: a `pending` kind (2026-10-12).** `Get-StopKind` in `tests/test-tasks.ps1` now also reads the
   last two sentences for work still to do or a wait ("Still need to…", "yet to", "I'll wait", "waiting for/on",
   "still running", "let me know when/once"). "Let me know if…" stays a sign-off. A scan of all 607 transcripts held

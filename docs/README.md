@@ -16,6 +16,7 @@ If you are new, start with [start-here.md](start-here.md).
 - **[hardware.md](hardware.md)**: the hardware, and measured VRAM and throughput per model.
 - **[network-topology.md](network-topology.md)**: LAN layout, ports, and firewall rules.
 - **[model-architecture.md](model-architecture.md)**: which models run where, and why.
+- **[fleet-side-projects.md](fleet-side-projects.md)**: what else the hardware can do (video, VFX, 3D, home-lab services), per machine. A planning list; nothing is scheduled.
 
 ## Engine trial and benchmarks
 
