@@ -383,7 +383,35 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    capability; its 32k context and 4096-token output limit are unchanged. Details in
    [`tests/results/README.md`](../tests/results/README.md) → "node3's `qwen3:8b` re-run". node3 then moved itself to
    Ollama 0.40.4 (2026-10-14) and now has the desktop's update block.
-3. **The first round under stop classifier 3** (the trial pins classifier 2, so this waits).
+3. ~~**The first rounds under stop classifier 3.**~~ **Done 2026-10-21/22: no measurable change, and its new nudge
+   never fired.** The 15-task round (Ollama, read-budget plugin on, assisted, `-StopClassifier 3`), private results
+   `ollama-classifier3`, `ollama-classifier3-node3` and `ollama-classifier3-desktopgpu`; summarised with
+   `tests/summarize-rounds.ps1`.
+
+   | `qwen3.6` served by | rounds | per run | every run (pass^k) | never |
+   |---|---|---|---|---|
+   | the server, classifier 3 (tools on node3 ×4, the desktop ×1) | 12, 11, 9, 13, 12 | 57 of 75 (76%) | 9 of 15 | `real-02`, `wp-5b` |
+   | the server, classifier 2 (the four plugin-on reps, tools on the desktop) | 12, 12, 11, 12 | 47 of 60 (78%) | 9 of 15 | `real-02`, `wp-5b` |
+   | the desktop's own GPU, classifier 3 | 12 of 15, then 10 of 10 | 22 of 25 (88%) | 12 of 15 (one run only for 5 tasks) | `wp-5a`, `wp-5b`, `wp-7a` (one run each) |
+
+   - **Classifier 3's `question` kind did not fire in any of the 100 runs.** The nudges sent were the kinds classifier 2
+     already had (46 `empty`, 8 `announce`, 1 `pending`), so these rows say nothing for or against it: on these tasks the
+     model does not end on a question before editing. It stays the default (harmless, and it covers the two endings
+     that prompted it); a task set that provokes that ending is what would test it.
+   - **The same nine tasks pass every time under both classifiers**, and the same two never do. The rounds spread 9 to 13,
+     so a single round is a weak reading: compare rounds by pass^k over several, not by one score.
+   - **`real-02` passed both runs with the model on the desktop's GPU.** With the same weights (digest `09bacb37217c` on
+     both hosts) and the same sampling parameters, it has passed 3 of 9 runs served by the desktop, 1 of 16 by the server's
+     Ollama and 2 of 9 by its llama.cpp. A split that lopsided comes up about 12% of the time by chance (hypergeometric,
+     3 or more of the 4 passes in the desktop's 9), so it is a lead, not a finding; what differs is the backend (Vulkan
+     against CUDA) and the machine. A deliberate test (the task several times on each host) would settle it.
+   - **The desktop as a model host:** 88% per run on 25 runs, at about a third of the server's speed (its first round took
+     6 h, against about 2 h on the server), on memory the crash dumps suspect (`MEMORY_CORRUPTION_ONE_BIT`, 2026-10-21).
+     It served the round without a crash, with 2 to 3 GB of RAM free most of the night. Its second round was cut at 10
+     tasks by the scheduled task's own 8-hour limit (shorter than the round script's deadline); no run was lost but the
+     one in progress.
+   - Every run had the seat on a GPU (`gpuPlacement` gpu, 100 of 100), the tools check passed before every task, and the
+     85 runs on `61288d7` record `toolErrors`: 1.7% of calls errored and no tool failed every call.
 4. **An option to put task worktrees outside the checkout.** In round 2, `real-01` edited the checkout's own
    `AGENTS.md` one directory up (step 3). Once in 60 runs: a suspect, but the fix is cheap. It waits because the trial
    holds the layout constant.
