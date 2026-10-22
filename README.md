@@ -1,8 +1,8 @@
 # HomeLab
 
 A documented homelab that uses a few home machines as one local LLM coding setup.
-Models run on the Ubuntu server and the Windows desktop. OpenCode, a terminal
-coding agent, runs on the desktop and uses those models.
+Models run on the Ubuntu server and on two Windows PCs (the desktop and node3).
+OpenCode, a terminal coding agent, runs on the desktop and uses those models.
 
 The goal is that every machine in the house works as interchangeable compute
 behind one coding-agent experience. The plan is in
@@ -74,7 +74,7 @@ never made. Probe any model before you seat it:
 .\tests\test-toolcalls.ps1 -Model qwen3:8b
 ```
 
-13 of the 22 models probed pass. A probe pass is necessary, not sufficient. Which seat lands real edits is measured separately in
+13 of the 22 models probed pass (on Ollama 0.34.2/0.34.3, 2026-09-22/23). A probe pass is necessary, not sufficient. Which seat lands real edits is measured separately in
 [docs/roadmap.md](docs/roadmap.md) (Executor standings).
 
 ## Repo layout

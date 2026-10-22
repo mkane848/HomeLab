@@ -41,7 +41,8 @@ context size into each model it manages and prints the contract:
 
 It prints a "Context contract" table that must match `limit.context` in
 `opencode.jsonc`. The sizes are set in `$contextModels` in `startup.ps1`:
-65536 for the six MoE and hybrid executor seats (including `qwen3.6`), 32768
+65536 for `qwen3.6:35b-a3b-coding`, `qwen3-coder:30b-a3b`, `qwen3.5:9b`,
+`north-mini-code-1.0`, `laguna-xs-2.1` and `nemotron-3.5-lightning`, 32768
 for `qwen3:14b`, `qwen3:8b`, `qwen2.5-coder:14b` and the devstral pair, and
 16384 for the rest.
 
