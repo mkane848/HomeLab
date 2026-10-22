@@ -676,6 +676,100 @@ function Test-Guardrails {
     return [pscustomobject]@{ Ok = ($problems.Count -eq 0); Detail = $detail; Hits = $hits; Files = $count; Lines = $Lines }
 }
 
+# A task's checkout holds only the pinned base's own history ("sealed"). It
+# used to be a `git worktree` of the owner's real repo, which shares that
+# repo's whole object store and refs: every later commit, the task's real fix
+# (`acceptance.solution`) among them, the owner's other branches and stashes,
+# and the model's own commits from earlier trials in the reflog, all one `git
+# log --all` or `git show <sha>` away. Anthropic reports exactly that kind of
+# leak (a model reading git history from earlier trials; "Demystifying evals for
+# AI agents", 2026-01-09). A 2026-10-21 scan of 412 private transcripts found
+# one hosted run listing future commits (`git log --oneline --all` on wp-2b),
+# though not the fix. So before every run the checkout's `.git` is rebuilt: a
+# fresh repository that fetches just the base commit (and so its ancestry) from
+# the task repo over file://, checked out detached, with no branches, no tags
+# and no remote. The directory itself is kept, so `node_modules` and the
+# install marker survive; the rebuild costs about 3 s on the largest task repo.
+# The acceptance or solution commit is fetched into it only after the model's
+# run (Add-CommitToCheckout). Recorded in every run JSON as `checkout`.
+function Get-CommitBundle {
+    # A git bundle of one commit and its ancestry, cached by SHA under
+    # tests/.worktrees/.bundles (a commit never changes, so the file is reused).
+    # Not a file:// fetch: that runs `git upload-pack` against the task repo,
+    # which refuses a repo owned by another account (LFCbot's .git on the desktop,
+    # 2026-10-22) whatever safe.directory the caller passes, because a local fetch
+    # clears the GIT_CONFIG_* environment for upload-pack. `git bundle create` is
+    # an ordinary command in the repo. A bundle needs a ref name, so one is made
+    # under refs/homelab-seal/ for the moment it takes and deleted again.
+    param([string]$Repo, [string]$Sha)
+    $dir = Join-Path $wtRoot ".bundles"
+    $path = Join-Path $dir "$Sha.bundle"
+    if (Test-Path -LiteralPath $path) { return [pscustomobject]@{ Path = $path; Ref = "refs/homelab-seal/$Sha"; Error = $null } }
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    $ref = "refs/homelab-seal/$Sha"
+    $tmp = "$path.$PID.tmp"
+    $r = Run-Native "git" @("-C", $Repo, "update-ref", $ref, $Sha)
+    if ($r.ExitCode -ne 0) { return [pscustomobject]@{ Path = $null; Ref = $ref; Error = "git update-ref failed: $($r.Output -join ' ')" } }
+    try {
+        $r = Run-Native "git" @("-C", $Repo, "bundle", "create", $tmp, $ref)
+    } finally {
+        Run-Native "git" @("-C", $Repo, "update-ref", "-d", $ref) | Out-Null
+    }
+    if ($r.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $tmp)) {
+        Remove-Item -LiteralPath $tmp -ErrorAction SilentlyContinue
+        return [pscustomobject]@{ Path = $null; Ref = $ref; Error = "git bundle create failed: $($r.Output -join ' ')" }
+    }
+    Move-Item -LiteralPath $tmp -Destination $path -Force
+    return [pscustomobject]@{ Path = $path; Ref = $ref; Error = $null }
+}
+
+function Add-CommitToCheckout {
+    # Fetch one commit (and its ancestry) from the task repo into a sealed
+    # checkout, through Get-CommitBundle. After the base, only ever called
+    # after the model's run.
+    param([string]$Repo, [string]$WtPath, [string]$Sha)
+    $b = Get-CommitBundle -Repo $Repo -Sha $Sha
+    if (-not $b.Path) { return [pscustomobject]@{ ExitCode = 1; Output = @($b.Error) } }
+    return Run-Native "git" @("-C", $WtPath, "fetch", "--quiet", "--no-tags", $b.Path, $b.Ref)
+}
+
+function Initialize-SealedCheckout {
+    # Rebuild $WtPath's git repository so it holds only $Head's history. Returns
+    # @{ Ok; Detail; Commits; Seconds; Fresh } (Fresh: the directory was new or
+    # replaced, so an install is due).
+    param([string]$Repo, [string]$WtPath, [string]$Head)
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $fresh = $false
+    # An old-style worktree of the task repo (a `.git` file pointing back into
+    # it) is removed and its registration pruned; the directory is rebuilt.
+    $gitPath = Join-Path $WtPath ".git"
+    if ((Test-Path -LiteralPath $gitPath -PathType Leaf) -or (Get-WorktreeState $Repo $WtPath)) {
+        Run-Native "git" @("-C", $Repo, "worktree", "remove", "--force", $WtPath) | Out-Null
+        if (Test-Path -LiteralPath $WtPath) { Remove-Item -Recurse -Force -LiteralPath $WtPath }
+        Run-Native "git" @("-C", $Repo, "worktree", "prune") | Out-Null
+    }
+    if (-not (Test-Path -LiteralPath $WtPath)) {
+        New-Item -ItemType Directory -Path $WtPath -Force | Out-Null
+        $fresh = $true
+    }
+    if (Test-Path -LiteralPath $gitPath) { Remove-Item -Recurse -Force -LiteralPath $gitPath }
+    $r = Run-Native "git" @("-C", $WtPath, "init", "--quiet")
+    if ($r.ExitCode -ne 0) { return [pscustomobject]@{ Ok = $false; Fresh = $fresh; Detail = "git init failed: $($r.Output -join ' ')" } }
+    # The task repo's own line-ending and identity settings, so the checkout's
+    # bytes match a worktree's (node3's system git defaults to CRLF; its task
+    # repos set core.autocrlf false) and a model's commit has an author.
+    foreach ($key in "core.autocrlf", "core.eol", "core.longpaths", "user.name", "user.email") {
+        $v = (Run-Native "git" @("-C", $Repo, "config", "--get", $key)).Output | Select-Object -First 1
+        if ($v) { Run-Native "git" @("-C", $WtPath, "config", $key, "$v".Trim()) | Out-Null }
+    }
+    $r = Add-CommitToCheckout -Repo $Repo -WtPath $WtPath -Sha $Head
+    if ($r.ExitCode -ne 0) { return [pscustomobject]@{ Ok = $false; Fresh = $fresh; Detail = "fetching the base $Head failed: $($r.Output -join ' ')" } }
+    $r = Run-Native "git" @("-C", $WtPath, "checkout", "--quiet", "--force", "--detach", $Head)
+    if ($r.ExitCode -ne 0) { return [pscustomobject]@{ Ok = $false; Fresh = $fresh; Detail = "checking out the base failed: $($r.Output -join ' ')" } }
+    $count = [int](((Run-Native "git" @("-C", $WtPath, "rev-list", "--count", "--all")).Output | Select-Object -First 1))
+    return [pscustomobject]@{ Ok = $true; Detail = $null; Commits = $count; Seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1); Fresh = $fresh }
+}
+
 function Ensure-Worktree {
     param($Task, [string]$WtPath)
 
@@ -691,40 +785,21 @@ function Ensure-Worktree {
     }
     if ($base.Warning) { Write-Result $Task.id "base" "WARN" $base.Warning }
     $head = $base.Head
-    $registered = Get-WorktreeState $repo $WtPath
+    $installed = if (Test-Path -LiteralPath $marker) { (Get-Content -LiteralPath $marker -Raw).Trim() } else { "" }
+    $sealed = $null
 
-    if (-not (Test-Path -LiteralPath $WtPath) -or -not $registered) {
-        if (Test-Path -LiteralPath $WtPath) {
-            # present-but-not-registered (e.g. leftover dir) - clear it; avoid
-            # deleting a registered worktree (git tracks it by path, so a bare
-            # Remove-Item leaves a stale "missing" registration that blocks add).
-            Remove-Item -Recurse -Force -LiteralPath $WtPath
-        } elseif ($registered) {
-            # registered but directory already gone (earlier failed run) - clear
-            # the stale record so `worktree add` can recreate the directory.
-            Run-Native "git" @("-C", $repo, "worktree", "prune") | Out-Null
-        }
-        Write-Host "    adding throwaway worktree at $head (detached)..." -ForegroundColor DarkGray
-        $r = Run-Native "git" @("-C", $repo, "worktree", "add", "--detach", $WtPath, $base.Ref)
-        if ($r.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $WtPath)) {
-            Write-Result $Task.id "worktree" "FAIL" "git worktree add failed: $($r.Output -join ' ')"
+    if ($NoReset -and (Test-Path -LiteralPath (Join-Path $WtPath ".git") -PathType Container)) {
+        Write-Host "    -NoReset: starting from the checkout's current state" -ForegroundColor DarkGray
+    } else {
+        $sealed = Initialize-SealedCheckout -Repo $repo -WtPath $WtPath -Head $head
+        # A directory made new is not installed, even when the rebuild then fails:
+        # the next attempt must not trust an old marker.
+        if ($sealed.Fresh) { Remove-Item -LiteralPath $marker -ErrorAction SilentlyContinue; $installed = "" }
+        if (-not $sealed.Ok) {
+            Write-Result $Task.id "worktree" "FAIL" $sealed.Detail
             return $null
         }
-        $installed = ""
-    } else {
-        $installed = if (Test-Path -LiteralPath $marker) {
-            (Get-Content -LiteralPath $marker -Raw).Trim()
-        } else { "" }
-    }
-
-    if ($NoReset) {
-        Write-Host "    -NoReset: starting from the worktree's current state" -ForegroundColor DarkGray
-    } else {
-        $r = Run-Native "git" @("-C", $WtPath, "reset", "--hard", $head)
-        if ($r.ExitCode -ne 0) {
-            Write-Result $Task.id "worktree" "FAIL" "git reset --hard failed"
-            return $null
-        }
+        Write-Host ("    sealed checkout at {0}: {1} commits of history, nothing after the base ({2} s)" -f $head.Substring(0, 10), $sealed.Commits, $sealed.Seconds) -ForegroundColor DarkGray
         $r = Run-Native "git" @("-C", $WtPath, "clean", "-fd")
     }
 
@@ -773,7 +848,8 @@ function Ensure-Worktree {
         if (@($Task.setup | Where-Object { $_ }).Count -gt 0) { $setupSec = [math]::Round($swSetup.Elapsed.TotalSeconds, 1) }
         Set-Content -LiteralPath $marker -Value $head -Encoding ascii
     }
-    return [pscustomobject]@{ Wt = $WtPath; Head = $head; InstallSec = $installSec; SetupSec = $setupSec }
+    $checkout = if ($sealed) { [ordered]@{ kind = "sealed"; commits = $sealed.Commits; seconds = $sealed.Seconds } } else { [ordered]@{ kind = "kept (-NoReset)"; commits = $null; seconds = $null } }
+    return [pscustomobject]@{ Wt = $WtPath; Head = $head; InstallSec = $installSec; SetupSec = $setupSec; Checkout = $checkout }
 }
 
 # A task's `testEnv` pins the environment its test command and the model's own
@@ -1057,7 +1133,10 @@ function Invoke-Acceptance {
         }
         $co = [pscustomobject]@{ ExitCode = $(if ($placeErr) { 1 } else { 0 }); Output = @($placeErr) }
     } else {
-        $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files)
+        # A sealed checkout holds only the base's history: the acceptance commit
+        # comes in now, after the model's run (or under -DryRun, with no model).
+        $co = Add-CommitToCheckout -Repo $Task.repo -WtPath $WtPath -Sha $sha
+        if ($co.ExitCode -eq 0) { $co = Run-Native "git" (@("-C", $WtPath, "checkout", $sha, "--") + $files) }
     }
     if ($co.ExitCode -ne 0) {
         $result = & $mk "ERROR" "placing the acceptance files failed: $($co.Output -join ' ')"
@@ -1764,7 +1843,8 @@ foreach ($tk in $tasksToRun) {
             # (`acceptance.solution`): its hidden tests must PASS there, or they
             # ask for something the owner never got either.
             if ($tk.acceptance.solution) {
-                $co = Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $tk.acceptance.solution)
+                $co = Add-CommitToCheckout -Repo $tk.repo -WtPath $wt.Wt -Sha $tk.acceptance.solution
+                if ($co.ExitCode -eq 0) { $co = Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $tk.acceptance.solution) }
                 if ($co.ExitCode -ne 0) {
                     Write-Result $tk.id "acceptance (passes on solution)" "WARN" "cannot check out acceptance.solution $($tk.acceptance.solution): $($co.Output -join ' ')"
                 } else {
@@ -2284,6 +2364,10 @@ foreach ($tk in $tasksToRun) {
         repoPath        = $tk.repo
         repoManifestPath = $(if ($tk.PSObject.Properties['manifestRepo']) { $tk.manifestRepo } else { $null })
         phaseSeconds    = $phaseSec
+        # The checkout the model worked in (Initialize-SealedCheckout): kind
+        # "sealed" holds only the base's history, `commits` of it. Rows before
+        # 2026-10-22 ran in a git worktree of the real repo and have no field.
+        checkout        = $wt.Checkout
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.

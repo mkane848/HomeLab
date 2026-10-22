@@ -109,7 +109,9 @@ if ($a[0] -eq '--version') { '9.9.9-fixture'; exit 0 }
 if ($a[0] -eq 'debug') { '{}'; exit 0 }
 if ($a[0] -ne 'run') { exit 2 }
 $dir = $a[[array]::IndexOf($a, '--dir') + 1]
-Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("push=" + (git -C $dir remote get-url --push origin))
+Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("remotes=" + ((git -C $dir remote) -join ","))
+git -C $dir remote add mine "https://github.com/example/real.git" 2>$null
+Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("push=" + (git -C $dir remote get-url --push mine))
 Add-Content -LiteralPath $env:FIXTURE_SEEN -Value ("gh=" + $env:GH_TOKEN)
 Set-Content -LiteralPath (Join-Path $dir 'src.txt') -Value 'fixed'
 '{"type":"tool_use","sessionID":"s","part":{"tool":"edit","state":{"status":"completed","input":{"filePath":"src.txt"},"output":"ok"}}}'
@@ -129,7 +131,8 @@ exit 0
     }
     $seen = @(Get-Content -LiteralPath (Join-Path $e2e "seen.txt"))
     $j = Get-ChildItem (Join-Path $e2e "tests/results") -Filter "tasks-fx-nopush-*.json" | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
-    Check "the model's process sees origin pushing nowhere"     (($seen | Where-Object { $_ -like 'push=*' }) -replace '^push=', '').StartsWith($script:NoPushHost) "True"
+    Check "the sealed checkout has no remote of its own"       ($seen | Where-Object { $_ -like 'remotes=*' }) "remotes="
+    Check "...and a GitHub remote the model adds pushes nowhere" (($seen | Where-Object { $_ -like 'push=*' }) -replace '^push=', '').StartsWith($script:NoPushHost) "True"
     Check "...and a rejected gh token"                          ($seen | Where-Object { $_ -like 'gh=*' }) "gh=push-disabled-by-test-tasks"
     Check "the run JSON records the guard"                      ("$($j.pushGuard)" -like 'on *') "True"
     Check "the harness process gets its environment back"       ([string]::IsNullOrEmpty($env:GH_TOKEN) -and [string]::IsNullOrEmpty($env:GIT_CONFIG_COUNT)) "True"

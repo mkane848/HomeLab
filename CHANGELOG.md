@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a task's checkout holds only its base's history (2026-10-22).** The checkout under `tests/.worktrees/<id>`
+  was a `git worktree` of the owner's real repo, so every later commit (the task's real fix among them), the owner's
+  other branches and stashes, and the model's own commits from earlier trials were one `git log --all` or `git show` away;
+  a 2026-10-21 scan found one hosted run listing future commits (not the fix), and Anthropic's evals guide reports the
+  same kind of leak. Before every run the checkout's `.git` is now rebuilt from the pinned base alone (no branch, tag,
+  stash or remote; HEAD detached), from git bundles cached by SHA, because `upload-pack` refuses LFCbot's `.git` (owned by
+  another account) whatever `safe.directory` is passed. `node_modules` survives; the acceptance or solution commit comes in
+  only after the model's run. Every run JSON records `checkout`. New guard `tests/test-sealed-checkout.ps1` (20 checks;
+  `main`'s worktree harness fails 12); `test-no-push.ps1`'s stand-in now adds its own GitHub remote, since the checkout has
+  none. Rows from here on run in a new kind of checkout, though what the model can see of the base is unchanged.
+
 - **tests: record tool errors per run, and report pass^k (2026-10-21).** Every run JSON now records `toolErrors`
   (calls, errors, per tool, and `allFailing`: tools called at least 3 times that errored every time), and the console
   warns on `allFailing`. It is never graded. Over the 412 private transcripts held, the rule flags exactly the 9 runs of
