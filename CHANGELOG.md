@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: `-ShowAcceptance` graded the suite against stale copies of the given tests (2026-10-22).** When a task's
+  acceptance folder replaces a test file the base already has (`wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`), the harness put
+  the base's copy back before the suite. That copy asserts the old behaviour, and the model had been told not to touch
+  the file, so a correct fix failed the suite: in the first shown rounds `wp-0a` and `wp-5a` passed their acceptance
+  tests and failed the suite in every run, while hidden runs, which update those files themselves, passed. Such a file
+  now keeps its given bytes while the suite and fails-on-old run and is checked out from the base after. The shown rows
+  of those four tasks from before this change are not comparable; the other 11 tasks are unaffected. Guard:
+  `tests/test-show-acceptance.ps1`, 19 checks (was 16); the harness without the fix fails the new suite check.
+
 - **tests: `-ShowAcceptance`, the model is given the tests it is graded on (milestone 3, 2026-10-22).** Real use has
   no hidden tests: the planner writes the failing test and the executor makes it pass, so that test is the only gate a
   dispatcher can select on (`docs/target-setup.md` milestones 3 and 4). With the switch, a task's `acceptance.dir` files

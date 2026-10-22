@@ -1142,7 +1142,9 @@ function Add-ShownAcceptance {
 # After the run: which shipped files the model changed or removed, then the
 # checkout put back as a hidden-test run would leave it (a file the base had is
 # checked out from the base, one it lacked is deleted), so every gate after
-# this sees only the model's own change. Returns the tampered paths.
+# this sees only the model's own change. Returns the tampered paths. The suite
+# and fails-on-old gates put a file the base had back to its given bytes while
+# they run (grade 2), because the base's copy of it is stale.
 function Remove-ShownAcceptance {
     param($Shown, [string]$WtPath, [string]$Head)
     $tampered = @()
@@ -2237,6 +2239,14 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 2: suite green on the model's change ---------------------------
+    # -ShowAcceptance: a given test file the base already had stands in for the
+    # base's copy while the suite (and fails-on-old) run. The model was told to
+    # leave it alone, so the base's copy still asserts the old behaviour, and a
+    # correct fix failed it: wp-0a and wp-5a (2026-10-22) passed their acceptance
+    # tests and failed the suite on exactly those stale files, while the hidden
+    # runs, free to update them, passed. Put back after grade 3.
+    $shownInBase = @(if ($shown) { $shown.Files | Where-Object InBase })
+    foreach ($f in $shownInBase) { [System.IO.File]::WriteAllBytes((Join-Path $wt.Wt $f.Rel), $f.Bytes) }
     $swPhase.Restart()
     $suite = Invoke-Test $tk $wt.Wt
     $phaseSec.suite = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
@@ -2316,6 +2326,7 @@ foreach ($tk in $tasksToRun) {
             Write-Result $tk.id "fails-on-old" "WARN" "the model's source files were NOT restored byte for byte after the revert - inspect $($wt.Wt) before trusting the later steps"
         }
     }
+    foreach ($f in $shownInBase) { Run-Native "git" @("-C", $wt.Wt, "checkout", $wt.Head, "--", $f.Rel) | Out-Null }
 
     # --- grade 4 (informational): scoped typecheck ----------------------------
     # Tri-state, because "did not run" and "compiled cleanly" are not the same
