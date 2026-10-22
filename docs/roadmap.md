@@ -431,6 +431,33 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    for the cutover: the server-side half of Phase 3 (the stack primary with a restart policy, `status.sh`, `startup.sh`,
    the systemd unit), and the placement check from node3, which has no ssh key for the server, so a round driven from
    there records llama.cpp's GPU placement as unchecked.
+9. **Re-test other model families on the mature harness (owner's go 2026-10-22, after milestone 3's measurement).**
+   - **Why the old verdicts are stale:** most candidates got 1 to 8 runs, on a harness that still graded environment
+     faults (unreachable endpoints, truncated prompts, output-cap hits) as model weakness. They were also run on
+     Ollama's chat templates, and llama.cpp applies each model's own. The `deepseek-r1` family's probe FAIL (prose,
+     no tool call) is the case most likely to change: one catalogue lists the R1 distills' tool calling as "Varies;
+     parsing issues reported", from the serving layer, and R1-0528's as supported
+     ([Fireworks, DeepSeek models](https://fireworks.ai/blog/deepseek-models)).
+   - **Web check, 2026-10-22:** nothing newer that fits 16 GB.
+     - DeepSeek's 2026 release is the V4 family (Preview 2026-04-24): V4-Pro is 1.6T parameters with 49B active, and
+       V4-Flash 284B with 13B active ([Digital Applied, H1 2026 recap](https://www.digitalapplied.com/blog/open-weight-models-h1-2026-retrospective-deepseek-qwen-llama)).
+       Neither fits a machine here, so DeepSeek locally means the R1 distills, which are reasoning models, not agent
+       models.
+     - A 16 GB guide puts `gpt-oss:20b` first and Devstral 24B as the agentic coder at short context
+       ([LocalAIMaster, 16 GB](https://localaimaster.com/vram/best-ollama-models-16gb-vram)).
+   - **Steps:**
+     1. A probe sweep on the server's llama.cpp (`test-toolcalls.ps1 -Engine llamacpp`, one preset seat per
+        candidate on its Ollama blob), minutes each, no task runs. Candidates:
+        - `gpt-oss:20b`: 13.3 GB, never probed; pull it first;
+        - `deepseek-r1:14b` (on the server) and `deepseek-r1-0528:8b` (a desktop import);
+        - `devstral-small-2:24b`, `qwen3-coder:30b-a3b`, `nemotron-3.5-lightning`, `laguna-xs-2.1` and
+          `north-mini-code-1.0`.
+     2. One sealed, hidden 15-task round per probe PASS, driven from node3 with classifier 3, as triage against
+        qwen3.6's llama.cpp rounds.
+     3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
+     4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
+   - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in
+     [fleet-side-projects.md](fleet-side-projects.md). None is scheduled.
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.
