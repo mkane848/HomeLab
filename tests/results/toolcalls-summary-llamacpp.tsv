@@ -4,3 +4,11 @@ timestamp	host	engine	engineVersion	model	status	sec	detail
 2026-10-13T17:27:50	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	PASS	2.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
 2026-10-16T14:23:51	server	llamacpp	b11561-e937b17a2	qwen3:8b	PASS	4.5	tool_calls -> write_file {"path": "a.txt", "content": "hello"}
 2026-10-16T14:24:04	server	llamacpp	b11561-e937b17a2	qwen3.6:35b-a3b-coding	PASS	13	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-10-23T17:14:06	server	llamacpp	b11561-e937b17a2	deepseek-r1:14b	FAIL	13.7	ignored the tool entirely -> [To write the text 'hello' to a file named `a.txt`, you can use various tools depending on your operating syste...]
+2026-10-23T17:28:36	server	llamacpp	b11561-e937b17a2	gpt-oss:20b	FAIL	10.7	ignored the tool entirely -> [Sure! The task: "Write the text 'hello' to a file named a.txt. Use the tool." We have a tool to write to file....]
+2026-10-23T17:28:44	server	llamacpp	b11561-e937b17a2	deepseek-r1:8b	FAIL	8.4	ignored the tool entirely -> [To write the text "hello" to a file named `a.txt`, you can use a text editor or command-line tools depending o...]
+2026-10-23T17:29:01	server	llamacpp	b11561-e937b17a2	nemotron-3.5-lightning	PASS	16.1	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-10-23T17:29:12	server	llamacpp	b11561-e937b17a2	laguna-xs-2.1	PASS	11.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
+2026-10-23T17:29:27	server	llamacpp	b11561-e937b17a2	north-mini-code-1.0	PASS	14.8	tool_calls -> write_file {"path": "a.txt", "content": "hello"}
+2026-10-23T17:30:18	server	llamacpp	b11561-e937b17a2	gpt-oss:20b	PASS	4.2	tool_calls -> write_file {"content":"hello","path":"a.txt"}
+2026-10-23T17:37:33	server	llamacpp	b11561-e937b17a2	qwen3-coder:30b	PASS	11.3	tool_calls -> write_file {"path":"a.txt","content":"hello"}
