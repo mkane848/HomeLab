@@ -484,12 +484,36 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      - A 16 GB guide puts `gpt-oss:20b` first and Devstral 24B as the agentic coder at short context
        ([LocalAIMaster, 16 GB](https://localaimaster.com/vram/best-ollama-models-16gb-vram)).
    - **Steps:**
-     1. A probe sweep on the server's llama.cpp (`test-toolcalls.ps1 -Engine llamacpp`, one preset seat per
-        candidate on its Ollama blob), minutes each, no task runs. Candidates:
-        - `gpt-oss:20b`: 13.3 GB, never probed; pull it first;
-        - `deepseek-r1:14b` (on the server) and `deepseek-r1-0528:8b` (a desktop import);
-        - `devstral-small-2:24b`, `qwen3-coder:30b-a3b`, `nemotron-3.5-lightning`, `laguna-xs-2.1` and
-          `north-mini-code-1.0`.
+     1. ~~A probe sweep on the server's llama.cpp.~~ **Done 2026-10-23: five PASS, the DeepSeek distills FAIL on
+        their own templates, one could not load.** `test-toolcalls.ps1 -Engine llamacpp`, build b11561, driven from
+        node3, a temporary preset seat per candidate (c 16384, experts on the CPU for the large MoE models), then the
+        original preset restored. Rows in `tests/results/toolcalls-summary-llamacpp.tsv`.
+
+        | Model | Result | Weights |
+        |---|---|---|
+        | `gpt-oss:20b` | PASS, 4.2 s, with llama.cpp's official template (FAIL without it) | pulled to the server |
+        | `qwen3-coder:30b` | PASS | the registry build, not the desktop's earlier import |
+        | `nemotron-3.5-lightning`, `laguna-xs-2.1`, `north-mini-code-1.0` | PASS | the desktop's own blobs, copied |
+        | `deepseek-r1:14b`, `deepseek-r1:8b` (the 0528 distill) | FAIL: prose, no tool call | server copy; pulled |
+        | `devstral-small-2:24b` | did not load | pulled |
+
+        - **DeepSeek locally is settled: the weights do not call tools.** Both distills ran with their own templates,
+          which do support tools (llama.cpp's `/props` showed DeepSeek's template, tool sections included), and both
+          answered in prose exactly as on Ollama. So the serving-layer explanation above does not apply here; hosted
+          V4 (step 4) is the only DeepSeek left to try.
+        - **`gpt-oss:20b` is the new candidate.** Ollama's copy of its weights carries no usable chat template
+          (llama.cpp fell back to a generic one with no tools, and the model's reasoning leaked into its answer), so
+          its first probe failed. With llama.cpp's
+          [`openai-gpt-oss-120b.jinja`](https://github.com/ggml-org/llama.cpp/blob/master/models/templates/openai-gpt-oss-120b.jinja)
+          set as `chat-template-file`, it passed. A permanent seat needs that file mounted beside the preset (the
+          compose file mounts only `models.ini` today). It is 13.3 GB, so it fits the 16 GB card whole, unlike qwen3.6.
+        - **`devstral-small-2:24b` cannot be served from Ollama's blob:** llama.cpp stops with "wrong number of
+          tensors; expected 585, got 363", Ollama's bundling of its vision tensors. Probing it on llama.cpp needs the
+          upstream GGUF. It passed the probe on Ollama (2026-09-22).
+        - Loose ends on the server: the four pulled models stay in Ollama's store; the three copied blobs have no Ollama
+          manifest, so an Ollama restart may prune them (re-copy if a round needs them); the sweep's preset is kept as
+          `server/llamacpp/sweep-models.ini-20261023` in the server's checkout, and the template as
+          `~/sweep-blobs/gpt-oss.jinja`.
      2. One sealed, hidden 15-task round per probe PASS, driven from node3 with classifier 3, as triage against
         qwen3.6's llama.cpp rounds.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
