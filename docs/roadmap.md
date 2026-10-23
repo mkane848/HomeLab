@@ -430,6 +430,19 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    that the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
    test before a dispatcher can pick the passing attempt. Milestone 3 answered it (item 10): with the tests shown,
    pass@3 is 15 of 15, and the shown test is a gate a dispatcher can run.
+   **Design (2026-10-23): retry on failure, not N at once.**
+   - **The loop:** run one attempt with the planner's test shown; accept it when the given test passes, the files are
+     untouched and the suite is green; otherwise start a fresh attempt (a new sealed checkout, not a continuation), up
+     to a cap.
+   - **Why sequential:** at 98% per run, with the one failure caught by the tamper check, this needs about 1.02 attempts
+     per task here. N parallel attempts would mostly burn compute, and the second run host stays free for other work.
+   - **When parallel earns its place:** once a real planner's weaker tests lower the first-attempt rate (milestone 5),
+     or when wall-clock matters more than compute. Then N attempts on node3 and the desktop, the first accepted wins.
+   - **What it must record:** attempts per task, why each rejected attempt was rejected (test failing, tampered,
+     suite red, infrastructure), and the total time and tokens, so N and the cap are set from data.
+   - **The open risk:** here the given test and the grader were the same files, so "the given test passes" was a
+     perfect selector by construction. With a real planner an attempt can pass the planner's test and still be wrong;
+     that is what milestone 5's review step is for.
 7. **The desktop's role and "Replacing Ollama" Phase 4**, decided on Gate G1's result.
 8. **The engine: llama.cpp (owner, 2026-10-22).** The executor moves to the server's llama-server: on the 15 real tasks
    it scored 54 of 60 against Ollama's 47 (four reps each, read-budget plugin on), with 0 overflowing runs. The launcher's
@@ -493,7 +506,22 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
     - **The caveat that matters for real use:** the shown tests are the tasks' own hidden tests, written to grade a
       known-good fix, so this is the plan/execute split with a near-perfect planner. A planner's tests, written before
       the work, will be weaker; milestone 5 measures that.
-    - **Next:** milestone 4, best-of-N with the shown test as the selector (item 6). pass@3 is 1.00 shown.
+    - **Why it helps, from the runs (medians over the 45 runs of each arm):**
+      - **The test stops early "done".** Two of the five hidden failures were short and confident: `real-03` stopped
+        after 28 s with 1 edit, `real-02` after 124 s with 2. Given a test, the model runs it and works on until it is
+        green: the "declare the job done" failure of
+        [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents),
+        closed without a nudge.
+      - **On the hardest task it gives a target, not more effort.** Hidden `wp-5b` failed after real work (12 to
+        25 minutes, 9 to 10 edits, 2 or 3 compactions each). Shown it took longer (median 1,228 s against 812) and
+        passed every time.
+      - **Shown runs cost slightly more:** 203 s against 187 s, 27% more output tokens, 19% more input, 16 runs
+        compacting against 13. They make fewer edits (5 against 7), since the model no longer writes its own test.
+      - **The stop nudges are not the cause:** 2 nudged runs in each arm.
+      - **The tamper failure was a reworded comment in the given test**, followed by a correct fix that passed its
+        acceptance tests. The byte-for-byte check is right to reject it (a dispatcher should retry, not judge intent),
+        but "tampered" does not always mean "gamed the test": read the edit before drawing a conclusion from one.
+    - **Next:** milestone 4, designed from these runs as a sequential retry, not N parallel attempts (item 6).
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.

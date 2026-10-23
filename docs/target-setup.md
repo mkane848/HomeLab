@@ -222,7 +222,12 @@ shape" is unchanged, only the planner's name is filled in.
    argues for it (2026-10-13):** over four reps of the 15 real tasks on the
    server, pass@1 averaged 11.5 and 14 tasks passed at least once (only
    `wp-5b` never). Next, now that milestone 3 is measured: with the tests
-   shown, pass@3 was 15 of 15.
+   shown, pass@3 was 15 of 15. **Designed 2026-10-23 as a sequential retry:**
+   one attempt, accepted when the given test passes untouched and the suite is
+   green, else a fresh attempt up to a cap; at milestone 3's 98% per run that
+   is about 1.02 attempts per task. Parallel attempts across hosts come in when
+   a real planner's tests lower the first-attempt rate (roadmap → "After the
+   trial" item 6).
 5. **First real use (TypeScript, mode B).** Plan a real change in one of the
    benchmark repos with Claude Code, emit work orders, let the fleet execute,
    review, merge. Milestone reached when a multi-order feature lands this way
