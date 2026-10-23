@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the model sweep's probe step (2026-10-23).** `docs/roadmap.md` → "After the trial" item 9, step 1, and 8 rows
+  in `tests/results/toolcalls-summary-llamacpp.tsv`. On the server's llama.cpp (b11561): `gpt-oss:20b` (with llama.cpp's
+  official template; Ollama's copy has none), `qwen3-coder:30b`, `nemotron-3.5-lightning`, `laguna-xs-2.1` and
+  `north-mini-code-1.0` PASS; `deepseek-r1:14b` and `deepseek-r1:8b` FAIL on their own tool-capable templates, so
+  DeepSeek's local failure is the weights, not Ollama; `devstral-small-2:24b` does not load from Ollama's blob.
+
 - **docs: milestone 3 measured and reviewed adversarially; the sealed rounds and the real-02 host test
   (2026-10-23).** `docs/roadmap.md` → "After the trial" items 3, 6, 8 and 10, `docs/target-setup.md` milestones 3 and
   4, and a new `docs/adversarial-review-2026-10-23.md`. On the server's llama.cpp, tools on node3, sealed checkouts,
