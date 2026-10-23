@@ -24,8 +24,8 @@ Catalog of every external source cited in these docs, plus the convention.
 
 | ID | Source | URL |
 |---|---|---|
-| saving-swebench | "Saving SWE-Bench: A Benchmark Mutation Approach for Realistic Agent Evaluation", arXiv 2025 | <https://arxiv.org/html/2510.08996v2> |
-| reward-hacking | "Reward Hacking Benchmark", arXiv 2026 | <https://arxiv.org/abs/2605.02964> |
+| saving-swebench | "Saving SWE-Bench: A Benchmark Mutation Approach for Realistic Agent Evaluation", arXiv 2025 (re-read 2026-10-23) — real developer queries "10-30 words" against 100+ in SWE-Bench; rewriting tasks that way lowers OpenHands success (Sonnet 4 on Multi-SWE-Bench TypeScript 15.6% → 7.2%) | <https://arxiv.org/html/2510.08996v2> |
+| reward-hacking | "Reward Hacking Benchmark", arXiv 2026 (re-read 2026-10-23) — exploit rates 0% to 13.9% by model; higher on harder variants; 72% of episodes with an explicit rationale; "simple environmental hardening reduces exploit rates by 5.7 percentage points (87.7% relative) without degrading task success" | <https://arxiv.org/abs/2605.02964> |
 | mirage-bench | "MIRAGE-Bench", arXiv 2025 | <https://arxiv.org/abs/2507.21017> |
 | swe-agent | "SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering", Yang et al., Princeton NLP, arXiv 2024 (v3). Its file viewer shows at most 100 lines at a time, and Table 3 (SWE-bench Lite) puts a 100-line window at 18.0 against 14.3 for 30 lines and 12.7 for the full file | <https://arxiv.org/html/2405.15793v3> |
 | dont-blame-llm | "Don't Blame the Large Language Model: How Scaffolding Evolution Shapes Coding Agent Quality", arXiv 2026 | <https://arxiv.org/pdf/2607.03691> |
@@ -34,7 +34,9 @@ Catalog of every external source cited in these docs, plus the convention.
 
 Where used: `saving-swebench`, `reward-hacking`, `mirage-bench`,
 `dont-blame-llm` → [roadmap.md](roadmap.md) ("external research pass");
-`swe-edit`, `terminal-agents` → [methodology-research.md](methodology-research.md).
+`swe-edit`, `terminal-agents` → [methodology-research.md](methodology-research.md); `saving-swebench`,
+`reward-hacking` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10) and
+[adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md).
 
 ## Leaderboards & benchmarks
 
@@ -154,7 +156,9 @@ on any upgrade).
 | chroma-context-rot | "Context Rot: How Increasing Input Tokens Impacts LLM Performance", Hong, Troynikov and Huber, Chroma, 2025-07-14 (read 2026-10-21) — 18 models; reliability falls with input length even on simple tasks; distractors hurt | <https://www.trychroma.com/research/context-rot> |
 
 Where used: all six → [methodology-research.md](methodology-research.md) → "What the runs say against the research
-(2026-10-21)"; `anthropic-evals` also → AGENTS.md (`tests/summarize-rounds.ps1`). OpenAI's "Unrolling the Codex agent
+(2026-10-21)"; `anthropic-evals` also → AGENTS.md (`tests/summarize-rounds.ps1`); `anthropic-evals`,
+`anthropic-infra-noise` and `anthropic-long-running` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10)
+and [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) (all three re-read 2026-10-23). OpenAI's "Unrolling the Codex agent
 loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.
 
 ## Model landscape (2026-10-22)

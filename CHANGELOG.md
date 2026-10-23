@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the model made writable again); rows need their own folder, marked `ACCEPTANCE-READONLY`. Guard:
   `tests/test-show-acceptance.ps1`, 28 checks (was 19); the harness without the switch fails 8.
 
+- **docs: milestone 3 measured and reviewed adversarially; the sealed rounds and the real-02 host test
+  (2026-10-23).** `docs/roadmap.md` → "After the trial" items 3, 6, 8 and 10, `docs/target-setup.md` milestones 3 and
+  4, and a new `docs/adversarial-review-2026-10-23.md`. On the server's llama.cpp, tools on node3, sealed checkouts,
+  3 alternated pairs: shown tests 42 of 45 runs against hidden 40 of 45 (53 of 57 with re-runs of the 4 tasks the
+  stale-file bug hit, graded with only their suite gate voided). By task 3 to 1 (sign test p = 0.625), and 12 of 15
+  tasks 3 of 3 either way: no lift is established and the round is saturated. Editing a given test is the shown arm's
+  main failure (4 of 57). A first version of this write-up dropped the bugged runs and claimed 44 of 45 (98%); the
+  review caught it. Item 3 gains the sealed Ollama round (35 of 44, within the unsealed spread) and the real-02 host
+  test (desktop 1 of 8, server 1 of 5: not distinguished). Item 6 designs milestone 4 as a sequential retry (about
+  1.08 attempts per task, a cap of 2 or 3, a falsifier), with tampering handled by read-only given files, measured
+  first. Item 8 notes that node3's placement check now works over its ssh key. Citations from `docs/references.md`:
+  Reward Hacking Benchmark, Saving SWE-Bench and three Anthropic Engineering posts.
+
 - **fix: `-ShowAcceptance` graded the suite against stale copies of the given tests (2026-10-22).** When a task's
   acceptance folder replaces a test file the base already has (`wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`), the harness put
   the base's copy back before the suite. That copy asserts the old behaviour, and the model had been told not to touch
