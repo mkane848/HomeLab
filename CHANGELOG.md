@@ -7,17 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **docs: milestone 3 measured, the sealed rounds, and the real-02 host test (2026-10-23).** `docs/roadmap.md` →
-  "After the trial" item 10, and `docs/target-setup.md` milestone 3. On the server's llama.cpp, tools on node3, sealed
-  checkouts, 3 alternated pairs: with the acceptance tests shown, `qwen3.6` passed 44 of 45 runs (pass^3 0.93, 14 of 15
-  tasks every run), against 40 of 45 hidden (0.80, 12 of 15). `wp-5b`, never passed hidden, passed 3 of 3 shown. The
-  four tasks hit by the stale-file bug use re-runs on #151's harness. Item 3 gains the sealed Ollama round (35 of 44,
-  within the unsealed spread) and the real-02 host test (desktop 1 of 8, server 1 of 5: the host does not matter).
-  Item 6 (best-of-N) is next, and item 8 notes that node3's placement check now works over its ssh key. Item 10 also
-  records why the shown test helps (it stops early "done" and gives the hardest task a target; shown runs cost about 9%
-  more time; the nudges are not the cause; the one tamper was a reworded comment), and item 6 and milestone 4 now
-  design best-of-N as a sequential retry, with parallel attempts deferred until a real planner's tests lower the
-  first-attempt rate.
+- **docs: milestone 3 measured and reviewed adversarially; the sealed rounds and the real-02 host test
+  (2026-10-23).** `docs/roadmap.md` → "After the trial" items 3, 6, 8 and 10, `docs/target-setup.md` milestones 3 and
+  4, and a new `docs/adversarial-review-2026-10-23.md`. On the server's llama.cpp, tools on node3, sealed checkouts,
+  3 alternated pairs: shown tests 42 of 45 runs against hidden 40 of 45 (53 of 57 with re-runs of the 4 tasks the
+  stale-file bug hit, graded with only their suite gate voided). By task 3 to 1 (sign test p = 0.625), and 12 of 15
+  tasks 3 of 3 either way: no lift is established and the round is saturated. Editing a given test is the shown arm's
+  main failure (4 of 57). A first version of this write-up dropped the bugged runs and claimed 44 of 45 (98%); the
+  review caught it. Item 3 gains the sealed Ollama round (35 of 44, within the unsealed spread) and the real-02 host
+  test (desktop 1 of 8, server 1 of 5: not distinguished). Item 6 designs milestone 4 as a sequential retry (about
+  1.08 attempts per task, a cap of 2 or 3, a falsifier), with tampering handled by read-only given files, measured
+  first. Item 8 notes that node3's placement check now works over its ssh key. Citations from `docs/references.md`:
+  Reward Hacking Benchmark, Saving SWE-Bench and three Anthropic Engineering posts.
 
 - **fix: `-ShowAcceptance` graded the suite against stale copies of the given tests (2026-10-22).** When a task's
   acceptance folder replaces a test file the base already has (`wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`), the harness put

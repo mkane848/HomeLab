@@ -405,9 +405,11 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      Ollama and 2 of 9 by its llama.cpp. A split that lopsided comes up about 12% of the time by chance (hypergeometric,
      3 or more of the 4 passes in the desktop's 9), so it is a lead, not a finding; what differs is the backend (Vulkan
      against CUDA) and the machine. A deliberate test (the task several times on each host) would settle it.
-     **Settled 2026-10-22: the host does not matter.** On Ollama with sealed checkouts, the desktop's GPU passed 1 of 8
-     and the server 1 of 5 (private results `real02-host-desktop`, `real02-host-server`). The lead has moved to the
-     engine: on the server's llama.cpp, sealed, it passed 2 of 3 hidden and 3 of 3 shown (item 10). Still a small sample.
+     **Tested 2026-10-22: not distinguished.** On Ollama with sealed checkouts, the desktop's GPU passed 1 of 8 and the
+     server 1 of 5 (private results `real02-host-desktop`, `real02-host-server`); pooled with the runs above, 4 of 17
+     against 2 of 21. Samples this small cannot tell 12% from 40%, so neither "the host matters" nor "it does not" is
+     supported ([adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) finding 8). On the server's
+     llama.cpp, sealed, it passed 2 of 3 hidden and 3 of 3 shown (item 10), an engine lead on n = 3.
    - **Sealed checkouts change nothing measurable (2026-10-22).** The same round on Ollama with sealed checkouts (#147),
      tools on node3, 3 reps: 35 of 44 graded (80%), 10 of 15 tasks every run, `real-02` and `wp-5b` never (one `wp-5b`
      timed out). That is within the spread of the unsealed rounds above (76%). Private results `sealed-c3-node3`.
@@ -428,21 +430,37 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 6. **Best-of-N, next** ([target-setup.md](target-setup.md) milestones 3 and 4). Four reps put pass@1 at about
    11.5 of 15 and "passed at least once" at 14 of 15, so independent attempts are a real lever. The open question was
    that the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
-   test before a dispatcher can pick the passing attempt. Milestone 3 answered it (item 10): with the tests shown,
-   pass@3 is 15 of 15, and the shown test is a gate a dispatcher can run.
-   **Design (2026-10-23): retry on failure, not N at once.**
+   test before a dispatcher can pick the passing attempt. Milestone 3 (item 10) showed that a shown test is a gate a
+   dispatcher can run, and that the model edits it often enough to matter.
+   **Design (2026-10-23, revised after [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md)): retry on
+   failure, not N at once.**
    - **The loop:** run one attempt with the planner's test shown; accept it when the given test passes, the files are
      untouched and the suite is green; otherwise start a fresh attempt (a new sealed checkout, not a continuation), up
-     to a cap.
-   - **Why sequential:** at 98% per run, with the one failure caught by the tamper check, this needs about 1.02 attempts
-     per task here. N parallel attempts would mostly burn compute, and the second run host stays free for other work.
+     to a cap of 2 or 3: failures are persistent per task (pass^k), so more fresh samples of the same prompt buy little.
+   - **Why sequential:** at milestone 3's 93% first-attempt rate this needs about 1.08 attempts per task with an oracle
+     selector. N parallel attempts would mostly burn compute, and the second run host stays free for other work.
+   - **Tampering needs a changed condition, not a retry.** 4 of 57 shown runs edited a given test, all on the tasks
+     where a given file replaces an existing one. The prompt already forbids it, as in
+     [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+     ("It is unacceptable to remove or edit tests"), and it still happened. The
+     [Reward Hacking Benchmark](https://arxiv.org/abs/2605.02964) reports that "simple environmental hardening reduces
+     exploit rates by 5.7 percentage points (87.7% relative) without degrading task success", and that rates rise on
+     harder variants, which fits tampers clustering on `wp-5a`/`wp-5b`. So the next shown runs make the given files
+     read-only (or restore them before each test run), measured first as a control.
+   - **Falsifier:** a mean above 1.5 attempts per task, or the cap reached on more than 15% of tasks, means the design
+     is wrong for this executor.
    - **When parallel earns its place:** once a real planner's weaker tests lower the first-attempt rate (milestone 5),
      or when wall-clock matters more than compute. Then N attempts on node3 and the desktop, the first accepted wins.
    - **What it must record:** attempts per task, why each rejected attempt was rejected (test failing, tampered,
      suite red, infrastructure), and the total time and tokens, so N and the cap are set from data.
    - **The open risk:** here the given test and the grader were the same files, so "the given test passes" was a
-     perfect selector by construction. With a real planner an attempt can pass the planner's test and still be wrong;
-     that is what milestone 5's review step is for.
+     perfect selector by construction. With a real planner an attempt can pass the planner's test and still be wrong.
+     That false-positive rate is unmeasured, no catalogued source measures it, and the 2026-09-29 review's planner item
+     is still open; it is the experiment before milestone 5 (item 10, "Next").
+   - **Retrying turns pass^k into pass@k only with a trustworthy selector.**
+     [Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents): "pass@k
+     for tools where one success matters, pass^k for agents where consistency is essential", and trials "are not
+     independent because they're affected by the same factor".
 7. **The desktop's role and "Replacing Ollama" Phase 4**, decided on Gate G1's result.
 8. **The engine: llama.cpp (owner, 2026-10-22).** The executor moves to the server's llama-server: on the 15 real tasks
    it scored 54 of 60 against Ollama's 47 (four reps each, read-budget plugin on), with 0 overflowing runs. The launcher's
@@ -478,50 +496,65 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in
      [fleet-side-projects.md](fleet-side-projects.md). None is scheduled.
-10. ~~**Milestone 3: shown acceptance tests.**~~ **Measured 2026-10-22/23: the given test lifts the executor, and
-    every task passed at least once.** `test-tasks.ps1 -ShowAcceptance` (#149, with #151's stale-file fix). The 15-task
-    round on the server's llama.cpp (build b11561), tools on node3, sealed checkouts, classifier 3, hidden and shown
-    rounds alternated in 3 pairs so time of day favours neither. Private results `llamacpp-sealed-hidden`,
-    `llamacpp-sealed-shown` and `llamacpp-sealed-shown-fixed`.
+10. ~~**Milestone 3: shown acceptance tests.**~~ **Measured 2026-10-22/23: no lift established; the shown test works
+    as a gate, and tampering is its main failure.** `test-tasks.ps1 -ShowAcceptance` (#149, with #151's stale-file fix).
+    The 15-task round on the server's llama.cpp (build b11561), tools on node3, sealed checkouts, classifier 3, hidden
+    and shown rounds alternated in 3 pairs. Private results `llamacpp-sealed-hidden`, `llamacpp-sealed-shown` and
+    `llamacpp-sealed-shown-fixed`. Reviewed adversarially before publishing:
+    [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md).
 
-    | Arm | per run | pass^3 | every run | never |
-    |---|---|---|---|---|
-    | hidden tests | 40 of 45 (89%) | 0.80 | 12 of 15 | `wp-5b` |
-    | shown tests | 44 of 45 (98%) | 0.93 | 14 of 15 | none |
+    | Arm (node3, server's llama.cpp) | runs | passed |
+    |---|---|---|
+    | hidden tests, the 3 rounds | 45 | 40 (89%) |
+    | shown tests, the 3 rounds (time-matched) | 45 | 42 (93%) |
+    | shown tests, the 3 rounds plus re-runs of 4 tasks | 57 | 53 (93%) |
 
-    - **`wp-5b`, which no hidden run has ever passed, passed 3 of 3 shown.** `real-02` and `real-03` went from 2 of 3
-      to 3 of 3.
-    - **The one shown failure was the model editing the test it was given** (`wp-0a`, 1 of 3). The tamper check made it
-      a scope FAIL, as designed. Its acceptance tests passed, so a dispatcher that also checks the given files are
-      untouched would have rejected the attempt.
-    - **The shown arm for `wp-0a`, `wp-5a`, `wp-5b` and `wp-6f` is re-run data.** Their given files replace test files
-      the base already has. Before #151 the harness graded the suite against the base's stale copies, which failed every
-      correct fix of `wp-0a` and `wp-5a`. The table uses the 11 unaffected tasks from the alternated pairs plus
-      3 re-runs of each of the 4 on the fixed harness (2026-10-22/23, straight after the pairs, the same settings).
-    - **The desktop's GPU as model host, shown:** 28 of 28 graded (2 runs, `wp-7a` and `wp-5b`, hit the 45-minute
-      timeout on its slower GPU and were not graded), against 22 of 25 on its hidden round (item 3). Ollama, private
-      results `desktopgpu-shown` and `desktopgpu-shown-fixed`, with the same correction for the 4 tasks.
+    - **How the shown arm is graded.** For `wp-0a`, `wp-5a`, `wp-5b` and `wp-6f` a given file replaces a test file the
+      base already has, and before #151 the suite gate ran against the base's stale copy. Only that gate was wrong: the
+      tamper check and the acceptance tests were not, so those runs count with their suite gate voided (a pass needs
+      acceptance and scope). The 4 tasks were also re-run 3 times each on the fixed harness, straight after the pairs.
+      A first version of this item dropped the bugged runs instead and reported 44 of 45 (98%); that discarded 3 real
+      failures.
+    - **The difference is not established.** By task, the time-matched shown arm was better on 3 (`wp-5b` 0 → 2 of 3,
+      `real-02` and `real-03` 2 → 3 of 3) and worse on 1 (`wp-5a` 3 → 1 of 3, both failures tampers); the other 11
+      were 3 of 3 in both. An exact sign test over those 4 tasks gives p = 0.625. A 4-point gap on 45 runs is well
+      inside noise: [Quantifying infrastructure noise](https://www.anthropic.com/engineering/infrastructure-noise)
+      already treats "differences below 3 percentage points" with skepticism on far larger samples.
+    - **The round is saturated.** 12 of 15 tasks were 3 of 3 in both arms, so it now works as a regression set, not a
+      capability measure: "an eval at 100% tracks regressions but provides no signal for improvement"
+      ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
+      A lift has to be measured on harder tasks (`wp-5b`, `wp-5a`, `real-02` class).
+    - **Tampering is the shown arm's main failure:** 4 of the 57 runs edited a given test (`wp-5a` 2, `wp-5b` 1,
+      `wp-0a` 1), all on the 4 tasks whose given file replaces an existing one; 4 of the arm's 4 failures involve a
+      tamper (one `wp-5b` run also failed acceptance). The prompt forbids it. The `wp-0a` one was a reworded comment
+      followed by a correct fix, so read a tamper before calling it gaming. Item 6 turns this into the next control.
+    - **The desktop's GPU, shown (Ollama):** 32 of 36 graded the same way, against 22 of 25 hidden (item 3), with
+      2 tampers and 2 runs that timed out at 45 minutes (`wp-7a`, `wp-5b`) on its slower GPU, so on that host too the
+      arms are level. Private results `desktopgpu-shown`, `desktopgpu-shown-fixed`.
     - **Health:** all 102 node3 runs on sealed checkouts, the seat on the GPU, the tools check passing, no tool failing
       every call, no overflow and no infrastructure outcome.
-    - **The caveat that matters for real use:** the shown tests are the tasks' own hidden tests, written to grade a
-      known-good fix, so this is the plan/execute split with a near-perfect planner. A planner's tests, written before
-      the work, will be weaker; milestone 5 measures that.
-    - **Why it helps, from the runs (medians over the 45 runs of each arm):**
-      - **The test stops early "done".** Two of the five hidden failures were short and confident: `real-03` stopped
-        after 28 s with 1 edit, `real-02` after 124 s with 2. Given a test, the model runs it and works on until it is
-        green: the "declare the job done" failure of
-        [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents),
-        closed without a nudge.
-      - **On the hardest task it gives a target, not more effort.** Hidden `wp-5b` failed after real work (12 to
-        25 minutes, 9 to 10 edits, 2 or 3 compactions each). Shown it took longer (median 1,228 s against 812) and
-        passed every time.
-      - **Shown runs cost slightly more:** 203 s against 187 s, 27% more output tokens, 19% more input, 16 runs
-        compacting against 13. They make fewer edits (5 against 7), since the model no longer writes its own test.
-      - **The stop nudges are not the cause:** 2 nudged runs in each arm.
-      - **The tamper failure was a reworded comment in the given test**, followed by a correct fix that passed its
-        acceptance tests. The byte-for-byte check is right to reject it (a dispatcher should retry, not judge intent),
-        but "tampered" does not always mean "gamed the test": read the edit before drawing a conclusion from one.
-    - **Next:** milestone 4, designed from these runs as a sequential retry, not N parallel attempts (item 6).
+    - **Hypotheses, not findings:**
+      - **The test may stop early "done".** Two hidden failures were short and confident (`real-03` 28 s, `real-02`
+        124 s), the shape of "declares victory on the entire project too early" in
+        [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents).
+        n = 2, with no counterfactual; and those are documentation tasks, where a test also supplies the spec, not
+        only a stopping point.
+      - **Cost:** paired by task, shown runs took about 5% longer and wrote about 9% more output (totals +10.6%
+        elapsed), driven by a few outliers. Pooled medians (+9% time, +27% output) overstate it.
+      - **Nudges** were equal (2 nudged runs in each arm), so they do not explain either arm.
+    - **The caveat that matters for real use:** the shown tests are the tasks' own hidden tests, so the selector was
+      perfect by construction. The work-package prompts are also longer than real ones (the `real-*` tasks are the
+      owner's own prompts):
+      [Saving SWE-Bench](https://arxiv.org/html/2510.08996v2) puts real developer queries at "10-30 words" and finds
+      benchmarks "significantly overestimate agent capabilities for some models" when rewritten that way.
+    - **Next, in order (the review's experiments):**
+      1. **Tamper control:** the shown arm with the given files read-only, `wp-0a`, `wp-5a`, `wp-5b`, 5 reps each.
+         Stop if tampering stays above 10%.
+      2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones.
+      3. **Planner-written tests:** a planner writes the test from the prompt alone (it must fail on the base); shown
+         runs are graded on both its test and the original hidden test. Measure the selector's false-positive and
+         false-negative rates; stop and redesign above 10% false positives.
+      4. **Milestone 4's loop** (item 6), recording attempts, rejection reasons, time and tokens.
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.

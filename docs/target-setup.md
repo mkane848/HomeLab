@@ -11,8 +11,9 @@
 >   2026-10-21 (roadmap → step 5, "node3's control round"). This amends the "server-centric" requirement below, which is kept as written.
 > - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
 > - **Milestone 3 is measured (2026-10-23):** with the acceptance tests shown, `qwen3.6` on the server's llama.cpp passed
->   44 of 45 runs against 40 of 45 hidden, and every task passed at least once (roadmap → "After the trial" item 10).
->   Milestone 4 is next.
+>   42 of 45 time-matched runs against 40 of 45 hidden, a difference not established (sign test p = 0.625); the shown
+>   test works as a gate, and editing it is the shown runs' main failure (roadmap → "After the trial" item 10;
+>   [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md)). Milestone 4 follows a tamper control.
 
 What the fleet should look like once the server POSTs, derived from how the
 owner actually wants to work (recorded 2026-09-22). This is the concrete shape
@@ -211,23 +212,27 @@ shape" is unchanged, only the planner's name is filled in.
    model never sees, but a dispatcher in real use has no hidden tests, so the
    planner's acceptance test is the only gate it could select on.
    **Measured 2026-10-22/23 (`-ShowAcceptance`, #149 and #151):** on the
-   15 real tasks, 3 alternated pairs, the shown arm passed 44 of 45 runs
-   (pass^3 0.93, 14 of 15 tasks every run) against the hidden arm's 40 of 45
-   (0.80, 12 of 15). `wp-5b`, never passed hidden, passed 3 of 3 shown. The
-   shown tests were the tasks' own hidden tests, so this is the split with a
-   near-perfect planner; milestone 5 measures a real one (roadmap → "After
-   the trial" item 10).
+   15 real tasks, 3 alternated pairs, the shown arm passed 42 of 45 runs
+   against the hidden arm's 40 of 45 (53 of 57 with re-runs of 4 tasks). By
+   task, 3 favoured shown and 1 hidden (sign test p = 0.625), and 12 of 15
+   were 3 of 3 either way, so the round is saturated and no lift is
+   established. 4 of 57 shown runs edited a given test, the arm's main
+   failure. The shown tests were the tasks' own hidden tests, so the selector
+   was perfect by construction; a planner's tests are the open measurement
+   (roadmap → "After the trial" item 10).
 4. **Best-of-N.** Dispatcher runs N attempts across hosts and records pass@N
    as well as pass@1. Set N from the data, not in advance. **The data now
    argues for it (2026-10-13):** over four reps of the 15 real tasks on the
    server, pass@1 averaged 11.5 and 14 tasks passed at least once (only
-   `wp-5b` never). Next, now that milestone 3 is measured: with the tests
-   shown, pass@3 was 15 of 15. **Designed 2026-10-23 as a sequential retry:**
-   one attempt, accepted when the given test passes untouched and the suite is
-   green, else a fresh attempt up to a cap; at milestone 3's 98% per run that
-   is about 1.02 attempts per task. Parallel attempts across hosts come in when
-   a real planner's tests lower the first-attempt rate (roadmap → "After the
-   trial" item 6).
+   `wp-5b` never). **Designed 2026-10-23 as a sequential retry:** one
+   attempt, accepted when the given test passes untouched and the suite is
+   green, else a fresh attempt up to a cap of 2 or 3; at milestone 3's 93%
+   first-attempt rate that is about 1.08 attempts per task with an oracle
+   selector. Tampering is handled by a changed condition (given files
+   read-only), measured first as a control. Falsifier: more than 1.5 attempts
+   per task, or the cap reached on more than 15% of tasks. Parallel attempts
+   across hosts come in when a real planner's tests lower the first-attempt
+   rate (roadmap → "After the trial" item 6).
 5. **First real use (TypeScript, mode B).** Plan a real change in one of the
    benchmark repos with Claude Code, emit work orders, let the fleet execute,
    review, merge. Milestone reached when a multi-order feature lands this way
