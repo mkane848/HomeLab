@@ -16,6 +16,10 @@
 #     test is gone from the checkout afterwards; no row in the public mirror;
 #   - shown, the agent edits the test instead: scope FAIL naming the file;
 #     `tampered` records it;
+#   - shown, the given test replaces one the base had, which asserts the old
+#     behaviour: the suite runs with the given test in its place and passes, and
+#     the base's copy is back afterwards (wp-0a and wp-5a, 2026-10-22: a correct
+#     fix failed the suite on the stale copy);
 #   - hidden (no switch), the same agent: the test is absent and not named;
 #   - a task with no acceptance.dir: refused with a FAIL, the agent never called;
 #   - the folders: a shown run into tests/results, or into a folder that holds
@@ -47,6 +51,17 @@ try {
     'if ((Test-Path tests/hidden.test.txt) -and (Get-Content tests/hidden.test.txt -Raw).Contains("expects fixed") -and (Get-Content src.txt -Raw).Trim() -ne "fixed") { Write-Host "Tests  1 failed (2)"; exit 1 }; Write-Host "Tests  2 passed (2)"; exit 0' | Set-Content -LiteralPath (Join-Path $repo "check.ps1")
     git -C $repo add -A; git -C $repo commit -q -m base
     $base = (git -C $repo rev-parse HEAD).Trim()
+    # A second repo whose base already has the test file the task's acceptance
+    # folder replaces, asserting the old behaviour (wp-0a, wp-5a): every test file
+    # reads "expects <x>" and needs src.txt to be <x>.
+    $repo2 = Join-Path $e2e "repo2"
+    New-Item -ItemType Directory -Path (Join-Path $repo2 "tests") -Force | Out-Null
+    git -C $repo2 init -q; git -C $repo2 config user.email "t@example.invalid"; git -C $repo2 config user.name "t"
+    Set-Content -LiteralPath (Join-Path $repo2 "src.txt") -Value "buggy"
+    Set-Content -LiteralPath (Join-Path $repo2 "tests/hidden.test.txt") -Value "expects buggy"
+    '$src = (Get-Content src.txt -Raw).Trim(); $bad = @(Get-ChildItem tests -Filter *.test.txt | Where-Object { (Get-Content $_.FullName -Raw).Trim() -ne "expects $src" }); if ($bad) { Write-Host "Tests  $($bad.Count) failed ($($bad.Name -join ","))"; exit 1 }; Write-Host "Tests  1 passed (1)"; exit 0' | Set-Content -LiteralPath (Join-Path $repo2 "check.ps1")
+    git -C $repo2 add -A; git -C $repo2 commit -q -m base
+    $base2 = (git -C $repo2 rev-parse HEAD).Trim()
 
     # The private side: a manifest outside the repo and the hidden tests beside it.
     $priv = Join-Path $tmp "priv"
@@ -56,7 +71,11 @@ try {
         testDir = "."; testCmd = @($psExe, "-NoProfile", "-File", "check.ps1"); installFlags = @(); prompt = "fix src.txt" }
     $t1 = [ordered]@{ id = "fx-shown"; title = "fx"; branch = "bench/fx-shown"; acceptance = [ordered]@{ dir = "hidden/fx" } } + $common
     $t2 = [ordered]@{ id = "fx-noacc"; title = "fx"; branch = "bench/fx-noacc" } + $common
-    @{ tasks = @($t1, $t2) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $priv "tasks/manifest.json")
+    New-Item -ItemType Directory -Path (Join-Path $priv "tasks/hidden/fx2/tests") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $priv "tasks/hidden/fx2/tests/hidden.test.txt") -Value "expects fixed"
+    $t3 = [ordered]@{ id = "fx-stale"; title = "fx"; branch = "bench/fx-stale"; acceptance = [ordered]@{ dir = "hidden/fx2" } } + $common
+    $t3.repo = $repo2; $t3.benchBaseCommit = $base2
+    @{ tasks = @($t1, $t2, $t3) } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $priv "tasks/manifest.json")
 
     @'
 $script:AgentName = "fixture"
@@ -131,6 +150,13 @@ function Read-AgentEvents {
     Check "scope FAIL naming the test" ([bool]($r.Log -match 'FAIL\] scope \(acceptance tests left alone\)' -and $r.Log -match 'tests/hidden\.test\.txt \(edited\)')) "True"
     Check "...recorded as tampered, and the gate fails" ("{0}|{1}" -f ($r.Json.acceptanceShown.tampered -join ","), $r.Json.gates.scope) "tests/hidden.test.txt (edited)|FAIL"
     Check "...and the real hidden test still grades the unfixed source FAIL" $r.Json.acceptance.status "FAIL"
+
+    Write-Host "-- shown, replacing a test the base had (stale there), the agent fixes the source"
+    $r = Invoke-Fx fx-stale $shownDir fix -Show
+    if (-not $r.Json) { Write-Host (($r.Log -split "`n" | Select-Object -Last 25) -join "`n") }
+    Check "the suite runs with the given test in place of the base's stale copy: PASS" $r.Json.gates.suite "PASS"
+    Check "...acceptance PASS, the scope sees only the source change" ("{0}|{1}|{2}" -f $r.Json.acceptance.status, $r.Json.gates.scope, ($r.Json.scopeDetail.files -join ",")) "PASS|PASS|src.txt"
+    Check "...and the base's copy is back in the checkout afterwards" ((Get-Content -Raw -LiteralPath (Join-Path $e2e "tests/.worktrees/fx-stale/tests/hidden.test.txt")).Trim()) "expects buggy"
 
     Write-Host "-- hidden (no switch), the same agent"
     $hiddenDir = Join-Path $priv "results/hidden"
