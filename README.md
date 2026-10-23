@@ -1,158 +1,120 @@
 # HomeLab
 
-A documented homelab: a hybrid Ubuntu-server / Windows-desktop fleet running
-local LLMs (Ollama), driven day to day from **both**
-[OpenCode](https://opencode.ai) (terminal agent) **or** VS Code's native
-Copilot Chat via BYOK (bring-your-own-key).
+A documented homelab that uses a few home machines as one local LLM coding setup.
+Models run on the Ubuntu server and on two Windows PCs (the desktop and node3).
+OpenCode, a terminal coding agent, runs on the desktop and uses those models.
 
-Model installs and per-machine profiles
-are managed from one catalog. I'm hoping this can be helpful or interesting to other hobbyists.
-I've included hardware notes, a live-fire hardware recovery log, VRAM/tool-calling benchmarks
-measured on real models, and a small research thread on my attempts to make a local LLM
-act as a code-review gate.
-
+The goal is that every machine in the house works as interchangeable compute
+behind one coding-agent experience. The plan is in
+[docs/target-setup.md](docs/target-setup.md). Everything here was measured on
+this hardware, and the docs say when.
 
 ## Start here
 
-New to the repo? **[docs/README.md](docs/README.md)** is the index — it groups
-everything below by theme. A few entry points if you want to jump straight in:
+- **[docs/start-here.md](docs/start-here.md)**: from a cold machine to a working agent in OpenCode, step by step.
+- **[docs/README.md](docs/README.md)**: the index of every doc, grouped by theme.
+- **[docs/hardware.md](docs/hardware.md)**: measured VRAM and speed per model.
+- **[docs/roadmap.md](docs/roadmap.md)**: what has landed and what is next.
+- **[docs/vscode.md](docs/vscode.md)**: the same fleet, driven from VS Code.
 
-- **[docs/start-here.md](docs/start-here.md)** — cold machine to a working agent via OpenCode, step by step.
-- **[docs/vscode.md](docs/vscode.md)** — same fleet, driven from VS Code instead: BYOK setup against the same desktop Ollama.
-- **[docs/server-recovery-cpu-led.md](docs/server-recovery-cpu-led.md)** — a live BIOS-flash recovery log (solid CPU LED, no POST) written as the debugging happened, not after.
-- **[docs/hardware.md](docs/hardware.md)** — the fleet's hardware and measured VRAM/throughput numbers per model, not catalog-disk-size guesses.
-- **[docs/review-gate/README.md](docs/review-gate/README.md)** — can a local LLM catch what it's told to look for in a code review? A small experiment with real (mixed) results.
+## Machines
 
-## Two ways to talk to the fleet
-
-Both are genuinely in use, not one "official" path and one experiment:
-
-| | OpenCode | VS Code |
+| Machine | Hardware | Role |
 |---|---|---|
-| Interface | Terminal (WezTerm) | Native Copilot Chat, agent mode |
-| Backends | Ollama (server + desktop) + OpenCode Go (cloud) | Ollama (desktop), same seats and context as OpenCode |
-| Model picker | Profiles (`profiles/dev-*.sh`) pin a seat per host | VS Code's model picker — swap per message |
-| Best for | Scripted, repeatable sessions; `/plan` → task list → execute | Quick swaps between seats per message; the [review-gate](docs/review-gate/README.md) research |
-| Setup | [docs/start-here.md](docs/start-here.md) | [docs/vscode.md](docs/vscode.md) |
+| `server` | Ubuntu, RTX 4070 Ti Super 16 GB, Docker | Model host. Runs the main seat. |
+| `desktop` | Windows 11, RX 6800 XT 16 GB (Vulkan), Ryzen 7 5800X3D | Model host, OpenCode client, tool-run host. |
+| `node3` | Windows 11, RTX 3080 FE 10 GB, Ryzen 9 5950X | Model host, OpenCode client, benchmark run host. It is also a gaming PC, so use it only when it is free. |
 
-## Quick Start
+Roles are in [machines.tsv](machines.tsv). Hosts are often down. Every sync
+script is written to degrade gracefully.
 
-Day to day, on the Windows desktop — this is the whole thing:
+## Quick start
+
+On the Windows desktop:
 
 ```powershell
 cd dev-docs
-.\desktop\scripts\startup.ps1      # start Ollama, bake each model's context
-.\desktop\scripts\opencode.ps1     # source the profile, launch OpenCode
+.\desktop\scripts\startup.ps1      # starts desktop Ollama and bakes each model's context
+.\desktop\scripts\opencode.ps1     # loads the default profile and launches OpenCode
 ```
 
-`opencode.ps1` defaults to `dev-workflow-server` (since 2026-10-13: `qwen3.6` on
-the server, about twice the desktop's speed); when the server is down, or during
-an engine-trial window, use `-Profile dev-workflow-quality` (the same seat on the
-desktop) or `opencode quality`. Pass `-Profile <name>` for any other. Or run `.\desktop\scripts\install-opencode-profiles.ps1` once, and from
-any PowerShell window `opencode quality`, `opencode resident`,
-`opencode desktop-only` or `opencode node3` launches with that profile's models
-(and unloads the previous profile's). A plain `opencode` is unchanged. Add
-models with `.\desktop\scripts\models.ps1 -Profile`.
-
-Prefer VS Code? Skip straight to [docs/vscode.md](docs/vscode.md) —
-`startup.ps1` above still applies (it's what starts Ollama and bakes context),
-you just don't need `opencode.ps1`.
+The default profile is `dev-workflow-server-llamacpp`: `qwen3.6:35b-a3b-coding`
+on the server's llama.cpp. If the server is down or in a trial window, use
+`-Profile dev-workflow-quality` (the same model on the desktop). After
+`.\desktop\scripts\install-opencode-profiles.ps1` runs once, `opencode quality`
+and the other profile names work from any PowerShell window. The profiles are
+described in [docs/profiles.md](docs/profiles.md).
 
 On the Ubuntu server:
 
 ```bash
 source profiles/dev-workflow-server.sh
-./server/scripts/startup.sh        # the Ollama container (server/docker/docker-compose.yml)
-./server/scripts/bake-models.sh    # pull + bake the seats in models/server-seats.tsv
+./server/scripts/startup.sh        # the Ollama container
+./server/scripts/bake-models.sh    # pull and bake the seats in models/server-seats.tsv
 ./server/scripts/status.sh         # each loaded model's GPU share
 ```
 
-## What's Where
+The llama.cpp stack is `server/docker/docker-compose.llamacpp.yml`. Its runbook and
+results are in [docs/llamacpp-trial.md](docs/llamacpp-trial.md).
 
-| Directory | Purpose |
-|-----------|---------|
-| `.env` | Shared variables (IPs, SSH user) — git-ignored, sourced by all profiles |
-| `models/` | Model catalog: `catalog.tsv` (data) + `catalog.sh` (bash library) |
-| `profiles/` | Model tier selection (which LLMs are online, where, and with what defaults) |
-| `server/` | Ubuntu server scripts, Docker compose, systemd unit |
-| `desktop/` | Windows 11 scripts (install, startup, sync) for native Ollama (Vulkan backend) |
-| `opencode/` | OpenCode config templates (per-host Ollama providers + Go), commands, agents |
-| `skills/` | Vendored AI skills (imported from Claude, OpenCode-compatible) — third-party, own licenses, not part of the homelab story |
-| `claude/` | Claude import provenance + raw reference material |
-| `wezterm/` | WezTerm terminal config |
-| `docs/` | **[README](docs/README.md)** (start here), grouped by getting-started / hardware & network / war stories / the review-gate research thread / roadmap |
-| `tests/` | `test-profiles.ps1` — all-profile intent/liveness/registration/schema checks, `-Bench` latency budgets. `test-toolcalls.ps1` — **does this model actually emit a tool call?** Run it before trusting any model in an agent seat |
+## How work runs
 
-## Architecture
+1. The main seat, `qwen3.6:35b-a3b-coding`, plans and edits in one OpenCode session.
+2. `/plan <scope>` reads the repo and writes `docs/implementation-tasks.md`.
+3. In the same session, ask for `execute task #N from docs/implementation-tasks.md`.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│              Fleet: local LLM nodes + cloud                 │
-│                                                             │
-│  Desktop: Qwen3 14B <- DRIVES (tool-capable, 32k ctx)       │
-│           Qwen3 8B = lighter seat · Qwen Coder 3B (small)   │
-│           Coder 7B/14B, DeepSeek-R1 14B = no-tools models   │
-│                                  (RX 6800 XT, Vulkan)       │
-│  Server:  Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3,        │
-│           general/creative, embeddings  (4070 Ti Super)     │
-│  Node3:   Qwen3 8B (agent seat), GLM4 9B (no-tools)         │
-│           + embeddings (RTX 3080 FE, live since 2026-09-20) │
-│  Cloud:   OpenCode Go (test models you can't run)           │
-└─────────────────────────────────────────────────────────────┘
+Coding stays in the main thread. The Plan/Build toggle only sets which tools
+the current model may use. It does not write the task file. See
+[docs/start-here.md](docs/start-here.md).
+
+**Not every model can call tools.** A model that cannot will describe edits it
+never made. Probe any model before you seat it:
+
+```powershell
+.\tests\test-toolcalls.ps1 -Model qwen3:8b
 ```
 
-Tool-calling is decided by the chat template and weights, not the model family:
-13 of 22 probed models (Ollama 0.34.2/0.34.3) emit parseable tool calls (the
-`qwen3` family, both `devstral`s, `laguna`, `nemotron`, `north-mini` and node3's
-`lfm2.5`/`ministral`/`ornith`; the whole `qwen2.5-coder` and `deepseek-r1`
-families and `glm4:9b` fail —
-[tests/results/toolcalls-summary.tsv](tests/results/toolcalls-summary.tsv)). A
-model that can't is a chat box that will describe edits it never made. A probe
-PASS is necessary, not sufficient: which seat actually lands edits on real repo
-tasks is a separate measurement, in [docs/roadmap.md](docs/roadmap.md) →
-Executor standings.
-Probe any model with `.\tests\test-toolcalls.ps1`. Details: [docs/start-here.md](docs/start-here.md).
+13 of the 22 models probed pass (on Ollama 0.34.2/0.34.3, 2026-09-22/23). A probe pass is necessary, not sufficient. Which seat lands real edits is measured separately in
+[docs/roadmap.md](docs/roadmap.md) (Executor standings).
 
-See [docs/model-architecture.md](docs/model-architecture.md) and
-[docs/hardware.md](docs/hardware.md) for details.
+## Repo layout
 
-## Key Files
+| Path | Contents |
+|---|---|
+| `models/` | Model catalog: `catalog.tsv` (data) and `catalog.sh` (bash library). |
+| `profiles/` | Live profiles (`dev-*.sh`) that choose models and hosts. Parked ones are in `profiles/parked/`. |
+| `server/` | Ubuntu server scripts, Docker compose files, llama.cpp config. |
+| `desktop/` | Windows scripts: startup, OpenCode launcher, model installs, sync. |
+| `opencode/` | OpenCode config template, agents, commands, plugins. |
+| `tests/` | Profile checks, tool-call probe, task benchmark, and regression guards. |
+| `docs/` | Documentation. Start with [docs/README.md](docs/README.md). |
+| `skills/`, `claude/` | Vendored third-party skills and their provenance. Own licenses. |
+| `wezterm/` | Terminal config. |
 
-- **`.env`** — shared variables (SERVER_IP, DESKTOP_IP, NODE3_IP placeholder, SSH_USER)
-- **`models/catalog.tsv`** — every model we can run (tag, size, class, ctx, groups, hosts, desc); single source of truth for installs and OpenCode registration
-- **`models/catalog.sh`** — bash library (`catalog_list`, `catalog_field`, `catalog_has_tag`, …). Sourced, never executed.
-- **Install scripts** — `server/scripts/install-model.sh` (Docker) and `desktop/scripts/models.ps1` (native), both accept tags/groups/profiles
-- **Profiles** — `profiles/dev-*.sh` auto-source `.env`, pick tiers + install intent + OpenCode defaults; pick via `profiles/select-model.sh`
-- **Startup** — `server/scripts/startup.sh` + `server/scripts/stop.sh` and `desktop/scripts/startup.ps1`; status via `server/scripts/status.sh`
-- **Tests** — `tests/test-profiles.ps1` runs every live profile against intent manifests (tier flags, tool-capable main seat, Go-default probes), OpenCode registration, host liveness; `-RoundTrip` adds capability probes + latency benchmarks, `-Bench` FAILs over-budget models (see [docs/troubleshooting.md](docs/troubleshooting.md))
-- **[OpenCode template]** `opencode/global/opencode.jsonc` — providers split one-per-host: `ollama-server`, `ollama-desktop`, `ollama-node3`, `opencode-go`; re-stage it on this machine with `.\desktop\scripts\sync-opencode.ps1` (local only; `-Push <machine>` copies to an `opencode-client` machine in `machines.tsv`). Model entries must use `limit:{context,output}` — OpenCode silently drops unknown keys, and a model with no limit sends an untrimmed prompt that Ollama truncates (see [docs/troubleshooting.md](docs/troubleshooting.md)). Ships **no MCP servers**: those go in each project's own `opencode.jsonc` (`opencode/project-override/opencode.jsonc` is the template)
-- **[WezTerm sync]** `.\desktop\scripts\sync-wezterm.ps1` — deploys `wezterm/wezterm.lua` to `C:\Users\<you>\.wezterm.lua`
-- **Imports**: `import-claude-skills.ps1` (vendors from Claude) and `sync-skills.ps1` (deploys skills/commands/agents to Windows + server) — see [opencode/README.md](opencode/README.md)
+Secrets and `.env` files are git-ignored. API keys live in
+`~/.config/opencode/.secrets/`, outside the repo.
 
-## First Time Setup
+## Tests
 
-1. Fill in `.env` (repo root) with your IPs, SSH user, and `NODE3_IP` once a third node exists
-2. Paste your OpenCode Go API key into `~/.config/opencode/.secrets/opencode-go-api-key`
-3. Install Docker + nvidia-container-toolkit on the server (RTX 4070 Ti Super, CUDA)
-4. Install Ollama on the desktop (Vulkan backend - ROCm is unavailable on gfx1030, see docs/hardware.md) and, later, on the third node
-5. Source a profile and install: `install-model.sh --profile` / `.\desktop\scripts\models.ps1 -Profile`
-6. `desktop/scripts/startup.ps1` bakes a per-model `num_ctx` into each tag it manages (65536 for the six MoE/hybrid executor seats, 32768 for `qwen3:14b`, `qwen3:8b`, `qwen2.5-coder:14b` and the devstral pair, 16384 for the rest — see `$contextModels`). This gives per-model context control that the single global `OLLAMA_CONTEXT_LENGTH` cannot
-7. Set firewall rules per [docs/network-topology.md](docs/network-topology.md)
-8. **After copying the repo to the server** (e.g. via scp), mark scripts executable:
-   ```bash
-   cd ~/dev-docs
-   ./make-executable.sh
-   ```
-   This is required because files copied from Windows lose the executable bit.
+- `.\tests\test-profiles.ps1`: checks every live profile against what is configured and served.
+- `.\tests\test-toolcalls.ps1 -Model <tag>`: does this model emit a tool call?
+- `.\tests\run-guards.ps1`: runs every regression guard. CI runs the same set on Windows.
+- `.\tests\run-tasks-batch.ps1`: the task benchmark. It needs live hosts.
 
-## Fresh-Install Convenience
+## Caveats
 
-- Eight profiles are parked in `profiles/parked/` (they need the server) — see [profiles/parked/README.md](profiles/parked/README.md). Four profiles are live (three desktop + `dev-node3`).
-- The [roadmap](docs/roadmap.md) tracks third-node onboarding, image pinning, and post-upgrade validation.
+- Measured numbers name a date, a model and an engine version. They do not carry over to other versions.
+- Single runs are noisy. See [docs/adversarial-review-2026-09-29.md](docs/adversarial-review-2026-09-29.md) for what the harness does and does not measure.
+- Research thread: [docs/review-gate/README.md](docs/review-gate/README.md) asks
+  whether a local model can act as a code-review gate. Its answer, 2026-09-19,
+  was no.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT (see [LICENSE](LICENSE)) for the scripts and documentation in this repo.
-Vendored third-party skill packages under `skills/` and `claude/imports/`
-keep their own licenses — see [claude/README.md](claude/README.md) for
-provenance.
+MIT for the scripts and documentation in this repo (see [LICENSE](LICENSE)).
+Vendored skill packages under `skills/` and `claude/imports/` keep their own
+licenses. See [claude/README.md](claude/README.md).
