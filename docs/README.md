@@ -1,85 +1,56 @@
 # Docs
 
-Everything here documents one homelab: a hybrid Ubuntu-server / Windows-desktop
-fleet running local LLMs, driven from either OpenCode or VS Code — both are in
-active use. Grouped by theme — start with whichever section matches what
-you're after.
+Everything here documents one homelab: a server and a desktop running local
+LLMs, driven from OpenCode (the daily client) or VS Code. Grouped by theme.
+If you are new, start with [start-here.md](start-here.md).
 
 ## Getting started
 
-- **[start-here.md](start-here.md)** — the one page that takes you from a
-  cold machine to a working agent via OpenCode, with verification at each step.
-- **[vscode.md](vscode.md)** — the same fleet, driven from
-  VS Code instead: BYOK setup against the same desktop Ollama. Its
-  first half is the setup reference; the second half is the review-gate
-  research built on top of it (see below).
-- **[target-setup.md](target-setup.md)** — the planned end state once the
-  server is back: plan with a strong model, execute locally in parallel, gate
-  mechanically. Machine roles and ordered milestones.
-- **[profiles.md](profiles.md)** — how model-tier selection works: which
-  profile turns which machines/models on, and why.
+- **[start-here.md](start-here.md)**: from a cold machine to a working agent in OpenCode, with a check at each step.
+- **[vscode.md](vscode.md)**: the same fleet, driven from VS Code. Its first half is setup. The second half is the review-gate research.
+- **[profiles.md](profiles.md)**: which profile turns on which machines and models, and why.
+- **[target-setup.md](target-setup.md)**: the planned end state. Machine roles and ordered milestones.
 
-## Hardware & network
+## Hardware and network
 
-- **[hardware.md](hardware.md)** — the fleet's hardware, and measured
-  VRAM/throughput numbers per model (not catalog-disk-size guesses).
-- **[network-topology.md](network-topology.md)** — LAN layout, ports, and the
-  firewall rules each machine needs.
-- **[model-architecture.md](model-architecture.md)** — which models live
-  where, and why a given model is on a given host.
-- **[fleet-side-projects.md](fleet-side-projects.md)** — what else the
-  hardware can do (video, VFX, 3D, home-lab services), per machine; a planning
-  list, nothing scheduled.
+- **[hardware.md](hardware.md)**: the hardware, and measured VRAM and throughput per model.
+- **[network-topology.md](network-topology.md)**: LAN layout, ports, and firewall rules.
+- **[model-architecture.md](model-architecture.md)**: which models run where, and why.
+- **[fleet-side-projects.md](fleet-side-projects.md)**: what else the hardware can do (video, VFX, 3D, home-lab services), per machine. A planning list; nothing is scheduled.
 
-## War stories & troubleshooting
+## Engine trial and benchmarks
 
-- **[server-recovery-cpu-led.md](server-recovery-cpu-led.md)** — a live BIOS-flash
-  recovery log (solid CPU EZ Debug LED, board won't POST), written as the
-  debugging happened.
-- **[troubleshooting.md](troubleshooting.md)** — the accumulated gotchas:
-  context-window truncation, tool-calling quirks, PowerShell/bash pitfalls,
-  and more.
+- **[llamacpp-trial.md](llamacpp-trial.md)**: the llama.cpp engine trial for the server's main seat. Runbook and results.
+- **[main-seat-trial.md](main-seat-trial.md)**: the plain-language trial that chose the main seat.
+- **[costs.md](costs.md)**: what the hosted OpenCode Go seats cost against the plan limits.
+
+## Troubleshooting and recovery
+
+- **[troubleshooting.md](troubleshooting.md)**: known gotchas. Context truncation, tool-calling quirks, PowerShell and bash pitfalls.
+- **[server-recovery-cpu-led.md](server-recovery-cpu-led.md)**: a live log of a BIOS-flash recovery, written while it happened.
 
 ## Research: the review-gate experiment
 
 Can a local LLM reliably act as a code-review gate? **[review-gate/README.md](review-gate/README.md)**
-is the index for this thread — method, case studies, and the raw run data
-behind them.
+is the index: method, case studies, and the raw run data.
 
-**Answered, 2026-09-19: no.** Across 18 parameter-recorded runs over three
-model families, forcing the reviewer to transcribe every test's arguments
-before judging raised its output length exactly as intended and changed almost
-nothing — one run transcribed the decisive argument correctly and passed the
-broken plan anyway. The bottleneck is verification reasoning, not prompt shape.
-The deterministic checker built alongside it *does* discriminate and is sound
-as a regression gate on the one plan it was written for. Results:
+Answer, 2026-09-19: no. The bottleneck is verification reasoning, not prompt
+shape. The deterministic checker built alongside it does discriminate, and it
+works as a regression gate for the one plan it was written for. Results:
 [r3-results.md](review-gate/raw/r3-results.md) and
 [r3-robot-results.md](review-gate/raw/r3-robot-results.md).
 
 ## Roadmap
 
-- **[roadmap.md](roadmap.md)** — ordered backlog: what's landed, what's next,
-  and open fleet decisions.
+- **[roadmap.md](roadmap.md)**: the ordered backlog. What has landed, what is next, and open fleet decisions.
 
-## Research & references
+## Research and references
 
-- **[methodology-research.md](methodology-research.md)** — the 2026-09-24
-  sanity-check writeup: where the methodology stands, the two accelerators for
-  first real use, and community resources mapped to the measured gaps.
-- **[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md)** —
-  adversarial review of the testing methodology: what each harness actually
-  measures, where N=1 / era confounds / guided-repair limits bite, and the
-  N>1 protocol (no seat decisions until it reports).
-- **[references.md](references.md)** — catalog of every external source cited
-  in these docs, plus the citation convention. Add a row here whenever a doc
-  gains a new citation.
+- **[methodology-research.md](methodology-research.md)**: where the testing methodology stands, and the community resources it maps to.
+- **[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md)**: what each harness measures, where single runs and era changes mislead, and the protocol for N > 1.
+- **[references.md](references.md)**: every external source cited in these docs, and the citation convention.
 
 ## Other
 
-- **[implementation-tasks.md](implementation-tasks.md)** — not a doc to read
-  so much as a live artifact: the task list OpenCode's `/plan` command writes
-  and executes against. Whatever's in it reflects the most recent planning
-  pass, not a fixed reference.
-- **[agent-notes/](agent-notes/)** — literal prompts/scratch docs used to run
-  this fleet with an AI coding agent. Included for transparency, not required
-  reading.
+- **[implementation-tasks.md](implementation-tasks.md)**: a live file. `/plan` writes it and the main seat executes from it. It shows the latest planning pass, not a fixed reference.
+- **[agent-notes/](agent-notes/)**: the prompts and scratch notes used with an AI coding agent. Included for transparency. Not required reading.
