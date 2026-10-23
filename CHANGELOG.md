@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `-ReadOnlyAcceptance`, the tamper control for shown acceptance tests (2026-10-23).** The adversarial review
+  of milestone 3 (`docs/adversarial-review-2026-10-23.md`) found that editing a given test is the shown runs' main
+  failure (4 of 57), though the prompt forbids it. With `-ShowAcceptance -ReadOnlyAcceptance` the given files are
+  read-only during the run, with the prompt unchanged; `acceptanceShown` records `readOnly` and `readOnlyCleared` (files
+  the model made writable again); rows need their own folder, marked `ACCEPTANCE-READONLY`. Guard:
+  `tests/test-show-acceptance.ps1`, 28 checks (was 19); the harness without the switch fails 8.
+
 - **docs: the model sweep's probe step (2026-10-23).** `docs/roadmap.md` → "After the trial" item 9, step 1, and 8 rows
   in `tests/results/toolcalls-summary-llamacpp.tsv`. On the server's llama.cpp (b11561): `gpt-oss:20b` (with llama.cpp's
   official template; Ollama's copy has none), `qwen3-coder:30b`, `nemotron-3.5-lightning`, `laguna-xs-2.1` and
