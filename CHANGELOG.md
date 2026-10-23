@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: milestone 3 measured, the sealed rounds, and the real-02 host test (2026-10-23).** `docs/roadmap.md` →
+  "After the trial" item 10, and `docs/target-setup.md` milestone 3. On the server's llama.cpp, tools on node3, sealed
+  checkouts, 3 alternated pairs: with the acceptance tests shown, `qwen3.6` passed 44 of 45 runs (pass^3 0.93, 14 of 15
+  tasks every run), against 40 of 45 hidden (0.80, 12 of 15). `wp-5b`, never passed hidden, passed 3 of 3 shown. The
+  four tasks hit by the stale-file bug use re-runs on #151's harness. Item 3 gains the sealed Ollama round (35 of 44,
+  within the unsealed spread) and the real-02 host test (desktop 1 of 8, server 1 of 5: the host does not matter).
+  Item 6 (best-of-N) is next, and item 8 notes that node3's placement check now works over its ssh key.
+
 - **fix: `-ShowAcceptance` graded the suite against stale copies of the given tests (2026-10-22).** When a task's
   acceptance folder replaces a test file the base already has (`wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`), the harness put
   the base's copy back before the suite. That copy asserts the old behaviour, and the model had been told not to touch

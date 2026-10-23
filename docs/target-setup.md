@@ -10,6 +10,9 @@
 >   "Machine roles"). The harness runs where the tools run: the desktop or node3, both run hosts since
 >   2026-10-21 (roadmap → step 5, "node3's control round"). This amends the "server-centric" requirement below, which is kept as written.
 > - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
+> - **Milestone 3 is measured (2026-10-23):** with the acceptance tests shown, `qwen3.6` on the server's llama.cpp passed
+>   44 of 45 runs against 40 of 45 hidden, and every task passed at least once (roadmap → "After the trial" item 10).
+>   Milestone 4 is next.
 
 What the fleet should look like once the server POSTs, derived from how the
 owner actually wants to work (recorded 2026-09-22). This is the concrete shape
@@ -207,11 +210,19 @@ shape" is unchanged, only the planner's name is filled in.
    prerequisite of milestone 4: the real-use tasks grade on hidden tests the
    model never sees, but a dispatcher in real use has no hidden tests, so the
    planner's acceptance test is the only gate it could select on.
+   **Measured 2026-10-22/23 (`-ShowAcceptance`, #149 and #151):** on the
+   15 real tasks, 3 alternated pairs, the shown arm passed 44 of 45 runs
+   (pass^3 0.93, 14 of 15 tasks every run) against the hidden arm's 40 of 45
+   (0.80, 12 of 15). `wp-5b`, never passed hidden, passed 3 of 3 shown. The
+   shown tests were the tasks' own hidden tests, so this is the split with a
+   near-perfect planner; milestone 5 measures a real one (roadmap → "After
+   the trial" item 10).
 4. **Best-of-N.** Dispatcher runs N attempts across hosts and records pass@N
    as well as pass@1. Set N from the data, not in advance. **The data now
    argues for it (2026-10-13):** over four reps of the 15 real tasks on the
    server, pass@1 averaged 11.5 and 14 tasks passed at least once (only
-   `wp-5b` never). Waits on milestone 3.
+   `wp-5b` never). Next, now that milestone 3 is measured: with the tests
+   shown, pass@3 was 15 of 15.
 5. **First real use (TypeScript, mode B).** Plan a real change in one of the
    benchmark repos with Claude Code, emit work orders, let the fleet execute,
    review, merge. Milestone reached when a multi-order feature lands this way

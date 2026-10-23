@@ -405,6 +405,12 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      Ollama and 2 of 9 by its llama.cpp. A split that lopsided comes up about 12% of the time by chance (hypergeometric,
      3 or more of the 4 passes in the desktop's 9), so it is a lead, not a finding; what differs is the backend (Vulkan
      against CUDA) and the machine. A deliberate test (the task several times on each host) would settle it.
+     **Settled 2026-10-22: the host does not matter.** On Ollama with sealed checkouts, the desktop's GPU passed 1 of 8
+     and the server 1 of 5 (private results `real02-host-desktop`, `real02-host-server`). The lead has moved to the
+     engine: on the server's llama.cpp, sealed, it passed 2 of 3 hidden and 3 of 3 shown (item 10). Still a small sample.
+   - **Sealed checkouts change nothing measurable (2026-10-22).** The same round on Ollama with sealed checkouts (#147),
+     tools on node3, 3 reps: 35 of 44 graded (80%), 10 of 15 tasks every run, `real-02` and `wp-5b` never (one `wp-5b`
+     timed out). That is within the spread of the unsealed rounds above (76%). Private results `sealed-c3-node3`.
    - **The desktop as a model host:** 88% per run on 25 runs, at about a third of the server's speed (its first round took
      6 h, against about 2 h on the server), on memory the crash dumps suspect (`MEMORY_CORRUPTION_ONE_BIT`, 2026-10-21).
      It served the round without a crash, with 2 to 3 GB of RAM free most of the night. Its second round was cut at 10
@@ -419,18 +425,19 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    the CPU the contention rule protects. Title calls are short, but they are CPU work beside the seat. The baseline
    rounds ran with it, so it is not changed before the trial. Candidate: the desktop's GPU `qwen2.5-coder:3b`, which
    evicts nothing under a profile with no desktop seat.
-6. **Best-of-N, back on deck** ([target-setup.md](target-setup.md) milestones 3 and 4). Four reps put pass@1 at about
-   11.5 of 15 and "passed at least once" at 14 of 15, so independent attempts are a real lever. The open question:
-   the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
-   test (milestone 3) before a dispatcher can pick the passing attempt (milestone 4).
+6. **Best-of-N, next** ([target-setup.md](target-setup.md) milestones 3 and 4). Four reps put pass@1 at about
+   11.5 of 15 and "passed at least once" at 14 of 15, so independent attempts are a real lever. The open question was
+   that the benchmark selects on hidden tests, which real use doesn't have, so the planner has to supply the acceptance
+   test before a dispatcher can pick the passing attempt. Milestone 3 answered it (item 10): with the tests shown,
+   pass@3 is 15 of 15, and the shown test is a gate a dispatcher can run.
 7. **The desktop's role and "Replacing Ollama" Phase 4**, decided on Gate G1's result.
 8. **The engine: llama.cpp (owner, 2026-10-22).** The executor moves to the server's llama-server: on the 15 real tasks
    it scored 54 of 60 against Ollama's 47 (four reps each, read-budget plugin on), with 0 overflowing runs. The launcher's
    default is `dev-workflow-server-llamacpp` from 2026-10-22 ("Replacing Ollama" → Phase 3, whose "flip the default"
    condition this meets), and benchmark rounds run on `llamacpp-server` from then on: a new era for the rows. Still to do
    for the cutover: the server-side half of Phase 3 (the stack primary with a restart policy, `status.sh`, `startup.sh`,
-   the systemd unit), and the placement check from node3, which has no ssh key for the server, so a round driven from
-   there records llama.cpp's GPU placement as unchecked.
+   the systemd unit). The placement check from node3 works since node3 got its own ssh key for the server
+   (2026-10-22): all 102 milestone-3 runs record `gpuPlacement` gpu.
 9. **Re-test other model families on the mature harness (owner's go 2026-10-22, after milestone 3's measurement).**
    - **Why the old verdicts are stale:** most candidates got 1 to 8 runs, on a harness that still graded environment
      faults (unreachable endpoints, truncated prompts, output-cap hits) as model weakness. They were also run on
@@ -458,6 +465,35 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in
      [fleet-side-projects.md](fleet-side-projects.md). None is scheduled.
+10. ~~**Milestone 3: shown acceptance tests.**~~ **Measured 2026-10-22/23: the given test lifts the executor, and
+    every task passed at least once.** `test-tasks.ps1 -ShowAcceptance` (#149, with #151's stale-file fix). The 15-task
+    round on the server's llama.cpp (build b11561), tools on node3, sealed checkouts, classifier 3, hidden and shown
+    rounds alternated in 3 pairs so time of day favours neither. Private results `llamacpp-sealed-hidden`,
+    `llamacpp-sealed-shown` and `llamacpp-sealed-shown-fixed`.
+
+    | Arm | per run | pass^3 | every run | never |
+    |---|---|---|---|---|
+    | hidden tests | 40 of 45 (89%) | 0.80 | 12 of 15 | `wp-5b` |
+    | shown tests | 44 of 45 (98%) | 0.93 | 14 of 15 | none |
+
+    - **`wp-5b`, which no hidden run has ever passed, passed 3 of 3 shown.** `real-02` and `real-03` went from 2 of 3
+      to 3 of 3.
+    - **The one shown failure was the model editing the test it was given** (`wp-0a`, 1 of 3). The tamper check made it
+      a scope FAIL, as designed. Its acceptance tests passed, so a dispatcher that also checks the given files are
+      untouched would have rejected the attempt.
+    - **The shown arm for `wp-0a`, `wp-5a`, `wp-5b` and `wp-6f` is re-run data.** Their given files replace test files
+      the base already has. Before #151 the harness graded the suite against the base's stale copies, which failed every
+      correct fix of `wp-0a` and `wp-5a`. The table uses the 11 unaffected tasks from the alternated pairs plus
+      3 re-runs of each of the 4 on the fixed harness (2026-10-22/23, straight after the pairs, the same settings).
+    - **The desktop's GPU as model host, shown:** 28 of 28 graded (2 runs, `wp-7a` and `wp-5b`, hit the 45-minute
+      timeout on its slower GPU and were not graded), against 22 of 25 on its hidden round (item 3). Ollama, private
+      results `desktopgpu-shown` and `desktopgpu-shown-fixed`, with the same correction for the 4 tasks.
+    - **Health:** all 102 node3 runs on sealed checkouts, the seat on the GPU, the tools check passing, no tool failing
+      every call, no overflow and no infrastructure outcome.
+    - **The caveat that matters for real use:** the shown tests are the tasks' own hidden tests, written to grade a
+      known-good fix, so this is the plan/execute split with a near-perfect planner. A planner's tests, written before
+      the work, will be weaker; milestone 5 measures that.
+    - **Next:** milestone 4, best-of-N with the shown test as the selector (item 6). pass@3 is 1.00 shown.
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.
