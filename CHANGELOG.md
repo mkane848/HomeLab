@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `-ReadOnlyAcceptance`, the tamper control for shown acceptance tests (2026-10-23).** The adversarial review
+  of milestone 3 (`docs/adversarial-review-2026-10-23.md`) found that editing a given test is the shown runs' main
+  failure (4 of 57), though the prompt forbids it. With `-ShowAcceptance -ReadOnlyAcceptance` the given files are
+  read-only during the run, with the prompt unchanged; `acceptanceShown` records `readOnly` and `readOnlyCleared` (files
+  the model made writable again); rows need their own folder, marked `ACCEPTANCE-READONLY`. Guard:
+  `tests/test-show-acceptance.ps1`, 28 checks (was 19); the harness without the switch fails 8.
+
 - **fix: `-ShowAcceptance` graded the suite against stale copies of the given tests (2026-10-22).** When a task's
   acceptance folder replaces a test file the base already has (`wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`), the harness put
   the base's copy back before the suite. That copy asserts the old behaviour, and the model had been told not to touch
