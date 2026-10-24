@@ -49,6 +49,7 @@ works as a regression gate for the one plan it was written for. Results:
 - **[methodology-research.md](methodology-research.md)**: where the testing methodology stands, and the community resources it maps to.
 - **[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md)**: what each harness measures, where single runs and era changes mislead, and the protocol for N > 1.
 - **[adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md)**: milestone 3's results attacked before milestone 4 is built on them: what holds, what to stop claiming, and the experiments that come first.
+- **[planner-tests-experiment.md](planner-tests-experiment.md)**: experiment 3's design: how often a planner's own acceptance test accepts wrong code, measured against the hidden tests. Not yet run.
 - **[references.md](references.md)**: every external source cited in these docs, and the citation convention.
 
 ## Other
