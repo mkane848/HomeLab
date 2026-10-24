@@ -209,6 +209,12 @@ param(
     # own kind: they need their own -ResultsDir (an ACCEPTANCE-SHOWN marker keeps
     # them apart) and are not mirrored to tests/results/real-tasks-public.tsv.
     [switch]$ShowAcceptance,
+    # With -ShowAcceptance: which wording names the given tests in the prompt. 1 is
+    # milestone 3's ("... Do not edit, move or delete these test files."); 2 (the
+    # default since 2026-10-24) adds that the given files are the finished tests the
+    # task asks for, because the work-package prompts tell the model to write tests
+    # in those very files. Part of the prompt hash; the run JSON records it.
+    [ValidateSet(1, 2)][int]$ShownPrompt = 2,
     # With -ShowAcceptance: the given files are also made read-only for the run,
     # the tamper control of docs/adversarial-review-2026-10-23.md (4 of 57 shown
     # runs edited a given test although the prompt forbids it). The prompt is
@@ -1948,7 +1954,12 @@ foreach ($tk in $tasksToRun) {
             $overallPass = $false
             continue
         }
-        $prompt += "`n`nAcceptance tests for this task are already in the repository: " + ($shownFiles -join ", ") + ". Change the source so that they pass, and run them to check. Do not edit, move or delete these test files."
+        # Version 2 (default since 2026-10-24) says the given files ARE the tests the task asks for.
+        # The work-package prompts tell the model to write or change tests in those very files, so
+        # version 1's bare "do not edit" contradicted the task, and the model followed the task:
+        # milestone 3's "tampering" (docs/roadmap.md -> "After the trial" item 10).
+        $shownReconcile = if ($ShownPrompt -ge 2) { " They are the finished tests for this task: where the task asks you to write, change or rename tests in these files, that is already done." } else { "" }
+        $prompt += "`n`nAcceptance tests for this task are already in the repository: " + ($shownFiles -join ", ") + "." + $shownReconcile + " Change the source so that they pass, and run them to check. Do not edit, move or delete these test files."
     }
     if (-not $promptHashes.ContainsKey($tk.id)) {
         # SHA256.HashData / Convert.ToHexString are .NET 5+ only - not present under
@@ -2546,7 +2557,8 @@ foreach ($tk in $tasksToRun) {
         # -ShowAcceptance: the tests the model was given (files, fingerprint) and
         # any it changed. Null on a hidden-test run; rows before 2026-10-22 have none.
         # readOnly: -ReadOnlyAcceptance (absent before 2026-10-23 means false).
-        acceptanceShown = $(if ($shown) { [ordered]@{ files = @($shown.Files | ForEach-Object Rel); hash = $shown.Hash; tampered = @($shownTampered); readOnly = [bool]$ReadOnlyAcceptance; readOnlyCleared = @($shownReadOnlyCleared) } } else { $null })
+        # prompt: -ShownPrompt (absent before 2026-10-24 means 1).
+        acceptanceShown = $(if ($shown) { [ordered]@{ files = @($shown.Files | ForEach-Object Rel); hash = $shown.Hash; tampered = @($shownTampered); readOnly = [bool]$ReadOnlyAcceptance; readOnlyCleared = @($shownReadOnlyCleared); prompt = $ShownPrompt } } else { $null })
         opencodeVersion = $opencodeVersion
         # The agent that ran the task (its adapter is tests/agents/<name>.ps1).
         # Rows before 2026-10-10 have no such field; they are all opencode.

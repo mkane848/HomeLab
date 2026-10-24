@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `-ShownPrompt 2`, a shown-mode prompt that no longer contradicts the task (2026-10-24).** The milestone 3
+  "tampering" was the model following its task prompt, which tells it to write or change tests in the very files shown
+  mode hands it while the appended line said not to edit them (`docs/roadmap.md` → "After the trial" item 10). The
+  default wording now adds that the given files are the finished tests the task asks for; `-ShownPrompt 1` keeps
+  milestone 3's wording for comparison. Changes the prompt hash; recorded as `acceptanceShown.prompt`; a new era for
+  shown rows. Guard: `tests/test-show-acceptance.ps1`, 30 checks (was 28); the harness without it fails 2.
+
 - **docs: the tampering was an instruction conflict; experiment 3's design; task sets; the model's `rg` (2026-10-24).**
   `docs/roadmap.md` → "After the trial" items 6 and 10, an addendum to `docs/adversarial-review-2026-10-23.md`, and a
   new `docs/planner-tests-experiment.md`.
