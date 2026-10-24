@@ -11,7 +11,9 @@ Run through llamacpp-check.sh. Standard library only.
                     - one slot (`parallel`/`np` = 1), because `c` is shared across
                       slots and an automatic count would quarter the window;
                     - a row with num_gpu 0 has zero GPU layers;
-                    - a quantized V cache has flash attention on.
+                    - a quantized V cache has flash attention on;
+                    - a `chat-template-file` is a file under /config/templates that
+                      exists in server/llamacpp/templates.
   --ollama-url U    sampling: for each section, ask Ollama's /api/show for the same
                     tag's parameters and compare them with the section. A parameter
                     Ollama applies that the section does not set means llama-server
@@ -36,6 +38,9 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_INI = os.path.normpath(os.path.join(HERE, "..", "llamacpp", "models.ini"))
 DEFAULT_SEATS = os.path.normpath(os.path.join(HERE, "..", "..", "models", "server-seats.tsv"))
+# server/llamacpp/templates, mounted read-only here by docker-compose.llamacpp.yml.
+TEMPLATES_DIR = os.path.normpath(os.path.join(HERE, "..", "llamacpp", "templates"))
+TEMPLATES_MOUNT = "/config/templates/"
 
 # Ollama parameter -> the llama-server keys that set the same thing.
 SAMPLING = {
@@ -148,6 +153,17 @@ def static_checks(ini, seats):
                 say("OK", tag, "alias keeps the exact tag addressable")
             else:
                 say("FAIL", tag, "a ':' in the section name is rewritten by router mode; add `alias = %s`" % tag)
+        # A seat whose weights carry no usable template loads one from the repo, which the
+        # compose file mounts read-only at /config/templates (server/llamacpp/templates/README.md).
+        tpl = sec.get("chat-template-file")
+        if tpl:
+            name = tpl[len(TEMPLATES_MOUNT):] if tpl.startswith(TEMPLATES_MOUNT) else None
+            if not name or "/" in name:
+                say("FAIL", tag, "chat-template-file %s is not a file in %s (the mounted server/llamacpp/templates)" % (tpl, TEMPLATES_MOUNT))
+            elif not os.path.isfile(os.path.join(TEMPLATES_DIR, name)):
+                say("FAIL", tag, "chat-template-file %s has no server/llamacpp/templates/%s in the repo" % (tpl, name))
+            else:
+                say("OK", tag, "chat template %s is in the repo" % name)
         par = pick(sec, glob, "parallel", "np")
         if par != "1":
             say("FAIL", tag, "parallel = %s (must be 1: c is shared across slots)" % par)
