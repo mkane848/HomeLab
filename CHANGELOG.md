@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `run-retries.ps1`, milestone 4's dispatcher loop (2026-10-24).** A sequential retry, as designed after the
+  milestone 3 review (`docs/roadmap.md` → "After the trial" item 6): each task runs `test-tasks.ps1 -ShowAcceptance` once
+  per attempt, a fresh sealed checkout each time, until an attempt passes its given tests untouched with a green suite,
+  or `-MaxAttempts` is reached. Rejections are recorded by reason (`infrastructure`, `tampered`, `acceptance`, `suite`,
+  `scope`) in `retry-summary.tsv`, and the run reports the falsifier (more than 1.5 attempts per task, or the cap on more
+  than 15% of tasks). Guard: `tests/test-retry-loop.ps1`, 23 checks; a loop that ignores tampering fails 2, one that does
+  not show the tests fails 1.
+
 - **tests: `-ReadOnlyAcceptance`, the tamper control for shown acceptance tests (2026-10-23).** The adversarial review
   of milestone 3 (`docs/adversarial-review-2026-10-23.md`) found that editing a given test is the shown runs' main
   failure (4 of 57), though the prompt forbids it. With `-ShowAcceptance -ReadOnlyAcceptance` the given files are
