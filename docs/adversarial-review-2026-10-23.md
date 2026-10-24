@@ -124,3 +124,13 @@ Sources already catalogued in [references.md](references.md), re-read 2026-10-23
   from the owner's own short prompts.
 - **Not covered by any catalogued source:** how often a planner's own tests accept wrong code (the selector's
   false-positive rate). That is measured here first, or found in new reading before experiment 3.
+
+## Addendum (2026-10-24): what the tampering was
+
+The main session read every edit to a given test in the 8 tampering runs (roadmap → "After the trial" item 10). Each of
+the 4 tasks' own prompt tells the model to change its given test file (rename a test in `party.test.ts`, add tests to
+`bond.test.ts`, and so on), and `-ShowAcceptance` appends "Do not edit, move or delete these test files". The model
+followed the task: 6 runs added tests or assertions, 2 removed a stale comment, 1 rewrote assertions while debugging;
+none weakened a test to pass broken code. So finding 1's tamper rate is mostly an instruction conflict in the harness,
+not reward hacking, and experiment 3 of "First experiments" (the read-only control) is replaced as the first step by a
+shown-mode prompt that reconciles those instructions, with read-only files as the fallback.

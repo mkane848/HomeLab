@@ -36,7 +36,8 @@ Where used: `saving-swebench`, `reward-hacking`, `mirage-bench`,
 `dont-blame-llm` → [roadmap.md](roadmap.md) ("external research pass");
 `swe-edit`, `terminal-agents` → [methodology-research.md](methodology-research.md); `saving-swebench`,
 `reward-hacking` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10) and
-[adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md).
+[adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md); `saving-swebench` also →
+[planner-tests-experiment.md](planner-tests-experiment.md), with `anthropic-infra-noise`.
 
 ## Leaderboards & benchmarks
 

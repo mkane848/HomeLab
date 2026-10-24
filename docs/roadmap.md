@@ -447,6 +447,9 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      exploit rates by 5.7 percentage points (87.7% relative) without degrading task success", and that rates rise on
      harder variants, which fits tampers clustering on `wp-5a`/`wp-5b`. So the next shown runs make the given files
      read-only (or restore them before each test run), measured first as a control.
+     **Revised 2026-10-24, after reading the transcripts (item 10): the tampering is an instruction conflict, not
+     gaming,** so the first fix is the prompt, and read-only files come second. The dispatcher (`tests/run-retries.ps1`,
+     2026-10-24) rejects a tampered attempt either way.
    - **Falsifier:** a mean above 1.5 attempts per task, or the cap reached on more than 15% of tasks, means the design
      is wrong for this executor.
    - **When parallel earns its place:** once a real planner's weaker tests lower the first-attempt rate (milestone 5),
@@ -552,6 +555,22 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
       `wp-0a` 1), all on the 4 tasks whose given file replaces an existing one; 4 of the arm's 4 failures involve a
       tamper (one `wp-5b` run also failed acceptance). The prompt forbids it. The `wp-0a` one was a reworded comment
       followed by a correct fix, so read a tamper before calling it gaming. Item 6 turns this into the next control.
+    - **The transcripts say it is an instruction conflict, not gaming (read 2026-10-24).** Every edit to a given test
+      in the 8 tampering runs (the 4 above, the desktop's 2, and 2 from the aborted rep of 2026-10-23) was read.
+      - **The cause:** each of the 4 tasks' own prompt names its given test file among the files the model is to change:
+        `wp-0a` "rename/replace the test … in party.test.ts", `wp-5b` "bond.test.ts: … Add: …", `wp-5a` and `wp-6f` list
+        their test files as owned files. `-ShowAcceptance` then appends "Do not edit, move or delete these test files",
+        so the prompt contradicts itself, and the model follows the task. The hidden-test work packages were written to
+        have the model write those tests; shown mode hands it the finished file and keeps the old instruction.
+      - **What the edits were:** 6 runs added tests or assertions (strengthening the file), 2 removed a stale history
+        comment, and 1 (desktop, `wp-5a`) rewrote assertions while debugging, its final code passing the untouched
+        original tests. None weakened a test to pass broken code: every run whose code was right passed the original
+        files, which the acceptance gate runs from its own copy.
+      - **So:** the 10% stopping rule and the read-only control measure the wrong thing until the conflict is removed.
+        The fix is a shown-mode prompt that says the given files already hold the tests the task asks for (or a
+        per-task shown prompt), measured against today's shown arm; read-only files are the fallback if edits persist.
+        The [Reward Hacking Benchmark](https://arxiv.org/abs/2605.02964)'s point stands for real reward hacking, which
+        these runs did not show.
     - **The desktop's GPU, shown (Ollama):** 32 of 36 graded the same way, against 22 of 25 hidden (item 3), with
       2 tampers and 2 runs that timed out at 45 minutes (`wp-7a`, `wp-5b`) on its slower GPU, so on that host too the
       arms are level. Private results `desktopgpu-shown`, `desktopgpu-shown-fixed`.
@@ -571,14 +590,23 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
       owner's own prompts):
       [Saving SWE-Bench](https://arxiv.org/html/2510.08996v2) puts real developer queries at "10-30 words" and finds
       benchmarks "significantly overestimate agent capabilities for some models" when rewritten that way.
-    - **Next, in order (the review's experiments):**
-      1. **Tamper control:** the shown arm with the given files read-only, `wp-0a`, `wp-5a`, `wp-5b`, 5 reps each.
-         Stop if tampering stays above 10%.
-      2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones.
-      3. **Planner-written tests:** a planner writes the test from the prompt alone (it must fail on the base); shown
-         runs are graded on both its test and the original hidden test. Measure the selector's false-positive and
-         false-negative rates; stop and redesign above 10% false positives.
-      4. **Milestone 4's loop** (item 6), recording attempts, rejection reasons, time and tokens.
+    - **Next, in order (the review's experiments, revised 2026-10-24):**
+      1. **The shown-mode prompt fix, then the tamper control:** shown with a prompt that reconciles the task's test
+         instructions, against today's shown arm and hidden, on `wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`, 5 reps, interleaved
+         (`node3-tamper.ps1`'s shape). Read-only given files (`-ReadOnlyAcceptance`, #154) join only if edits persist.
+      2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones: the hidden arm of (1).
+      3. **Planner-written tests:** designed in [planner-tests-experiment.md](planner-tests-experiment.md).
+      4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1).
+    - **Task sets (2026-10-24), from the sealed llama.cpp hidden rounds:**
+      - **Regression set:** the 12 tasks that passed all 3 hidden runs: `real-01`, `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`,
+        `wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`, `wp-6f`, `wp-7a`, `wp-9a`. One round of them guards a harness or engine
+        change: any failure is a regression to read, and a task leaves the set after a hidden failure that is the
+        model's. At about 90% they carry no capability signal ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)).
+      - **Capability set:** `real-02`, `real-03` and `wp-5b`, the only tasks with hidden failures in those rounds. Too
+        few to measure a lift; harder tasks are needed (more of `wp-5b`'s kind: several files, a contract to infer).
+    - **Model shell PATH (2026-10-24):** the round scripts on node3 and the desktop now put opencode's own ripgrep
+      (15.1.0, `~/.cache/opencode/bin`) on the model's `PATH`, so a model's `rg` in its shell works on both hosts. Rows
+      from rounds after that date have it; earlier rows on both hosts did not. The run JSON does not record it.
 
 7. **Later or parked:**
    - **Waits for a Go budget:** the hosted orchestrator test and the hosted gap fills.

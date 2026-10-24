@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the tampering was an instruction conflict; experiment 3's design; task sets; the model's `rg` (2026-10-24).**
+  `docs/roadmap.md` → "After the trial" items 6 and 10, an addendum to `docs/adversarial-review-2026-10-23.md`, and a
+  new `docs/planner-tests-experiment.md`.
+  - **Tampering:** all 8 tampering runs were read. Each of the 4 tasks' own prompt tells the model to change its
+    given test file, and shown mode appends "do not edit these test files"; the model followed the task (6 added
+    tests or assertions, 2 removed a stale comment, 1 rewrote assertions while debugging, none weakened a test to
+    pass broken code). The first fix is a shown-mode prompt that reconciles the two, with read-only files as the
+    fallback.
+  - **Experiment 3** (planner-written tests): the protocol, the validation of a planner's tests against the base
+    and the solution, three interleaved arms, the size, the stopping rule (false positives above 10%) and the
+    harness changes it needs. Not built or run.
+  - **Task sets:** a 12-task regression set and a 3-task capability set, from the sealed llama.cpp hidden rounds.
+  - **The model's `rg`:** the round scripts put opencode's ripgrep on the model's `PATH` on both run hosts from
+    2026-10-24, a change the run JSON does not record.
+
 - **tests: `run-retries.ps1`, milestone 4's dispatcher loop (2026-10-24).** A sequential retry, as designed after the
   milestone 3 review (`docs/roadmap.md` → "After the trial" item 6): each task runs `test-tasks.ps1 -ShowAcceptance` once
   per attempt, a fresh sealed checkout each time, until an attempt passes its given tests untouched with a green suite,
