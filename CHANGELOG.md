@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `run-retries.ps1`, milestone 4's dispatcher loop (2026-10-24).** A sequential retry, as designed after the
+  milestone 3 review (`docs/roadmap.md` → "After the trial" item 6): each task runs `test-tasks.ps1 -ShowAcceptance` once
+  per attempt, a fresh sealed checkout each time, until an attempt passes its given tests untouched with a green suite,
+  or `-MaxAttempts` is reached. Rejections are recorded by reason (`infrastructure`, `tampered`, `acceptance`, `suite`,
+  `scope`) in `retry-summary.tsv`, and the run reports the falsifier (more than 1.5 attempts per task, or the cap on more
+  than 15% of tasks). Guard: `tests/test-retry-loop.ps1`, 23 checks; a loop that ignores tampering fails 2, one that does
+  not show the tests fails 1.
+
 - **server: `gpt-oss:20b` as a llama.cpp seat, with its chat template from the repo (2026-10-24).** The model sweep's
   candidate (`docs/roadmap.md` → "After the trial" item 9). Ollama's blob of it has no usable chat template, so its
   probe failed until llama.cpp's own `openai-gpt-oss-120b.jinja` was loaded; that file now lives in
