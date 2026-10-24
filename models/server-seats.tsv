@@ -22,6 +22,7 @@ qwen3.6:35b-a3b-coding	65536	-	-	sha256:d372de8e934898a59e6ccfabc3368474711384d8
 qwen3:8b	32768	-	-	sha256:a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f	pull	light general seat
 qwen2.5-coder:3b	16384	-	-	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	pull	base of the CPU small model
 qwen2.5-coder-3b-cpu	16384	0	qwen2.5-coder:3b	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	derived	OpenCode small model (titles) on the CPU, so it never evicts the main seat
+gpt-oss:20b	65536	-	-	sha256:8ecb5d4ad6172c63f9cbf1a07a04e525985a8a11a6e516da02b674c4010de716	pull	model-sweep candidate (probe PASS on llama.cpp 2026-10-23, with the official template); llama.cpp seat only, not resident beside qwen3.6
 #
 # Candidates, NOT installed on the server yet. Uncomment a row only after probing that tag on this host
 # (tests/test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434 -HostLabel server). Weights hashes were read from

@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **The model's `rg`:** the round scripts put opencode's ripgrep on the model's `PATH` on both run hosts from
     2026-10-24, a change the run JSON does not record.
 
+- **server: `gpt-oss:20b` as a llama.cpp seat, with its chat template from the repo (2026-10-24).** The model sweep's
+  candidate (`docs/roadmap.md` → "After the trial" item 9). Ollama's blob of it has no usable chat template, so its
+  probe failed until llama.cpp's own `openai-gpt-oss-120b.jinja` was loaded; that file now lives in
+  `server/llamacpp/templates/` (verbatim from llama.cpp tag b11561, MIT, provenance in the folder's README), mounted
+  read-only at `/config/templates`. A `[gpt-oss:20b]` preset section (64k, all layers on the GPU, Ollama's
+  temperature 1), its `models/server-seats.tsv` row, an `llamacpp-server` model entry in `opencode/global/opencode.jsonc`
+  (64k / 8192, as qwen3.6) and a `tests/run-tasks-models.tsv` row, so the batch can offer it. `llamacpp-check.sh` now
+  fails a `chat-template-file` that is not in the repo. It must not be resident beside qwen3.6. Guard:
+  `tests/test-llamacpp-stack.ps1`, 40 checks (was 38), and `tests/test_llamacpp_check.py`, 22 tests (was 18).
+
 - **tests: `-ReadOnlyAcceptance`, the tamper control for shown acceptance tests (2026-10-23).** The adversarial review
   of milestone 3 (`docs/adversarial-review-2026-10-23.md`) found that editing a given test is the shown runs' main
   failure (4 of 57), though the prompt forbids it. With `-ShowAcceptance -ReadOnlyAcceptance` the given files are

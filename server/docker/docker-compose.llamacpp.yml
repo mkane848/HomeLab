@@ -53,6 +53,8 @@ services:
     volumes:
       - ollama_data:/ollama:ro
       - ../llamacpp/models.ini:/config/models.ini:ro
+      # Chat templates for seats whose weights carry none (server/llamacpp/templates/README.md).
+      - ../llamacpp/templates:/config/templates:ro
     deploy:
       resources:
         reservations:

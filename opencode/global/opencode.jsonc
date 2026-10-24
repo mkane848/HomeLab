@@ -622,6 +622,18 @@
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
+        },
+        // Model-sweep candidate (docs/roadmap.md -> "After the trial" item 9). Same window and
+        // output cap as qwen3.6, so a triage round compares like with like. Unload qwen3.6 first:
+        // the two do not fit the GPU together.
+        "gpt-oss:20b": {
+          "name": "gpt-oss 20B (Server, candidate, llama.cpp)",
+          "attachment": false,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
         }
       },
       "options": {

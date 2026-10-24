@@ -163,5 +163,34 @@ class Live(Base):
         self.assertEqual([l for l, _ in levels()], ["OK", "OK"])
 
 
+class ChatTemplate(Base):
+    # gpt-oss's Ollama blob has no usable template; its seat loads one from the repo (2026-10-23).
+    SEATS = {"g:1": {"num_ctx": "65536", "num_gpu": "-", "from": "-", "weights": "sha256:" + "a" * 64}}
+
+    def run_with(self, tpl):
+        sec = {"model": "/ollama/models/blobs/sha256-" + "a" * 64, "c": "65536", "alias": "g:1", "parallel": "1"}
+        if tpl is not None:
+            sec["chat-template-file"] = tpl
+        lc.static_checks({"*": {}, "g:1": sec}, self.SEATS)
+
+    def test_the_repo_template_passes(self):
+        self.run_with("/config/templates/openai-gpt-oss-120b.jinja")
+        self.assertIn("chat template openai-gpt-oss-120b.jinja is in the repo", messages("OK"))
+        self.assertEqual(messages("FAIL"), [])
+
+    def test_a_template_missing_from_the_repo_fails(self):
+        self.run_with("/config/templates/no-such.jinja")
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_a_path_outside_the_mounted_folder_fails(self):
+        self.run_with("/models/some.jinja")
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_no_template_key_is_not_checked(self):
+        self.run_with(None)
+        self.assertFalse(any("chat template" in m for m in messages("OK")))
+        self.assertEqual(messages("FAIL"), [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
