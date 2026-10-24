@@ -70,6 +70,10 @@ Has   "...declared external, under its real name"              $code '(?s)volume
 Has   "port 8090 published, and served on 8090"                $code '(?s)"8090:8090".*--port\s*\n\s*-\s*"8090"'
 Has   "router mode: --models-preset /config/models.ini"        $code '--models-preset\s*\n\s*-\s*/config/models\.ini'
 Has   "...and that file is mounted read-only from server/llamacpp" $code '\.\./llamacpp/models\.ini:/config/models\.ini:ro'
+Has   "chat templates mounted read-only from server/llamacpp/templates" $code '(?m)^\s*-\s*\.\./llamacpp/templates:/config/templates:ro\s*$'
+$tplRefs = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*chat-template-file\s*=' } | ForEach-Object { ($_ -split '=', 2)[1].Trim() })
+$tplMissing = @($tplRefs | Where-Object { -not ($_ -match '^/config/templates/([^/]+)$' -and (Test-Path -LiteralPath (Join-Path $repo "server/llamacpp/templates/$($Matches[1])"))) })
+Check "every chat-template-file in the preset is a file in server/llamacpp/templates" "$($tplRefs.Count) referenced, $($tplMissing.Count) missing" "$($tplRefs.Count) referenced, 0 missing"
 $badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*model\s*=' -and $_ -notmatch '=\s*/ollama/models/blobs/sha256-[0-9a-f]{64}\s*$' })
 Check "every model path in the preset is an Ollama blob under the /ollama mount" $badPaths.Count 0
 
@@ -176,7 +180,7 @@ if (-not $bash -or -not $python) {
         try { $py = & $python.Source -I (Join-Path $PSScriptRoot "test_llamacpp_check.py") 2>&1 | Out-String; $pyExit = $LASTEXITCODE } finally { $ErrorActionPreference = $prev }
         Check "test_llamacpp_check.py passes"                      $pyExit 0
         if ($pyExit -ne 0) { Write-Host $py }
-        Has   "...and ran its 18 tests"                            $py 'Ran 18 tests'
+        Has   "...and ran its 22 tests"                            $py 'Ran 22 tests'
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }

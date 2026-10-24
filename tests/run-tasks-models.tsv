@@ -38,6 +38,7 @@ ministral-3:8b	ollama	node3	measured PASS on node3 (0.34.2), added by run-tasks-
 ornith:9b	ollama	node3	measured PASS on node3 (0.34.2), added by run-tasks-batch probe 2026-09-22
 qwen3:8b	llamacpp	server	measured PASS through llama-server on server (build b11561, 2026-10-13, llama.cpp trial step 4)
 qwen3.6:35b-a3b-coding	llamacpp	server	main seat; measured PASS through llama-server on server (build b11561, 2026-10-13, llama.cpp trial step 4, also with MTP)
+gpt-oss:20b	llamacpp	server	model-sweep candidate; measured PASS through llama-server on server (build b11561, 2026-10-23) with server/llamacpp/templates/openai-gpt-oss-120b.jinja (FAIL without it)
 qwen3.7-plus	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
 qwen3.8-max	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
 kimi-k2.7-code	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
