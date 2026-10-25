@@ -518,7 +518,28 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
           `server/llamacpp/sweep-models.ini-20261023` in the server's checkout, and the template as
           `~/sweep-blobs/gpt-oss.jinja`.
      2. One sealed, hidden 15-task round per probe PASS, driven from node3 with classifier 3, as triage against
-        qwen3.6's llama.cpp rounds.
+        qwen3.6's llama.cpp rounds. **Run 2026-10-24/25; no candidate is within reach, so step 3 has nothing to run.**
+        - **`gpt-oss:20b`, the server's llama.cpp (2026-10-24):** 10 of 15, against qwen3.6's 40 of 45
+          (`llamacpp-sealed-hidden`). It failed `real-02`, `wp-4a`, `wp-5a`, `wp-5b` and `wp-7a`; three of those
+          qwen3.6 passes every time, and on `wp-4a` and `wp-5b` its edits stopped the test files loading at all. No
+          infrastructure outcome, no tool failing every call, the placement check `gpu` on all 15 runs. Fast: the round took
+          37 minutes. Private results `llamacpp-sealed-hidden-gptoss`.
+        - **The desktop's own Ollama (Vulkan), while node3 and the server ran item 10's tamper set (2026-10-24/25):**
+          tools and model both on the desktop, a 3-hour cap per model. The larger models spill to system RAM, and the
+          desktop's 45-minute run timeout ended several runs, so each covered only the round's first 5 to 8 tasks. A
+          timeout there mixes the model with the host's speed: these are weak screens.
+
+          | Model | tasks run | passed | failed | timed out |
+          |---|---|---|---|---|
+          | `devstral-small-2:24b` | 7 | 3 | 2 (`real-02`, `real-03`) | 2 (`wp-1a`, `wp-3a`) |
+          | `qwen3-coder:30b-a3b` | 8 | 3 | 2 (`real-02`, `real-03`) | 3 (`wp-1a`, `wp-3a`, `wp-3b`) |
+          | `north-mini-code-1.0` | 6 (a 7th, `wp-3a`, still running at 06:00) | 2 | 2 (`real-02`, `wp-0a`) | 2 (`wp-1a`, `wp-2b`) |
+
+          qwen3.6 passes `wp-1a`, `wp-3a` and `wp-3b` every time on the server, and `devstral-small-2` can be triaged
+          only here (llama.cpp cannot load its Ollama blob). `laguna-xs-2.1` and `nemotron-3.5-lightning` did not get a
+          round before the window closed. Private results `desktop-sweep-<model>`.
+        - **What would change this:** a full round on the server's llama.cpp for `qwen3-coder:30b` (the registry build
+          passed its probe there), which removes the desktop's speed from the timeouts. Not scheduled.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in
@@ -591,9 +612,41 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
       [Saving SWE-Bench](https://arxiv.org/html/2510.08996v2) puts real developer queries at "10-30 words" and finds
       benchmarks "significantly overestimate agent capabilities for some models" when rewritten that way.
     - **Next, in order (the review's experiments, revised 2026-10-24):**
-      1. **The shown-mode prompt fix, then the tamper control:** shown with a prompt that reconciles the task's test
+      1. ~~**The shown-mode prompt fix, then the tamper control:** shown with a prompt that reconciles the task's test
          instructions, against today's shown arm and hidden, on `wp-0a`, `wp-5a`, `wp-5b`, `wp-6f`, 5 reps, interleaved
-         (`node3-tamper.ps1`'s shape). Read-only given files (`-ReadOnlyAcceptance`, #154) join only if edits persist.
+         (`node3-tamper.ps1`'s shape). Read-only given files (`-ReadOnlyAcceptance`, #154) join only if edits persist.~~
+         **Measured 2026-10-24/25: tampering halved, not gone, so the read-only arm is next.** `-ShownPrompt 2` (#159)
+         against `-ShownPrompt 1` (milestone 3's wording) and hidden tests, the arm order rotating each rep; the server's
+         llama.cpp, tools on node3, classifier 3, 20:28 to 05:14. Private results `llamacpp-tamper-shown-v2`,
+         `llamacpp-tamper-shown-v1`, `llamacpp-tamper-hidden`.
+
+         | Arm | graded | passed | edited a given test |
+         |---|---|---|---|
+         | shown, reconciled prompt (2) | 20 | 17 | 2 (`wp-5a` 1, `wp-5b` 1) |
+         | shown, milestone 3's prompt (1) | 19 | 14 | 4 (`wp-5a` 2, `wp-5b` 2) |
+         | hidden | 20 | 15 | n/a |
+
+         - The prompt-1 arm has 19 graded runs: one `wp-5b` run ended context-exceeded (exit -6, no row).
+         - `wp-0a` and `wp-6f` passed every run in every arm, and `wp-0a`'s tamper of milestone 3 did not recur. The
+           arms differ on `wp-5b` (3 of 5, 1 of 4, 0 of 5) and `wp-5a` (4 of 5, 3 of 5, 5 of 5; every shown failure there
+           is a tamper).
+         - **None of it is significant at n = 5 a task:** tampers 2 of 20 against 4 of 19 is Fisher's exact p = 0.41,
+           `wp-5b` 3 of 5 shown against 0 of 5 hidden p = 0.17, and the arms' totals 17 against 15 p = 0.70. The
+           direction is the expected one throughout.
+         - **The two prompt-2 tampers, read:** both added to the given file and weakened nothing. On `wp-5a` the model
+           put a bonds assertion into an existing bootstrap test before any compaction ("Now I need to add the test for
+           active campaign returning bonds"), still following the work package's "owned files" list. On `wp-5b` it
+           appended a new test for accepting a connection tag, after its first compaction, whose summary kept "aligning
+           tests to the new ruleset" as the objective. So the conflict survives the reconciled prompt on the two tasks
+           whose work package most explicitly asks for tests, and a compaction can drop the restriction.
+         - **Next:** the read-only arm (`-ReadOnlyAcceptance` with `-ShownPrompt 2`), since edits persist; the
+           dispatcher (item 6) rejects a tampered attempt in any case, so this is now a question of attempts per task,
+           not of correctness.
+         - **Sized by power from here on (owner, 2026-10-25), not 3 to 5 reps.** Prompt 2 tampered in 2 of 10 runs of
+           `wp-5a`/`wp-5b`. If read-only brings that 20% to 0%, Fisher's exact test at p < 0.05 detects it with
+           probability 0.37 at 20 runs an arm, 0.57 at 30 and 0.84 at 40 (0.64 at 40 if read-only leaves 2%). So the
+           read-only arm runs `wp-5a` and `wp-5b` only, 20 reps each, interleaved with a fresh prompt-2 shown arm:
+           80 runs, about 21 hours on the server, over more than one session if node3 is needed.
       2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones: the hidden arm of (1).
       3. **Planner-written tests:** designed in [planner-tests-experiment.md](planner-tests-experiment.md).
       4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1).

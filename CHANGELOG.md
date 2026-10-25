@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the tamper set under the reconciled prompt, and the model sweep's triage rounds (2026-10-24/25).**
+  `docs/roadmap.md` → "After the trial" items 9 and 10. With `-ShownPrompt 2` the given tests were edited in 2 of 20
+  runs against 4 of 19 under milestone 3's wording (17, 14 and 15 of 20 passed: reconciled, old, hidden); not
+  significant at 5 reps, and both remaining edits added tests, so the read-only arm is next. `gpt-oss:20b` scored 10 of
+  15 against qwen3.6's 40 of 45 on the server; `devstral-small-2`, `qwen3-coder:30b-a3b` and `north-mini-code-1.0` got
+  partial rounds on the desktop's own Ollama, with several 45-minute timeouts. No candidate is within reach.
+
 - **tests: `-ShownPrompt 2`, a shown-mode prompt that no longer contradicts the task (2026-10-24).** The milestone 3
   "tampering" was the model following its task prompt, which tells it to write or change tests in the very files shown
   mode hands it while the appended line said not to edit them (`docs/roadmap.md` → "After the trial" item 10). The
