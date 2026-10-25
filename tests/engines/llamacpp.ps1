@@ -143,6 +143,12 @@ function Get-EnginePromptLossText {
     return ("llama-server refused {0} over-long request(s)" -f @($Hits).Count)
 }
 
+function Get-EngineDeviceLoss {
+    # llama-server's output is the server container's log, on that host.
+    param($Setup, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    return [pscustomobject]@{ Checked = $false; Events = @(); Note = "not checked (llama-server's log is on its host)" }
+}
+
 function Get-EngineGpuPlacement {
     # Verdicts as Get-OllamaGpuPlacement's (tests/engines/ollama.ps1). TotalBytes
     # and Share are not known (nvidia-smi reports the GPU part only).

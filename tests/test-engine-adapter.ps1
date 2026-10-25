@@ -42,7 +42,7 @@ $ollamaPath = Join-Path $PSScriptRoot "engines\ollama.ps1"
 $llamaPath  = Join-Path $PSScriptRoot "engines\llamacpp.ps1"
 $interface = @("Get-EngineBaseUrlVar", "Get-EngineBaseUrl", "Test-EngineAlive", "Get-EngineVersion", "Format-EngineVersion",
                "Get-EngineServedModels", "Get-EngineSeatTags", "Get-EngineServedContext", "Get-EnginePromptLossSetup", "Get-EnginePromptLoss",
-               "Get-EnginePromptLossText", "Get-EngineGpuPlacement")
+               "Get-EnginePromptLossText", "Get-EngineGpuPlacement", "Get-EngineDeviceLoss")
 
 function Get-Ast([string]$Path) {
     $errs = $null

@@ -1840,7 +1840,9 @@ try {
 # checked" or "not applicable", not a clean.
 $promptLoss = Get-EnginePromptLossSetup -Root $engineRoot -LogDir $OllamaLogDir -ProviderId $providerId
 $truncLogDir = $promptLoss.LogDir
-$truncCheck = $promptLoss.Description# The agent and its version, recorded in every run JSON as `agent`. Rows from
+$truncCheck = $promptLoss.Description
+
+# The agent and its version, recorded in every run JSON as `agent`. Rows from
 # another agent are a new era. `opencodeVersion` stays for the rows' continuity
 # (null under another agent).
 $agentVersionRaw = Get-AgentVersion
@@ -2133,6 +2135,14 @@ foreach ($tk in $tasksToRun) {
             $run | Add-Member -NotePropertyName Detail -Force -NotePropertyValue ("{0}: the model did not see the whole system prompt, tool list and task. A task-fit failure, NOT model behaviour: not graded, no summary row (prompt sha {1})." -f (Get-EnginePromptLossText -Hits $truncation), $promptHashes[$tk.id])
         }
     }
+    # A GPU driver reset during the run (Get-EngineDeviceLoss): the engine lost
+    # its device, a request failed, the model was reloaded and the agent retried,
+    # so the run carried on. Recorded as `gpuResets` and warned about, never
+    # graded: the outcome stands, the run's time does not compare. Rows before
+    # 2026-10-25 have no such field.
+    $deviceLoss = Get-EngineDeviceLoss -Setup $promptLoss -Since $runStart -Until ([DateTimeOffset]::Now)
+    $gpuResets = [ordered]@{ checked = $deviceLoss.Checked; events = @($deviceLoss.Events); note = $deviceLoss.Note }
+    $gpuResetText = if (@($deviceLoss.Events).Count) { "the GPU device was lost $(@($deviceLoss.Events).Count) time(s) during the run (a driver reset; first: $(@($deviceLoss.Events)[0]))" } else { $null }
     # Where did the host put the model? (Get-EngineGpuPlacement.) Asked after the
     # run, while the seat is still loaded. Exit -5 is this harness's code for a
     # host that was not using its GPU (-1 timeout, -2 dead job host, -3 truncated
@@ -2194,6 +2204,7 @@ foreach ($tk in $tasksToRun) {
         if ($overflowRec.OverflowErrors -gt 0) {
             $runDetail += " The engine refused $($overflowRec.OverflowErrors) over-long request(s) explicitly (ContextOverflowError), and the session did not end on a finished step after the last one ($($overflowRec.OtherErrors) other error(s); last finish: $(if ($overflowRec.LastFinish) { $overflowRec.LastFinish } else { 'none' })): overflow killed the run."
         }
+        if ($gpuResetText) { $runDetail += " Also: $gpuResetText." }
         if ($ctxEvents.TemplateCrash) {
             $runDetail += " Cause: a context overflow. The request was longer than num_ctx, so Ollama dropped the oldest messages, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
         }
@@ -2226,6 +2237,9 @@ foreach ($tk in $tasksToRun) {
         }
     } elseif ($gpuPlacement -and @("not-loaded", "unchecked") -contains $gpuPlacement.verdict) {
         Write-Result $tk.id "gpu placement" "WARN" ("{0}. Recorded in gpuPlacement, not graded." -f $gpuPlacement.note)
+    }
+    if ($gpuResetText) {
+        Write-Result $tk.id "gpu device" "WARN" ("{0}. The run was graded as it ended; its time is not comparable. Recorded in gpuResets, not graded." -f $gpuResetText)
     }
     $capHit = Test-OutputCapHit -Ending $run.Ending -Limit $outputLimit
     if ($run.Writes -eq 0) {
@@ -2544,6 +2558,9 @@ foreach ($tk in $tasksToRun) {
             [ordered]@{ overflowErrors = $overflowRec.OverflowErrors; exitsLifted = $script:OverflowExitsLifted; lastFinish = $overflowRec.LastFinish }
         } else { $null })
         gpuPlacement    = $gpuPlacement
+        # GPU driver resets the engine logged during the run (checked, events,
+        # note). Rows before 2026-10-25 have no such field.
+        gpuResets       = $gpuResets
         runHost         = $runHost
         # The checkout graded, on this run host, and the manifest's path when
         # tests/repo-roots.tsv mapped it (null: the manifest's path was used as is).
