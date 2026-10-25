@@ -537,7 +537,11 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
 
           qwen3.6 passes `wp-1a`, `wp-3a` and `wp-3b` every time on the server, and `devstral-small-2` can be triaged
           only here (llama.cpp cannot load its Ollama blob). `laguna-xs-2.1` and `nemotron-3.5-lightning` did not get a
-          round before the window closed. Private results `desktop-sweep-<model>`.
+          round before the window closed. Private results `desktop-sweep-<model>`. One AMD driver reset hit the
+          sweep: at 20:53 during `devstral-small-2`'s `real-01`, Ollama logged "ggml_vulkan: device lost on Vulkan0"
+          and returned a 500, Windows filed a kernel 141 (GPU timeout) report, and Ollama reloaded the model in 39 s;
+          opencode retried and the run went on to pass (in 1,968 s, so its time is not comparable). The harness does
+          not see a reset that opencode retries through, so a run JSON records nothing of it.
         - **What would change this:** a full round on the server's llama.cpp for `qwen3-coder:30b` (the registry build
           passed its probe there), which removes the desktop's speed from the timeouts. Not scheduled.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
