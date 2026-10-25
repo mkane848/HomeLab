@@ -533,7 +533,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
           |---|---|---|---|---|
           | `devstral-small-2:24b` | 7 | 3 | 2 (`real-02`, `real-03`) | 2 (`wp-1a`, `wp-3a`) |
           | `qwen3-coder:30b-a3b` | 8 | 3 | 2 (`real-02`, `real-03`) | 3 (`wp-1a`, `wp-3a`, `wp-3b`) |
-          | `north-mini-code-1.0` | 6 (a 7th, `wp-3a`, still running at 06:00) | 2 | 2 (`real-02`, `wp-0a`) | 2 (`wp-1a`, `wp-2b`) |
+          | `north-mini-code-1.0` | 7 | 3 | 2 (`real-02`, `wp-0a`) | 2 (`wp-1a`, `wp-2b`) |
 
           qwen3.6 passes `wp-1a`, `wp-3a` and `wp-3b` every time on the server, and `devstral-small-2` can be triaged
           only here (llama.cpp cannot load its Ollama blob). `laguna-xs-2.1` and `nemotron-3.5-lightning` did not get a
