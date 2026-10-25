@@ -35,8 +35,11 @@
 #   Get-EngineGpuPlacement -ProviderId -Root -Tag
 #                                       { Verdict gpu|cpu-only|not-loaded|unchecked; Model;
 #                                         TotalBytes; VramBytes; Share; Detail }
+#   Get-EngineDeviceLoss -Setup -Since -Until
+#                                       { Checked; Events; Note }: the engine's own record of
+#                                       the GPU device lost (a driver reset) in that window
 # Ollama-only internals the guards load directly: Get-OllamaGpuPlacement,
-# Get-OllamaPromptTruncation.
+# Get-OllamaPromptTruncation, Get-OllamaDeviceLoss.
 
 $script:EngineName = "ollama"
 
@@ -153,6 +156,18 @@ function Get-EngineGpuPlacement {
     return (Get-OllamaGpuPlacement -Root $Root -Tag $Tag)
 }
 
+function Get-EngineDeviceLoss {
+    # The same local server.log the prompt-loss check reads (its Setup), so the
+    # same hosts are checked and the same ones are not.
+    param($Setup, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    if (-not $Setup -or -not $Setup.Enabled) {
+        $why = if ($Setup) { $Setup.Description } else { "not checked (no log setup)" }
+        return [pscustomobject]@{ Checked = $false; Events = @(); Note = $why }
+    }
+    $events = @(Get-OllamaDeviceLoss -LogDir $Setup.LogDir -Since $Since -Until $Until)
+    return [pscustomobject]@{ Checked = $true; Events = $events; Note = "checked Ollama server.log in $($Setup.LogDir)" }
+}
+
 function Get-OllamaGpuPlacement {
     # Where an Ollama host has the model $Tag loaded, from /api/ps: its total
     # size and the part of it in VRAM. Verdicts:
@@ -217,6 +232,64 @@ function Get-OllamaPromptTruncation {
                 if (-not [DateTimeOffset]::TryParse($Matches[1], [ref]$t)) { continue }
                 if ($t -ge $Since -and $t -le $Until) { $hits += $line }
             }
+        } finally {
+            $reader.Dispose()
+        }
+    }
+    return $hits
+}
+
+function Get-OllamaDeviceLoss {
+    # The GPU device lost (a driver reset) between $Since and $Until, as Ollama's
+    # runner reports it: "ggml_vulkan: device lost on Vulkan0". On 2026-10-24 at
+    # 20:53 the desktop's AMD driver reset mid-request: the runner crashed, the
+    # request got a 500, Ollama reloaded the model in 39 s, opencode retried and
+    # the run went on to pass in 1,968 s. Nothing in the transcript or the run
+    # JSON showed it, so a run's time (and possibly its outcome) carried a host
+    # fault unseen. The runner's own lines carry no timestamp, so each is dated
+    # by the next stamped line after it (`time=...`, or a `[GIN] yyyy/MM/dd -
+    # HH:mm:ss` request line, in local time): that is the failed request's 500,
+    # written as the device goes (20:53:40 on 2026-10-24). The line before can
+    # be a request from before the run. At the end of a file still being
+    # written, the last stamped line dates it; with no stamp at all in the file
+    # it is skipped. Returns "<that time> <the line>" per event. As for the
+    # truncation check, a second run against the same Ollama at the same time
+    # would be blamed too; the harness runs one at a time.
+    param([string]$LogDir, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    $hits = @()
+    if (-not $LogDir -or -not (Test-Path -LiteralPath $LogDir)) { return $hits }
+    # File choice and shared read as in Get-OllamaPromptTruncation.
+    $files = @(Get-ChildItem -LiteralPath $LogDir -Filter "server*.log" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq "server.log" -or $_.LastWriteTime -ge $Since.LocalDateTime })
+    foreach ($f in $files) {
+        try {
+            $fs = New-Object System.IO.FileStream($f.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        } catch { continue }
+        $reader = New-Object System.IO.StreamReader($fs)
+        $last = $null
+        $pending = @()
+        $date = { param($stamp, $lines)
+            foreach ($l in $lines) {
+                if ($stamp -ge $Since -and $stamp -le $Until) { ("{0} {1}" -f $stamp.ToString("yyyy-MM-ddTHH:mm:sszzz"), $l) }
+            } }
+        try {
+            while ($null -ne ($line = $reader.ReadLine())) {
+                $stamp = $null
+                $t = [DateTimeOffset]::MinValue
+                $d = [datetime]::MinValue
+                if ($line -match '^time=(\S+)') {
+                    if ([DateTimeOffset]::TryParse($Matches[1], [ref]$t)) { $stamp = $t }
+                } elseif ($line -match '^\[GIN\] (\d{4}/\d{2}/\d{2} - \d{2}:\d{2}:\d{2})') {
+                    if ([datetime]::TryParseExact($Matches[1], 'yyyy/MM/dd - HH:mm:ss', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$d)) { $stamp = [DateTimeOffset]$d }
+                } elseif ($line -match 'device lost') {
+                    $pending += $line.Trim()
+                    continue
+                }
+                if ($null -eq $stamp) { continue }
+                $last = $stamp
+                if ($pending.Count) { $hits += @(& $date $stamp $pending); $pending = @() }
+            }
+            if ($pending.Count -and $null -ne $last) { $hits += @(& $date $last $pending) }
         } finally {
             $reader.Dispose()
         }

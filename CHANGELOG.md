@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: record a GPU driver reset during a run (`gpuResets`, 2026-10-25).** The desktop's AMD driver reset in the
+  middle of a sweep run on 2026-10-24 ("ggml_vulkan: device lost on Vulkan0" in Ollama's log, a 500, a 39 s reload);
+  opencode retried and the run passed in 1,968 s, with nothing in the run JSON to show it. The harness now reads the
+  local Ollama `server.log` for each run's window (`Get-EngineDeviceLoss` in the engine adapters), records `gpuResets`,
+  and warns; it never grades. Remote engines record "not checked". Guard: `tests/test-gpu-device-loss.ps1`. Also puts
+  back a line break that a comment in `test-tasks.ps1` had lost (harmless: it parsed as a comment).
+
 - **tests: `-ShownPrompt 2`, a shown-mode prompt that no longer contradicts the task (2026-10-24).** The milestone 3
   "tampering" was the model following its task prompt, which tells it to write or change tests in the very files shown
   mode hands it while the appended line said not to edit them (`docs/roadmap.md` → "After the trial" item 10). The
