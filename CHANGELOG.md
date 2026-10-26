@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   project's summary line and, with no test named, the exit and the output's last error lines. Guard:
   `tests/test-failure-detail.ps1`.
 
+- **docs: the read-only arm, and what reading it found (2026-10-25/26).** `docs/roadmap.md` → "After the trial" item
+  10. With `-ShownPrompt 2`, read-only given files changed nothing that counts: 28 of 40 passed against 28 of 39
+  writable, tampers 3 against 7 (p = 0.19), and in 4 runs the model cleared the read-only attribute itself. Shown mode
+  stays prompt 2 without read-only files; the retry loop rejects a tamper anyway. Also records node3's Windows
+  PowerShell 5.1 agent shell (fixed in #162) and a misleading FAIL line when one of a task's two test projects fails.
+
 - **tests: the agent's shell is PowerShell 7 on every host (`agentShell`, 2026-10-26).** opencode resolved the global
   config's `"shell": "pwsh"` on `PATH`, and on node3 (a Store install of PowerShell 7, whose `PATH` entry is a 0-byte
   app alias) it fell through to Windows PowerShell 5.1, where scripts are Restricted: 139 of 140 node3 transcripts of
