@@ -57,6 +57,9 @@ jobs:
       - name: Python unit tests (llamacpp_check)
         run: python3 -m unittest -v tests/test_llamacpp_check.py
 
+      - name: Public docs avoid retired claims
+        run: bash tests/lint-doc-claims.sh
+
       - name: Task manifest parses
         shell: pwsh
         run: |

@@ -11,8 +11,8 @@
 >   2026-10-21 (roadmap → step 5, "node3's control round"). This amends the "server-centric" requirement below, which is kept as written.
 > - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
 > - **Milestone 3 is measured (2026-10-23):** with the acceptance tests shown, `qwen3.6` on the server's llama.cpp passed
->   42 of 45 time-matched runs against 40 of 45 hidden, a difference not established (sign test p = 0.625); the shown
->   test works as a gate, and editing it is the shown runs' main failure (roadmap → "After the trial" item 10;
+>   42 of 45 time-matched runs against 40 of 45 hidden, a difference not established (unreplicated, 15 tasks); the shown
+>   test works as a gate, and editing it is the shown runs' main failure ([roadmap → After the trial](roadmap.md#after-the-trial) item 10;
 >   [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md)). Milestone 4 follows a tamper control.
 
 What the fleet should look like once the server POSTs, derived from how the
@@ -158,7 +158,7 @@ routing between.
 | Planner | Claude Code (mode B) in practice; the hosted orchestrator test waits for a Go budget | roadmap → "Hosted seats on the real tasks" |
 | Executor | `qwen3.6:35b-a3b-coding` @64k on the **server's llama-server** since 2026-10-22 (Ollama before), `-NudgeOnStop` | llama.cpp 54 of 60 on the 15 real tasks over four reps, Ollama 47 (read-budget plugin on); on Ollama, 9 of 15 tasks pass every run |
 | Executor fallback | the same seat on the desktop (`dev-workflow-quality`) | same weights; about half the speed |
-| Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix (roadmap → "After the trial") |
+| Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix ([roadmap → After the trial](roadmap.md#after-the-trial)) |
 | Run host | node3 or the desktop, whichever is free (both game PCs; since 2026-10-21) | the routing rule under "Machine roles"; node3's control round, 12 of 15 against the desktop's 47 of 60 (roadmap → step 5) |
 | Retired as executors | `qwen3.5:9b` (overflow crashes in half its work-package runs, 2026-10-13); `ministral-3:8b`, `lfm2.5:8b`, `ornith:9b` (below) | roadmap → "Next up" step 7 |
 | Unmeasured since the starting build | `laguna-xs-2.1`, `nemotron-3.5-lightning` | no runs on the real tasks |
@@ -214,12 +214,12 @@ shape" is unchanged, only the planner's name is filled in.
    **Measured 2026-10-22/23 (`-ShowAcceptance`, #149 and #151):** on the
    15 real tasks, 3 alternated pairs, the shown arm passed 42 of 45 runs
    against the hidden arm's 40 of 45 (53 of 57 with re-runs of 4 tasks). By
-   task, 3 favoured shown and 1 hidden (sign test p = 0.625), and 12 of 15
+   task, 3 favoured shown and 1 hidden (unreplicated; no significance claimed), and 12 of 15
    were 3 of 3 either way, so the round is saturated and no lift is
    established. 4 of 57 shown runs edited a given test, the arm's main
    failure. The shown tests were the tasks' own hidden tests, so the selector
    was perfect by construction; a planner's tests are the open measurement
-   (roadmap → "After the trial" item 10).
+   ([roadmap → After the trial](roadmap.md#after-the-trial) item 10).
 4. **Best-of-N.** Dispatcher runs N attempts across hosts and records pass@N
    as well as pass@1. Set N from the data, not in advance. **The data now
    argues for it (2026-10-13):** over four reps of the 15 real tasks on the
@@ -232,7 +232,7 @@ shape" is unchanged, only the planner's name is filled in.
    read-only), measured first as a control. Falsifier: more than 1.5 attempts
    per task, or the cap reached on more than 15% of tasks. Parallel attempts
    across hosts come in when a real planner's tests lower the first-attempt
-   rate (roadmap → "After the trial" item 6).
+   rate ([roadmap → After the trial](roadmap.md#after-the-trial) item 6).
 5. **First real use (TypeScript, mode B).** Plan a real change in one of the
    benchmark repos with Claude Code, emit work orders, let the fleet execute,
    review, merge. Milestone reached when a multi-order feature lands this way
