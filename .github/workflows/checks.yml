@@ -72,6 +72,9 @@ jobs:
       - name: llama.cpp preset contracts (static)
         run: bash server/scripts/llamacpp-check.sh
 
+      - name: Public docs avoid retired claims
+        run: bash tests/lint-doc-claims.sh
+
       - name: Task manifest parses
         shell: pwsh
         run: |

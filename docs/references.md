@@ -35,7 +35,7 @@ Catalog of every external source cited in these docs, plus the convention.
 Where used: `saving-swebench`, `reward-hacking`, `mirage-bench`,
 `dont-blame-llm` → [roadmap.md](roadmap.md) ("external research pass");
 `swe-edit`, `terminal-agents` → [methodology-research.md](methodology-research.md); `saving-swebench`,
-`reward-hacking` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10) and
+`reward-hacking` also → [roadmap.md](roadmap.md#after-the-trial) ("After the trial" items 6 and 10) and
 [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md); `saving-swebench` also →
 [planner-tests-experiment.md](planner-tests-experiment.md), with `anthropic-infra-noise`.
 
@@ -158,7 +158,7 @@ on any upgrade).
 
 Where used: all six → [methodology-research.md](methodology-research.md) → "What the runs say against the research
 (2026-10-21)"; `anthropic-evals` also → docs/reference/guards.md (`tests/summarize-rounds.ps1`); `anthropic-evals`,
-`anthropic-infra-noise` and `anthropic-long-running` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10)
+`anthropic-infra-noise` and `anthropic-long-running` also → [roadmap.md](roadmap.md#after-the-trial) ("After the trial" items 6 and 10)
 and [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) (all three re-read 2026-10-23). OpenAI's "Unrolling the Codex agent
 loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.
 
@@ -172,7 +172,7 @@ Vendor and aggregator pages: they move weekly, so re-read before acting on them.
 | digitalapplied-h1-2026 | "Open-Weight Models H1 2026: DeepSeek, Qwen, Llama Recap", Digital Applied (read 2026-10-22) — DeepSeek V4 Preview 2026-04-24; V4-Pro 1.6T / 49B active, V4-Flash 284B / 13B active | <https://www.digitalapplied.com/blog/open-weight-models-h1-2026-retrospective-deepseek-qwen-llama> |
 | localaimaster-16gb | "Best Ollama Models for 16GB VRAM (2026)", LocalAIMaster, 2026-07-07, updated August 2026 (read 2026-10-22) — `gpt-oss:20b` first; Devstral 24B for agentic coding at short context | <https://localaimaster.com/vram/best-ollama-models-16gb-vram> |
 
-Where used: all three → [roadmap.md](roadmap.md) → "After the trial" item 9.
+Where used: all three → [roadmap.md](roadmap.md#after-the-trial) → "After the trial" item 9.
 
 ## Side-project tools (2026-10-22)
 

@@ -543,7 +543,7 @@ a benchmark row.
 
 ### Read-budget window (2026-10-17/18)
 
-The large-file fix, measured: `opencode/plugins/read-budget.js` (PR #132; [roadmap](roadmap.md) → "Large-file fix
+The large-file fix, measured: `opencode/plugins/read-budget.js` (PR #132; [roadmap](roadmap.md#large-file-fix) → "Large-file fix
 (2026-10-17)"), on the server's llama-server in a window of its own. Setup:
 
 - **Environment:** the desktop as run host (PowerShell 7.4, OpenCode 1.18.34, harness at `2539127`), llama.cpp build
