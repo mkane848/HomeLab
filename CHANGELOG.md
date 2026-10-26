@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     errored write), `test-summarize-rounds` (arms, eras, global `k`), `test-probe-overflow` (UNKNOWN).
   - Not changed, only investigated: ignored files carried between runs of a task, summary rows written only at the
     end of a run, and the sealed checkout's reachable sibling paths (see the PR).
+- **tests: a failing test command's FAIL line names what failed (2026-10-26).** When a task's test command runs several
+  projects and an early step fails without naming a test (`wp-5b`'s shared build), the suite and acceptance FAIL lines
+  quoted the last project's passing summary ("Tests 247 passed (247) - ") and nothing else. They now list every
+  project's summary line and, with no test named, the exit and the output's last error lines. Guard:
+  `tests/test-failure-detail.ps1`.
 
 - **docs: the read-only arm, and what reading it found (2026-10-25/26).** `docs/roadmap.md` → "After the trial" item
   10. With `-ShownPrompt 2`, read-only given files changed nothing that counts: 28 of 40 passed against 28 of 39

@@ -1049,6 +1049,41 @@ function Get-FailedTestNames {
     return @($names | Select-Object -Unique)
 }
 
+# A task's test command can run several projects in turn (wp-5b: build the shared
+# package, its tests, then the server's tests). The FAIL lines used to quote only
+# the last "Tests ... (N)" line and the failed names, so when an earlier step
+# failed without naming a test (a build that did not compile, say) they read
+# "Tests 247 passed (247) - " with nothing after the dash: 5 genuine failures of
+# 2026-10-25 looked like a grading bug until their transcripts were read.
+function Remove-AnsiCodes {
+    param([string]$Text)
+    return ($Text -replace "$([char]27)\[[0-9;]*[A-Za-z]", '')
+}
+
+function Get-TestSummaryText {
+    # Every distinct "Tests ... (N)" line, in order, colour codes stripped; one per
+    # project the command ran. "no test summary line" when there is none.
+    param([string[]]$Output)
+    $lines = @($Output | ForEach-Object { (Remove-AnsiCodes $_).Trim() } | Where-Object { $_ -match '^Tests\s+.*\((\d+)\)' } | Select-Object -Unique)
+    if ($lines.Count -eq 0) { return "no test summary line" }
+    return ($lines -join " | ")
+}
+
+function Get-FailureDetail {
+    # Why a failing test command failed: the failed tests' names
+    # (Get-FailedTestNames), else - nothing named - its last error lines, so a
+    # failing step that ran no test (a TypeScript build, an npm script) still says
+    # what went wrong.
+    param([string[]]$Output, [int]$ExitCode)
+    $names = @(Get-FailedTestNames -Output $Output)
+    if ($names.Count -gt 0) { return ($names -join '; ') }
+    $clean = @($Output | ForEach-Object { (Remove-AnsiCodes $_).Trim() } | Where-Object { $_ })
+    $errs = @($clean | Where-Object { $_ -match 'error TS\d+|\berror\b|Error:|ERR!|failed' } | Select-Object -Last 3)
+    if ($errs.Count -eq 0) { $errs = @($clean | Select-Object -Last 2) }
+    $tail = ($errs | ForEach-Object { if ($_.Length -gt 200) { $_.Substring(0, 200) + "..." } else { $_ } }) -join ' | '
+    return ("no failing test named (exit {0}){1}" -f $ExitCode, $(if ($tail) { ": $tail" } else { "" }))
+}
+
 # Archive a transcript into tests/results/ with retry. The source lives in
 # %TEMP% and was written by a just-finished/killed background job; a cross-volume
 # move (C:\Temp -> M:\results is a copy+delete) fails with a sharing violation if
@@ -1297,13 +1332,11 @@ function Invoke-Acceptance {
         $result = & $mk "ERROR" "placing the acceptance files failed: $($co.Output -join ' ')"
     } else {
         $t = Invoke-Test $Task $WtPath
-        $summary = ($t.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
-        $summaryText = if ($summary) { $summary.Line.Trim() } else { "no test summary line" }
+        $summaryText = Get-TestSummaryText -Output $t.Output
         if ($t.ExitCode -eq 0) {
             $result = & $mk "PASS" $summaryText
         } else {
-            $failed = Get-FailedTestNames -Output $t.Output
-            $result = & $mk "FAIL" "$summaryText - $($failed -join '; ')"
+            $result = & $mk "FAIL" "$summaryText - $(Get-FailureDetail -Output $t.Output -ExitCode $t.ExitCode)"
         }
     }
 
@@ -2379,7 +2412,7 @@ foreach ($tk in $tasksToRun) {
             # A hang is a failure of the change (an infinite loop in the model's code, say), not infrastructure.
             Write-Result $tk.id "suite" "FAIL" "suite timed out after $CommandTimeout s (-CommandTimeout) and was ended - a hang counts as a failure$(if ($failed) { ': ' + ($failed -join '; ') })"
         } else {
-            Write-Result $tk.id "suite" "FAIL" "suite fails after change: $($failed -join '; ')"
+            Write-Result $tk.id "suite" "FAIL" "suite fails after change: $(Get-FailureDetail -Output $suite.Output -ExitCode $suite.ExitCode) ($(Get-TestSummaryText -Output $suite.Output))"
         }
         $overallPass = $false
     }
