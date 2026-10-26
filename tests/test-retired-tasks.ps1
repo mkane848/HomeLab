@@ -1,3 +1,5 @@
+# protects: Retired tasks left out of default selection
+# run-after: The manifest's retired objects or task selection
 # test-retired-tasks.ps1 - regression guard for retired benchmark tasks
 #
 # Why this exists: a task the manifest marks `retired` ({date, reason, see})

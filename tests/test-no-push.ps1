@@ -1,3 +1,5 @@
+# protects: Set-NoPushEnv: a model cannot push or open a PR from a task checkout
+# run-after: How a run is launched
 # test-no-push.ps1 - regression guard for the harness's no-push guard (Set-NoPushEnv)
 #
 # Why this exists: a task worktree is a checkout of the owner's real repo with

@@ -1,3 +1,5 @@
+# protects: Real-prompt task grading: guard rails, hidden tests, private results, public mirror
+# run-after: How a task is graded or where results are written
 # test-acceptance-grading.ps1 - regression guard for real-prompt task grading
 #
 # Why this exists: real-prompt tasks (docs/roadmap.md -> "Real-use tasks") are

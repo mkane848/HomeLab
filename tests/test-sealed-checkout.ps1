@@ -1,3 +1,5 @@
+# protects: Sealed task checkout (no future commits, refs, stashes or remotes)
+# run-after: How a task's checkout is made, reset or graded
 # test-sealed-checkout.ps1 - regression guard for the sealed task checkout
 # (Initialize-SealedCheckout / Add-CommitToCheckout in test-tasks.ps1).
 #

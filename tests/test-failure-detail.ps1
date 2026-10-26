@@ -1,3 +1,5 @@
+# protects: What a failing test command's FAIL line says (Get-FailureDetail, Get-TestSummaryText, Remove-AnsiCodes)
+# run-after: How the harness summarises or quotes a test command's output
 # test-failure-detail.ps1 - regression guard for what a failing test command's
 # FAIL line says (Get-TestSummaryText, Get-FailureDetail, Remove-AnsiCodes in
 # test-tasks.ps1; 2026-10-26).

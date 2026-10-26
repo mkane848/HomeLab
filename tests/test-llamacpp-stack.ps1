@@ -1,3 +1,5 @@
+# protects: llama.cpp compose file, models.ini and llamacpp-check.sh invariants
+# run-after: The llama.cpp compose file, preset, templates or checker
 # test-llamacpp-stack.ps1 - regression guard for the llama.cpp trial's server stack
 # (server/docker/docker-compose.llamacpp.yml, server/llamacpp/models.ini,
 # server/scripts/llamacpp-check.sh; docs/llamacpp-trial.md).

@@ -1,3 +1,5 @@
+# protects: run-retries.ps1 dispatcher loop, verdict and falsifier
+# run-after: run-retries.ps1
 # test-retry-loop.ps1 - regression guard for tests/run-retries.ps1, milestone 4's dispatcher loop.
 #
 # What it checks: the real Get-AttemptVerdict and Get-RetryFalsifier on synthetic run JSONs, then the real

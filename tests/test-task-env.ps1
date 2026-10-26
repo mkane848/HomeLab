@@ -1,3 +1,5 @@
+# protects: A task's pinned testEnv for the test command and the model's shell
+# run-after: How the harness runs a command or launches opencode
 # test-task-env.ps1 - regression guard for a benchmark task's pinned test environment
 # (`testEnv` in tests/tasks/manifest.json, applied by test-tasks.ps1).
 #

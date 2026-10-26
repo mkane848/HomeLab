@@ -1,3 +1,5 @@
+# protects: Batch run order, -OnlyMissing and opencode version-drift discipline
+# run-after: How the batch builds its run list
 # test-batch-plan.ps1 - regression guard for how run-tasks-batch.ps1 orders replicates
 # and holds a batch to one opencode version.
 #
