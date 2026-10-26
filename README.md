@@ -33,7 +33,7 @@ script is written to degrade gracefully.
 On the Windows desktop:
 
 ```powershell
-cd dev-docs
+cd <path-to-HomeLab-checkout>
 .\desktop\scripts\startup.ps1      # starts desktop Ollama and bakes each model's context
 .\desktop\scripts\opencode.ps1     # loads the default profile and launches OpenCode
 ```
@@ -45,7 +45,7 @@ on the server's llama.cpp. If the server is down or in a trial window, use
 and the other profile names work from any PowerShell window. The profiles are
 described in [docs/profiles.md](docs/profiles.md).
 
-On the Ubuntu server:
+On the Ubuntu server (the Ollama twin; the llama.cpp default needs its own stack):
 
 ```bash
 source profiles/dev-workflow-server.sh
@@ -67,15 +67,7 @@ Coding stays in the main thread. The Plan/Build toggle only sets which tools
 the current model may use. It does not write the task file. See
 [docs/start-here.md](docs/start-here.md).
 
-**Not every model can call tools.** A model that cannot will describe edits it
-never made. Probe any model before you seat it:
-
-```powershell
-.\tests\test-toolcalls.ps1 -Model qwen3:8b
-```
-
-13 of the 22 models probed pass (on Ollama 0.34.2/0.34.3, 2026-09-22/23). A probe pass is necessary, not sufficient. Which seat lands real edits is measured separately in
-[docs/roadmap.md](docs/roadmap.md) (Executor standings).
+**Not every model can call tools.** A model that cannot will describe edits it never made. Probe any model before you seat it (`.\tests\test-toolcalls.ps1 -Model qwen3:8b`). A probe pass is necessary, not sufficient. Details and results: [docs/tool-calling.md](docs/tool-calling.md).
 
 ## Repo layout
 
@@ -94,20 +86,21 @@ never made. Probe any model before you seat it:
 Secrets and `.env` files are git-ignored. API keys live in
 `~/.config/opencode/.secrets/`, outside the repo.
 
-## Tests
+## Tests and caveats
 
-- `.\tests\test-profiles.ps1`: checks every live profile against what is configured and served.
-- `.\tests\test-toolcalls.ps1 -Model <tag>`: does this model emit a tool call?
-- `.\tests\run-guards.ps1`: runs every regression guard. CI runs the same set on Windows.
-- `.\tests\run-tasks-batch.ps1`: the task benchmark. It needs live hosts.
+| Command | Checks |
+|---|---|
+| `.\tests\test-profiles.ps1` | Every live profile against what is configured and served |
+| `.\tests\test-toolcalls.ps1 -Model <tag>` | Does this model emit a tool call? |
+| `.\tests\run-guards.ps1` | Every regression guard (CI runs the same set on Windows) |
+| `.\tests\run-tasks-batch.ps1` | The task benchmark (needs live hosts) |
 
-## Caveats
-
-- Measured numbers name a date, a model and an engine version. They do not carry over to other versions.
-- Single runs are noisy. See [docs/adversarial-review-2026-09-29.md](docs/adversarial-review-2026-09-29.md) for what the harness does and does not measure.
-- Research thread: [docs/review-gate/README.md](docs/review-gate/README.md) asks
-  whether a local model can act as a code-review gate. Its answer, 2026-09-19,
-  was no.
+| Caveat | Detail |
+|---|---|
+| Numbers are dated | Each names a date, a model and an engine version; they do not carry over to other versions |
+| Single runs are noisy | [Adversarial review](docs/adversarial-review-2026-09-29.md): what the harness does and does not measure |
+| Research thread | [Review-gate](docs/review-gate/README.md): can a local model gate code review? 2026-09-19: no |
+| Words | [Glossary](docs/glossary.md) |
 
 ## Contributing
 

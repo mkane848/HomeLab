@@ -5,7 +5,7 @@
 >
 > This page predates the 2026-09-17 tool-calling measurement (`qwen2.5-coder`
 > and `deepseek-r1` cannot emit parseable tool calls; the passing set has since
-> grown to 13 of 22 probed models, see AGENTS.md Gotchas). It still presents
+> grown; see [tool-calling.md](tool-calling.md)). It still presents
 > `deepseek-r1-16k` and the `qwen2.5-coder` family as working seats; none of
 > them can call a tool, and an agent seated on one will claim edits it never
 > made. It also never mentions `qwen3:14b` (the default main seat 2026-09-17 to

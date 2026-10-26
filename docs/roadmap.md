@@ -9,8 +9,8 @@ The rest of this file is the full backlog by theme. This is the short list of wh
 **Owner, 2026-10-13: a review of what 2026-10-10..13 measured, before any further move.** Decided that day:
 - **Server-side work first, few moving parts at once.** The llama.cpp trial's GPU window (step 4) is next. node3
   run-host work (step 5) waits until the trial's results are recorded.
-- **The daily default is the server.** `desktop/scripts/opencode.ps1` launches `dev-workflow-server` unless told
-  otherwise; `dev-workflow-quality` (the same seat on the desktop) is the fallback when the server is down or in a
+- **The daily default is the server.** `desktop/scripts/opencode.ps1` launched `dev-workflow-server` unless told
+  otherwise (since 2026-10-22: `dev-workflow-server-llamacpp`); `dev-workflow-quality` (the same seat on the desktop) is the fallback when the server is down or in a
   trial window.
 - **The desktop's role as a model host is decided after Gate G1** ([llamacpp-trial.md](llamacpp-trial.md)), and
   "Replacing Ollama"'s Phase 4 (the desktop's Vulkan port) waits with it.

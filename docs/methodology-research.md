@@ -1,5 +1,7 @@
 # Methodology research — sanity check & community guidance
 
+> **Superseded in part (2026-10-26).** This page's verdict ("the methodology is sound") predates the [2026-09-29](adversarial-review-2026-09-29.md) and [2026-10-23](adversarial-review-2026-10-23.md) reviews, which found single-run decisions and era confounds. Read those first; treat this page as the resource list.
+
 Recorded 2026-09-24 from the sanity-check review of where the fleet stands and
 whether it is moving toward *first real use* fast enough. Not a plan change —
 the ordered plan in [implementation-tasks.md](implementation-tasks.md) →

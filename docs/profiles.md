@@ -1,287 +1,96 @@
 # Profiles
 
-Profiles are bash files in `profiles/` that select which tiers are online, what
-should be installed where, and what OpenCode uses by default. Source one per
-shell:
+A profile is a sourced bash file in `profiles/` that picks which tiers are online, what to install where, and what OpenCode uses. One per shell. History: [archive/profiles-history.md](archive/profiles-history.md).
 
 ```bash
-source profiles/dev-workflow-server.sh
+source profiles/dev-workflow-server-llamacpp.sh   # or: bash profiles/select-model.sh (menu of live profiles)
 ```
 
-Or pick from a menu:
+Windows: `opencode <short-name>` from any PowerShell after `install-opencode-profiles.ps1`, or `.\desktop\scripts\opencode.ps1 -Profile <name>`. Terms: [glossary](glossary.md).
 
-```bash
-bash profiles/select-model.sh
-```
+## Live profiles (6)
 
-`select-model.sh` discovers profiles dynamically from `profiles/*.sh`, so the
-menu always matches what is actually live. On Windows, dot-source
-`profiles/dev-desktop-only.ps1` to load a profile into the current PowerShell
-process (Git bash: `source profiles/<name>.sh`).
+| Profile | Main seat / small model | Host | Use when |
+|---|---|---|---|
+| `dev-workflow-server-llamacpp` **(default)** | `llamacpp-server/qwen3.6:35b-a3b-coding` @64k / `…/qwen2.5-coder-3b-cpu` | server (llama.cpp, port 8090) | everyday work; needs the llama.cpp stack up |
+| `dev-workflow-server` | `ollama-server/qwen3.6:35b-a3b-coding` @64k / `…/qwen2.5-coder-3b-cpu` | server (Ollama) | the same seat on Ollama |
+| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k / `qwen2.5-coder-3b-cpu` | desktop | server down or in a trial window |
+| `dev-workflow-resident` | `qwen3:8b` @32k / `qwen2.5-coder:7b` | desktop | you want the 7B coder resident for code text; survives gaming |
+| `dev-desktop-only` | `qwen3:8b` / `qwen2.5-coder:7b` | desktop | plain local console |
+| `dev-node3` | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) | node3 | general + embed work on the 3080 FE |
 
-## Live vs parked (changed 2026-09-17)
+`tests/test-profiles.ps1` checks each against an intent manifest (purpose, tier flags, main/small model, main seat tool-capable). Last full run on record: 116 PASS, 0 FAIL, 0 WARN, 2 SKIP (2026-10-12, node3 unreachable).
 
-**Five profiles are live** (as of 2026-10-13): the server's, three desktop
-ones, and the third node's. The server came back 2026-10-11 and
-`dev-workflow-server` is the default since 2026-10-13:
+**Every main seat must pass the tool-call probe.** A coder or reasoner in an agent seat describes edits it never made. Failing models carry `"tool_call": false` in the OpenCode config, and `test-profiles.ps1` FAILs a profile whose main seat is not tool-capable. Details: [tool-calling.md](tool-calling.md).
 
-| Profile | Main seat | Use it when |
-|---|---|---|
-| `dev-workflow-server` | `qwen3.6:35b-a3b-coding` @64k on the server + `qwen2.5-coder-3b-cpu` (server CPU) | default — everyday work; about twice the desktop's speed on the same weights |
-| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` on the desktop | the server is down, or in an engine-trial window |
-| `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` | you want the 7B resident for code text |
-| `dev-desktop-only` | `qwen3:8b` | plain local console, no extras |
-| `dev-node3` | `qwen3:8b` on node3 (onboarded 2026-09-20) | general + embed work on the 3080 FE |
+## Parked profiles (7, in `profiles/parked/`)
 
-**Seven are parked** in `profiles/parked/` — see
-[`profiles/parked/README.md`](../profiles/parked/README.md). They are correct,
-not deprecated; they target the down server. Bringing one back is a `git mv`.
+Correct, not deprecated: they target the down server. Bring-back procedure: [`profiles/parked/README.md`](../profiles/parked/README.md). Probe a server model before seating it: `.\tests\test-toolcalls.ps1 -Model <tag> -OllamaHost http://SERVER_IP:11434`.
 
-Why park rather than leave them: the harness ran all twelve and emitted **38
-WARNs**, every one of them "server unreachable." With node3 live it now reports
-**100 PASS, 0 FAIL, 1 WARN, 2 SKIP** (measured 2026-09-20 — the WARN is a
-documented node3 false positive, the SKIP taps are the dead server). Warnings you
-learn to scroll past are how the original config bug survived for weeks.
+| Profile | Purpose | Installs | Main seat |
+|---|---|---|---|
+| `dev-quick` | Fastest local loop, autocomplete only | Server: `autocomplete` | `ollama-server/qwen3:8b` |
+| `dev-coder` | Heavy coding on the server's 14B | Server: `coder` | `ollama-server/qwen3:8b` |
+| `dev-server-all` | Everything on the server, desktop idle | Server: `autocomplete coder reasoner` | `ollama-server/qwen3:8b` |
+| `dev-local-only` | Zero cloud spend | Server: `autocomplete`; Desktop: `reasoner` | `ollama-desktop/qwen3:8b` |
+| `dev-embeddings` | Semantic-search work | Server: `autocomplete embed` | `ollama-server/qwen3:8b` |
+| `dev-go-only` | Try cloud models via OpenCode Go | Server: `autocomplete` | Go default |
+| `dev-full` | Everything online | Server: `coder reasoner general creative embed`; Desktop: `reasoner` | Go default |
 
-> **Everything below this line describing server or cloud profiles refers to
-> parked files.** The content is accurate and worth keeping for when the
-> hardware returns — it just is not runnable today.
+## What every profile does
 
-Every profile:
+| Step | Detail |
+|---|---|
+| Loads `.env` | From the repo root (`set -a && source … && set +a`) |
+| Tier toggles | `DEV_TIERS_{SERVER,DESKTOP,GO,NODE3}`, read by the startup scripts |
+| Install intent | `DEV_{SERVER,DESKTOP,NODE3}_MODELS` (catalog tags or groups), read by `install-model.sh --profile` / `models.ps1 -Profile` |
+| OpenCode defaults | `OPENCODE_MODEL`, `OPENCODE_SMALL_MODEL`, per-host base URLs |
 
-1. Loads `.env` from the repo root (`set -a && source ... && set +a`).
-2. Exports `DEV_TIERS_{SERVER,DESKTOP,GO,NODE3}` toggles (consumed by `server/scripts/startup.sh` and `desktop/scripts/startup.ps1`).
-3. Exports install intent: `DEV_SERVER_MODELS`, `DEV_DESKTOP_MODELS`, `DEV_NODE3_MODELS` (space-separated catalog tags or groups — consumed by `install-model.sh` / `models.ps1` with `--profile`/`-Profile`).
-4. Sets OpenCode defaults: `OPENCODE_MODEL` / `OPENCODE_SMALL_MODEL` (model ID format `ollama-server/qwen2.5-coder:7b`) and the per-host `OLLAMA_*_BASE_URL`.
-
-## The 8 parked profiles (in `profiles/parked/`)
-
-Every main seat below is `qwen3:8b` — they were repointed on 2026-09-17 when the
-tool-calling probe showed the coder and reasoner models cannot edit files. The
-"Installs" column still lists those models because they remain useful as
-no-tools models for code text and review.
-
-| Profile | Purpose | Needs | Installs | Main seat |
-|---------|---------|-------|----------|-----------|
-| `dev-quick` | Fastest local loop, autocomplete only | Server | Server: `autocomplete` | `ollama-server/qwen3:8b` |
-| `dev-coder` | Heavy coding offloaded to the server's 14B | Server | Server: `coder` | `ollama-server/qwen3:8b` |
-| `dev-server-all` | Everything on the server, desktop idle | Server | Server: `autocomplete coder reasoner` | `ollama-server/qwen3:8b` |
-| `dev-local-only` | Zero cloud spend; desktop main seat, server small model | Server + Desktop | Server: `autocomplete` · Desktop: `reasoner` | `ollama-desktop/qwen3:8b` |
-| `dev-embeddings` | Semantic-search work; server hosts embed models | Server | Server: `autocomplete embed` | `ollama-server/qwen3:8b` |
-| `dev-go-only` | Test cloud models you can't run locally via OpenCode Go | Server + Go | Server: `autocomplete` | *Go default* (cloud) |
-| `dev-full` | Everything online (server + desktop + Go) | Server + Desktop + Go | Server: `coder reasoner general creative embed` · Desktop: `reasoner` | *Go default* (cloud) |
-| `dev-workflow-server` | Server drives, desktop assists | Server + Desktop | — | `ollama-server/qwen3:8b` |
-
-The server copies of `qwen3:8b` have **never been probed** — the server has been
-down since before `tests/test-toolcalls.ps1` existed. Probe before trusting one:
-
-```powershell
-.\tests\test-toolcalls.ps1 -Model qwen3:8b -OllamaHost http://SERVER_IP:11434
-```
-
-## The workflow profiles (`dev-workflow-*`, the default test target)
-
-The live profiles are what
-`tests/test-profiles.ps1` validates by default (all five: 116 PASS, 0 FAIL,
-0 WARN, 2 SKIP — measured 2026-10-12, node3 unreachable that run), each
-against its intent manifest (purpose, tier flags, main/small model, and whether the main seat can actually call tools):
-
-| Profile | Purpose | Main / small model |
-|---------|---------|--------------------|
-| `dev-workflow-server` | Default since 2026-10-13. qwen3.6 on the server at 64k with a CPU companion, desktop tier off | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` (both server) |
-| `dev-workflow-server-llamacpp` | Twin of `dev-workflow-server` on llama.cpp (Replacing Ollama, Phase 2): the same seats from the server's `llama-server` on port 8090, provider `llamacpp-server`. Launch with `opencode server-llamacpp`; needs the llama.cpp stack up on the server | `llamacpp-server/qwen3.6:35b-a3b-coding` / `llamacpp-server/qwen2.5-coder-3b-cpu` |
-| `dev-workflow-quality` | The desktop fallback. qwen3.6 drives in-thread at 64k with a CPU companion, `/plan` on demand | `qwen3.6:35b-a3b-coding` / `qwen2.5-coder-3b-cpu` |
-| `dev-workflow-resident` | Same, but keeps the 7B coder resident as a no-tools code/review model | `qwen3:8b` / `qwen2.5-coder:7b` |
-| `dev-desktop-only` | Plain local console, no dev stack, no extras | `qwen3:8b` / `qwen2.5-coder:7b` |
-| `dev-node3` | Third node (RTX 3080 FE): general + embed on node3, server autocomplete | `qwen3:8b` (node3) / `qwen2.5-coder:7b` (server) |
-
-No live profile starts the local Postgres + Redis stack (`desktop/docker`) at
-login; start it with `.\desktop\scripts\docker-stack.ps1 up` when a project
-needs it. `dev-workflow-quality` exported `DEV_DOCKER_STACK=true` until
-2026-10-03 and now exports `false`: `qwen3.6` and its companion hold ~19 GB of
-the desktop's 32 GB of RAM, and with the stack up (WSL's VM alone took 2.1 GB)
-available memory fell under 1.1 GB and the model paged mid-turn (see the VRAM
-table below).
-
-> **Changed 2026-10-03:** the main seat moved `qwen3:14b` →
-> **`qwen3.6:35b-a3b-coding`**, and the small model `qwen2.5-coder:3b` →
-> **`qwen2.5-coder-3b-cpu`** (the same 3b with `num_gpu 0`, derived by
-> `startup.ps1`). `qwen3.6` won the plain-language main-seat trial and leads
-> the task benchmark; it takes all the VRAM it can and spills the rest to
-> system RAM, so the GPU 3b evicted it at every session start, and the CPU
-> copy does not. Evidence and pass bar: `docs/main-seat-trial.md`. The
-> history below is how `qwen3:14b` got the seat.
->
-> **Changed 2026-09-17 (twice):** `dev-workflow-quality`'s main
-> seat moved `qwen2.5-coder:14b` → `qwen3:8b` → **`qwen3:14b`**. The coder
-> cannot call tools — only the qwen3 family (8b/14b) and `devstral:24b` passed
-> `tests/test-toolcalls.ps1` that day, verified on this exact stack (13 of 22
-> probed models pass now: desktop on Ollama 0.34.3, node3 on 0.34.2; see
-> AGENTS.md Gotchas). A coder or reasoner
-> in an agent seat reports edits it never made; the 14B coder stays registered
-> as a deliberate no-tools model. `/implement` and its coder subagent were
-> removed for the same reason.
->
-> `qwen3:14b` was briefly seated, then reverted the same morning: it issued
-> **6 write calls for one request** where the 8B issued 1, and took 217 s
-> against 96 s. It was re-seated in the afternoon for its loose-prompt intent
-> handling (the whole point of the north star) — 11.03 GB @ 32k, 100% on GPU,
-> 48.9 tok/s. **The repeated-tool-call risk is the known cost of this seat.**
-> If a session shows repeated `← Write` lines, drop back to `qwen3:8b`. See
-> `docs/troubleshooting.md` → "Passing the probe is necessary, not sufficient".
-
-`dev-workflow-server` was brought back from `profiles/parked/` on 2026-10-12
-and became the default on 2026-10-13. It puts `qwen3.6` on the server and
-defaults `OLLAMA_SERVER_BASE_URL` to the server's LAN IP (`SERVER_IP` from
-`.env`) — not `localhost`, which is what the older, still-parked `dev-*` server
-profiles use. Its small model is the CPU 3b on the **server's** CPU; the
-contention rule (`docs/target-setup.md` → "Machine roles") makes that a
-candidate to move, after the llama.cpp trial, whose baseline ran with it
-(`docs/roadmap.md` → "Next up").
-
-### Plan toggle is NOT `/plan`
-
-The bottom-left Plan/Build toggle in the OpenCode UI only controls *tool
-permissions* for whatever model is driving the session. It does **not** switch
-model and it does **not** write `docs/implementation-tasks.md` (in Plan mode the
-model cannot use write/edit tools). To get the task list you must type the real
-command:
-
-```
-/plan <scope>
-```
-
-That runs on the **main agent** and writes `docs/implementation-tasks.md`. It
-used to dispatch a `planner` subagent; that agent was deleted on 2026-09-17
-because it never called the write tool — it returned the plan as chat text and
-the parent then reported a file that did not exist. Typing a raw request in Plan
-mode just asks the session's current model for a text plan; no file is written.
-
-**Check `/plan` output before acting on it.** In a verified run its line numbers
-were accurate and two of its three interpretations were inverted. Details:
-`docs/troubleshooting.md` → "`/plan` works now — but verify every claim".
-
-Coding work is driven by the **main session model**, which must be
-`qwen3.6:35b-a3b-coding` (or `qwen3:8b` in the lighter profiles).
-
-### Every main seat is a tool-capable model — keep it that way
-
-Every live and parked profile seats a model that passes the probe:
-`qwen3.6:35b-a3b-coding` in `dev-workflow-quality`, `qwen3:8b` everywhere
-else. Before 2026-09-17 most seated a `qwen2.5-coder` or
-`deepseek-r1` tag, **none of which can call tools** —
-those sessions answered questions and described changes but never touched the
-filesystem, and reported success anyway. See `docs/troubleshooting.md` → "Agent
-'says' it edited a file".
-
-Two things now prevent a regression: models that fail the probe carry
-`"tool_call": false` in the OpenCode config, and `tests/test-profiles.ps1` FAILs
-any profile whose main seat is not tool-capable.
-
-If a session seems to be doing nothing, check which model is driving. A bare
-`opencode` launch falls back to User-level env defaults rather than a profile —
-launch via `desktop\scripts\opencode.ps1`, which sources one for you, or
-`opencode <profile>` once `install-opencode-profiles.ps1` has run.
-
-## VRAM budgets are measured, not catalog sizes
-
-`catalog.tsv` `size_gb` is the GGUF on disk. Runtime VRAM adds the KV cache and
-compute buffers and runs 1–3 GB higher, and only ~14.8 GB of the desktop's
-16 GB is usable. Budgeting from disk size is what put the 14B and the 7B in the
-same profile when they do not fit — loading the small model evicted the main
-one, costing a 14.1 s reload plus a lost prompt cache on the very next turn.
-
-Measured with `OLLAMA_FLASH_ATTENTION=1` + `OLLAMA_KV_CACHE_TYPE=q8_0`:
-
-| Profile | Resident pair | VRAM |
-|---|---|---|
-| `dev-workflow-quality` | `qwen3.6:35b-a3b-coding` @64k + `qwen2.5-coder-3b-cpu` @16k | 12.51 (of 21.13 total; the rest in RAM) + 0 (2.27 in RAM) = **12.51 GB**, all the GPU Ollama gives it |
-| `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` @16k | 7.16 + 4.81 = **11.97 GB** |
-
-The quality pair cannot be budgeted the old way: `qwen3.6` is a MoE model
-larger than the card, so Ollama fills the GPU with as many of its layers as fit
-and runs the rest from system RAM, leaving no room for a second GPU model. The
-companion therefore runs on the CPU (measured 2026-10-03, clean desktop: no
-evictions across three sessions; `docs/main-seat-trial.md`). The RAM side is
-bigger than "the rest" suggests: Ollama maps the whole model file into RAM
-(`server.log`: `CPU_Mapped model buffer size = 20293.98 MiB`, beside
-`Vulkan0 model buffer size = 11988.43 MiB`), and the `qwen3.6` process held
-16.56 GB of private memory and the companion 2.40 GB (`Get-Process`,
-2026-10-03), leaving
-~3.5 GB of 32 GB available — no room for WSL and the Docker dev stack. Before that the
-pair was `qwen3:14b` @32k + `qwen2.5-coder:3b` = 13.29 GB, both on the GPU.
-
-`/plan` runs on the main agent, so no separate planner model swaps in.
-`qwen2.5-coder:14b` (11.27 GB) can be swapped in deliberately for a no-tools
-review pass and does not co-reside. Verify any change with `curl :11434/api/ps`
-— expect *both* models listed. Details and the flash-attention trade-off:
-[`docs/hardware.md`](hardware.md).
-
-## Tools are scoped per project, not per profile
-
-Profiles choose *models*. They do not choose MCP servers or skills — those are
-scoped by config layer, because every MCP tool schema and every skill
-description is injected into the system prompt of **every** request. With all
-of them enabled the preamble measured 46,505 tokens against a 16k model, which
-Ollama truncated down to 8,194 and the request died.
-
-- **Global** (`opencode/global/opencode.jsonc`): zero MCP servers, and only the
-  `frontend-design` + `ui-ux-pro-max` skills. `sync-skills.ps1` deploys exactly
-  that set (`-Scope all` overrides; `-Prune` removes out-of-scope leftovers).
-- **Project** (`opencode.jsonc` in the project root): opts into what it needs.
-  opencode deep-merges project over global, and `{ "enabled": false }` switches
-  off an inherited server. Skills are referenced in place —
-  `"skills": { "paths": ["M:/Projects/dev-docs/skills/vercel"] }` — so nothing
-  is copied and the project always sees current repo content.
-
-Template with every option commented:
-`opencode/project-override/opencode.jsonc`. Set a project up once and every
-session in that directory, including inside its devcontainer, gets the right
-tools with no per-session toggling.
-
-## Selection rules of thumb
-
-- **Low interference, fastest loop** → `dev-quick`, `dev-coder`.
-- **Server down / out of commission** → `dev-desktop-only` — signs off the server tier and runs the whole loop (autocomplete + reasoner + general) locally on the PC with an OpenCode default that never points at the dead box.
-- **Reasoning on one box** → `dev-server-all` keeps the desktop idle and free for gaming/day-to-day.
-- **Resource search / embeddings** → `dev-embeddings`.
-- **Budget-first** → `dev-local-only` (no cloud spend at all).
-- **Evaluating a cloud model before pulling it** → `dev-go-only`.
-- **Everything up** → `dev-full`.
+No live profile starts the Postgres + Redis stack (`desktop/docker`); run `.\desktop\scripts\docker-stack.ps1 up` when a project needs it (it costs memory the `qwen3.6` pair needs).
 
 ## Environment variables
 
 | Variable | Meaning | Set by |
-|----------|---------|--------|
-| `DEV_TIERS_SERVER` | Start server Ollama at boot | all profiles (true/false) |
-| `DEV_TIERS_DESKTOP` | Start desktop Ollama at boot | desktop-only, local-only, full |
-| `DEV_TIERS_GO` | OpenCode Go subscription available | go-only, full |
-| `DEV_TIERS_NODE3` | Third node online (requires `NODE3_IP`) | dev-node3 |
-| `DEV_SERVER_MODELS` | Catalog tags/groups for the server | all |
-| `DEV_DESKTOP_MODELS` | Catalog tags/groups for the desktop | desktop-only, local-only, full |
-| `DEV_NODE3_MODELS` | Catalog tags/groups for the third node | dev-node3 |
-| `OPENCODE_MODEL` | OpenCode default main model | most profiles |
-| `OPENCODE_SMALL_MODEL` | OpenCode default small/autocomplete model | most profiles |
-| `OLLAMA_SERVER_BASE_URL` | OpenCode `ollama-server` provider endpoint | default `http://localhost:11434/v1` |
-| `OLLAMA_DESKTOP_BASE_URL` | OpenCode `ollama-desktop` provider endpoint | desktop-only (`localhost`), local-only, full |
-| `OLLAMA_NODE3_BASE_URL` | OpenCode `ollama-node3` provider endpoint | dev-node3 |
-| `LLAMACPP_SERVER_BASE_URL` | OpenCode `llamacpp-server` provider endpoint (`http://SERVER_IP:8090/v1`); exported by every live profile because `{env:...}` has no fallbacks | all live profiles |
-| `LLAMACPP_DESKTOP_BASE_URL` / `LLAMACPP_NODE3_BASE_URL` | `llamacpp-desktop` / `llamacpp-node3` endpoints; no llama-server runs there until Phases 4 and 5 | desktop profiles / dev-node3 |
-| `LLAMACPP_SERVER_SSH` | ssh target for the harness's llama.cpp placement check (default `server`) | all live profiles |
+|---|---|---|
+| `DEV_TIERS_SERVER` / `_DESKTOP` / `_GO` / `_NODE3` | Which tiers start at boot or are available (NODE3 needs `NODE3_IP`) | all profiles |
+| `DEV_SERVER_MODELS` / `DEV_DESKTOP_MODELS` / `DEV_NODE3_MODELS` | Catalog tags/groups to install per host | all profiles |
+| `OPENCODE_MODEL` / `OPENCODE_SMALL_MODEL` | Default main / small model | most profiles |
+| `OLLAMA_SERVER_BASE_URL` | `ollama-server` endpoint | server profiles use `http://SERVER_IP:11434/v1`; parked ones default to `localhost` |
+| `OLLAMA_DESKTOP_BASE_URL` / `OLLAMA_NODE3_BASE_URL` | `ollama-desktop` / `ollama-node3` endpoints | desktop profiles / `dev-node3` |
+| `LLAMACPP_SERVER_BASE_URL` | `llamacpp-server` endpoint (`http://SERVER_IP:8090/v1`). `{env:…}` has no fallback, so every live profile exports it | all live profiles |
+| `LLAMACPP_DESKTOP_BASE_URL` / `LLAMACPP_NODE3_BASE_URL` | Reserved; no llama-server runs there yet | desktop profiles / `dev-node3` |
+| `LLAMACPP_SERVER_SSH` | ssh host for the harness's llama.cpp placement check (default `server`) | all live profiles |
 
-## `dev-node3` interplay with `.env`
+`dev-node3` activates when `NODE3_IP` is set in `.env`; without it the profile warns and falls back to a server-side default.
 
-`dev-node3.sh` activates the third-node tier when `NODE3_IP` is set in `.env`
-(it is — onboarded 2026-09-20). Without `NODE3_IP` it warns and behaves like
-`dev-quick` with a server-side default. Deactivate it by sourcing another profile.
+## VRAM budgets are measured, not catalog sizes
 
-## Reasoner placement (how it was split)
+`catalog.tsv` `size_gb` is the GGUF on disk; runtime adds KV cache and compute buffers (1 to 3 GB more), and only ~14.8 of the desktop's 16 GB is usable. Measured with flash attention and a `q8_0` KV cache:
 
-There is no single "reasoner" profile — that was deliberate. Instead:
+| Profile | Resident pair | VRAM |
+|---|---|---|
+| `dev-workflow-quality` | `qwen3.6` @64k + `qwen2.5-coder-3b-cpu` @16k | **12.51 GB** (of 21.13 total; the rest in RAM, 2.27 GB for the CPU 3b) |
+| `dev-workflow-resident` | `qwen3:8b` @32k + `qwen2.5-coder-16k` @16k | 7.16 + 4.81 = **11.97 GB** |
 
-- **`dev-server-all`** runs DeepSeek-R1 14B on the server (fast, desktop stays idle).
-- **`dev-local-only`** runs DeepSeek-R1 14B on the desktop (native Vulkan, 16k ctx bake) for zero-spend sessions.
-- **`dev-desktop-only`** also runs it on the desktop — with everything else local — when the server is out of commission.
-- **`dev-full`** has both hosts able to run it.
+`qwen3.6` is larger than the card, so the companion runs on the CPU (no evictions in three sessions; [main-seat-trial.md](main-seat-trial.md)). Verify any change with `curl :11434/api/ps` and expect both models listed. More: [hardware.md](hardware.md).
 
-Need a reasoner on a specific box → use the matching profile; that's the whole point of keeping placement flexible.
+## Plan toggle is not `/plan`
+
+| | Plan/Build toggle (bottom left) | `/plan <scope>` |
+|---|---|---|
+| Does | Gates tool permissions for the current model | Runs on the main agent and writes `docs/implementation-tasks.md` |
+| Switches model | No | No |
+| Writes the task file | Never (no write tools in Plan mode) | Yes |
+
+Then tell the main seat: `execute task #N from docs/implementation-tasks.md`. Check the plan's `file:line` claims before acting; in a verified run two of three interpretations were inverted ([troubleshooting](troubleshooting.md)).
+
+## Tools are scoped per project, not per profile
+
+Profiles choose models only. Every MCP tool schema and skill description rides in every request (all of them enabled measured 46,505 tokens against a 16k model).
+
+| Layer | Contains |
+|---|---|
+| Global (`opencode/global/opencode.jsonc`) | zero MCP servers; skills `frontend-design`, `ui-ux-pro-max` |
+| Project (`<project>/opencode.jsonc`) | whatever it needs; merges over global, `{ "enabled": false }` switches off an inherited server; skills by path, never copied |
+
+Template with every option commented: `opencode/project-override/opencode.jsonc`.
