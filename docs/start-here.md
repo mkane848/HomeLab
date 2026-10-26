@@ -101,7 +101,7 @@ Run `.\tests\test-profiles.ps1` first; expect `0 FAIL`. A node3 install-intent W
 | Plan, then execute | [tool-calling.md](tool-calling.md) → `/plan` |
 | Know what runs where | [model-architecture.md](model-architecture.md) |
 | Check VRAM facts | [hardware.md](hardware.md) |
-| Add or change a model | [AGENTS.md](../AGENTS.md) → "Model catalog" |
+| Add or change a model | [reference/config.md](reference/config.md) → "Model catalog" |
 | Fix the server | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) |
 | Use VS Code | [vscode.md](vscode.md) |
 | See what's open | [roadmap.md](roadmap.md) |

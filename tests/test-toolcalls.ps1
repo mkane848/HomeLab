@@ -1,3 +1,5 @@
+# protects: Tool-call probe for a model on a host (PASS/FAIL; needs live hosts)
+# run-after: n/a (live-host probe, not a CI guard)
 # test-toolcalls.ps1 — Does this model actually call tools?
 #
 # THE most important check before putting a model in any seat that has to read,

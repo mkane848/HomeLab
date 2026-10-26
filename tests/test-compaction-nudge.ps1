@@ -1,3 +1,5 @@
+# protects: -NudgeAfterCompaction diagnostic and assisted-row refusal
+# run-after: The nudge or Get-ContextEvents
 # test-compaction-nudge.ps1 - regression guard for -NudgeAfterCompaction
 #
 # Why this exists: under `opencode run`, a model that answers opencode's

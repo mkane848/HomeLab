@@ -1,3 +1,5 @@
+# protects: The task-veracity benchmark itself (run it to measure a model; needs live hosts)
+# run-after: n/a (live-host run, not a CI guard)
 # test-tasks.ps1 - Task-veracity benchmark: real tasks through the real OpenCode
 # tool loop, graded mechanically.
 #

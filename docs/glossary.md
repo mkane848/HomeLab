@@ -21,7 +21,7 @@ Terms used across the docs, in the order you meet them.
 | **sealed checkout** | A task checkout rebuilt as a fresh repo holding only the pinned base and its ancestry, so later commits and other branches cannot leak |
 | **pin** | A task's full 40-hex `benchBaseCommit`; the base cannot move under the corpus |
 | **retired task** | Kept with its id and rows, left out of default runs |
-| **guard** | A `tests/test-*.ps1` regression test for a piece of the harness ([AGENTS.md](../AGENTS.md)) |
+| **guard** | A `tests/test-*.ps1` regression test for a piece of the harness ([guard catalog](reference/guards.md)) |
 | **spill** | Part of a model running from system RAM because it does not fit VRAM. Tolerable for MoE models, a cliff for dense ones |
 | **MoE** | Mixture of experts: only a few billion parameters active per token (`qwen3.6:35b-a3b` ≈ 3B active) |
 | **G1 / Phase 2** | Gate and phase names from the llama.cpp engine trial ([llamacpp-trial.md](llamacpp-trial.md)) |

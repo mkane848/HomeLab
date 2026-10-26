@@ -1,3 +1,5 @@
+# protects: Context audit: compactions, front-drops, askedForTask, thresholds
+# run-after: How the harness reads a transcript
 # test-context-events.ps1 - regression guard for the context-event audit in
 # test-tasks.ps1 (Get-ContextEvents, Get-CompactionThreshold).
 #

@@ -127,7 +127,7 @@ reliability", "Whole-file vs search-replace", "Harness round-trip weight");
 
 Where used: `llama-cpp-docker`, `llama-cpp-cuda-dockerfile`, `llama-cpp-ghcr`, `opencode-provider-error`, `opencode-provider-npm`, `ollama-releases` and the refreshed `llama-cpp-server` / `llama-cpp-releases` rows → [llamacpp-trial.md](llamacpp-trial.md) and the stack it describes (`server/docker/docker-compose.llamacpp.yml`, `tests/probe-overflow.ps1`); `swe-edit-repo` → the paper row above; `metaharness-adr127` →
 independent confirmation of the whole-file-on-large-files regression documented
-in [methodology-research.md](methodology-research.md); `opencode-*` → AGENTS.md
+in [methodology-research.md](methodology-research.md); `opencode-*` → AGENTS.md / docs/reference/
 Gotchas ("opencode upgrades itself…"), the addendum in
 [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), and the
 `autoupdate` comment in `opencode/global/opencode.jsonc`; `opencode-overflow`,
@@ -157,7 +157,7 @@ on any upgrade).
 | chroma-context-rot | "Context Rot: How Increasing Input Tokens Impacts LLM Performance", Hong, Troynikov and Huber, Chroma, 2025-07-14 (read 2026-10-21) — 18 models; reliability falls with input length even on simple tasks; distractors hurt | <https://www.trychroma.com/research/context-rot> |
 
 Where used: all six → [methodology-research.md](methodology-research.md) → "What the runs say against the research
-(2026-10-21)"; `anthropic-evals` also → AGENTS.md (`tests/summarize-rounds.ps1`); `anthropic-evals`,
+(2026-10-21)"; `anthropic-evals` also → docs/reference/guards.md (`tests/summarize-rounds.ps1`); `anthropic-evals`,
 `anthropic-infra-noise` and `anthropic-long-running` also → [roadmap.md](roadmap.md) ("After the trial" items 6 and 10)
 and [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) (all three re-read 2026-10-23). OpenAI's "Unrolling the Codex agent
 loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.

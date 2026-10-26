@@ -1,3 +1,5 @@
+# protects: -CommandTimeout enforcement and process-tree kill (exit 124)
+# run-after: How the harness runs a command
 # test-command-timeout.ps1 - regression guard for -CommandTimeout (Run-NativeTimed)
 #
 # Why this exists: -CommandTimeout was documented ("seconds per grading command")

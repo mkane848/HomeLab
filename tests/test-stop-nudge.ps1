@@ -1,3 +1,5 @@
+# protects: -NudgeOnStop and Get-StopKind classifiers 2 and 3
+# run-after: The nudge, Get-StopKind or where results are written
 # test-stop-nudge.ps1 - regression guard for test-tasks.ps1 -NudgeOnStop
 #
 # Why this exists: the local seats often stop with work undone. qwen3.6 said

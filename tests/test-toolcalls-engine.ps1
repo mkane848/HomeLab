@@ -1,3 +1,5 @@
+# protects: test-toolcalls.ps1 on Ollama and llama.cpp (identical payload, logging, unload)
+# run-after: test-toolcalls.ps1
 # test-toolcalls-engine.ps1 - regression guard for tests/test-toolcalls.ps1, both engines.
 #
 # Why this exists: the tool-calling probe decides which models may hold an agent
