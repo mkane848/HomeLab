@@ -1,3 +1,5 @@
+# protects: Pre-run check that the agent's own tools (ripgrep search) work
+# run-after: The check, how a run is launched, or any opencode upgrade
 # test-agent-tools.ps1 - regression guard for the pre-run check of the agent's
 # own tools (Test-AgentTools in tests/agents/opencode.ps1, its call in
 # test-tasks.ps1).

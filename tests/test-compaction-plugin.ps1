@@ -1,3 +1,5 @@
+# protects: opencode/plugins/compaction-continue.js (fails on any opencode other than 1.18.34)
+# run-after: The plugin, any opencode upgrade, Start/Stop-AgentRunEnv
 # test-compaction-plugin.ps1 - regression guard for opencode/plugins/compaction-continue.js
 #
 # Why this exists: after an automatic compaction opencode adds "Continue if you

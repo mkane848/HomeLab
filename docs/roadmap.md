@@ -706,7 +706,7 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
              - **A misleading failure line.** When one of a task's two test projects fails (`wp-5b` runs its server
                and its shared package), the suite and acceptance FAIL lines quote the other project's passing summary
                ("247 passed (247) - "), so 5 genuine failures looked like a grading bug until their transcripts were
-               read. To fix: name the failing project's result.
+               read. Fixed in #164: the lines list every project's summary and, with no test named, the output's last error lines (AGENTS.md → `test-failure-detail.ps1`).
       2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones: the hidden arm of (1).
       3. **Planner-written tests:** designed in [planner-tests-experiment.md](planner-tests-experiment.md).
       4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1), which

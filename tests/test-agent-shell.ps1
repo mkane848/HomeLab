@@ -1,3 +1,5 @@
+# protects: The agent's shell is PowerShell 7 by full path on every host
+# run-after: How a run is launched or its environment, or any opencode upgrade
 # test-agent-shell.ps1 - regression guard for the agent's shell (Get-AgentShellPath,
 # Start-AgentRunEnv / Stop-AgentRunEnv and Test-AgentTools in
 # tests/agents/opencode.ps1; `agentShell` in test-tasks.ps1).

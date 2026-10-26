@@ -1,3 +1,5 @@
+# protects: run-tasks-batch.ps1 engine discovery, offered seats and probes (Ollama, llama.cpp, hosted)
+# run-after: How the batch finds hosts, offers seats or probes
 # test-batch-engines.ps1 - regression guard for run-tasks-batch.ps1 driving BOTH
 # engines through the adapters (tests/engines/<engine>.ps1; Phase 2b of the
 # Ollama-replacement program, docs/roadmap.md "Phase 2, engine adapter").

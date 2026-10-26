@@ -1,3 +1,5 @@
+# protects: sync-opencode.ps1: local staging, backups, -Push role gate, secrets
+# run-after: Either script, the template's plugin paths or machines.tsv
 # test-sync-opencode.ps1 - regression guard for desktop/scripts/sync-opencode.ps1
 #
 # Why this exists: the script used to ALWAYS scp the OpenCode config and every

@@ -1,3 +1,5 @@
+# protects: contextExceeded outcome (exit -6, _CTXEXCEEDED_)
+# run-after: How a run's exit is classified
 # test-context-exceeded.ps1 - regression guard for the contextExceeded run outcome
 # (test-tasks.ps1: exit -6, a _CTXEXCEEDED_ transcript, no summary row)
 #

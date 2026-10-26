@@ -1,3 +1,5 @@
+# protects: -ShowAcceptance / -ReadOnlyAcceptance / -ShownPrompt modes
+# run-after: How acceptance tests are placed, a run is prompted or scope is graded
 # test-show-acceptance.ps1 - regression guard for test-tasks.ps1 -ShowAcceptance (milestone 3).
 #
 # Why this exists: in real use there are no hidden tests. A planner writes the

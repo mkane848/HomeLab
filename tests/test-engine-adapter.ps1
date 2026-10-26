@@ -1,3 +1,5 @@
+# protects: Engine adapter boundary (tests/engines/ollama.ps1, llamacpp.ps1)
+# run-after: Either adapter or an engine call in test-tasks.ps1
 # test-engine-adapter.ps1 - regression guard for the engine adapter boundary
 # (tests/engines/ollama.ps1, tests/engines/llamacpp.ps1; Phase 2 of the
 # Ollama-replacement program, docs/roadmap.md)

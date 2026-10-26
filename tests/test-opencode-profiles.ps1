@@ -1,3 +1,5 @@
+# protects: Launcher routing and env restore for opencode <profile>
+# run-after: desktop/scripts/opencode.ps1 or opencode-profiles.ps1
 # test-opencode-profiles.ps1 - regression guard for `opencode <profile>`
 #
 # Why this exists: desktop\scripts\opencode-profiles.ps1 puts an `opencode`

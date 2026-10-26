@@ -389,7 +389,7 @@ its keep. Canonical worked example + merge DoD in
   the heavyweight nodes" split, in VS Code.
 - The method's caveat: nothing here re-proves a tool-capability claim on a
   different Ollama version. Re-probe before
-  trusting a seat (see AGENTS.md → "Passing the probe is necessary, not
+  trusting a seat (see docs/reference/gotchas.md → "Passing the probe is necessary, not
   sufficient").
 
 ## Fleet seat assignment (the three machines)

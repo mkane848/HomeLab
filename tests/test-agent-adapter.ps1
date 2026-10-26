@@ -1,3 +1,5 @@
+# protects: Agent adapter boundary (tests/agents/opencode.ps1): interface, no direct opencode calls in the harness
+# run-after: Either script's agent calls, or adding an adapter
 # test-agent-adapter.ps1 - regression guard for the agent adapter boundary.
 #
 # Why this exists: the owner may move the daily client off OpenCode (2026-10-10),

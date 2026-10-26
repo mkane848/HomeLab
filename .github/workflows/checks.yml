@@ -66,6 +66,9 @@ jobs:
           $m = Get-Content -Raw tests/tasks/manifest.json | ConvertFrom-Json
           Write-Host "tests/tasks/manifest.json: $(@($m.tasks).Count) task(s)"
 
+      - name: Reference tables are current (guard headers, machines)
+        run: python3 tests/make-reference.py --check
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest

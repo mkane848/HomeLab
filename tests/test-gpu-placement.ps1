@@ -1,3 +1,5 @@
+# protects: GPU-placement check (CPU-only run = exit -5), runHost and phaseSeconds
+# run-after: How a run's outcome is classified or the batch reacts to one
 # test-gpu-placement.ps1 - regression guard for the GPU-placement check in
 # test-tasks.ps1 (Get-OllamaGpuPlacement, exit -5, `-NoGpuCheck`) and the batch's
 # stop on it (Get-CpuOnlyRun in run-tasks-batch.ps1).

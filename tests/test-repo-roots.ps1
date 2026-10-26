@@ -1,3 +1,5 @@
+# protects: Per-host repo-root map (tests/repo-roots.tsv, Set-TaskRepoRoots copies)
+# run-after: The map, the function or how either script reads a task's repo
 # test-repo-roots.ps1 - regression guard for the per-host repo-root map
 #
 # Why this exists: the manifests name each task's checkout as the desktop has it

@@ -58,7 +58,7 @@ PR's "Verification" section rather than asserting success:
   anything fails, and that is expected.
 - Guards: `.\tests\run-guards.ps1` runs every regression guard. CI runs the
   same set on Windows for each pull request.
-- PowerShell syntax: see AGENTS.md
+- PowerShell syntax: see [AGENTS.md](AGENTS.md)
   `[System.Management.Automation.Language.Parser]::ParseFile(...)`.
 - Bash syntax: `bash -n` (Git bash on Windows).
 

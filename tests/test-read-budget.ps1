@@ -1,3 +1,5 @@
+# protects: opencode/plugins/read-budget.js (fails on any opencode other than 1.18.34)
+# run-after: The plugin, any opencode upgrade, Start/Stop-AgentRunEnv
 # test-read-budget.ps1 - regression guard for opencode/plugins/read-budget.js
 #
 # Why this exists: opencode 1.18.34's read returns up to 50 KB a call, and on

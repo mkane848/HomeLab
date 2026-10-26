@@ -1,3 +1,5 @@
+# protects: Task bases: full-SHA pins, summary rows ran from the pin, Resolve-TaskBase
+# run-after: The manifest or how a worktree's base is chosen
 # test-task-pins.ps1 - regression guard for how a benchmark task's base commit (and its
 # acceptance commit) is chosen and checked.
 #
