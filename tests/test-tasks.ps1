@@ -1870,7 +1870,7 @@ if (-not $DryRun) {
     if (-not $agentTools.checked) {
         Write-Host ("WARN: {0} tools {1}" -f $script:AgentName, $agentTools.detail) -ForegroundColor Yellow
     } elseif (-not $agentTools.ok) {
-        Write-Host ("ERROR: {0}'s tools do not work on {1}: {2}. Nothing was run: every run here would grade a model that could not search." -f $script:AgentName, [Environment]::MachineName, $agentTools.detail) -ForegroundColor Red
+        Write-Host ("ERROR: {0}'s tools do not work on {1}: {2}. Nothing was run: every run here would grade a model whose own tools were broken." -f $script:AgentName, [Environment]::MachineName, $agentTools.detail) -ForegroundColor Red
         exit 1
     } else {
         Write-Host ("{0} tools: {1} ({2} s)" -f $script:AgentName, $agentTools.detail, $agentTools.seconds) -ForegroundColor DarkGray
@@ -2032,8 +2032,10 @@ foreach ($tk in $tasksToRun) {
     # ...and can push nothing anywhere (Set-NoPushEnv).
     $savedPushEnv = Set-NoPushEnv
     # The agent's own per-run environment (Start-AgentRunEnv: for opencode, the
-    # compaction plugin's evidence log, with its idle continue off).
+    # compaction plugin's evidence log, with its idle continue off, and the
+    # shell its commands run in, this process's pwsh).
     $agentRunEnv = Start-AgentRunEnv -Plugins $agentPlugins
+    $agentShell = if ($agentRunEnv -and $agentRunEnv.PSObject.Properties['Shell']) { $agentRunEnv.Shell } else { $null }
     $pluginRewrites = $null
     $readBudget = $null
     $runStart = [DateTimeOffset]::Now
@@ -2583,6 +2585,11 @@ foreach ($tk in $tasksToRun) {
         # The pre-run check of the agent's own tools (Test-AgentTools: checked, ok,
         # detail, seconds). Rows before 2026-10-21 have no such field.
         agentTools      = $agentTools
+        # The shell the agent's own commands ran in, set by the adapter (opencode:
+        # this process's pwsh.exe by full path), or null when the adapter sets none.
+        # Rows before 2026-10-26 have no such field; on node3 those ran in Windows
+        # PowerShell 5.1 (Get-AgentShellPath in tests/agents/opencode.ps1).
+        agentShell      = $agentShell
         numCtx          = $numCtx
         promptTruncation = $(if ($truncLogDir) { "$truncCheck - none during the run" } else { $truncCheck })
         contextEvents   = [pscustomobject]@{
