@@ -1,3 +1,5 @@
+# protects: GPU device-loss detection from the Ollama log (gpuResets)
+# run-after: How a run's outcome is classified or an engine log is read
 # test-gpu-device-loss.ps1 - regression guard for the GPU device-loss check
 #
 # Why this exists: on 2026-10-24 at 20:53 the desktop's AMD driver reset in the

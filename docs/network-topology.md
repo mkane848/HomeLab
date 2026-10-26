@@ -2,19 +2,15 @@
 
 LAN connection map for the dev environment.
 
-> **Note:** the per-machine *model* lists below predate the 2026-09-17
-> tool-calling finding and the current desktop seats — the desktop row omits
-> `qwen3:14b`/`qwen3:8b` entirely. The **network** facts (hosts, ports,
-> firewall rules, bind addresses) are current and are what this page is for.
-> For models, see [start-here.md](start-here.md) and [profiles.md](profiles.md).
+This page is network facts only (hosts, ports, firewall, SSH). Models: [profiles.md](profiles.md).
 
 ## Machines
 
 | Machine | Role | IP | OS | Notes |
 |---------|------|----|----|-------|
-| Ubuntu Server | Ollama host (Qwen Coder 7B/14B, DeepSeek 14B, Qwen3, embed), OpenCode CLI | `SERVER_IP` | Ubuntu | RTX 4070 Ti Super, Docker |
-| Windows Desktop | Ollama host (DeepSeek-R1 16k, Qwen Coder 7B, GLM4, embed), WezTerm | `DESKTOP_IP` | Windows 11 | RX 6800 XT, native Vulkan |
-| Third node | Ollama node (Qwen3 8B, GLM4 9B) | `NODE3_IP` | Windows 11 | RTX 3080 FE, 5950X — onboarded 2026-09-20 |
+| Ubuntu Server | Model host (Ollama :11434, llama.cpp :8090) | `SERVER_IP` | Ubuntu | RTX 4070 Ti Super, Docker. No OpenCode client (removed 2026-10-19) |
+| Windows Desktop | Model host, OpenCode client, WezTerm | `DESKTOP_IP` | Windows 11 | RX 6800 XT, native Vulkan |
+| Third node | Model host, OpenCode client, tool-run host | `NODE3_IP` | Windows 11 | RTX 3080 FE, 5950X; onboarded 2026-09-20; also a gaming PC |
 
 Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 (`.env` at repo root).
@@ -27,7 +23,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 │                                                                      │
 │  ┌─────────────────────┐          ┌─────────────────────┐           │
 │  │   WINDOWS DESKTOP   │          │   UBUNTU SERVER     │           │
-│  │   WezTerm ──────────┼──SSH────>│   OpenCode CLI      │           │
+│  │   WezTerm ──────────┼──SSH────>│   (model host)      │           │
 │  │                     │          │   Qwen Coder 7B/14B │           │
 │  │   DeepSeek-R1 14B   │<─────┼──>│   DeepSeek-R1 14B   │           │
 │  │   (native Vulkan)   │ :11434   │   (Docker) 0.0.0.0  │           │
@@ -71,11 +67,11 @@ can only point at one host.
 
 ## Environment Variables
 
-These are defined in the shared `.env` file at the dev-docs root and
+These are defined in the ignored `.env` at the repo root and
 auto-sourced by all profiles:
 
 ```bash
-# M:\Projects\dev-docs\.env
+# <repo root>/.env
 SERVER_IP=        # your Ubuntu server LAN IP
 DESKTOP_IP=       # your Windows desktop LAN IP
 SSH_USER=         # your SSH username on the server
@@ -97,7 +93,7 @@ Recorded 2026-10-12, when the server came back on a replacement board. Placehold
 elsewhere; the real values are in the git-ignored `.env` and in `~/.ssh/config`.
 
 - **Desktop → hosts.** `~/.ssh/config` has a `Host server` and a `Host node3` entry (HostName from `.env`,
-  `User` = `SSH_USER` for the server), both `IdentityFile ~/.ssh/dev-docs` with `IdentitiesOnly yes`. So
+  `User` = `SSH_USER` for the server), both `IdentityFile ~/.ssh/<fleet key>` with `IdentitiesOnly yes`. So
   `ssh server` and `ssh node3` work, and key auth means no prompt: scripts and agents can run `ssh -o BatchMode=yes server <cmd>`.
   The key is a single ed25519 pair used for this fleet; the private half stays on the desktop and is never copied
   to a phone or into the repo. The server's `authorized_keys` holds its public half.
@@ -111,7 +107,7 @@ elsewhere; the real values are in the git-ignored `.env` and in `~/.ssh/config`.
   `docker` group: Ollama, models, compose. Do not add a passwordless-sudo rule for convenience.
 - **Server layout.** A checkout (or `git archive` extract) of this repo at `~/HomeLab`; the compose project there is
   named `docker`, which owns the models' volume `docker_ollama_data`. Renaming that directory orphans the volume.
-  `~/dev-docs` is the pre-outage copy (Sep 2026, not a git repo) and can be removed once nothing points at it.
+  `~/dev-docs` is the pre-outage copy (Sep 2026, not a repo; this repo was called dev-docs before it was renamed HomeLab) and can be removed once nothing points at it.
 
 ## Verification
 

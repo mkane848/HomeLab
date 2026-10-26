@@ -1,3 +1,5 @@
+# protects: grading "checklist" tasks (owner-rated, no hidden tests)
+# run-after: How a task is graded
 # test-checklist-grading.ps1 - regression guard for `grading: "checklist"`
 #
 # Why this exists: some real tasks have no hidden tests to decide them. The

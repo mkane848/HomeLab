@@ -91,7 +91,7 @@ Ollama serves (baked by `startup.ps1` `$contextModels`), and
 `maxOutputTokens` = that seat's `limit.output` in `opencode.jsonc`. Declaring
 the full `num_ctx` as input, as the old file did, lets VS Code send a prompt
 that plus the reply overruns the window, and Ollama truncates the front of the
-prompt. This is the same failure as OpenCode's missing `limit` (AGENTS.md →
+prompt. This is the same failure as OpenCode's missing `limit` (docs/reference/gotchas.md →
 Gotchas). The file is the third place a context change has to land, after
 `$contextModels` and `limit.context`.
 
@@ -106,7 +106,7 @@ Gotchas). The file is the third place a context change has to land, after
 
 **VS Code's preamble is not trimmable.** Agent mode ships its own system
 prompt and tool schemas, tens of thousands of tokens that the global
-OpenCode config cannot shrink the way it shrank OpenCode's (AGENTS.md →
+OpenCode config cannot shrink the way it shrank OpenCode's (docs/reference/gotchas.md →
 "Preamble budget"). A 32k seat has noticeably less working room in VS Code
 than in OpenCode, so prefer the 64k seats for agent work here.
 
@@ -176,7 +176,7 @@ Measured result on 2026-09-18:
 
 `content` is empty and `finish_reason` is `"length"` — the model spent the whole
 token budget on its `reasoning` block. This is the identical trap documented in
-the fleet (AGENTS.md → "Reasoning models + small max_tokens return empty
+the fleet (docs/reference/gotchas.md → "Reasoning models + small max_tokens return empty
 content"). The R1 BYOK entry therefore declares a 4096-token `maxOutputTokens`,
 and reviews must never be run through a railed-off output cap.
 
@@ -594,7 +594,7 @@ its keep. Canonical worked example + merge DoD in
   the heavyweight nodes" split, in VS Code.
 - The method's caveat: nothing here re-proves a tool-capability claim on a
   different Ollama version. Re-probe before
-  trusting a seat (see AGENTS.md → "Passing the probe is necessary, not
+  trusting a seat (see docs/reference/gotchas.md → "Passing the probe is necessary, not
   sufficient").
 
 ## Fleet seat assignment (the three machines)

@@ -1,3 +1,5 @@
+# protects: OpenCode Go seats and the batch spend cap / plan meters
+# run-after: How the batch picks seats or measures spend
 # test-hosted-seats.ps1 - regression guard for hosted (OpenCode Go) seats and the
 # per-model spend cap in run-tasks-batch.ps1.
 #

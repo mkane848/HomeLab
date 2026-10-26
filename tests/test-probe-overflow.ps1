@@ -1,3 +1,5 @@
+# protects: probe-overflow.ps1 verdicts and OpenCode overflow patterns
+# run-after: probe-overflow.ps1 or an opencode upgrade
 # test-probe-overflow.ps1 - regression guard for tests/probe-overflow.ps1.
 #
 # Why this exists: probe-overflow.ps1 turns "Ollama silently cuts an oversized

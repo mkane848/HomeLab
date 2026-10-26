@@ -1,3 +1,5 @@
+# protects: toolErrors recording (tools failing on every call)
+# run-after: How a transcript is read or a run JSON is built
 # test-tool-errors.ps1 - regression guard for `toolErrors` (Get-ToolErrors in test-tasks.ps1).
 #
 # Why this exists: a tool that errors on every call does not fail a run. The

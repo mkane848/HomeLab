@@ -1,3 +1,5 @@
+# protects: Prompt-truncation check (Ollama silently cutting a long request)
+# run-after: How a run's outcome is classified
 # test-prompt-truncation.ps1 - regression guard for the prompt-truncation check
 #
 # Why this exists: when a request is longer than the served num_ctx, Ollama

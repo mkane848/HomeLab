@@ -1,3 +1,5 @@
+# protects: Multi-turn tasks (followUps) continued in the same session
+# run-after: How a run is launched or continued
 # test-follow-ups.ps1 - regression guard for multi-turn tasks (`followUps`)
 #
 # Why this exists: the owner's real sessions open with a plan or a question and

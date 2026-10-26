@@ -1,3 +1,5 @@
+# protects: Invoke-AgentRun: normal run, non-zero exit, timeout, job dying
+# run-after: How a run is launched, waited for or collected
 # test-opencode-run.ps1 - regression guard for how test-tasks.ps1 runs opencode
 #
 # Why this exists: Invoke-AgentRun (tests/agents/opencode.ps1, the OpenCode

@@ -1,3 +1,5 @@
+# protects: failsOnOld source revert (Save/Restore-SourceFiles, multi-file, two worktrees)
+# run-after: How test-tasks.ps1 reverts source or builds native argument lists
 # test-revert-source.ps1 - regression guard for the failsOnOld revert in test-tasks.ps1.
 # (It replaces test-stash-args.ps1, which guarded the same step while it was still a `git stash`.)
 #
