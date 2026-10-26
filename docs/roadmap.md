@@ -2,6 +2,18 @@
 
 Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 
+**Sections other docs cite** (stable anchors; the bulk of this file is a dated log):
+
+| Name | Where |
+|---|---|
+| After the trial | [After the trial](#after-the-trial) |
+| Large-file fix (2026-10-17) | [anchor](#large-file-fix), inside step 4 of "Next up" |
+| By opencode version | [By opencode version](#by-opencode-version) |
+| Executor standings | [after step 6](#executor-standings-after-step-6-2026-09-29-not-yet-acted-on), [after the N>1 protocol](#executor-standings-after-the-n1-protocol-2026-09-30) |
+| Context budget | [Context budget: 32k vs 64k](#context-budget-32k-vs-64k-per-seat-measured-and-trialled-2026-09-27-adopted-for-six-seats-by-merging-the-trial-pr) |
+| Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
+| Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
+
 ## Next up (ordered, as of 2026-10-13): the engine trial, then the run host
 
 The rest of this file is the full backlog by theme. This is the short list of what to pick up next.
@@ -251,7 +263,7 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      → "Phase 2 live window"). The window found one defect, the ssh placement check missing a seat whose router id is
      rewritten, fixed in the PR that records it. Phases 3–6 each still need their own go; next is the large-file fix.
 
-     **Large-file fix (2026-10-17), measured 2026-10-17/18.** `opencode/plugins/read-budget.js`
+     <a id="large-file-fix"></a>**Large-file fix (2026-10-17), measured 2026-10-17/18.** `opencode/plugins/read-budget.js`
      (`tests/test-read-budget.ps1`, 99 checks): each `read` is clamped to `min(51200, window * 0.08 * 3.3)` chars by
      lowering its own `limit` (about 17,300 chars at 64k, 8,650 at 32k, no clamp at 200k), a clamped result ends in a
      one-line hint to grep and read just those lines, and a file that has used `window * 0.25 * 3.3` chars since the
@@ -372,7 +384,9 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
    research on file. Here it gets decided whether the stop nudge joins daily use. OpenCode's plugin is the quick
    route; a client's own stop hook is the portable one.
 
-**After the trial, in order (owner, 2026-10-13).** None of these starts before the trial's results are recorded.
+### After the trial
+
+In order (owner, 2026-10-13). None of these starts before the trial's results are recorded.
 1. ~~**node3 as the run host** (step 5).~~ **Done 2026-10-21.** The repo-root map (PR #141), node3's OpenCode client
    (PR #142), the tools check (PR #143), and the control round: 12 of 15 with the tools on node3, against the desktop's
    47 of 60, so the run host does not change the results (step 5 → "node3's control round"). node3 and the desktop are
@@ -1059,7 +1073,9 @@ above is unchanged for the other five seats (N=1).
   8 of 9 on the cells that were the hardest. New or differently shaped tasks are
   what keep separating the top seats.
 
-**By opencode version (added 2026-09-30).** The table above pools two versions:
+#### By opencode version
+
+Added 2026-09-30. The table above pools two versions:
 each cell's DP8/DP9 attempt ran on 1.18.32 and its fresh replicates on 1.18.33
 (all on 2026-09-29). Cut by version, same tasks, timeouts counted:
 

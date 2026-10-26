@@ -3,7 +3,7 @@
 An independent review of milestone 3's write-up (PR #153, first version) before milestone 4 is built on it, in the
 spirit of [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md). Written by a Claude Sonnet subagent with
 read-only access to the run JSONs, the harness and the docs; then checked by the main session (below) and folded into
-[roadmap.md](roadmap.md) → "After the trial" items 3, 6 and 10 and [target-setup.md](target-setup.md) milestones 3
+[roadmap.md](roadmap.md#after-the-trial) → "After the trial" items 3, 6 and 10 and [target-setup.md](target-setup.md) milestones 3
 and 4. The review text is kept as written; where the docs now differ from the first version, it is because of it.
 
 

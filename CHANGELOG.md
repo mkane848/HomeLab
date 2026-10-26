@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: troubleshooting trimmed, results README split, methodology caveats (2026-10-26).** `docs/troubleshooting.md` (821 → ~575 lines) keeps the symptom index and the common fixes; the long incident write-ups moved, text unchanged, to `docs/archive/troubleshooting-incidents.md` (stubs keep the old section names). `tests/results/README.md` (631 → ~150) is now a how-to-read page; the dated logs and row inventories are in `tests/results/NOTES.md`. `docs/vscode.md` (644 → ~80) is a setup table; the review-gate method and case studies moved to `docs/review-gate/methodology.md`. `docs/roadmap.md` gains a cited-sections table and real headings for "After the trial" and "By opencode version". Methodology: quoted p-values dropped from `docs/target-setup.md`; `docs/methodology-caveats.md` lists what is unreplicated and what is still open; `tests/lint-doc-claims.sh` (new CI step) fails when a public doc repeats a claim the 2026-10-23 review retired.
 - **tests: harness audit fixes (2026-10-26).** Found by a read-only audit of `tests/`.
   - **Exit and grading:** an agent job that ended with no exit code (`opencode` never started) was read as exit 0 and
     graded as liar mode with a summary row; it is now exit -2, infrastructure, no row. A green suite also had to be
