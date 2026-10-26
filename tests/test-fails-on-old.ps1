@@ -48,6 +48,9 @@ try {
 $src = (Get-Content -LiteralPath src.txt -Raw).Trim()
 $test = if (Test-Path test.txt) { (Get-Content -LiteralPath test.txt -Raw).Trim() } else { "" }
 if ($test -eq 'broken') { Write-Host " FAIL  test.test.ts [ test.test.ts ]"; Write-Host "Failed Suites 1"; exit 1 }
+if ($test -eq 'skipped') { Write-Host "Tests  1 passed | 1 skipped (2)"; exit 0 }
+if ($test -eq 'dropped') { Write-Host "Tests  0 passed (0)"; exit 0 }
+if ($test -eq 'hang' -and $src -ne 'fixed') { Start-Sleep -Seconds 120 }
 if ($test -and $test -ne 'weak' -and $src -ne 'fixed') { Write-Host "Tests  1 failed (1)"; exit 1 }
 Write-Host "Tests  1 passed (1)"; exit 0
 '@ | Set-Content -LiteralPath (Join-Path $repo "check.ps1")
@@ -63,17 +66,19 @@ Write-Host "Tests  1 passed (1)"; exit 0
             installFlags = @(); prompt = "fix it"
         }
     }
-    @{ tasks = @((New-FixtureTask "fx-good"), (New-FixtureTask "fx-weak"), (New-FixtureTask "fx-broken")) } |
+    @{ tasks = @((New-FixtureTask "fx-good"), (New-FixtureTask "fx-weak"), (New-FixtureTask "fx-broken"), (New-FixtureTask "fx-skipped"), (New-FixtureTask "fx-dropped"), (New-FixtureTask "fx-hang")) } |
         ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $tmp "tests/tasks/manifest.json")
     # Stand-in opencode: fixes the source in every task; the test it writes
-    # depends on the task (fx-good: a real test, fx-weak: 'weak', fx-broken: 'broken').
+    # depends on the task (fx-good: a real test, fx-weak: 'weak', fx-broken: 'broken',
+    # fx-skipped / fx-dropped: a green suite that skips or lost a test, fx-hang: a test
+    # that hangs on the old source).
     @'
 $a = @($args)
 if ($a[0] -eq '--version') { '9.9.9-fixture'; exit 0 }
 if ($a[0] -eq 'debug') { '{}'; exit 0 }
 if ($a[0] -eq 'run') {
     $dir = $a[[array]::IndexOf($a, '--dir') + 1]
-    $test = switch (Split-Path -Leaf $dir) { 'fx-weak' { 'weak' } 'fx-broken' { 'broken' } default { 'a real test' } }
+    $test = switch (Split-Path -Leaf $dir) { 'fx-weak' { 'weak' } 'fx-broken' { 'broken' } 'fx-skipped' { 'skipped' } 'fx-dropped' { 'dropped' } 'fx-hang' { 'hang' } default { 'a real test' } }
     Set-Content -LiteralPath (Join-Path $dir 'src.txt') -Value 'fixed'
     Set-Content -LiteralPath (Join-Path $dir 'test.txt') -Value $test
     '{"type":"step_start","part":{"type":"step-start"}}'
@@ -89,7 +94,7 @@ exit 2
     $origPath = $env:PATH
     $env:PATH = "$bin;$env:PATH"
     try {
-        $output = & (Join-Path $tmp "tests/test-tasks.ps1") -Task fx-good, fx-weak, fx-broken -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") *>&1 | Out-String
+        $output = & (Join-Path $tmp "tests/test-tasks.ps1") -Task fx-good, fx-weak, fx-broken, fx-skipped, fx-dropped, fx-hang -Model fixture/m -SkipInstall -RunTimeout 120 -CommandTimeout 15 -OllamaLogDir (Join-Path $tmp "no-log") *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
     }
@@ -110,6 +115,16 @@ exit 2
     Check "failsOnOld SKIP in the run JSON"     (Json "fx-broken").gates.failsOnOld "SKIP"
     Check "the output says why it was not measured" ($output -match '\[SKIP\] fails-on-old\s+-> not measured - the suite is already red') "True"
     Check "the source was never reverted for it (no revert verdict printed)" ($output -match 'suite fails with source reverted, test kept: \(1 failed suite') "False"
+    Write-Host "-- a green suite that skipped a test to get there (2026-10-26 audit)"
+    Check "suite FAIL" (Row "fx-skipped").suite "FAIL"
+    Check "the output names the skip" ($output -match 'a test was skipped to get green') "True"
+    Write-Host "-- a green suite that ran fewer tests than the baseline"
+    Check "suite FAIL" (Row "fx-dropped").suite "FAIL"
+    Check "the output names the deletion" ($output -match 'a test was deleted or no longer runs') "True"
+    Write-Host "-- a test that hangs on the old source: nothing measured, not a pass"
+    Check "suite PASS" (Row "fx-hang").suite "PASS"
+    Check "failsOnOld SKIP, not PASS" (Row "fx-hang").failsOnOld "SKIP"
+    Check "the output says the revert timed out" ($output -match 'timed out after 15 s with the source reverted') "True"
 } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

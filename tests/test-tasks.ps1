@@ -291,6 +291,10 @@ if ($assistedRun -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '
     Write-Host "ERROR: $assistedSwitches makes assisted runs; they must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
     exit 1
 }
+if (($NoReset -or $EditFormat) -and ([System.IO.Path]::GetFullPath($resultsDir).TrimEnd('\', '/') -eq [System.IO.Path]::GetFullPath($publicResultsDir).TrimEnd('\', '/'))) {
+    Write-Host "ERROR: -NoReset and -EditFormat make runs that are not the standard condition (a kept checkout, or a changed prompt); their rows must not join $summaryTsv. Pass -ResultsDir <another folder>." -ForegroundColor Red
+    exit 1
+}
 $hasRows = (Test-Path -LiteralPath $summaryTsv) -or (Test-Path -LiteralPath $realSummaryTsv)
 if ($assistedRun -and $hasRows -and -not (Test-Path -LiteralPath $assistedMarker)) {
     Write-Host "ERROR: $assistedSwitches makes assisted runs, and $resultsDir already holds unassisted rows. Pass -ResultsDir <a folder of its own>, e.g. a subfolder." -ForegroundColor Red
@@ -863,7 +867,7 @@ function Ensure-Worktree {
             return $null
         }
         Write-Host ("    sealed checkout at {0}: {1} commits of history, nothing after the base ({2} s)" -f $head.Substring(0, 10), $sealed.Commits, $sealed.Seconds) -ForegroundColor DarkGray
-        $r = Run-Native "git" @("-C", $WtPath, "clean", "-fd")
+        $null = Run-Native "git" @("-C", $WtPath, "clean", "-fd")
     }
 
     # How long the install and the setup steps took, for the run JSON's
@@ -891,7 +895,7 @@ function Ensure-Worktree {
         foreach ($step in @($Task.setup | Where-Object { $_ })) {
             $stepDir = if ($step.cwd) { Join-Path $WtPath $step.cwd } else { $WtPath }
             Write-Host "    setup: $($step.cmd -join ' ') (in $($step.cwd))" -ForegroundColor DarkGray
-            $r = Run-Native $step.cmd[0] @($step.cmd[1..($step.cmd.Count - 1)]) $stepDir
+            $r = Run-Native $step.cmd[0] @($step.cmd | Select-Object -Skip 1) $stepDir
             if ($r.ExitCode -ne 0) {
                 Write-Result $Task.id "setup ($($step.cwd))" "FAIL" "setup command failed: $($r.Output | Select-Object -Last 3)"
                 return $null
@@ -985,10 +989,24 @@ function Invoke-Test {
     $testDir = Join-Path $WtPath $Task.testDir
     $savedEnv = Set-TaskTestEnv $Task
     try {
-        return Run-NativeTimed $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir $CommandTimeout
+        return Run-NativeTimed $Task.testCmd[0] @($Task.testCmd | Select-Object -Skip 1) $testDir $CommandTimeout
     } finally {
         Restore-TaskTestEnv $savedEnv
     }
+}
+
+# Test counts from a vitest summary ("Tests  1 failed | 9 passed | 1 skipped (11)"):
+# total and skipped, or $null when the output carries no such line (another
+# runner, a crash). The suite gate compares the model's run with the baseline.
+function Get-TestCounts {
+    param($Output)
+    $line = @($Output | ForEach-Object { "$_" -replace '\x1b\[[0-9;]*m', '' } |
+        Where-Object { $_ -match '^\s*Tests\s+.*\((\d+)\)\s*$' }) | Select-Object -Last 1
+    if (-not $line) { return $null }
+    $null = $line -match '\((\d+)\)\s*$'
+    $total = [int]$Matches[1]
+    $skipped = if ($line -match '(\d+)\s+skipped') { [int]$Matches[1] } else { 0 }
+    return [pscustomobject]@{ Total = $total; Skipped = $skipped }
 }
 
 function Get-FailedTestNames {
@@ -1172,6 +1190,9 @@ function Invoke-WithSourceReverted {
 # The result's Label names the source; Hash fingerprints a folder's files.
 function Get-AcceptanceDirFiles {
     param($Task)
+    # A task with no acceptance block (the public tasks) has no folder: Join-Path
+    # with a null child throws before the caller's friendly refusal can run.
+    if (-not $Task.acceptance -or -not $Task.acceptance.dir) { return $null }
     $dir = Join-Path $manifestDir $Task.acceptance.dir
     if (-not (Test-Path -LiteralPath $dir -PathType Container)) { return $null }
     $root = (Resolve-Path -LiteralPath $dir).Path.TrimEnd('\', '/')
@@ -1392,7 +1413,8 @@ function Get-WriteCount {
     # A foreach, not a pipeline: Read-AgentEvents returns its list as one object.
     $n = 0
     foreach ($e in (Read-AgentEvents -Path $Path)) {
-        if ($e.Kind -eq "tool" -and $e.Tool -in @("write", "edit", "Patch", "NotebookEdit")) { $n++ }
+        # Same tool list and rule as Get-StopKind and Get-OutsideWrites: a call that errored wrote nothing.
+        if ($e.Kind -eq "tool" -and $e.Tool -in @("write", "edit", "multiedit", "patch", "notebookedit") -and $e.Status -ne "error") { $n++ }
     }
     return $n
 }
@@ -1968,7 +1990,7 @@ foreach ($tk in $tasksToRun) {
     $baselineOk = $base.ExitCode -eq 0
     $baselineLine = ($base.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)|Tests\s+(\d+)\s+(passed|failed)" | Select-Object -Last 1)
     if ($baselineOk) {
-        Write-Result $tk.id "baseline" "PASS" "suite green on untouched branch tip ($($baselineLine.Line.Trim()))"
+        Write-Result $tk.id "baseline" "PASS" "suite green on untouched branch tip ($(if ($baselineLine) { $baselineLine.Line.Trim() } else { 'no test-count line in the output' }))"
     } else {
         Write-Result $tk.id "baseline" "FAIL" "base is already broken - this run is not meaningful: $(($base.Output | Select-Object -Last 4) -join ' ')"
         $overallPass = $false
@@ -2367,9 +2389,25 @@ foreach ($tk in $tasksToRun) {
     $swPhase.Restart()
     $suite = Invoke-Test $tk $wt.Wt
     $phaseSec.suite = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
+    $suiteCountFail = $false
     if ($suite.ExitCode -eq 0) {
         $suiteLine = ($suite.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
-        Write-Result $tk.id "suite" "PASS" "green after change ($($suiteLine.Line.Trim()))"
+        # Green is not enough: deleting a pre-existing test, or skipping it, also
+        # turns a red suite green. Compare with the untouched baseline's counts
+        # (when both runs print a count).
+        $baseCounts = Get-TestCounts $base.Output
+        $suiteCounts = Get-TestCounts $suite.Output
+        if ($baseCounts -and $suiteCounts -and $suiteCounts.Total -lt $baseCounts.Total) {
+            Write-Result $tk.id "suite" "FAIL" "green, but only $($suiteCounts.Total) tests ran against $($baseCounts.Total) at the baseline - a test was deleted or no longer runs"
+            $overallPass = $false
+            $suiteCountFail = $true
+        } elseif ($baseCounts -and $suiteCounts -and $suiteCounts.Skipped -gt $baseCounts.Skipped) {
+            Write-Result $tk.id "suite" "FAIL" "green, but $($suiteCounts.Skipped) tests are skipped against $($baseCounts.Skipped) at the baseline - a test was skipped to get green"
+            $overallPass = $false
+            $suiteCountFail = $true
+        } else {
+            Write-Result $tk.id "suite" "PASS" "green after change ($(if ($suiteLine) { $suiteLine.Line.Trim() } else { 'no test-count line in the output' }))"
+        }
     } else {
         $failed = Get-FailedTestNames -Output $suite.Output
         if ($suite.TimedOut) {
@@ -2418,14 +2456,17 @@ foreach ($tk in $tasksToRun) {
         Write-Result $tk.id "fails-on-old" "FAIL" "no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)"
         $overallPass = $false
     } else {
-        $failsOnOldOk = $false
         $rv = Invoke-WithSourceReverted $revertTask $wt.Wt $wt.Head
         if ($rv.Error) {
             Write-Result $tk.id "fails-on-old" "FAIL" "$($rv.Error) - cannot grade"
             $overallPass = $false
         } else {
             $reverted = $rv.Result
-            if ($reverted.ExitCode -ne 0) {
+            if ($reverted.TimedOut) {
+                # A hang is not a test failing on the old source: nothing was measured.
+                Write-Result $tk.id "fails-on-old" "SKIP" "not measured - the suite timed out after $CommandTimeout s with the source reverted, which says nothing about the added test"
+                $failsOnOldSkipped = $true
+            } elseif ($reverted.ExitCode -ne 0) {
                 $failed = Get-FailedTestNames -Output $reverted.Output
                 Write-Result $tk.id "fails-on-old" "PASS" "suite fails with source reverted, test kept: $($failed -join '; ')"
                 $failsOnOldOk = $true
@@ -2516,7 +2557,7 @@ foreach ($tk in $tasksToRun) {
         ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
     }
     if (-not $guardrail) { $scopeDetail = [pscustomobject]@{ mode = "allowFiles"; files = @($changed); lines = $null; hits = @($bad) } }
-    $suiteOk = $suite.ExitCode -eq 0
+    $suiteOk = ($suite.ExitCode -eq 0) -and -not $suiteCountFail
     $gateSummary = [pscustomobject]@{
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })

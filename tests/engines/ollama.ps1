@@ -122,7 +122,7 @@ function Get-EnginePromptLossSetup {
     $dir = $null
     if ($LogDir) {
         $dir = $LogDir
-    } elseif ($Root -and @("localhost", "127.0.0.1", "::1") -contains ([uri]$Root).Host) {
+    } elseif ($Root -and @("localhost", "127.0.0.1", "::1") -contains ([uri]$Root).Host.Trim('[', ']')) {
         $dir = Join-Path $env:LOCALAPPDATA "Ollama"
     }
     $enabled = $false
@@ -130,7 +130,7 @@ function Get-EnginePromptLossSetup {
         $enabled = $true
         "checked Ollama server.log in $dir"
     } elseif ($dir) {
-        $dir = $null; "not checked (no Ollama log directory at $dir)"
+        $missing = $dir; $dir = $null; "not checked (no Ollama log directory at $missing)"
     } elseif ($Root) {
         "not checked ($Root is not local; its server.log is on that host)"
     } else {

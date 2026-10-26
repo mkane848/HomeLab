@@ -568,13 +568,17 @@ function Invoke-AgentRun {
     }
 
     $code = -1
+    $noExit = $false
     if ($jobResult.Count -ge 1) {
         $first = $jobResult[0]
-        if ($first -is [psobject] -and $first.PSObject.Properties.Name -contains "value") {
-            $code = [int]$first.value
-        } else {
-            $code = [int]$first
-        }
+        $raw = if ($first -is [psobject] -and $first.PSObject.Properties.Name -contains "value") { $first.value } else { $first }
+        # A job in which `opencode` was never found ends with $LASTEXITCODE
+        # $null; [int]$null is 0, which graded an agent that never started as
+        # an exit-0 run with zero writes (liar mode, with a summary row).
+        if ($null -eq $raw) { $noExit = $true } else { $code = [int]$raw }
+    }
+    if ($noExit) {
+        return [pscustomobject]@{ ExitCode = -2; Writes = -1; ElapsedSec = [math]::Round($sw.Elapsed.TotalSeconds, 1); Detail = "the agent produced no exit code (is opencode on PATH inside the job?) (prompt sha $PromptHash). Infrastructure failure, NOT model behaviour: not graded, no summary row."; TranscriptPath = $out }
     }
     # $out is NOT deleted here - the caller moves the raw transcript into the
     # results folder next to the graded JSON, so a run's "why" is auditable
