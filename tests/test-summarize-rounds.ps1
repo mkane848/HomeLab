@@ -72,12 +72,26 @@ $runs = @(
     (Run b t1 acceptance PASS), (Run b t1 acceptance FAIL))
 $s = Get-RoundSummary -Runs $runs
 Check "two models, kept apart" (($s | ForEach-Object model) -join ",") "a,b"
-$a = $s[0]
+Check "one k for both models: the smallest n of any task of either (b's t1 has 2)" (($s | ForEach-Object k) -join ",") "2,2"
+$a = (Get-RoundSummary -Runs @($runs | Where-Object model -eq a))[0]
 Check "model a: runs, passes, per run (the checklist run left out)" ("{0}|{1}|{2}|{3}" -f $a.runs, $a.passes, $a.perRun, $a.manualRuns) "10|4|0.4|1"
 Check "...k is the smallest n" $a.k 3
 Check "...per task c/n" (($a.tasks | ForEach-Object { "$($_.task)=$($_.c)/$($_.n)" }) -join ",") "t1=3/3,t2=1/3,t3=0/4"
 Check "...pass@3 and pass^3 means: (1+1+0)/3, (1+0+0)/3" ("{0}|{1}" -f $a.passAtK, $a.passHatK) "0.667|0.333"
 Check "...always and never passed" ("{0}|{1}" -f $a.tasksAlwaysPassed, $a.tasksNeverPassed) "1|1"
+Write-Host "-- eras and arms inside one summary"
+$mixed = @((Run a t1 acceptance PASS), (Run a t1 acceptance PASS))
+$mixed[0] | Add-Member -NotePropertyName numCtx -NotePropertyValue 32768
+$mixed[1] | Add-Member -NotePropertyName numCtx -NotePropertyValue 65536
+Check "runs that differ in numCtx are pooled but the mix is listed" ((Get-RoundSummary -Runs $mixed)[0].eras["numCtx"] -join "|") "32768|65536"
+$armed = @((Run a t1 acceptance PASS), (Run a t1 acceptance FAIL))
+$armed[0] | Add-Member -NotePropertyName arm -NotePropertyValue "ASSISTED"
+$armed[1] | Add-Member -NotePropertyName arm -NotePropertyValue ""
+$sa = Get-RoundSummary -Runs $armed
+Check "an ASSISTED arm is its own group, not pooled with the same model" (($sa | ForEach-Object { "$($_.model)[$($_.arm)]=$($_.passes)/$($_.runs)" }) -join ",") "a[]=0/1,a[ASSISTED]=1/1"
+$zw = Run a t1 acceptance PASS
+$zw | Add-Member -NotePropertyName writes -NotePropertyValue 0
+Check "a passing run with writes = 0 is counted and noted, not silently dropped" ((Get-RoundSummary -Runs @($zw))[0].zeroWritePasses) 1
 $s = Get-RoundSummary -Runs $runs -K 4
 Check "-K 4: tasks with fewer runs are listed and left out of the means" ("{0}|{1}|{2}" -f ($s[0].tasksBelowK -join ","), $s[0].passAtK, $s[0].passHatK) "t1,t2|0|0"
 
@@ -91,10 +105,24 @@ try {
     '{"not":"a run"}' | Set-Content -LiteralPath (Join-Path $tmp "r\tasks-summary.json")
     'x' | Set-Content -LiteralPath (Join-Path $tmp "r\tasks-junk.json")
     $psExe = (Get-Process -Id $PID).Path
+    # Marker folders and infrastructure exits, read by the real script.
+    $arms = Join-Path $tmp "arms"
+    New-Item -ItemType Directory -Path (Join-Path $arms "nudged/deep") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $arms "nudged/ASSISTED") -Value "x"
+    $plain = Run m t1 acceptance PASS
+    $deep = Run m t1 acceptance PASS
+    $infra = Run m t1 acceptance FAIL
+    $infra | Add-Member -NotePropertyName opencodeExit -NotePropertyValue 1
+    $plain | Add-Member -NotePropertyName opencodeExit -NotePropertyValue 0
+    $plain | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $arms "tasks-t1-plain.json")
+    $deep | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $arms "nudged/deep/tasks-t1-deep.json")
+    $infra | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $arms "tasks-t1-infra.json")
+    $aj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -AsJson 2>&1 | Out-String | ConvertFrom-Json
+    Check "a marker in a parent folder splits the arm; an exit-1 run JSON is skipped" (($aj | ForEach-Object { "$($_.arm)=$($_.runs)" } | Sort-Object) -join ",") "=1,ASSISTED=1"
     $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") -Model a -AsJson 2>&1 | Out-String
     $j = $out | ConvertFrom-Json
     Check "-AsJson, -Model a, subfolders read, other JSON skipped" ("{0}|{1}|{2}|{3}" -f $j.model, $j.runs, $j.passes, $j.k) "a|10|4|3"
-    $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") 2>&1 | Out-String
+    $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") -K 3 2>&1 | Out-String
     Check "the table names both models and pass^k" ([bool]($out -match 'a: 10 graded runs, 4 passed' -and $out -match 'b: 2 graded runs' -and $out -match 'pass\^3 0\.333')) "True"
     & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "nope") *> $null
     Check "a missing folder: exit 1" $LASTEXITCODE 1
