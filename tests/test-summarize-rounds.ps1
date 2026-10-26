@@ -1,3 +1,5 @@
+# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic and pass rule
+# run-after: summarize-rounds.ps1
 # test-summarize-rounds.ps1 - regression guard for tests/summarize-rounds.ps1 (pass@k and pass^k).
 #
 # Why this exists: a round's headline is its per-run pass rate, but work meant to

@@ -1,3 +1,5 @@
+# protects: Writes-gate cap-hit classification (output cap vs liar mode)
+# run-after: How the harness reads a transcript's last step
 # test-cap-hit.ps1 - regression guard for the writes gate's output-cap classification.
 #
 # Why this exists: opencode exits 0 when a model writes nothing, and the writes

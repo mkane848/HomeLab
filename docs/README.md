@@ -1,58 +1,38 @@
 # Docs
 
-Everything here documents one homelab: a server and a desktop running local
-LLMs, driven from OpenCode (the daily client) or VS Code. Grouped by theme.
-If you are new, start with [start-here.md](start-here.md).
+One homelab: a server and two PCs running local LLMs, driven from OpenCode (daily client) or VS Code. New here? Start with [start-here.md](start-here.md). Unfamiliar word? [glossary.md](glossary.md).
 
-## Getting started
+## Use it
 
-- **[start-here.md](start-here.md)**: from a cold machine to a working agent in OpenCode, with a check at each step.
-- **[vscode.md](vscode.md)**: the same fleet, driven from VS Code. Its first half is setup. The second half is the review-gate research.
-- **[profiles.md](profiles.md)**: which profile turns on which machines and models, and why.
-- **[target-setup.md](target-setup.md)**: the planned end state. Machine roles and ordered milestones.
+| Doc | What it gives you |
+|---|---|
+| [start-here.md](start-here.md) | Cold machine to working agent, a check at each step |
+| [profiles.md](profiles.md) | Which profile turns on which machines and models |
+| [tool-calling.md](tool-calling.md) | Which models can edit files; the `/plan` workflow |
+| [troubleshooting.md](troubleshooting.md) | Symptom → cause → fix |
+| [hardware.md](hardware.md) | Machines, measured VRAM and throughput |
+| [network-topology.md](network-topology.md) | LAN layout, ports, firewall, SSH |
+| [costs.md](costs.md) | Hosted-seat prices against plan limits |
+| [vscode.md](vscode.md) | The same fleet from VS Code |
+| [model-architecture.md](model-architecture.md) | Which models run where (partly stale; see its banner) |
+| [target-setup.md](target-setup.md) | The planned end state: roles and milestones |
+| [server-recovery-cpu-led.md](server-recovery-cpu-led.md) | Live log of a BIOS-flash recovery |
+| [CONTRIBUTING.md](../CONTRIBUTING.md), [owner-setup.md](owner-setup.md) | How to contribute; owner-only repo settings |
 
-## Hardware and network
+## History and evidence (internal)
 
-- **[hardware.md](hardware.md)**: the hardware, and measured VRAM and throughput per model.
-- **[network-topology.md](network-topology.md)**: LAN layout, ports, and firewall rules.
-- **[model-architecture.md](model-architecture.md)**: which models run where, and why.
-- **[fleet-side-projects.md](fleet-side-projects.md)**: what else the hardware can do (video, VFX, 3D, home-lab services), per machine. A planning list; nothing is scheduled.
-
-## Engine trial and benchmarks
-
-- **[llamacpp-trial.md](llamacpp-trial.md)**: the llama.cpp engine trial for the server's main seat. Runbook and results.
-- **[main-seat-trial.md](main-seat-trial.md)**: the plain-language trial that chose the main seat.
-- **[costs.md](costs.md)**: what the hosted OpenCode Go seats cost against the plan limits.
-
-## Troubleshooting and recovery
-
-- **[troubleshooting.md](troubleshooting.md)**: known gotchas. Context truncation, tool-calling quirks, PowerShell and bash pitfalls.
-- **[server-recovery-cpu-led.md](server-recovery-cpu-led.md)**: a live log of a BIOS-flash recovery, written while it happened.
-
-## Research: the review-gate experiment
-
-Can a local LLM reliably act as a code-review gate? **[review-gate/README.md](review-gate/README.md)**
-is the index: method, case studies, and the raw run data.
-
-Answer, 2026-09-19: no. The bottleneck is verification reasoning, not prompt
-shape. The deterministic checker built alongside it does discriminate, and it
-works as a regression gate for the one plan it was written for. Results:
-[r3-results.md](review-gate/raw/r3-results.md) and
-[r3-robot-results.md](review-gate/raw/r3-robot-results.md).
-
-## Roadmap
-
-- **[roadmap.md](roadmap.md)**: the ordered backlog. What has landed, what is next, and open fleet decisions.
-
-## Research and references
-
-- **[methodology-research.md](methodology-research.md)**: where the testing methodology stands, and the community resources it maps to.
-- **[adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md)**: what each harness measures, where single runs and era changes mislead, and the protocol for N > 1.
-- **[adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md)**: milestone 3's results attacked before milestone 4 is built on them: what holds, what to stop claiming, and the experiments that come first.
-- **[planner-tests-experiment.md](planner-tests-experiment.md)**: experiment 3's design: how often a planner's own acceptance test accepts wrong code, measured against the hidden tests. Not yet run.
-- **[references.md](references.md)**: every external source cited in these docs, and the citation convention.
-
-## Other
-
-- **[implementation-tasks.md](implementation-tasks.md)**: a live file. `/plan` writes it and the main seat executes from it. It shows the latest planning pass, not a fixed reference.
-- **[agent-notes/](agent-notes/)**: the prompts and scratch notes used with an AI coding agent. Included for transparency. Not required reading.
+| Doc | What it holds |
+|---|---|
+| [roadmap.md](roadmap.md) | Ordered backlog and the long result log |
+| [llamacpp-trial.md](llamacpp-trial.md) | llama.cpp engine trial: runbook and results |
+| [main-seat-trial.md](main-seat-trial.md) | The plain-language trial that chose the main seat |
+| [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) | What each harness measures, what to stop claiming (the second was written by a Claude subagent) |
+| [methodology-research.md](methodology-research.md) | Methodology and community resources (2026-09-24; superseded in places by the reviews above) |
+| [planner-tests-experiment.md](planner-tests-experiment.md) | Experiment 3 design. Not yet run |
+| [review-gate/README.md](review-gate/README.md) | Can a local LLM gate code review? Answer 2026-09-19: no (n=18, with a floor effect) |
+| [implementation-tasks.md](implementation-tasks.md) | Live file written by `/plan`; the latest planning pass |
+| [fleet-side-projects.md](fleet-side-projects.md), [hardware-planning.md](hardware-planning.md) | Planning lists; nothing scheduled |
+| [archive/](archive/) | Dated narrative moved out of the pages above |
+| [agent-notes/](agent-notes/) | Prompts and scratch notes from AI coding agents |
+| [references.md](references.md) | Every external source cited, and the citation convention |
+| [../tests/results/README.md](../tests/results/README.md) | How to read the results directory |

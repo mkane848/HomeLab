@@ -1,3 +1,5 @@
+# protects: Get-OutsideWrites (writes outside the worktree)
+# run-after: How a transcript is read or a run JSON is built
 # test-outside-writes.ps1 - regression guard for Get-OutsideWrites in test-tasks.ps1.
 #
 # Why this exists: the scope gate and the guard rails see only the repo's own

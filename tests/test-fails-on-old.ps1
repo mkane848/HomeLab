@@ -1,3 +1,5 @@
+# protects: When failsOnOld is measured (PASS, FAIL, SKIP)
+# run-after: How the gates are graded
 # test-fails-on-old.ps1 - regression guard for when failsOnOld is measured
 #
 # Why this exists: failsOnOld reverts the model's source and expects the suite

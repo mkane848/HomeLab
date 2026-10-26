@@ -1,3 +1,5 @@
+# protects: Get-OverflowRecovery: recovered llama.cpp context overflows
+# run-after: How a run's exit is classified
 # test-overflow-recovery.ps1 - regression guard for runs that recovered from an
 # explicit context overflow (Get-OverflowRecovery, Resolve-RecoveredOverflow in
 # test-tasks.ps1)

@@ -1,3 +1,5 @@
+# protects: Primary harness: live profiles vs intent manifest, host liveness, round-trip, reliability
+# run-after: Any profile, the catalog or opencode.jsonc
 # test-profiles.ps1 — Verify that a profile's env contract, opencode registration,
 # host availability, and (opt-in) prompt round-trips all actually work.
 #

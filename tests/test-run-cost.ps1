@@ -1,3 +1,5 @@
+# protects: Run usage and cost estimates (Get-TranscriptUsage, Get-RunCostEstimate)
+# run-after: How a transcript is read or a cost is computed
 # test-run-cost.ps1 - regression guard for a run's token usage and cost estimate
 #
 # Why this exists: hosted seats (OpenCode Go, 2026-10-06) bill by token, and the

@@ -1,6 +1,26 @@
 # Troubleshooting
 
-Common issues and fixes for the hybrid dev environment.
+Common issues and fixes for the hybrid dev environment. Paths written `~/dev-docs` or `dev-docs` below mean your checkout of this repo (its old name).
+
+## Symptom index
+
+| Symptom | Section |
+|---|---|
+| Agent says it edited a file; nothing changed | Agent "says" it edited a file |
+| Same file written several times for one request | Passing the probe is necessary, not sufficient |
+| Request hangs ~5 min then 500s, or model ignores its system prompt | OpenCode request hangs ~5 minutes |
+| `exceed_context_size_error`, or the session forgets its task | "exceed_context_size_error" |
+| Server is slow, `Failed to initialize NVML` | Container lost the GPU |
+| Desktop slow, main model keeps reloading | Desktop is slow |
+| Game running, models evicted | A game is running |
+| "AMD driver is too old" / ROCm | ROCm not detected |
+| Model missing from `/models` | Local model not in `/models` |
+| `cannot be parsed as a URL` | `"<path>" cannot be parsed as a URL` |
+| Empty or reasoning-only replies | Model "doesn't respond" |
+| `opencode run` finishes but never exits | `opencode run` finishes its work |
+| Scripts: permission denied after copying from Windows | "Permission denied" running scripts |
+| Server will not POST | No POST / solid CPU EZ Debug LED |
+| SSH fails, LAN latency | Network Issues |
 
 ## Server Issues
 
@@ -20,11 +40,11 @@ Files copied from Windows (e.g. via scp) don't carry the executable bit:
 Fix — mark all project scripts executable in one go:
 
 ```bash
-cd ~/dev-docs
+cd ~/HomeLab
 ./make-executable.sh
 ```
 
-Or manually: `chmod +x ~/dev-docs/server/scripts/*.sh ~/dev-docs/profiles/*.sh`
+Or manually: `chmod +x ~/HomeLab/server/scripts/*.sh ~/HomeLab/profiles/*.sh`
 
 ### Docker container won't start
 
@@ -136,7 +156,7 @@ default; raise it in `server/docker/.env`.
 `PARAMETER num_ctx` into each tag it manages:
 
 ```powershell
-cd M:\Projects\dev-docs
+cd <path-to-HomeLab-checkout>
 .\desktop\scripts\startup.ps1            # per-model contexts from $contextModels
 .\desktop\scripts\startup.ps1 -ContextLength 16384   # override every model
 ```
@@ -302,9 +322,9 @@ for an idempotent write and **is not harmless** for an append, a `git commit`, a
 migration or an `rm`. It is also why it took 2.3x longer — six round trips, not
 a slower model.
 
-This is why `dev-workflow-quality` seats the **14B** by default (re-seated
-2026-09-17 for its loose-prompt intent handling): it is the largest fully
-on-GPU model that can call tools (11.03 GB, 100% on GPU, 48.9 tok/s). But the
+This is why `dev-workflow-quality` seated the **14B** from 2026-09-17 to
+2026-10-03 (loose-prompt intent handling; 11.03 GB, 100% on GPU, 48.9 tok/s).
+It now seats `qwen3.6:35b-a3b-coding`; the 14B is a fallback. But the
 repeated-call behaviour above is exactly why the **8B** remains the safe fallback
 in the resident/desktop-only profiles — and why you watch a real task before
 letting the 14B run. Bigger won on intent; it lost on discipline.
@@ -771,8 +791,8 @@ Never remove the loopback prefix.
 ### SSH connection fails
 
 ```bash
-# SSH_USER and SERVER_IP come from the .env file at dev-docs root
-source dev-docs/.env  # if not already sourced via a profile
+# SSH_USER and SERVER_IP come from the .env file at the repo root
+source <repo>/.env  # if not already sourced via a profile
 
 # Test basic connectivity
 ping $SERVER_IP

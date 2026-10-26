@@ -1,3 +1,5 @@
+# protects: bench-speed.ps1 speeds, prompt sizing and TSV logging for both engines
+# run-after: Either bench-speed script
 # test-bench-speed.ps1 - regression guard for tests/bench-speed.ps1.
 #
 # Why this exists: bench-speed.ps1 is how two hosts, and later two engines, are
