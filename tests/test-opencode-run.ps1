@@ -59,6 +59,15 @@ switch ($env:OCR_TEST_MODE) {
         exit 0
     }
     "exit3" { '{"type":"error","error":{"name":"APIError"}}'; exit 3 }
+    # Ends without `exit`: the job's $LASTEXITCODE stays $null (opencode never ran).
+    "noexit" { '{"type":"step_start"}' }
+    "errwrite" {
+        '{"type":"step_start"}'
+        '{"type":"tool_use","part":{"tool":"write","state":{"status":"error"}}}'
+        '{"type":"tool_use","part":{"tool":"multiedit","state":{"status":"completed"}}}'
+        '{"type":"step_finish","part":{"reason":"stop","tokens":{"output":12}}}'
+        exit 0
+    }
     "die"   { '{"type":"step_start"}'; Stop-Process -Id $PID -Force }
     "hang"  { Start-Sleep -Seconds 60; exit 0 }
 }
@@ -83,6 +92,15 @@ try {
     Write-Host "-- opencode exits non-zero"
     $r = Run "exit3"
     Check "exit code passed through (INFRA to the caller)" $r.ExitCode 3
+
+    Write-Host "-- no exit code at all (opencode never started): infrastructure, not exit 0"
+    $r = Run "noexit"
+    Check "ExitCode -2, not 0 (which would grade as liar mode)" $r.ExitCode -2
+    Check "Detail says there was no exit code" ($r.Detail -like "*no exit code*") "True"
+
+    Write-Host "-- write counting: an errored call wrote nothing, multiedit is a write"
+    $r = Run "errwrite"
+    Check "1 write (the errored write skipped, the multiedit counted)" $r.Writes 1
 
     Write-Host "-- the job's PowerShell process dies (2026-10-02)"
     $threw = $null

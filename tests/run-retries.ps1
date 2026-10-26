@@ -84,9 +84,12 @@ foreach ($t in $Tasks) {
         $a.Task = $t; $a.Model = $Model; $a.TaskManifest = $TaskManifest; $a.ResultsDir = $ResultsDir; $a.ShowAcceptance = $true
         if ($ReadOnlyAcceptance) { $a.ReadOnlyAcceptance = $true }
         $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        & $ScriptPath @a *>&1 | Out-String -Width 400 | Write-Host
+        # A harness that throws is an infrastructure attempt (no run JSON), not the end of the loop.
+        try { & $ScriptPath @a *>&1 | Out-String -Width 400 | Write-Host } catch { Write-Host ("    harness threw: {0}" -f $_.Exception.Message) -ForegroundColor Red }
         $sw.Stop()
-        $new = @(Get-ChildItem -LiteralPath $ResultsDir -Filter "tasks-$t-*.json" -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime)
+        # Only this model's JSON counts as this attempt's: another model's run in the same folder is not it.
+        $new = @(Get-ChildItem -LiteralPath $ResultsDir -Filter "tasks-$t-*.json" -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime |
+            Where-Object { try { $m = (Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json).model; (-not $m) -or ($m -eq $Model) } catch { $false } })
         $json = if ($new) { Get-Content -Raw -LiteralPath $new[-1].FullName | ConvertFrom-Json } else { $null }
         $v = Get-AttemptVerdict $json
         $reasons += $v.Reason
