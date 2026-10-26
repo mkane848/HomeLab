@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a failing test command's FAIL line names what failed (2026-10-26).** When a task's test command runs several
+  projects and an early step fails without naming a test (`wp-5b`'s shared build), the suite and acceptance FAIL lines
+  quoted the last project's passing summary ("Tests 247 passed (247) - ") and nothing else. They now list every
+  project's summary line and, with no test named, the exit and the output's last error lines. Guard:
+  `tests/test-failure-detail.ps1`.
+
 - **tests: the agent's shell is PowerShell 7 on every host (`agentShell`, 2026-10-26).** opencode resolved the global
   config's `"shell": "pwsh"` on `PATH`, and on node3 (a Store install of PowerShell 7, whose `PATH` entry is a 0-byte
   app alias) it fell through to Windows PowerShell 5.1, where scripts are Restricted: 139 of 140 node3 transcripts of
