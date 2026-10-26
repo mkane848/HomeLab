@@ -81,9 +81,17 @@ function Test-OpenCodeOverflowText {
 function Get-OverflowVerdict {
     # SentTokens: our estimate of what we sent. Reported: what the engine says it
     # evaluated ($null if it did not say). HttpError: $true when the request failed.
-    param([double]$SentTokens, $Reported, [bool]$HttpError)
-    if ($HttpError) { return "EXPLICIT-ERROR" }
-    if ($null -ne $Reported -and [double]$Reported -lt 0.9 * $SentTokens) { return "SILENT-TRUNCATION" }
+    # Status: the HTTP status of that failure when the caller passes it. A failure with
+    # no status (timeout, connection reset, host down) is not the engine refusing the
+    # request, so it is UNKNOWN, never EXPLICIT-ERROR. A 200 that reports no token
+    # count cannot be told from a truncation either: UNKNOWN, not ACCEPTED-FULL.
+    param([double]$SentTokens, $Reported, [bool]$HttpError, $Status = -1)
+    if ($HttpError) {
+        if ($null -eq $Status -or "$Status" -eq "0") { return "UNKNOWN" }
+        return "EXPLICIT-ERROR"
+    }
+    if ($null -eq $Reported) { return "UNKNOWN" }
+    if ([double]$Reported -lt 0.9 * $SentTokens) { return "SILENT-TRUNCATION" }
     return "ACCEPTED-FULL"
 }
 
@@ -188,9 +196,10 @@ try {
     $status = $info.Status; $errText = $info.Text
     $note = $errText
 }
-$verdict = Get-OverflowVerdict -SentTokens $sentEst -Reported $reported -HttpError $err
+$verdict = Get-OverflowVerdict -SentTokens $sentEst -Reported $reported -HttpError $err -Status $status
 $oc = if ($err) { Test-OpenCodeOverflowText $errText } else { $null }
 if ($verdict -eq "ACCEPTED-FULL") { $note = "the engine evaluated all $reported tokens past a served context of ${NumCtx}: check -NumCtx" }
+if ($verdict -eq "UNKNOWN") { $note = $(if ($err) { "the request failed with no HTTP status ($errText): a timeout or a dropped connection, not the engine refusing it" } else { "the engine reported no prompt token count, so a truncation cannot be ruled out" }) }
 if ($verdict -eq "SILENT-TRUNCATION") { $note = "sent ~$sentEst tokens, engine evaluated $reported ($([math]::Round(100.0 * $reported / $sentEst))%)" }
 
 $color = switch ($verdict) { "EXPLICIT-ERROR" { "Green" } "SILENT-TRUNCATION" { "Red" } default { "Yellow" } }
@@ -200,7 +209,7 @@ if ($err) {
     Write-Host ("  error text: {0}" -f $(if ($errText.Length -gt 220) { $errText.Substring(0, 220) + "..." } else { $errText })) -ForegroundColor DarkGray
     Write-Host ("  OpenCode would classify it as a context overflow: {0}" -f $oc) -ForegroundColor $(if ($oc) { "Green" } else { "Yellow" })
 }
-if ($note -and -not $err) { Write-Host "  $note" -ForegroundColor DarkGray }
+if ($note -and ($verdict -eq "UNKNOWN" -or -not $err)) { Write-Host "  $note" -ForegroundColor DarkGray }
 
 if (-not $NoLog) {
     Add-OverflowRow -Path $ResultsFile -Row @{

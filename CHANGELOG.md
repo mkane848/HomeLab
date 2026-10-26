@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: harness audit fixes (2026-10-26).** Found by a read-only audit of `tests/`.
+  - **Exit and grading:** an agent job that ended with no exit code (`opencode` never started) was read as exit 0 and
+    graded as liar mode with a summary row; it is now exit -2, infrastructure, no row. A green suite also had to be
+    real: the suite gate now compares the test count and skipped count with the untouched baseline's, so deleting or
+    skipping a pre-existing test no longer passes (`it.skip` was enough). A `failsOnOld` revert that timed out
+    counted as PASS; it is SKIP (nothing measured).
+  - **Counting:** `Get-WriteCount` used a different tool list from the other readers and counted errored calls;
+    it now matches `Get-StopKind` / `Get-OutsideWrites` (a run's `writes` can read lower than before for a seat that
+    only had failing writes).
+  - **`summarize-rounds.ps1`:** runs under an `ASSISTED` / `ACCEPTANCE-SHOWN` / `ACCEPTANCE-READONLY` marker are their
+    own group (`arm`), run JSONs with a non-zero agent exit are skipped and counted, pooled numCtx / engine / plugin /
+    agent-version differences are listed, passing runs with zero writes are noted, and the default `k` is one value
+    across all models shown (it was per model, so models were compared at different `k`).
+  - **Other:** `-NoReset` and `-EditFormat` are refused into the public results folder; `probe-overflow.ps1` says
+    UNKNOWN (not EXPLICIT-ERROR / ACCEPTED-FULL) for a failure with no HTTP status or a reply with no token count;
+    `run-retries.ps1` survives a throwing harness and ignores other models' JSONs; a suite with no test-count line no
+    longer throws; one-element test commands; `-ShowAcceptance` on a task with no `acceptance` block.
+  - **Guards extended:** `test-fails-on-old` (skipped, dropped, hanging-revert), `test-opencode-run` (no exit code,
+    errored write), `test-summarize-rounds` (arms, eras, global `k`), `test-probe-overflow` (UNKNOWN).
+  - Not changed, only investigated: ignored files carried between runs of a task, summary rows written only at the
+    end of a run, and the sealed checkout's reachable sibling paths (see the PR).
+
 - **docs: the read-only arm, and what reading it found (2026-10-25/26).** `docs/roadmap.md` → "After the trial" item
   10. With `-ShownPrompt 2`, read-only given files changed nothing that counts: 28 of 40 passed against 28 of 39
   writable, tampers 3 against 7 (p = 0.19), and in 4 runs the model cleared the read-only attribute itself. Shown mode

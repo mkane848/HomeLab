@@ -70,7 +70,9 @@ try {
     Check "evaluated 84000 of 85000: ACCEPTED-FULL"           (Get-OverflowVerdict -SentTokens 85000 -Reported 84000 -HttpError $false) "ACCEPTED-FULL"
     Check "exactly 90% is ACCEPTED-FULL (the line is strict)"  (Get-OverflowVerdict -SentTokens 100000 -Reported 90000 -HttpError $false) "ACCEPTED-FULL"
     Check "just under 90% is SILENT-TRUNCATION"               (Get-OverflowVerdict -SentTokens 100000 -Reported 89999 -HttpError $false) "SILENT-TRUNCATION"
-    Check "no count reported on a 200 is not called a truncation" (Get-OverflowVerdict -SentTokens 85000 -Reported $null -HttpError $false) "ACCEPTED-FULL"
+    Check "no count reported on a 200 is not called a truncation, nor a clean accept: UNKNOWN" (Get-OverflowVerdict -SentTokens 85000 -Reported $null -HttpError $false) "UNKNOWN"
+    Check "a 400 with a status is EXPLICIT-ERROR"             (Get-OverflowVerdict -SentTokens 85000 -Reported $null -HttpError $true -Status 400) "EXPLICIT-ERROR"
+    Check "a failure with no HTTP status (timeout, reset) is UNKNOWN, not EXPLICIT-ERROR" (Get-OverflowVerdict -SentTokens 85000 -Reported $null -HttpError $true -Status $null) "UNKNOWN"
 
     Write-Host "-- Get-HttpErrorInfo (real function)"
     $ex = New-Object System.Exception "Response status code does not indicate success: 400 (Bad Request)."
