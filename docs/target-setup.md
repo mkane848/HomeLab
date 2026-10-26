@@ -1,7 +1,7 @@
 # Target setup (the "server is back" end state)
 
 > **Status (2026-10-13).** Milestone 6, "Server back", is done (2026-10-11/12), and the server is the executor
-> host and the daily default ([roadmap.md](roadmap.md) → "Next up"). What has changed since this doc was written:
+> host and the daily default (now `dev-workflow-server-llamacpp`; [roadmap.md](roadmap.md) → "Next up"). What has changed since this doc was written:
 > - **The executor seat** is `qwen3.6:35b-a3b-coding` on the server with the stop nudge: 46 of 60 on the 15 real
 >   tasks over four reps, the work packages 39 of 48 (81%). It replaces the 2026-09-23 starting build below.
 > - **The planning side** is still the hosted orchestrator shortlist (roadmap → "Hosted seats on the real tasks").
@@ -124,7 +124,7 @@ with the acceptance test already written, and grade it mechanically.
 
 | Machine | Role | Seats (provisional) | Why |
 |---|---|---|---|
-| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host** (since 2026-10-12; the daily default since 2026-10-13). Serves the best executor model to every worker 24/7. In mode C it is also the local planner. **Not the dispatcher** (2026-10-13): the queue runs where the tools run, per the routing rule below. | `qwen3.6:35b-a3b-coding` @64k (13.6 of 22.7 GB in VRAM), with the CPU 3b for titles; `qwen3:8b` @32k. The llama.cpp trial ([llamacpp-trial.md](llamacpp-trial.md)) may change the engine, not the seat | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
+| **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host** (since 2026-10-12; the daily default since 2026-10-13; the llama.cpp twin `dev-workflow-server-llamacpp` since 2026-10-22). Serves the best executor model to every worker 24/7. In mode C it is also the local planner. **Not the dispatcher** (2026-10-13): the queue runs where the tools run, per the routing rule below. | `qwen3.6:35b-a3b-coding` @64k (13.6 of 22.7 GB in VRAM), with the CPU 3b for titles; `qwen3:8b` @32k. The llama.cpp trial ([llamacpp-trial.md](llamacpp-trial.md)) may change the engine, not the seat | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
 | **node3** (3080 10 GB CUDA, 5950X 16c/32t, 32 GB, always on once sleep is disabled) | **Worker: parallel attempts + CPU-heavy test runs.** Runs worktrees, `pnpm install`, vitest, typecheck. Serves a small executor for extra attempts and embeddings. | `qwen3:8b`, 100% on the GPU since the 2026-10-13 settings fix (flash attention, `q8_0` KV; decode 101 / 74 / 58 tok/s at 3k / 16k / 30k). The Q4 `qwen3.5:9b` trial is dropped (2026-10-13, retired as an executor for overflow crashes). `ornith:9b` passed only the easiest task; `lfm2.5:8b` / `ministral-3:8b` are not executors. `nomic-embed-text` | The 16-core CPU is the best in the fleet: test/build execution is a big share of every attempt's wall-clock, so node3 is where worktrees run. 10 GB caps its served models at ~9B. |
 | **Desktop** (6800 XT 16 GB Vulkan, 5800X3D, 32 GB) | **Where you plan and review.** Claude Code / OpenCode run here, and today so does the harness (the run host until node3 takes over). When not in use, its GPU adds attempts or hosts the review-gate seat. **Its role as a model host is decided after the llama.cpp trial's Gate G1** (owner, 2026-10-13): measured, it is the slowest host (`qwen3.6` at about half the server's speed; a dense 8B's prefill 17 to 34 times slower). | Review-gate seat. Overflow executor (gap-fill winner, once chosen) | Vulkan limits the software stack, and it is the machine you game on. Nothing in the pipeline may *depend* on it — but while idle it is a free second executor with a strong CPU. |
 | **GTX 1070** (8 GB) | Spare | — | See [hardware.md](hardware.md) → "Upgrade candidates". |
@@ -239,7 +239,7 @@ shape" is unchanged, only the planner's name is filled in.
    with you only in the planning and merge steps.
 6. ~~**Server back.**~~ **Done 2026-10-11/12.** Probed (`qwen3:8b` and
    `qwen3.6` PASS on 0.34.3), the main executor seat moved onto it (the
-   daily default since 2026-10-13). The dispatcher did not move (see the
+   daily default since 2026-10-13, llama.cpp twin since 2026-10-22). The dispatcher did not move (see the
    status note at the top). Mode C planning on its best model is still to try.
 7. **Later:** a single routing front door, .NET/C# tasks in the benchmark, and
    optimising around gaming/occupied machines.

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: stale facts fixed, public docs restructured into tables (2026-10-26).** `docs/profiles.md` (286 → ~100 lines: six live and seven parked profiles, the llama.cpp twin as default), `docs/start-here.md` (490 → ~120: a step table), `docs/README.md` (public vs internal), root `README.md` and `tests/results/README.md` (quick map). New: `docs/glossary.md`, `docs/tool-calling.md` (probe results and `/plan`, moved out of start-here and profiles), `docs/owner-setup.md` (auto-merge settings, moved out of CONTRIBUTING), `docs/hardware-planning.md` (candidate and upgrade lists), `docs/archive/` (profile history, the Go usage-limit incident). Fixed: live-profile counts, default-profile claims, a wrong "14B by default" line in troubleshooting, `docker NUM_PARALLEL` (4 → 1), the `278 of 278` count, `cd dev-docs` paths. The history moved, not deleted.
 - **tests: a failing test command's FAIL line names what failed (2026-10-26).** When a task's test command runs several
   projects and an early step fails without naming a test (`wp-5b`'s shared build), the suite and acceptance FAIL lines
   quoted the last project's passing summary ("Tests 247 passed (247) - ") and nothing else. They now list every

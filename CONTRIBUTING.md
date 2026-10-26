@@ -40,36 +40,9 @@ PRs are how changes land. A template lives in
   `gh pr view <n> --json body --jq .body` before asking for review.
 - Model-written changes carry extra proof obligations (below).
 
-## Merging and auto-merge (set up 2026-10-13)
+## Merging
 
-`main` only moves through a pull request whose CI (`.github/workflows/checks.yml`) is green. The owner, the only
-account with write access (admin; checked 2026-10-13), merges or sets **auto-merge**, which merges the PR by itself
-once the required checks pass. An agent sets auto-merge only when the owner asks for it on that PR.
-
-**Why outsiders can't use this to change the project.** On a public repository anyone can open a pull request from
-a fork, but merging, and turning auto-merge on, takes write access, which only the owner has. A fork's PR runs the
-workflow with a read-only token and no secrets: the workflow uses `pull_request`, never `pull_request_target`, and
-declares `permissions: contents: read`. The settings below make that hold by configuration, not by habit.
-
-**Repository settings (owner, in GitHub's web UI).** These names are from GitHub's UI as of 2026; they were not
-re-checked against GitHub's docs when this was written, because the session couldn't reach them. Use the closest
-match if a label has moved.
-
-1. **Settings → General → Pull Requests:**
-   - turn on **Allow auto-merge**;
-   - optionally turn on **Automatically delete head branches**.
-2. **Settings → Rules → Rulesets → New branch ruleset**, named `main`:
-   - Enforcement **Active**; target the **default branch**; bypass list **empty**. To get around it in an emergency, set the ruleset to Disabled for the moment and switch it back.
-   - **Restrict deletions** and **Block force pushes**. This matches "Don't force-push `main`" below.
-   - **Require a pull request before merging**, with **0** required approvals. A single maintainer can't approve their own PRs, and a PR an agent opens is opened under the owner's account. CI and the owner's choice to merge are the gate.
-   - **Require status checks to pass**, adding both checks by their exact names: `syntax (ps1, sh, python, manifest)` and `guards (Windows, pwsh 7)`. Without a required check, auto-merge has nothing to wait for. If a job in `checks.yml` is renamed, update the ruleset in the same PR.
-3. **Settings → Actions → General:**
-   - **Fork pull request workflows from outside collaborators:** require approval for all outside collaborators, so a stranger's PR runs nothing until the owner looks at it.
-   - **Workflow permissions:** read repository contents only, and leave **Allow GitHub Actions to create and approve pull requests** off.
-
-**Check it worked:**
-- Open a PR. Its merge box should list both checks as required, and should offer **Enable auto-merge** while they run.
-- A direct `git push origin main` should be rejected.
+`main` only moves through a pull request whose CI is green, merged by the owner. Repository settings and auto-merge are owner-only: [docs/owner-setup.md](docs/owner-setup.md).
 
 ## Verifying changes
 

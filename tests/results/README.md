@@ -12,10 +12,23 @@ runs. This file is that separate pass for the full corpus, re-inventoried
 > **Update 2026-09-30.** Everything below is the 2026-09-23 inventory (107
 > rows, 22 passes), kept as that day's record. Three of its statements no
 > longer hold and are corrected inline (search "Correction (2026-09-30)"). The
-> corpus is now 218 `tasks-summary.tsv` rows, each with a result JSON, 81 of
+> corpus was 218 `tasks-summary.tsv` rows then (304 on 2026-10-26), each with a result JSON, 81 of
 > which pass scope + suite + failsOnOld. The current per-seat picture is
 > `docs/roadmap.md` → "Executor standings"; per-attempt tables for the N>1
 > protocol are in `docs/implementation-tasks.md` → "Data point 11".
+
+## Quick map
+
+| Path | Holds | Read it for |
+|---|---|---|
+| `tasks-summary.tsv` | One row per graded public-task run (+ a `.json` and `.jsonl` per run) | Per-seat pass rates ("What counts as a pass") |
+| `tasks-*_INFRA_/_TIMEOUT_*.jsonl` | Transcripts of runs that never reached the model or timed out; no row | "Not every row is a run" |
+| `real-tasks-public.tsv` | Opaque public mirror of the private real-prompt set | Real-task verdicts |
+| `toolcalls-summary.tsv` (+ `-llamacpp.tsv`) | Tool-call probe results by host and engine version | [docs/tool-calling.md](../../docs/tool-calling.md) |
+| `bench-speed*.tsv`, `llamacpp-soak.tsv`, `overflow-probe.tsv` | Speed, soak and overflow measurements | Hardware and engine numbers |
+| `compaction-nudge/`, `compaction-plugin/`, `compaction-daily/` | Assisted or plugin runs, kept apart (`ASSISTED` marker) | Never mix with unassisted rows |
+
+Pass rule in one line: a public-task run passes on **scope + suite + failsOnOld**; a real task on **scope + suite + hidden acceptance tests**. Rows from different eras are not comparable ("Era confound"). Terms: [glossary](../../docs/glossary.md).
 
 ## Real-prompt tasks: `real-tasks-public.tsv`
 
@@ -212,7 +225,7 @@ A run passes only when **`scope` + `suite` + `failsOnOld` are all PASS**.
 `typecheck` is informational (never FAIL) and does not affect it.
 
 `typecheck` is `PASS`/`WARN` only for tasks that define a `typecheck` block —
-`kane-01` and `lfc-01`. The other six manifest tasks now record `SKIP`. **Rows
+`kane-01` and `lfc-01`. The other manifest tasks then recorded `SKIP` (`lfc-03` has defined one since). **Rows
 written before that change show `PASS` for those tasks having compiled
 nothing**, because the flag was initialised to true before the guard that runs
 `tsc`. Treat a pre-change `typecheck: PASS` on any task other than
