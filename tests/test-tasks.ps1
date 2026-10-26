@@ -2354,6 +2354,7 @@ foreach ($tk in $tasksToRun) {
     $swPhase.Restart()
     $suite = Invoke-Test $tk $wt.Wt
     $phaseSec.suite = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
+    $suiteCountFail = $false
     if ($suite.ExitCode -eq 0) {
         $suiteLine = ($suite.Output | Select-String -Pattern "Tests\s+.*\((\d+)\)" | Select-Object -Last 1)
         # Green is not enough: deleting a pre-existing test, or skipping it, also
@@ -2364,9 +2365,11 @@ foreach ($tk in $tasksToRun) {
         if ($baseCounts -and $suiteCounts -and $suiteCounts.Total -lt $baseCounts.Total) {
             Write-Result $tk.id "suite" "FAIL" "green, but only $($suiteCounts.Total) tests ran against $($baseCounts.Total) at the baseline - a test was deleted or no longer runs"
             $overallPass = $false
+            $suiteCountFail = $true
         } elseif ($baseCounts -and $suiteCounts -and $suiteCounts.Skipped -gt $baseCounts.Skipped) {
             Write-Result $tk.id "suite" "FAIL" "green, but $($suiteCounts.Skipped) tests are skipped against $($baseCounts.Skipped) at the baseline - a test was skipped to get green"
             $overallPass = $false
+            $suiteCountFail = $true
         } else {
             Write-Result $tk.id "suite" "PASS" "green after change ($(if ($suiteLine) { $suiteLine.Line.Trim() } else { 'no test-count line in the output' }))"
         }
@@ -2519,7 +2522,7 @@ foreach ($tk in $tasksToRun) {
         ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
     }
     if (-not $guardrail) { $scopeDetail = [pscustomobject]@{ mode = "allowFiles"; files = @($changed); lines = $null; hits = @($bad) } }
-    $suiteOk = $suite.ExitCode -eq 0
+    $suiteOk = ($suite.ExitCode -eq 0) -and -not $suiteCountFail
     $gateSummary = [pscustomobject]@{
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })

@@ -89,7 +89,7 @@ foreach ($t in $Tasks) {
         $sw.Stop()
         # Only this model's JSON counts as this attempt's: another model's run in the same folder is not it.
         $new = @(Get-ChildItem -LiteralPath $ResultsDir -Filter "tasks-$t-*.json" -ErrorAction SilentlyContinue | Where-Object { $before -notcontains $_.FullName } | Sort-Object LastWriteTime |
-            Where-Object { try { (Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json).model -eq $Model } catch { $false } })
+            Where-Object { try { $m = (Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json).model; (-not $m) -or ($m -eq $Model) } catch { $false } })
         $json = if ($new) { Get-Content -Raw -LiteralPath $new[-1].FullName | ConvertFrom-Json } else { $null }
         $v = Get-AttemptVerdict $json
         $reasons += $v.Reason
