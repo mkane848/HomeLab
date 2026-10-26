@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the agent's shell is PowerShell 7 on every host (`agentShell`, 2026-10-26).** opencode resolved the global
+  config's `"shell": "pwsh"` on `PATH`, and on node3 (a Store install of PowerShell 7, whose `PATH` entry is a 0-byte
+  app alias) it fell through to Windows PowerShell 5.1, where scripts are Restricted: 139 of 140 node3 transcripts of
+  2026-10-24/25 hit "npm.ps1 cannot be loaded". Each run now hands opencode the harness's own `pwsh.exe` by full path
+  (`OPENCODE_CONFIG_CONTENT`), the pre-run check refuses a shell that is not PowerShell 7, and run JSONs record
+  `agentShell` and `agentTools.shellVersion`: a new era for node3 rows. Guard: `tests/test-agent-shell.ps1`. Also:
+  `startup.bat` launches `pwsh`, `install-opencode-profiles.ps1` installs into the PowerShell 7 profile only, and the
+  GPU device-loss check no longer misses a loss in a run's first second (its guard failed about 1 run in 3).
+
 - **tests: record a GPU driver reset during a run (`gpuResets`, 2026-10-25).** The desktop's AMD driver reset in the
   middle of a sweep run on 2026-10-24 ("ggml_vulkan: device lost on Vulkan0" in Ollama's log, a 500, a 39 s reload);
   opencode retried and the run passed in 1,968 s, with nothing in the run JSON to show it. The harness now reads the

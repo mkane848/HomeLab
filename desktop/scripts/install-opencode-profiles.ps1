@@ -1,8 +1,9 @@
 # install-opencode-profiles.ps1 — add `opencode <profile>` to your PowerShell profiles
 #
 # Appends one line that dot-sources desktop\scripts\opencode-profiles.ps1 to the
-# current-user profile of PowerShell 7 and of Windows PowerShell 5.1, creating
-# either file if it does not exist. Idempotent: a profile that already has the
+# current-user profile of PowerShell 7, creating it if it does not exist (PowerShell
+# 7 only since 2026-10-12; -Uninstall still removes a line an earlier version put in
+# Windows PowerShell 5.1's profile). Idempotent: a profile that already has the
 # line is left alone. Open a new terminal afterwards (or dot-source $PROFILE).
 #
 # Usage:
@@ -20,10 +21,8 @@ $marker = "# dev-docs: opencode <profile>"
 # not print an error at every shell start.
 $line   = "if (Test-Path -LiteralPath '$shim') { . '$shim' }  $marker"
 $docs   = [Environment]::GetFolderPath("MyDocuments")
-$targets = @(
-    (Join-Path $docs "PowerShell\Microsoft.PowerShell_profile.ps1"),
-    (Join-Path $docs "WindowsPowerShell\Microsoft.PowerShell_profile.ps1")
-)
+$targets = @(Join-Path $docs "PowerShell\Microsoft.PowerShell_profile.ps1")
+if ($Uninstall) { $targets += Join-Path $docs "WindowsPowerShell\Microsoft.PowerShell_profile.ps1" }
 
 foreach ($t in $targets) {
     $existing = @()

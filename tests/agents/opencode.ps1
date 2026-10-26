@@ -20,7 +20,8 @@
 #   Get-AgentModelIds [-Config]       hashtable of model ids the agent can drive, or $null
 #   Test-AgentAutoupdatePinned        whether the agent will not upgrade itself mid-batch
 #   Get-AgentModelSettings -ModelId   { OutputLimit; Compaction; Plugins } for one model
-#   Start-AgentRunEnv -Plugins        per-run environment; returns a state object
+#   Start-AgentRunEnv -Plugins        per-run environment; returns a state object (its
+#                                     Shell: the shell the agent's own commands run in, or $null)
 #   Stop-AgentRunEnv -State           undoes it; returns what it measured (plugin rewrites)
 #   Invoke-AgentRun                   start or continue (-SessionId) a run; appends the
 #                                     agent's raw transcript to -Transcript
@@ -262,7 +263,28 @@ function Get-AgentModelSettings {
     }
 }
 
+function Get-AgentShellPath {
+    # The shell opencode's own shell tool should run: this process's pwsh, by
+    # full path. opencode 1.18.34 takes the config's `shell`, else $env:SHELL,
+    # else the first of pwsh, powershell, Git Bash and cmd that it finds on PATH
+    # (packages/core/src/shell.ts), and it does not accept a 0-byte Store app
+    # alias. node3's PowerShell 7 is the Store install, whose only pwsh.exe on
+    # PATH is such an alias, so every node3 run's commands went to Windows
+    # PowerShell 5.1, whose script policy there is Restricted: 139 of 140
+    # transcripts of 2026-10-24/25 hit "npm.ps1 cannot be loaded" at least once.
+    # $PSHOME is the real install folder (the Store's versioned package folder
+    # on node3), so the path is always a real file and follows upgrades.
+    $exe = if ($IsWindows) { "pwsh.exe" } else { "pwsh" }
+    return (Join-Path $PSHOME $exe)
+}
+
 function Start-AgentRunEnv {
+    # The agent's shell: Get-AgentShellPath, set as `shell` through
+    # OPENCODE_CONFIG_CONTENT, which opencode merges after every config file
+    # (packages/opencode/src/config/config.ts), so it wins over the global
+    # config's "shell": "pwsh". An OPENCODE_CONFIG_CONTENT the caller set is
+    # kept (the shell is added to it) and restored afterwards; one that is not
+    # a JSON object is left alone and the run records no forced shell.
     # compaction-continue.js writes one JSON line per model call it rewrote to
     # HOMELAB_COMPACTION_PLUGIN_LOG (opencode inherits the env); counted after
     # the run. Its idle continue stays off here: `opencode run` exits when the
@@ -272,7 +294,20 @@ function Start-AgentRunEnv {
     # read-budget.js writes one JSON line per read it clamped to
     # HOMELAB_READ_BUDGET_LOG; summarised after the run (Stop-AgentRunEnv).
     param([string[]]$Plugins = @())
-    $state = [pscustomobject]@{ PluginLog = $null; ReadLog = $null }
+    $state = [pscustomobject]@{ PluginLog = $null; ReadLog = $null; Shell = $null
+        ConfigContent = [Environment]::GetEnvironmentVariable("OPENCODE_CONFIG_CONTENT") }
+    $content = $null
+    if ($state.ConfigContent) {
+        try { $content = $state.ConfigContent | ConvertFrom-Json -AsHashtable -ErrorAction Stop } catch { $content = $null }
+        if ($content -isnot [System.Collections.IDictionary]) { $content = $null }
+    } else {
+        $content = @{}
+    }
+    if ($null -ne $content) {
+        $state.Shell = Get-AgentShellPath
+        $content["shell"] = $state.Shell
+        $env:OPENCODE_CONFIG_CONTENT = ($content | ConvertTo-Json -Compress -Depth 20)
+    }
     if (@($Plugins | Where-Object { $_ -match 'compaction-continue' }).Count -gt 0) {
         $state.PluginLog = Join-Path ([System.IO.Path]::GetTempPath()) ("ccplugin-" + [guid]::NewGuid().ToString("N").Substring(0, 12) + ".jsonl")
         $env:HOMELAB_COMPACTION_PLUGIN_LOG = $state.PluginLog
@@ -301,6 +336,9 @@ function Stop-AgentRunEnv {
     #                       loading), or $null without that plugin.
     param($State)
     if (-not $State) { return $null }
+    if ($State.PSObject.Properties['Shell'] -and $State.Shell) {
+        if ($State.ConfigContent) { $env:OPENCODE_CONFIG_CONTENT = $State.ConfigContent } else { Remove-Item Env:OPENCODE_CONFIG_CONTENT -ErrorAction SilentlyContinue }
+    }
     $rewrites = $null
     if ($State.PluginLog) {
         Remove-Item Env:HOMELAB_COMPACTION_PLUGIN_LOG, Env:HOMELAB_COMPACTION_IDLE_CONTINUE -ErrorAction SilentlyContinue
@@ -349,10 +387,25 @@ function Test-AgentTools {
     # ripgrep where unpacking works. Returns { checked; ok; detail; seconds };
     # checked is $false on another opencode version, because `debug rg` is an
     # undocumented debugging command.
+    # The shell the run will hand opencode (Get-AgentShellPath, set by
+    # Start-AgentRunEnv) is checked first: it must start and report PowerShell
+    # 7 (edition Core). Since 2026-10-26 the result also carries shell (path)
+    # and shellVersion ("Core 7.6.7").
     param([string]$Version = (Get-AgentVersion), [int]$TimeoutSec = 180)
     if ($Version -ne $script:AgentToolsCheckedVersion) {
-        return [pscustomobject]@{ checked = $false; ok = $null; seconds = $null
+        return [pscustomobject]@{ checked = $false; ok = $null; seconds = $null; shell = $null; shellVersion = $null
             detail = "not checked: opencode $(if ($Version) { $Version } else { '(no version)' }) is not $script:AgentToolsCheckedVersion, the version this check was written against" }
+    }
+    $shell = Get-AgentShellPath
+    $shellVersion = $null
+    if (Test-Path -LiteralPath $shell -PathType Leaf) {
+        $sv = Run-NativeTimed $shell @("-NoProfile", "-NonInteractive", "-Command", '$PSVersionTable.PSEdition + " " + $PSVersionTable.PSVersion.ToString()') ([System.IO.Path]::GetTempPath()) 60
+        if ($sv.ExitCode -eq 0) { $shellVersion = (@($sv.Output | Where-Object { "$_".Trim() }) | Select-Object -Last 1) -as [string] }
+    }
+    if (-not $shellVersion -or $shellVersion -notmatch '^Core 7\.') {
+        $why = if (-not (Test-Path -LiteralPath $shell -PathType Leaf)) { "$shell does not exist" } elseif ($shellVersion) { "$shell reports '$shellVersion'" } else { "$shell did not run" }
+        return [pscustomobject]@{ checked = $true; ok = $false; seconds = $null; shell = $shell; shellVersion = $shellVersion
+            detail = "the agent's shell is not PowerShell 7: $why" }
     }
     $dir = Join-Path ([System.IO.Path]::GetTempPath()) ("agenttools-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
     $nonce = "toolprobe" + [guid]::NewGuid().ToString("N").Substring(0, 16)
@@ -364,11 +417,12 @@ function Test-AgentTools {
         $secs = [math]::Round($sw.Elapsed.TotalSeconds, 1)
         $out = ($r.Output | Out-String)
         if ($r.ExitCode -eq 0 -and $out.Contains($nonce) -and $out.Contains("probe.txt")) {
-            return [pscustomobject]@{ checked = $true; ok = $true; seconds = $secs; detail = "ripgrep search works (opencode debug rg search found the probe file)" }
+            return [pscustomobject]@{ checked = $true; ok = $true; seconds = $secs; shell = $shell; shellVersion = $shellVersion
+                detail = "ripgrep search works (opencode debug rg search found the probe file); shell $shellVersion" }
         }
         $tail = (@($r.Output | Where-Object { "$_".Trim() } | Select-Object -Last 3) -join " | ")
         $why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif ($r.ExitCode -ne 0) { "exit $($r.ExitCode)" } else { "exit 0 but the probe file was not found" }
-        return [pscustomobject]@{ checked = $true; ok = $false; seconds = $secs
+        return [pscustomobject]@{ checked = $true; ok = $false; seconds = $secs; shell = $shell; shellVersion = $shellVersion
             detail = "ripgrep search does not work ($why): $tail" }
     } finally {
         Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction SilentlyContinue

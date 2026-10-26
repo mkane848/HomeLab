@@ -258,6 +258,10 @@ function Get-OllamaDeviceLoss {
     param([string]$LogDir, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
     $hits = @()
     if (-not $LogDir -or -not (Test-Path -LiteralPath $LogDir)) { return $hits }
+    # [GIN] stamps are whole seconds and a run's start is not: a loss in the
+    # run's first second (20:53:40 against a start of 20:53:40.6) would read as
+    # before it. So the window opens at the start of that second.
+    if ($Since -gt [DateTimeOffset]::MinValue) { $Since = $Since.AddTicks(-($Since.Ticks % [TimeSpan]::TicksPerSecond)) }
     # File choice and shared read as in Get-OllamaPromptTruncation.
     $files = @(Get-ChildItem -LiteralPath $LogDir -Filter "server*.log" -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -eq "server.log" -or $_.LastWriteTime -ge $Since.LocalDateTime })

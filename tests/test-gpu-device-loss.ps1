@@ -65,6 +65,9 @@ try {
     Check "dated by the 500 after it (20:53:40)"             ($r[0] -like "2026-10-24T20:53:40*") "True"
     $r = @(Get-OllamaDeviceLoss -LogDir $tmp -Since (L "2026-10-24 20:53:35") -Until (L "2026-10-24 20:55:00"))
     Check "a run that began after the 200 before it still sees it" $r.Count 1
+    # [GIN] stamps are whole seconds: a run that began at 20:53:40.6 still sees a loss stamped 20:53:40.
+    $r = @(Get-OllamaDeviceLoss -LogDir $tmp -Since ((L "2026-10-24 20:53:40").AddMilliseconds(600)) -Until (L "2026-10-24 20:55:00"))
+    Check "a loss in the run's first second is not lost to rounding" $r.Count 1
     $r = @(Get-OllamaDeviceLoss -LogDir $tmp -Since (L "2026-10-24 20:53:41") -Until (L "2026-10-24 21:20:00"))
     Check "a run that began after it does not"               $r.Count 0
     $r = @(Get-OllamaDeviceLoss -LogDir $tmp -Since (L "2026-10-24 20:00:00") -Until (L "2026-10-24 20:53:39"))

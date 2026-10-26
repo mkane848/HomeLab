@@ -220,7 +220,7 @@ function Read-AgentEvents {
     Check "installed opencode is $script:AgentToolsCheckedVersion (else re-read packages/core/src/ripgrep/binary.ts, then move `$script:AgentToolsCheckedVersion)" $realVersion $script:AgentToolsCheckedVersion
     if ($realVersion -eq $script:AgentToolsCheckedVersion) {
         $r = Test-AgentTools
-        Check "the search works here" ("{0}|{1}|{2}" -f $r.checked, $r.ok, $r.detail) "True|True|ripgrep search works (opencode debug rg search found the probe file)"
+        Check "the search works here" ("{0}|{1}|{2}" -f $r.checked, $r.ok, [bool]($r.detail -match '^ripgrep search works \(opencode debug rg search found the probe file\); shell Core 7\.')) "True|True|True"
         # node3's case without breaking Windows PowerShell: ripgrep nowhere opencode
         # looks (no rg.exe on PATH, an empty cache) and its download unreachable.
         $saved = @{}
