@@ -50,7 +50,7 @@ done
 [[ -f "$SEATS" ]] || die "seat list not found: $SEATS"
 command -v docker >/dev/null 2>&1 || die "docker not found on this machine."
 if [[ "$DRY_RUN" -eq 0 ]]; then
-    docker ps --format '{{.Names}}' | grep -qx "$CONTAINER" ||
+    grep -qx "$CONTAINER" <<<"$(docker ps --format '{{.Names}}')" ||
         die "$CONTAINER is not running. Start it: docker compose -f server/docker/docker-compose.yml up -d"
 fi
 
@@ -93,10 +93,12 @@ has_tag() {
 failures=0
 warnings=()
 summary=()
+only_matched=0
 
 while IFS=$'\t' read -r tag num_ctx num_gpu from weights source note; do
     [[ -z "$tag" || "$tag" == \#* || "$tag" == "tag" ]] && continue
     [[ -n "$ONLY" && "$tag" != "$ONLY" ]] && continue
+    only_matched=1
     echo ""
     gpu_note=""
     [[ "$num_gpu" != "-" ]] && gpu_note=", num_gpu=$num_gpu"
@@ -159,6 +161,10 @@ while IFS=$'\t' read -r tag num_ctx num_gpu from weights source note; do
         summary+=("$tag	ok; WEIGHTS DIFFER from the desktop")
     fi
 done < "$SEATS"
+
+if [[ -n "$ONLY" && "$only_matched" -eq 0 ]]; then
+    die "--only $ONLY matches no seat in $SEATS"
+fi
 
 echo ""
 echo "[bake] summary"

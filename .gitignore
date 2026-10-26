@@ -31,3 +31,12 @@ session-*.md
 # Python bytecode (tests/test-llamacpp-stack.ps1 imports server/scripts/llamacpp_check.py)
 __pycache__/
 *.pyc
+
+# More env variants and local secrets
+.env.*
+!.env.example
+.secrets/
+
+# Tooling output
+node_modules/
+.coverage

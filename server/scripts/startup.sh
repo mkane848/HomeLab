@@ -30,15 +30,11 @@ fi
 
 # Method 2: docker compose
 echo "[startup] Systemd unit not found, using docker compose..."
-if [[ -f "$DOCKER_DIR/.env" ]]; then
-    export $(grep -v '^#' "$DOCKER_DIR/.env" | xargs)
-fi
-
 docker compose -f "$DOCKER_DIR/docker-compose.yml" up -d
 
 echo "[startup] Waiting for container to become healthy..."
 for i in $(seq 1 30); do
-    if docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null | grep -q "healthy"; then
+    if docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null | grep -qx "healthy"; then
         echo "[startup] $SERVICE_NAME is healthy."
         exit 0
     fi
@@ -47,3 +43,4 @@ done
 
 echo "[startup] Warning: Container started but health check didn't pass in 60s."
 echo "[startup] Run 'docker logs $SERVICE_NAME' to check."
+exit 1

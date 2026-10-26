@@ -1,101 +1,50 @@
 # Model Selection Profiles
 
-Profiles control which LLM tiers are active during a session and what gets
-installed where. Each profile is a shell script that exports environment
-variables consumed by the install scripts, startup scripts, and OpenCode config.
+A profile is a sourced bash script that exports tier toggles, model intent and
+OpenCode defaults. Full reference: [docs/profiles.md](../docs/profiles.md).
 
-Full reference: [docs/profiles.md](../docs/profiles.md).
-
-## Quick Start
+## Quick start
 
 ```bash
-# Option 1: Source a profile directly
-source profiles/dev-server-all.sh
-
-# Option 2: Use the interactive menu (fzf if present, numbered otherwise)
-./profiles/select-model.sh
+source profiles/dev-workflow-server-llamacpp.sh     # load one profile into this shell
+eval "$(bash profiles/select-model.sh --print)"     # or pick from a menu, then load it
 ```
 
-## Profiles
+`select-model.sh` runs in a child process, so on its own it can only print the
+`source ...` line to run; `--print` makes that line `eval`-able. On Windows,
+`opencode <profile>` (see `desktop/scripts/opencode-profiles.ps1`) loads a
+profile for you, and dot-sourcing `profiles/dev-desktop-only.ps1` loads the
+desktop-only one into PowerShell.
 
-Four profiles are live. Eight server profiles are parked in `parked/` (correct,
-not deprecated — they target the down server; see `parked/README.md` for the
-bring-back procedure).
+## Live profiles (6)
 
-| Profile | Purpose | Online | OpenCode default model |
-|---------|---------|--------|------------------------|
-| `dev-workflow-quality.sh` | qwen3:14b drives in-thread, `/plan` on the main agent (desktop) | Desktop | Qwen3 14B (desktop) |
-| `dev-workflow-resident.sh` | qwen3:8b drives in-thread, 7B coder resident for no-tools code text (desktop) | Desktop | Qwen3 8B (desktop) |
-| `dev-desktop-only.sh` | **Everything local on this PC** — use when the server is down | Desktop | Qwen3 8B (desktop) |
-| `dev-node3.sh` | Third node, 3080 FE (onboarded 2026-09-20) | Server (+ Node3) | Qwen3 8B (node3) / server 7B fallback |
+| Profile | Main seat | Host | Use when |
+|---|---|---|---|
+| `dev-workflow-server-llamacpp.sh` | qwen3.6 on llama.cpp | server | **Default** |
+| `dev-workflow-server.sh` | qwen3.6 on Ollama | server | Same seat, Ollama engine |
+| `dev-workflow-quality.sh` | qwen3.6 | desktop | Server down or in a trial window |
+| `dev-workflow-resident.sh` | qwen3:8b + resident 7B coder | desktop | Lighter, latency-tuned seat |
+| `dev-desktop-only.sh` / `.ps1` | qwen3:8b | desktop | Everything local, no server |
+| `dev-node3.sh` | qwen3:8b | node3 | Third node (3080 FE) |
 
-## Cloud Tier Purpose
+Seven server profiles are parked in [`parked/`](parked/README.md) (not
+deprecated; bring-back procedure there).
 
-The OpenCode Go cloud tier (`DEV_TIERS_GO`) exists specifically so you can
-test any model you can't run yourself — DeepSeek V4, Qwen3.x, Kimi, GLM, and
-others via `opencode-go/<model-id>`. It's backed by your Go subscription API
-key (`~/.config/opencode/.secrets/opencode-go-api-key`).
+## What a profile exports
 
-Use `dev-go-only.sh` to evaluate a model before (or instead of) pulling it
-locally, and `dev-full.sh` to keep cloud models on hand alongside the full
-local stack.
+| Variable | Read by |
+|---|---|
+| `DEV_TIERS_SERVER/DESKTOP/GO/NODE3` | `server/scripts/startup.sh`, `desktop/scripts/startup.ps1` |
+| `DEV_SERVER_MODELS`, `DEV_DESKTOP_MODELS`, `DEV_NODE3_MODELS` | `install-model.sh --profile`, `models.ps1 -Profile`, and which models `startup.ps1` pulls |
+| `OPENCODE_MODEL`, `OPENCODE_SMALL_MODEL` | OpenCode config via `{env:...}` |
+| `OLLAMA_*_BASE_URL`, `LLAMACPP_*_BASE_URL`, `LLAMACPP_SERVER_SSH` | one provider per host; `{env:...}` has no fallback, so every live profile sets them |
 
-## How It Works
+`SERVER_IP`, `NODE3_IP` and `SSH_USER` come from `<repo>/.env` (copy
+`.env.example`); each profile loads it itself.
 
-Each profile auto-sources the `.env` file from the dev-docs root, then exports:
-
-- **Tier toggles**: `DEV_TIERS_SERVER`, `DEV_TIERS_DESKTOP`, `DEV_TIERS_GO`, `DEV_TIERS_NODE3`
-  → read by `server/scripts/startup.sh` and `desktop/scripts/startup.ps1`.
-- **Install intent**: `DEV_SERVER_MODELS`, `DEV_DESKTOP_MODELS`, `DEV_NODE3_MODELS`
-  → space-separated catalog tags/groups, consumed by `install-model.sh --profile`
-  / `models.ps1 -Profile`.
-- **OpenCode defaults**: `OPENCODE_MODEL`, `OPENCODE_SMALL_MODEL` and the
-  per-host `OLLAMA_*_BASE_URL` that the `ollama-server`, `ollama-desktop`,
-  `ollama-node3` providers read via `{env:...}`.
-
-Variables from `.env` (SERVER_IP, DESKTOP_IP, NODE3_IP, SSH_USER) are
-automatically available in every profile without re-typing.
-
-## Choosing the OpenCode model
-
-Profiles set OpenCode's default model. Override at runtime with the model
-selector (`/models`) or a project `opencode.json`. Model IDs are
-`<provider>/<tag>`:
+## Custom profiles
 
 ```bash
-# Desktop DeepSeek (16k context — use THIS name, not deepseek-r1:14b)
-export OPENCODE_MODEL="ollama-desktop/deepseek-r1-16k"
-
-# Server Qwen (fast autocomplete, 16k context by default)
-export OPENCODE_MODEL="ollama-server/qwen2.5-coder:7b"
-```
-
-Important: on the desktop the Ollama app serves `deepseek-r1:14b` at only
-4096 context unless overridden. `deepseek-r1-16k` (created by
-`desktop/scripts/startup.ps1`) is the same weights with `num_ctx 16384` baked
-in — always use it, or large prompts fail with `exceed_context_size_error`.
-
-## Interactive Menu
-
-`select-model.sh` uses `fzf` if available, otherwise falls back to a numbered
-menu. It discovers `profiles/*.sh` dynamically, so it always lists exactly the
-live profiles (currently four) and nothing parked. It sources the chosen
-profile for you.
-
-```bash
-./profiles/select-model.sh
-# then run your startup / installs
-```
-
-> On Windows, load the desktop-only profile into the current PowerShell process
-> by dot-sourcing `profiles/dev-desktop-only.ps1` (the only `.ps1` wrapper);
-> every other profile loads in Git bash via `source profiles/<name>.sh`.
-
-## Creating Custom Profiles
-
-Copy any existing profile and modify the exports:
-
-```bash
-cp profiles/dev-server-all.sh profiles/dev-experiment.sh
-# edit DEV_TIERS_*, DEV_*_MODELS, and OPENCODE_* as needed
+cp profiles/dev-workflow-server.sh profiles/dev-experiment.sh
+# edit DEV_TIERS_*, DEV_*_MODELS and OPENCODE_*; add its intent to tests/test-profiles.ps1
 ```

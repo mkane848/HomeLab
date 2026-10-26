@@ -24,13 +24,14 @@ CATALOG_COLS=(tag size_gb class ctx groups hosts desc)
 
 catalog_line() {
     # catalog_line <tag>  -> the raw TSV record for a tag (or empty)
-    awk -F '\t' -v t="$1" '$1 == t { print }' "$CATALOG_TSV"
+    awk -F '\t' -v t="$1" 'NR>1 && $1 == t { print }' "$CATALOG_TSV"
 }
 
 catalog_field() {
     # catalog_field <tag> <col>  -> value of a column for a tag
     local idx
     idx=$(catalog_col_index "$2") || return 1
+    [[ -n "$(catalog_line "$1")" ]] || return 1
     catalog_line "$1" | awk -F '\t' -v i="$idx" '{ print $i }'
 }
 
@@ -74,7 +75,7 @@ catalog_print_rows() {
         "------------------------" "--------" "----------" "-------" "--------------------------------" "-----------"
     while IFS=$'\t' read -r tag size_gb class ctx groups hosts desc; do
         printf "%-24s %-8s %-10s %-7s %-32s %s\n" \
-            "$tag" "${size_gb}G" "$class" "${ctx}k" "$groups" "$desc"
+            "$tag" "${size_gb}G" "$class" "${ctx}" "$groups" "$desc"
     done
 }
 

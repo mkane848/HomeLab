@@ -1,40 +1,45 @@
 ﻿# sync-skills.ps1 — Deploy imported skills/commands/agents to OpenCode config dirs.
 #
-# Sources (in dev-docs):
+# Sources (in this repo):
 #   skills/<source>/<skill>/      ->  ~/.config/opencode/skills/<skill>/   (flattened)
 #   opencode/commands/<name>.md   ->  ~/.config/opencode/commands/<name>.md
 #   opencode/agents/<name>.md     ->  ~/.config/opencode/agents/<name>.md
 #
 # Targets:
 #   -Local   : this Windows machine ($env:USERPROFILE\.config\opencode)
-#   -Server  : Ubuntu server via scp (uses SSH_USER + SERVER_IP from dev-docs\.env)
+#   -Server  : Ubuntu server via scp (uses SSH_USER + SERVER_IP from <repo>\.env).
+#              Opt-in only: the server runs no OpenCode client (machines.tsv), so
+#              this is for a deliberate one-off, not the default.
 #
 # SCOPE - why every skill is NOT deployed globally
 #   opencode advertises the name + description of EVERY installed skill in the
-#   system prompt of EVERY request. All 65 vendored skills cost ~5.5k tokens on
+#   system prompt of EVERY request. All 73 vendored skills cost ~6k tokens on
 #   every single call, on every project, forever - and a 16k-32k local model
 #   pays that out of its working window.
 #
 #   So only $GLOBAL_SKILL_SOURCES deploy to ~/.config/opencode/skills. The rest
 #   stay in this repo and a project opts into them from its own opencode.jsonc:
 #
-#       "skills": { "paths": ["M:/Projects/dev-docs/skills/vercel"] }
+#       "skills": { "paths": ["<path-to-this-repo>/skills/vercel"] }
 #
 #   Nothing is copied for that - opencode scans the path for **/SKILL.md, so a
 #   project always sees the current repo content. See
 #   opencode/project-override/opencode.jsonc.
 #
 # Usage:
-#   .\desktop\scripts\sync-skills.ps1                # both targets, global scope
-#   .\desktop\scripts\sync-skills.ps1 -Local         # Windows only
-#   .\desktop\scripts\sync-skills.ps1 -Server        # server only
+#   .\desktop\scripts\sync-skills.ps1                # this machine only, global scope
+#   .\desktop\scripts\sync-skills.ps1 -Local         # same, explicit
+#   .\desktop\scripts\sync-skills.ps1 -Server        # server only (opt-in)
+#   .\desktop\scripts\sync-skills.ps1 -Local -Server  # both
 #   .\desktop\scripts\sync-skills.ps1 -Scope all     # deploy every source globally
 #   .\desktop\scripts\sync-skills.ps1 -SkipSkills    # limit scope
 #
 # Notes:
-#   - Server push requires SSH access (password prompt, or key auth).
+#   - Server push requires SSH access (password prompt, or key auth); it gives up
+#     after a 10 s connect timeout.
 #   - Files are copied verbatim; re-running is safe (overwrites).
-#   - -Prune removes globally-deployed skills that are no longer in scope.
+#   - -Prune removes EVERY skill directory under ~/.config/opencode/skills that this
+#     run did not stage, including ones you made by hand. Use -DryRun first.
 
 param(
     [switch]$Local,
@@ -59,7 +64,8 @@ $SKILLS_SRC = Join-Path $REPO_ROOT "skills"
 $COMMANDS_SRC = Join-Path $REPO_ROOT "opencode\commands"
 $AGENTS_SRC = Join-Path $REPO_ROOT "opencode\agents"
 
-if (-not $Local -and -not $Server) { $Local = $true; $Server = $true }
+# Local only unless -Server is named: the server has no OpenCode client.
+if (-not $Local -and -not $Server) { $Local = $true }
 
 # --- Parse .env (KEY=VALUE) ---
 function Get-EnvVars {
@@ -192,7 +198,12 @@ if ($Local) {
 if ($Server) {
     Write-Host ""
     Write-Host "=== Server ===" -ForegroundColor Cyan
-    $vars = Get-EnvVars -EnvFile (Join-Path $REPO_ROOT ".env")
+    $envFile = Join-Path $REPO_ROOT ".env"
+    if (-not (Test-Path -LiteralPath $envFile)) {
+        Write-Host "ERROR: $envFile not found - skip server sync" -ForegroundColor Red
+        return
+    }
+    $vars = Get-EnvVars -EnvFile $envFile
     $user = $vars["SSH_USER"]
     $host_ = $vars["SERVER_IP"]
     if (-not $user -or -not $host_) {
@@ -205,7 +216,7 @@ if ($Server) {
         Write-Host "  (dry run) would create remote dirs" -ForegroundColor Cyan
     } else {
         Write-Host "  creating remote dirs..."
-        ssh $remote "mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/agents"
+        ssh -o ConnectTimeout=10 $remote "mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/agents"
         if ($LASTEXITCODE -ne 0) { Write-Host "ssh failed - server sync aborted" -ForegroundColor Red; return }
     }
 
@@ -215,14 +226,14 @@ if ($Server) {
         if ($DryRun) {
             Write-Host "  (dry run) would transfer $($pair[0]) to server" -ForegroundColor Cyan
         } else {
-            scp -r -q -o StrictHostKeyChecking=accept-new $src "${remote}:~/.config/opencode/"
+            scp -r -q -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new $src "${remote}:~/.config/opencode/"
             if ($LASTEXITCODE -ne 0) { Write-Host "scp failed for $($pair[0])" -ForegroundColor Red; return }
         }
     }
 
     # Clean up the singular-named dirs this script previously created on the server
     if (-not $DryRun) {
-        ssh $remote "rm -rf ~/.config/opencode/command ~/.config/opencode/agent"
+        ssh -o ConnectTimeout=10 $remote "rm -rf ~/.config/opencode/command ~/.config/opencode/agent"
         Write-Host "  removed legacy ~/.config/opencode/command and ~/.config/opencode/agent"
     } else {
         Write-Host "  (dry run) would remove legacy server directories" -ForegroundColor Cyan

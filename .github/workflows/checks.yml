@@ -25,11 +25,13 @@ concurrency:
 
 jobs:
   syntax:
-    name: syntax (ps1, sh, python, manifest)
+    name: syntax (ps1, sh, python, manifest, config drift)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: PowerShell parses (every .ps1)
         shell: pwsh
@@ -54,8 +56,21 @@ jobs:
           echo "$n .sh file(s), $bad with syntax errors"
           [ "$bad" -eq 0 ]
 
-      - name: Python unit tests (llamacpp_check)
-        run: python3 -m unittest -v tests/test_llamacpp_check.py
+      - name: shellcheck (advisory)
+        run: |
+          # Errors are printed but do not fail the job: the scripts predate this check.
+          shellcheck -S error server/scripts/*.sh models/catalog.sh profiles/*.sh || true
+
+      - name: Python unit tests (llamacpp_check, config drift)
+        run: |
+          python3 -m unittest -v tests/test_llamacpp_check.py
+          python3 -I tests/test_config_drift.py
+
+      - name: Config drift (catalog, seats, startup.ps1, opencode.jsonc, profiles)
+        run: python3 -I tests/check_config_drift.py
+
+      - name: llama.cpp preset contracts (static)
+        run: bash server/scripts/llamacpp-check.sh
 
       - name: Task manifest parses
         shell: pwsh
@@ -81,7 +96,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       # test-compaction-plugin.ps1 runs the plugin inside a real `opencode serve` and
       # FAILs on any opencode but the one its hooks were read at (AGENTS.md).
