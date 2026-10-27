@@ -40,6 +40,7 @@ The long reference that used to live here moved to `docs/reference/` on 2026-10-
 | Model catalog, installing models, profiles, OpenCode config, sync pipeline, desktop Docker | [`docs/reference/config.md`](docs/reference/config.md) |
 | Which guard to run after touching X; CI; every `tests/` tool in detail | [`docs/reference/guards.md`](docs/reference/guards.md) (table generated from each guard's `# protects:` / `# run-after:` header) |
 | Symptom → cause → fix (tool-calling, context, VRAM, Vulkan, env vars, GPU loss) | [`docs/reference/gotchas.md`](docs/reference/gotchas.md) |
+| A testing window on the server and node3 with no one there (`run-window.ps1`, `llamacpp-window.sh`) | [`docs/unattended-window.md`](docs/unattended-window.md) |
 | History, incidents, postmortems | `CHANGELOG.md`, `docs/roadmap.md` |
 
 **Keep the tables true:** `python3 tests/make-reference.py` rewrites them; CI runs it with `--check`. A new `tests/test-*.ps1` needs the two header comments or CI fails.
