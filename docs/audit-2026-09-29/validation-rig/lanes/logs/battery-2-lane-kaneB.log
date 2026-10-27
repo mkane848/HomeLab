@@ -1,0 +1,21 @@
+kane-11-useauth-session-reject ref exit=0
+kane-11-useauth-session-reject srconly exit=1
+kane-11-useauth-session-reject testsonly exit=1
+kane-11-useauth-session-reject ref.det1 exit=0
+TASK DONE kane-11-useauth-session-reject 09:50:30
+kane-12-error-handler-400 ref exit=0
+kane-12-error-handler-400 srconly exit=1
+kane-12-error-handler-400 testsonly exit=1
+kane-12-error-handler-400 ref.det1 exit=0
+TASK DONE kane-12-error-handler-400 09:51:31
+kane-13-front-face-field ref exit=0
+kane-13-front-face-field srconly exit=1
+kane-13-front-face-field testsonly exit=1
+kane-13-front-face-field ref.det1 exit=0
+TASK DONE kane-13-front-face-field 09:52:36
+kane-14-undo-toast-timer ref exit=0
+kane-14-undo-toast-timer srconly exit=1
+kane-14-undo-toast-timer testsonly exit=1
+kane-14-undo-toast-timer ref.det1 exit=0
+TASK DONE kane-14-undo-toast-timer 09:54:50
+LANE DONE 09:54:50

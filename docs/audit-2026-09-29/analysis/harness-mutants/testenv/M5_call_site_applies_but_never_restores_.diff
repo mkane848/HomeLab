@@ -1,0 +1,10 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M5_call_site_applies_but_never_restores_.ps1
+@@ -860,7 +860,6 @@
+     try {
+         $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+     } finally {
+-        Restore-TaskTestEnv $savedEnv
+     }
+     # A run that never reached the model is not a result. opencode exits 0 even
+     # when the model refuses to write (real liar mode), so ANY non-zero exit is

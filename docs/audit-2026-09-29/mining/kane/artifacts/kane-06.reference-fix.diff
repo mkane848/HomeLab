@@ -1,0 +1,60 @@
+diff --git a/apps/commander-recommender/server/src/services/deckValidation.ts b/apps/commander-recommender/server/src/services/deckValidation.ts
+index af75025..51e9074 100644
+--- a/apps/commander-recommender/server/src/services/deckValidation.ts
++++ b/apps/commander-recommender/server/src/services/deckValidation.ts
+@@ -3,6 +3,7 @@ import {
+   buildCommanderUnits,
+   combinedColorIdentity,
+   findColorIdentityViolations,
++  isCommanderLegal,
+   isValidDeckSize,
+   unitKey,
+ } from '@mtg/rules';
+@@ -46,6 +47,18 @@ export interface DeckValidationResult {
+   };
+ }
+ 
++/** First-seen order, one entry per key. */
++function distinctBy(items: { name: string; key: string }[]): string[] {
++  const seen = new Set<string>();
++  const out: string[] = [];
++  for (const { name, key } of items) {
++    if (seen.has(key)) continue;
++    seen.add(key);
++    out.push(name);
++  }
++  return out;
++}
++
+ /**
+  * Pure validation of a parsed decklist against Commander rules (CR 903.4/903.5a),
+  * plus Partner-family commander-unit legality (702.124). Deliberately free of
+@@ -58,7 +71,27 @@ export function validateDeck(
+   commanders: CardRow[],
+   backgrounds: CardRow[],
+ ): DeckValidationResult {
+-  const { submitted, notFound, banned } = partitionSubmittedCards(parsed, nameMap);
++  const { submitted, notFound: notFoundLines, banned: bannedLines } = partitionSubmittedCards(
++    parsed,
++    nameMap,
++  );
++
++  // Ban enforcement must not depend on the pasted list happening to repeat the
++  // commander line: each named commander is checked against its own legality.
++  // The lists are then reduced to one entry per card (the deck-size total below
++  // still counts every pasted copy, and stays a sum over the pasted list only).
++  const banned = distinctBy(
++    [
++      ...bannedLines.map((name) => ({
++        name,
++        key: nameMap.get(name.toLowerCase())?.oracle_id ?? name.toLowerCase(),
++      })),
++      ...commanders
++        .filter((c) => !isCommanderLegal(c))
++        .map((c) => ({ name: c.name, key: c.oracle_id })),
++    ],
++  );
++  const notFound = distinctBy(notFoundLines.map((name) => ({ name, key: name.toLowerCase() })));
+ 
+   // Commander unit validity: every named card must itself be a legal commander
+   // (903.3 — a "Sol Ring" named as commander passes every identity check while

@@ -1,0 +1,16 @@
+asohav-07-rapport-clamp ref exit=0
+asohav-07-rapport-clamp srconly exit=1
+asohav-07-rapport-clamp testsonly exit=1
+asohav-07-rapport-clamp ref.det1 exit=0
+TASK DONE asohav-07-rapport-clamp 09:50:25
+asohav-08-end-combat-clears-strain ref exit=0
+asohav-08-end-combat-clears-strain srconly exit=1
+asohav-08-end-combat-clears-strain testsonly exit=1
+asohav-08-end-combat-clears-strain ref.det1 exit=0
+TASK DONE asohav-08-end-combat-clears-strain 09:51:56
+asohav-09-seed-virtue-conformance ref exit=0
+asohav-09-seed-virtue-conformance srconly exit=1
+asohav-09-seed-virtue-conformance testsonly exit=1
+asohav-09-seed-virtue-conformance ref.det1 exit=0
+TASK DONE asohav-09-seed-virtue-conformance 09:53:34
+LANE DONE 09:53:34

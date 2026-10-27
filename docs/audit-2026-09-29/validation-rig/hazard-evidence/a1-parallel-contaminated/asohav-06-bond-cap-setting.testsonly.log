@@ -1,0 +1,17 @@
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/a1/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-06-bond-cap-setting - ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  93 passed (93))
+  prompt: 18 chars (sha256 7932E3AC261E)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/logic.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: does not treat a 5/5 Bond as locked when the authored cap is 7; rolls a spent-below-zero track back to cap - 1, not a hardcoded 4; clamps an accepted MarkBond and a Forge to the authored cap; (3 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 3 PASS, 3 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/a1/rig/tests/results/tasks-summary.tsv
+exit=1

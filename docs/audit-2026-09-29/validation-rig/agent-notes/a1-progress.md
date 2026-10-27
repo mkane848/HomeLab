@@ -1,0 +1,10 @@
+# a1 progress (append-only)
+- 01:10 read brief+README; cloned repo to G/repos/ASoHaVCompanionApp; built rig at G/rig from entries.a1.json (placeholder prompts)
+- dry runs (all 4, fresh worktrees, NO setup, NO testEnv): baseline 20/20, 22/22, 93/93, 368/368; acceptance-on-base FAIL as expected for 03 (2/21), 04 (2/24), 09 (1/371); 06 has no acceptance
+- 01:20 FIRST four-mode pass was run with 4 tasks IN PARALLEL in the same clone -> HARNESS/RIG HAZARD: `git stash push/pop` in failsOnOld uses the repo-global refs/stash, so concurrent runs from different worktrees of ONE repo pop each other's entries
+  (symptom: "[WARN] fails-on-old -> stash pop failed", acceptance run against reverted source). Those results are quarantined in rig/out/parallel-contaminated + rig/tests/results-parallel-contaminated. Re-running SEQUENTIALLY.
+  (Relevant to the real benchmark: ASoHaV tasks asohav-01..09 share one clone, so the "different task IDs only" concurrency advice in test-tasks.ps1 is NOT safe for tasks of the same repo.)
+- 01:35 SEQUENTIAL four-mode pass (rig/out/*.ref|srconly|testsonly.log): ref = all gates PASS + acceptance PASS (03: 21/21, 04: 24/24, 09: 371/371; 06 no acceptance);
+  srconly: 03 suite FAIL+failsOnOld FAIL (spec reversal: old 'does not link past MAX_DEPTH' test), 04/06/09 failsOnOld FAIL (suite PASS); testsonly: scope FAIL + suite FAIL (+acceptance FAIL for 03/04/09). No stash warnings. Final evidence runs to be repeated after prompts are final.
+- ref patches: 03/04 = mkpatch (fix commit restricted to the two files); 06 = hand-scoped (mine-asohav-old/logic.bondcap.scoped-fix.ts + logic.test.bondcap.scoped.ts, plus .testextra.patch variant w/ 2 extra tests); 09 = ONE-token src patch (SEED_VERSION untouched) + fix commit's new test file verbatim
+- hazards found so far: (1) git stash is repo-global (see above); (2) 09: ruleset is 2.08 MB, LF in blob, no .gitattributes -> CRLF checkout would break the upstream oracle's indexOf('\n# Basic Moves\n'); (3) none of 03/04/06/09 need setup or testEnv (to confirm w/ env matrix)

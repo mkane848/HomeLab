@@ -1,0 +1,67 @@
+diff --git a/packages/card-model/src/scryfallFields.test.js b/packages/card-model/src/scryfallFields.test.js
+index 5823706..4b9e533 100644
+--- a/packages/card-model/src/scryfallFields.test.js
++++ b/packages/card-model/src/scryfallFields.test.js
+@@ -86,9 +86,10 @@ function splitCard(overrides = {}) {
+   return {
+     name: 'Fire // Ice',
+     layout: 'split',
+-    // A split card is one physical face — one shared image, one shared
+-    // top-level mana_cost is absent (each half keeps its own), but there is
+-    // no genuinely separate "back" picture to flip to.
++    // A split card is one physical face — one shared image. Its top-level
++    // mana_cost is both halves joined (CR 709.3: a split card has both
++    // halves' mana cost outside the stack), unlike a modal DFC's absent one.
++    mana_cost: '{1}{R} // {1}{U}',
+     image_uris: {
+       small: 'https://example.com/fire-ice-small.jpg',
+       normal: 'https://example.com/fire-ice.jpg',
+@@ -101,6 +102,25 @@ function splitCard(overrides = {}) {
+   };
+ }
+ 
++function adventureCard(overrides = {}) {
++  return {
++    name: 'Bonecrusher Giant',
++    layout: 'adventure',
++    // Scryfall gives an adventure card a top-level mana_cost that is BOTH
++    // faces joined, same shape as split — but unlike split, only the front
++    // (creature) face's own cost is real outside the stack (CR 712.4-style
++    // front-face-only, same as frontFaceCharacteristics in @mtg/rules).
++    mana_cost: '{2}{R} // {1}{R}',
++    power: '4',
++    toughness: '3',
++    card_faces: [
++      { name: 'Bonecrusher Giant', mana_cost: '{2}{R}', power: '4', toughness: '3' },
++      { name: 'Stomp', mana_cost: '{1}{R}', power: undefined, toughness: undefined },
++    ],
++    ...overrides,
++  };
++}
++
+ describe('isTwoSidedLayout', () => {
+   it('is true only for transform and modal_dfc', () => {
+     expect(isTwoSidedLayout('transform')).toBe(true);
+@@ -137,6 +157,22 @@ describe('frontFaceField', () => {
+   it('returns undefined when neither the card nor its front face has the field', () => {
+     expect(frontFaceField(singleFacedCard({ mana_cost: undefined }), 'mana_cost')).toBeUndefined();
+   });
++
++  it('reads a split card\'s combined top-level mana cost — both halves are real outside the stack', () => {
++    expect(frontFaceField(splitCard(), 'mana_cost')).toBe('{1}{R} // {1}{U}');
++  });
++
++  it('reads only the front face for an adventure card, not the joined top-level value', () => {
++    // Regression test: Scryfall's top-level mana_cost for an adventure card
++    // is the two faces joined, same shape as split — but only the front
++    // (creature) face's own cost is real outside the stack. Preferring the
++    // top-level value whenever it's defined (the old implementation) read
++    // "{2}{R} // {1}{R}" here instead of the creature's real "{2}{R}".
++    const card = adventureCard();
++    expect(frontFaceField(card, 'mana_cost')).toBe('{2}{R}');
++    expect(frontFaceField(card, 'power')).toBe('4');
++    expect(frontFaceField(card, 'toughness')).toBe('3');
++  });
+ });
+ 
+ describe('frontImageUri', () => {

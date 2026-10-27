@@ -1,0 +1,11 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M1_Invoke_Test_does_not_apply_the_pins.ps1
+@@ -412,7 +412,7 @@
+ function Invoke-Test {
+     param($Task, [string]$WtPath)
+     $testDir = Join-Path $WtPath $Task.testDir
+-    $savedEnv = Set-TaskTestEnv $Task
++    $savedEnv = @{}
+     try {
+         return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+     } finally {

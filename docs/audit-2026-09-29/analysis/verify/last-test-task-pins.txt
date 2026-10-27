@@ -1,0 +1,50 @@
+-- manifest
+PASS kane-01-background-pair: pinned to a full commit, with a branch label
+PASS lfc-01-listing-status-guard: pinned to a full commit, with a branch label
+PASS lfc-03-status-transition-guard: pinned to a full commit, with a branch label
+PASS lfc-03-status-transition-guard: acceptance pinned to a full commit
+PASS kane-02-multiword-creature-type: pinned to a full commit, with a branch label
+PASS kane-03-saga-chapter-triggers: pinned to a full commit, with a branch label
+PASS kane-04-singleton-up-to-n: pinned to a full commit, with a branch label
+PASS asohav-01-library-write-reporting: pinned to a full commit, with a branch label
+PASS asohav-02-changelog-uuid-id: pinned to a full commit, with a branch label
+PASS lfc-02-scryfall-headers: pinned to a full commit, with a branch label
+-- corpus (every recorded row ran from its task's pin)
+PASS kane-01-background-pair: 40 row(s), 0 from another base
+PASS lfc-01-listing-status-guard: 34 row(s), 0 from another base
+PASS lfc-03-status-transition-guard: 20 row(s), 0 from another base
+PASS kane-02-multiword-creature-type: 23 row(s), 0 from another base
+PASS kane-03-saga-chapter-triggers: 16 row(s), 0 from another base
+PASS kane-04-singleton-up-to-n: 23 row(s), 0 from another base
+PASS asohav-01-library-write-reporting: 17 row(s), 0 from another base
+PASS asohav-02-changelog-uuid-id: 27 row(s), 0 from another base
+PASS lfc-02-scryfall-headers: 18 row(s), 0 from another base
+PASS lfc-03-status-transition-guard: 18 recorded acceptance run(s), 0 from another commit
+-- Resolve-TaskBase (real function, throwaway repos)
+PASS a pin behind the branch tip runs the pin, not the tip
+PASS ...and says the branch is somewhere else
+PASS ...and a worktree made from its Ref sits on the pin
+PASS a pin equal to the branch tip: no warning
+PASS a pin needs no local branch at all
+PASS a pin missing from the repo is an error, with the push command
+PASS no pin: the branch tip, as before
+PASS no pin and no branch: cannot resolve
+-- Resolve-AcceptanceCommit (real function, throwaway repos)
+PASS a pin equal to the branch tip: that commit, no warning
+PASS the branch moved on: the pin is run, and the move is a warning
+PASS the branch is gone: the pin still resolves
+PASS a pin missing from the repo is an error
+PASS no pin: the branch tip, as before
+PASS no pin and no branch: cannot resolve
+-- Get-PublishState (real function, throwaway bare origin)
+PASS a commit that was pushed
+PASS a commit only in this clone (not fooled by having it)
+PASS a commit that is not in the clone
+PASS reachable only via refs/pull/1/head (kane-01's shape)
+PASS a single-branch clone that holds a commit from another branch
+PASS origin unreachable: unknown, not a false alarm
+PASS no origin remote: nowhere it could be published
+PASS after it is pushed, the same commit reads as published
+-- real checkouts (only where this machine has them)
+SKIP none of the task repos are checked out on this machine
+RESULT: all checks passed

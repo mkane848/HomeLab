@@ -1,0 +1,33 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 7965985..d3b63c7 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -1143,8 +1143,27 @@ function findQualifier(facts: CardFacts, def: ArchetypeDef, vocab: Vocabulary):
+ 
+   const payoffMatchers = [...(def.roles.rewards ?? []), ...(def.roles.consumes ?? [])];
+   for (const clause of clauses(facts.text)) {
+-    const hit = payoffMatchers.some((m) => (typeof m === 'function' ? false : m.test(clause)));
++    let hit = false;
++    for (const matcher of payoffMatchers) {
++      if (typeof matcher === 'function') continue;
++      const match = matcher.exec(clause);
++      if (!match) continue;
++      hit = true;
++      // Prefer a type word from the matcher's own match text — Angel of
++      // Glory's Rise's "exile all Zombies, then return all Human creature
++      // cards from your graveyard to the battlefield" must qualify Human,
++      // the thing actually returned, not Zombies, which is merely exiled
++      // earlier in the same clause and never part of this match.
++      for (const word of wordsIn(match[0])) {
++        const type = vocab.typeByWord.get(word);
++        if (type) return type;
++      }
++    }
+     if (!hit) continue;
++    // No matcher's own match text named a type — Sliver Gravemother's
++    // restriction ("Each Sliver creature card ... has encore") sits
++    // structurally apart from the bare keyword its matcher hits, so fall
++    // back to the whole clause.
+     for (const word of wordsIn(clause)) {
+       const type = vocab.typeByWord.get(word);
+       if (type) return type;

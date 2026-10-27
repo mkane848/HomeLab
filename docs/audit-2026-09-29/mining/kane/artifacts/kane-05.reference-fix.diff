@@ -1,0 +1,72 @@
+diff --git a/apps/commander-recommender/server/src/services/deckValidation.ts b/apps/commander-recommender/server/src/services/deckValidation.ts
+index af75025..027f44f 100644
+--- a/apps/commander-recommender/server/src/services/deckValidation.ts
++++ b/apps/commander-recommender/server/src/services/deckValidation.ts
+@@ -4,6 +4,7 @@ import {
+   combinedColorIdentity,
+   findColorIdentityViolations,
+   isValidDeckSize,
++  singletonLimit,
+   unitKey,
+ } from '@mtg/rules';
+ import type { ParsedListEntry } from './parseList';
+@@ -25,6 +26,14 @@ export interface ColorViolation {
+   quantity: number;
+ }
+ 
++export interface SingletonViolation {
++  name: string;
++  /** Copies submitted, summed across every line naming this card. */
++  quantity: number;
++  /** Copies a Commander deck may hold (903.5b) — 1 for most cards, N for "up to N" cards. */
++  limit: number;
++}
++
+ export interface DeckValidationResult {
+   isValid: boolean;
+   commander: CommanderVerdict;
+@@ -44,6 +53,10 @@ export interface DeckValidationResult {
+     banned: string[];
+     notFound: string[];
+   };
++  /** 903.5b: apart from basic lands and "any number" cards, one copy per name. */
++  singleton: {
++    violations: SingletonViolation[];
++  };
+ }
+ 
+ /**
+@@ -95,9 +108,25 @@ export function validateDeck(
+     }),
+   );
+ 
++  // 903.5b. A card can sit on several lines ("1 Sol Ring" twice), so copies are
++  // summed per card before comparing to the limit — checking line by line would
++  // let two singleton lines through.
++  const copies = new Map<string, { name: string; row: CardRow; quantity: number }>();
++  for (const { row, quantity } of submitted) {
++    const seen = copies.get(row.oracle_id);
++    if (seen) seen.quantity += quantity;
++    else copies.set(row.oracle_id, { name: row.name, row, quantity });
++  }
++  const singletonViolations: SingletonViolation[] = [];
++  for (const { name, row, quantity } of copies.values()) {
++    const limit = singletonLimit(row);
++    if (quantity > limit) singletonViolations.push({ name, quantity, limit });
++  }
++
+   const isValid =
+     deckSizeValid &&
+     violations.length === 0 &&
++    singletonViolations.length === 0 &&
+     banned.length === 0 &&
+     notFound.length === 0 &&
+     pairingLegal;
+@@ -120,5 +149,6 @@ export function validateDeck(
+       violations,
+     },
+     legality: { banned, notFound },
++    singleton: { violations: singletonViolations },
+   };
+ }
+\ No newline at end of file

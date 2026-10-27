@@ -1,0 +1,14 @@
+[
+ {"name":"M1 drop PUT /settings validation","file":"apps/server/src/routes/library.ts","old":"  const settingsError = validateSettingsPatch(req.body ?? {});\n  if (settingsError) { res.status(400).json({ error: settingsError }); return; }\n","new":""},
+ {"name":"M1a settings: no bool check","file":"apps/server/src/adminLogic.ts","old":"    if (typeof value !== 'boolean') return `\"${label}\" must be true or false.`;","new":"    void 0;"},
+ {"name":"M1b settings: no int check","file":"apps/server/src/adminLogic.ts","old":"    if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value)) {\n      return `\"${label}\" must be a whole number.`;\n    }","new":"    void 0;"},
+ {"name":"M1c settings: unknown key accepted","file":"apps/server/src/adminLogic.ts","old":"    if (!field) return `Unknown setting \"${key}\".`;","new":"    if (!field) continue;"},
+ {"name":"M2 Id spread order (client Id wins)","file":"apps/server/src/routes/library.ts","old":"{ ...body, Id: newId(col.idPrefix) }","new":"{ Id: newId(col.idPrefix), ...body }"},
+ {"name":"M3 drop PUT validation","file":"apps/server/src/routes/library.ts","old":"  const bodyError = validateCollectionBody(col.fields, req.body ?? {}, { partial: true });\n  if (bodyError) { res.status(400).json({ error: bodyError }); return; }\n","new":""},
+ {"name":"M4 drop declared defaults","file":"apps/server/src/routes/library.ts","old":"withFieldDefaults(col.fields, req.body ?? {})","new":"(req.body ?? {})"},
+ {"name":"M5 drop POST validation","file":"apps/server/src/routes/library.ts","old":"  const bodyError = validateCollectionBody(col.fields, body, { partial: false });\n  if (bodyError) { res.status(400).json({ error: bodyError }); return; }\n","new":""},
+ {"name":"M6 blank = only empty string (no trim)","file":"apps/server/src/adminLogic.ts","old":"value.trim() === ''","new":"value === ''"},
+ {"name":"M7 PUT treated as full create (not partial)","file":"apps/server/src/routes/library.ts","old":"{ partial: true }","new":"{ partial: false }"},
+ {"name":"M8 required missing not enforced (absent ok)","file":"apps/server/src/adminLogic.ts","old":"      if (!partial && field.required) return `\"${field.label ?? field.name}\" is required.`;","new":"      void 0;"},
+ {"name":"M9 defaults override explicit (|| style)","file":"apps/server/src/adminLogic.ts","old":"if (field.default !== undefined && out[field.name] === undefined) out[field.name] = field.default;","new":"if (field.default !== undefined && !out[field.name]) out[field.name] = field.default;"}
+]

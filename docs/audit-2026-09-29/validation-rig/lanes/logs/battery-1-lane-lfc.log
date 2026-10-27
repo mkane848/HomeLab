@@ -1,0 +1,34 @@
+lfc-04-admin-manage-server-permission dry exit=0
+lfc-04-admin-manage-server-permission ref exit=0
+lfc-04-admin-manage-server-permission srconly exit=1
+lfc-04-admin-manage-server-permission testsonly exit=1
+lfc-04-admin-manage-server-permission ref.unset exit=0
+lfc-04-admin-manage-server-permission ref.dummy exit=0
+lfc-04-admin-manage-server-permission ref.tz exit=0
+lfc-04-admin-manage-server-permission ref.det1 exit=0
+lfc-04-admin-manage-server-permission ref.det2 exit=0
+lfc-04-admin-manage-server-permission ref.det3 exit=0
+TASK DONE lfc-04-admin-manage-server-permission 09:33:20
+lfc-05-digest-allowed-mentions dry exit=0
+lfc-05-digest-allowed-mentions ref exit=0
+lfc-05-digest-allowed-mentions srconly exit=1
+lfc-05-digest-allowed-mentions testsonly exit=1
+lfc-05-digest-allowed-mentions ref.unset exit=0
+lfc-05-digest-allowed-mentions ref.dummy exit=0
+lfc-05-digest-allowed-mentions ref.tz exit=0
+lfc-05-digest-allowed-mentions ref.det1 exit=0
+lfc-05-digest-allowed-mentions ref.det2 exit=0
+lfc-05-digest-allowed-mentions ref.det3 exit=0
+TASK DONE lfc-05-digest-allowed-mentions 09:39:09
+lfc-07-digest-split dry exit=0
+lfc-07-digest-split ref exit=0
+lfc-07-digest-split srconly exit=1
+lfc-07-digest-split testsonly exit=1
+lfc-07-digest-split ref.unset exit=0
+lfc-07-digest-split ref.dummy exit=0
+lfc-07-digest-split ref.tz exit=0
+lfc-07-digest-split ref.det1 exit=0
+lfc-07-digest-split ref.det2 exit=0
+lfc-07-digest-split ref.det3 exit=0
+TASK DONE lfc-07-digest-split 09:46:01
+LANE DONE 09:46:01

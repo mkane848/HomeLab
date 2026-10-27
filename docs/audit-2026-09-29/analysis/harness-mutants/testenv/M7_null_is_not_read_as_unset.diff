@@ -1,0 +1,11 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M7_null_is_not_read_as_unset.ps1
+@@ -396,7 +396,7 @@
+     if ($Task -and $Task.PSObject.Properties["testEnv"] -and $Task.testEnv) {
+         foreach ($p in $Task.testEnv.PSObject.Properties) {
+             $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name)
+-            $value = if ($null -eq $p.Value) { "" } else { [string]$p.Value }
++            $value = if ($null -eq $p.Value) { "null" } else { [string]$p.Value }
+             [Environment]::SetEnvironmentVariable($p.Name, $value)   # "" removes the variable
+         }
+     }

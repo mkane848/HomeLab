@@ -1,0 +1,11 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M11_a_task_with_testEnv_null_object_is_n.ps1
+@@ -393,7 +393,7 @@
+ function Set-TaskTestEnv {
+     param($Task)
+     $saved = [ordered]@{}
+-    if ($Task -and $Task.PSObject.Properties["testEnv"] -and $Task.testEnv) {
++    if ($Task.PSObject.Properties["testEnv"]) {
+         foreach ($p in $Task.testEnv.PSObject.Properties) {
+             $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name)
+             $value = if ($null -eq $p.Value) { "" } else { [string]$p.Value }

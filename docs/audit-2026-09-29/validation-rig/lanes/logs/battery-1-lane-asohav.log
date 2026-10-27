@@ -1,0 +1,78 @@
+asohav-03-glossary-depth-flatten dry exit=0
+asohav-03-glossary-depth-flatten ref exit=0
+asohav-03-glossary-depth-flatten srconly exit=1
+asohav-03-glossary-depth-flatten testsonly exit=1
+asohav-03-glossary-depth-flatten ref.unset exit=0
+asohav-03-glossary-depth-flatten ref.dummy exit=0
+asohav-03-glossary-depth-flatten ref.tz exit=0
+asohav-03-glossary-depth-flatten ref.det1 exit=0
+asohav-03-glossary-depth-flatten ref.det2 exit=0
+asohav-03-glossary-depth-flatten ref.det3 exit=0
+TASK DONE asohav-03-glossary-depth-flatten 09:32:31
+asohav-04-neutral-status-polarity dry exit=0
+asohav-04-neutral-status-polarity ref exit=0
+asohav-04-neutral-status-polarity srconly exit=1
+asohav-04-neutral-status-polarity testsonly exit=1
+asohav-04-neutral-status-polarity ref.unset exit=0
+asohav-04-neutral-status-polarity ref.dummy exit=0
+asohav-04-neutral-status-polarity ref.tz exit=0
+asohav-04-neutral-status-polarity ref.det1 exit=0
+asohav-04-neutral-status-polarity ref.det2 exit=0
+asohav-04-neutral-status-polarity ref.det3 exit=0
+TASK DONE asohav-04-neutral-status-polarity 09:34:04
+asohav-05-library-write-validation dry exit=0
+asohav-05-library-write-validation ref exit=0
+asohav-05-library-write-validation srconly exit=1
+asohav-05-library-write-validation testsonly exit=1
+asohav-05-library-write-validation ref.unset exit=0
+asohav-05-library-write-validation ref.dummy exit=0
+asohav-05-library-write-validation ref.tz exit=0
+asohav-05-library-write-validation ref.det1 exit=0
+asohav-05-library-write-validation ref.det2 exit=0
+asohav-05-library-write-validation ref.det3 exit=0
+TASK DONE asohav-05-library-write-validation 09:35:39
+asohav-06-bond-cap-setting dry exit=0
+asohav-06-bond-cap-setting ref exit=0
+asohav-06-bond-cap-setting srconly exit=1
+asohav-06-bond-cap-setting testsonly exit=1
+asohav-06-bond-cap-setting ref.unset exit=0
+asohav-06-bond-cap-setting ref.dummy exit=0
+asohav-06-bond-cap-setting ref.tz exit=0
+asohav-06-bond-cap-setting ref.det1 exit=0
+asohav-06-bond-cap-setting ref.det2 exit=0
+asohav-06-bond-cap-setting ref.det3 exit=0
+TASK DONE asohav-06-bond-cap-setting 09:36:57
+asohav-07-rapport-clamp dry exit=0
+asohav-07-rapport-clamp ref exit=0
+asohav-07-rapport-clamp srconly exit=1
+asohav-07-rapport-clamp testsonly exit=1
+asohav-07-rapport-clamp ref.unset exit=0
+asohav-07-rapport-clamp ref.dummy exit=0
+asohav-07-rapport-clamp ref.tz exit=0
+asohav-07-rapport-clamp ref.det1 exit=0
+asohav-07-rapport-clamp ref.det2 exit=0
+asohav-07-rapport-clamp ref.det3 exit=0
+TASK DONE asohav-07-rapport-clamp 09:38:39
+asohav-08-end-combat-clears-strain dry exit=0
+asohav-08-end-combat-clears-strain ref exit=0
+asohav-08-end-combat-clears-strain srconly exit=1
+asohav-08-end-combat-clears-strain testsonly exit=1
+asohav-08-end-combat-clears-strain ref.unset exit=0
+asohav-08-end-combat-clears-strain ref.dummy exit=0
+asohav-08-end-combat-clears-strain ref.tz exit=0
+asohav-08-end-combat-clears-strain ref.det1 exit=0
+asohav-08-end-combat-clears-strain ref.det2 exit=0
+asohav-08-end-combat-clears-strain ref.det3 exit=0
+TASK DONE asohav-08-end-combat-clears-strain 09:40:41
+asohav-09-seed-virtue-conformance dry exit=0
+asohav-09-seed-virtue-conformance ref exit=0
+asohav-09-seed-virtue-conformance srconly exit=1
+asohav-09-seed-virtue-conformance testsonly exit=1
+asohav-09-seed-virtue-conformance ref.unset exit=0
+asohav-09-seed-virtue-conformance ref.dummy exit=0
+asohav-09-seed-virtue-conformance ref.tz exit=0
+asohav-09-seed-virtue-conformance ref.det1 exit=0
+asohav-09-seed-virtue-conformance ref.det2 exit=0
+asohav-09-seed-virtue-conformance ref.det3 exit=0
+TASK DONE asohav-09-seed-virtue-conformance 09:42:41
+LANE DONE 09:42:41

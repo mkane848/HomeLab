@@ -1,0 +1,6 @@
+lfc-07-digest-split ref exit=0
+lfc-07-digest-split srconly exit=1
+lfc-07-digest-split testsonly exit=1
+lfc-07-digest-split ref.det1 exit=0
+TASK DONE lfc-07-digest-split 09:52:16
+LANE DONE 09:52:16

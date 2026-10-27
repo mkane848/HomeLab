@@ -1,0 +1,5 @@
+line under test: $r = Run-Native "git" (@("-C", $wt.Wt, "stash", "push", "--") + @($tk.srcRevertFiles))
+PASS two files in srcRevertFiles (array)
+PASS one file in srcRevertFiles (array)
+PASS one file as a bare string
+RESULT: all checks passed

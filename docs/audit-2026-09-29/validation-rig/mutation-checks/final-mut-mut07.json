@@ -1,0 +1,42 @@
+[
+ {
+  "name": "M07a: hard cap at 5 again (old behaviour for 13)",
+  "file": "apps/server/src/routes/party.ts",
+  "edits": [
+   [
+    "incoming.Rapport = Math.max(0, incoming.Rapport);",
+    "incoming.Rapport = Math.max(0, Math.min(incoming.Rapport, 5));"
+   ]
+  ]
+ },
+ {
+  "name": "M07b: cap at 99 (13 survives)",
+  "file": "apps/server/src/routes/party.ts",
+  "edits": [
+   [
+    "incoming.Rapport = Math.max(0, incoming.Rapport);",
+    "incoming.Rapport = Math.max(0, Math.min(incoming.Rapport, 99));"
+   ]
+  ]
+ },
+ {
+  "name": "M07c: no floor (negative kept)",
+  "file": "apps/server/src/routes/party.ts",
+  "edits": [
+   [
+    "incoming.Rapport = Math.max(0, incoming.Rapport);",
+    "incoming.Rapport = incoming.Rapport;"
+   ]
+  ]
+ },
+ {
+  "name": "M07d: floor but also zero everything above the track (discard overflow)",
+  "file": "apps/server/src/routes/party.ts",
+  "edits": [
+   [
+    "incoming.Rapport = Math.max(0, incoming.Rapport);",
+    "incoming.Rapport = incoming.Rapport > 5 ? 0 : Math.max(0, incoming.Rapport);"
+   ]
+  ]
+ }
+]

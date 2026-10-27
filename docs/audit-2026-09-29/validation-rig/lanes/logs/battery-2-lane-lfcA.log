@@ -1,0 +1,11 @@
+lfc-04-admin-manage-server-permission ref exit=0
+lfc-04-admin-manage-server-permission srconly exit=1
+lfc-04-admin-manage-server-permission testsonly exit=1
+lfc-04-admin-manage-server-permission ref.det1 exit=0
+TASK DONE lfc-04-admin-manage-server-permission 09:50:32
+lfc-05-digest-allowed-mentions ref exit=0
+lfc-05-digest-allowed-mentions srconly exit=1
+lfc-05-digest-allowed-mentions testsonly exit=1
+lfc-05-digest-allowed-mentions ref.det1 exit=0
+TASK DONE lfc-05-digest-allowed-mentions 09:53:40
+LANE DONE 09:53:40

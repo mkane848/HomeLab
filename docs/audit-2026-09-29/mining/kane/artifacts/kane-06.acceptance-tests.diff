@@ -1,0 +1,167 @@
+diff --git a/apps/commander-recommender/server/src/services/deckValidation.test.ts b/apps/commander-recommender/server/src/services/deckValidation.test.ts
+index efdbba4..84717c4 100644
+--- a/apps/commander-recommender/server/src/services/deckValidation.test.ts
++++ b/apps/commander-recommender/server/src/services/deckValidation.test.ts
+@@ -247,4 +247,160 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+     assert.strictEqual(result.commander.pairingLegal, true);
+     assert.strictEqual(result.isValid, true);
+   });
+-});
+\ No newline at end of file
++});
++describe('validateDeck — named-commander legality and report hygiene', () => {
++  const plains = () =>
++    makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' });
++
++  it('a banned commander missing from the pasted list is still reported as banned', () => {
++    const commander = eligibleCommander({
++      name: 'Banned Commander',
++      color_identity: '["W"]',
++      legality_commander: 'banned',
++    });
++
++    // The 100 pasted cards are all Plains: the commander was named separately and is
++    // not on the list, so nothing on the list can carry the ban to the verdict.
++    const result = validateDeck(
++      [entry('Plains', 100)],
++      nameMapOf([commander, plains()]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.strictEqual(result.deckSize.isValid, true);
++    assert.strictEqual(result.isValid, false);
++    assert.deepStrictEqual(result.legality.banned, ['Banned Commander']);
++  });
++
++  it('a commander that is not_legal or restricted is treated the same way', () => {
++    for (const status of ['not_legal', 'restricted']) {
++      const commander = eligibleCommander({
++        name: `Status ${status} Commander`,
++        color_identity: '["W"]',
++        legality_commander: status,
++      });
++      const result = validateDeck(
++        [entry('Plains', 100)],
++        nameMapOf([commander, plains()]),
++        [commander],
++        [],
++      );
++      assert.strictEqual(result.isValid, false, status);
++      assert.deepStrictEqual(result.legality.banned, [commander.name], status);
++    }
++  });
++
++  it('a banned commander that is also on the list is reported once and fills one slot', () => {
++    const commander = eligibleCommander({
++      name: 'Banned Commander',
++      color_identity: '["W"]',
++      legality_commander: 'banned',
++    });
++
++    const result = validateDeck(
++      [entry('Banned Commander'), entry('Plains', 99)],
++      nameMapOf([commander, plains()]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.deepStrictEqual(result.legality.banned, ['Banned Commander']);
++    assert.strictEqual(result.isValid, false);
++  });
++
++  it('the same commander written in another case on the list is still reported once', () => {
++    const commander = eligibleCommander({
++      name: 'Banned Commander',
++      color_identity: '["W"]',
++      legality_commander: 'banned',
++    });
++
++    const result = validateDeck(
++      [entry('banned commander'), entry('Plains', 99)],
++      nameMapOf([commander, plains()]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.legality.banned.length, 1);
++    assert.strictEqual(result.legality.banned[0]!.toLowerCase(), 'banned commander');
++  });
++
++  it('a legal commander that is not on the list adds nothing to banned', () => {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++
++    const result = validateDeck(
++      [entry('Plains', 100)],
++      nameMapOf([commander, plains()]),
++      [commander],
++      [],
++    );
++
++    assert.deepStrictEqual(result.legality.banned, []);
++    assert.strictEqual(result.isValid, true);
++  });
++
++  it('a banned card on two lines is reported once, and both copies still fill slots', () => {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++    const banned = makeCard({ name: 'Banned Card', legality_commander: 'banned' });
++
++    const result = validateDeck(
++      [entry('Test Commander'), entry('Banned Card'), entry('Banned Card'), entry('Plains', 97)],
++      nameMapOf([commander, plains(), banned]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.deepStrictEqual(result.legality.banned, ['Banned Card']);
++  });
++
++  it('banned lines that differ only by case are one card; distinct cards keep first-seen order', () => {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++    const bannedA = makeCard({ name: 'Banned A', legality_commander: 'banned' });
++    const bannedB = makeCard({ name: 'Banned B', legality_commander: 'banned' });
++
++    const result = validateDeck(
++      [
++        entry('Test Commander'),
++        entry('Banned B'),
++        entry('Banned A'),
++        entry('banned b'),
++        entry('Plains', 96),
++      ],
++      nameMapOf([commander, plains(), bannedA, bannedB]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.strictEqual(result.legality.banned.length, 2);
++    assert.deepStrictEqual(
++      result.legality.banned.map((n) => n.toLowerCase()),
++      ['banned b', 'banned a'],
++    );
++  });
++
++  it('an unresolvable name on several lines is reported once in notFound, all copies counted', () => {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++
++    const result = validateDeck(
++      [
++        entry('Test Commander'),
++        entry('Not A Real Card'),
++        entry('not a real card', 2),
++        entry('Plains', 96),
++      ],
++      nameMapOf([commander, plains()]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.deepStrictEqual(result.legality.notFound, ['Not A Real Card']);
++    assert.strictEqual(result.isValid, false);
++  });
++});

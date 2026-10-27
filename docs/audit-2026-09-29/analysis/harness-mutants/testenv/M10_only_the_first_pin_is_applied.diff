@@ -1,0 +1,10 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M10_only_the_first_pin_is_applied.ps1
+@@ -398,6 +398,7 @@
+             $saved[$p.Name] = [Environment]::GetEnvironmentVariable($p.Name)
+             $value = if ($null -eq $p.Value) { "" } else { [string]$p.Value }
+             [Environment]::SetEnvironmentVariable($p.Name, $value)   # "" removes the variable
++            break
+         }
+     }
+     return , $saved

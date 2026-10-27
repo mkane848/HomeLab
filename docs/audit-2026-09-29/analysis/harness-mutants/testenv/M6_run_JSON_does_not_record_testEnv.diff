@@ -1,0 +1,10 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M6_run_JSON_does_not_record_testEnv.ps1
+@@ -1081,7 +1081,6 @@
+         ollamaVersion   = $ollamaVersion
+         opencodeVersion = $opencodeVersion
+         numCtx          = $numCtx
+-        testEnv         = $(if ($tk.PSObject.Properties["testEnv"]) { $tk.testEnv } else { $null })
+         samplingControl = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
+         transcriptFile  = $transcriptFileField
+     }

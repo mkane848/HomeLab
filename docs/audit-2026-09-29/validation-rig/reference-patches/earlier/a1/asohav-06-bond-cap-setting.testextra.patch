@@ -1,0 +1,70 @@
+diff --git a/packages/shared/src/logic.test.ts b/packages/shared/src/logic.test.ts
+index 1bb9d9a..4d76da3 100644
+--- a/packages/shared/src/logic.test.ts
++++ b/packages/shared/src/logic.test.ts
+@@ -9,6 +9,7 @@ import {
+   assertValidPhaseTransition,
+   campaignPhase,
+   isBondLocked,
++  resolveAcceptedBond,
+   normalizeLibrary,
+   normalizeSheet,
+   partyReadiness,
+@@ -864,3 +865,57 @@ describe('normalizeWorld', () => {
+     expect(normalizeWorld(world as World).StartingPlace).toEqual(newWorld('cm-1').StartingPlace);
+   });
+ });
++
++/* Until 0.50.0 these three functions hardcoded a literal 5 while GameSettings.BondTrackLength was
++   admin-editable and already drove the pip count — so raising the setting rendered more pips than
++   the logic would ever fill. The cap is a parameter now; these pin that it is actually honoured. */
++describe('Bond cap honours GameSettings.BondTrackLength', () => {
++  function bondAt(track: number, level: number) {
++    return {
++      Id: 'bd-1', CampaignId: 'cm-1', CharacterAId: 'ch-1', CharacterBId: 'ch-2',
++      BondTrack: track, BondLevel: level, BondMoves: [], PendingChange: null, History: [],
++      UpdatedAt: '2026-01-01T00:00:00Z',
++    };
++  }
++
++  it('defaults to 5, so every pre-existing call site behaves identically', () => {
++    expect(isBondLocked(bondAt(5, 5))).toBe(true);
++    expect(isBondLocked(bondAt(4, 5))).toBe(false);
++  });
++
++  it('does not treat a 5/5 Bond as locked when the authored cap is 7', () => {
++    expect(isBondLocked(bondAt(5, 5), 7)).toBe(false);
++    expect(isBondLocked(bondAt(7, 7), 7)).toBe(true);
++  });
++
++  it('rolls a spent-below-zero track back to cap - 1, not a hardcoded 4', () => {
++    const bond = bondAt(0, 2);
++    applySpendBond(bond, 1, 7);
++    expect(bond.BondTrack).toBe(6);
++    expect(bond.BondLevel).toBe(1);
++  });
++
++  it('clamps an accepted MarkBond and a Forge to the authored cap', () => {
++    const marked = { ...bondAt(7, 1), PendingChange: { Id: 'pc-1', Type: 'MarkBond' as const, ProposedBy: 'ch-1', Payload: { Delta: 3 }, Note: '', ProposedAt: 'x' } };
++    resolveAcceptedBond(marked, 7);
++    expect(marked.BondTrack).toBe(7);
++
++    const forged = { ...bondAt(7, 7), PendingChange: { Id: 'pc-2', Type: 'ForgeBond' as const, ProposedBy: 'ch-1', Payload: { Text: 'x' }, Note: '', ProposedAt: 'x' } };
++    resolveAcceptedBond(forged, 7);
++    expect(forged.BondLevel).toBe(7);
++  });
++
++  // --- EXTRA acceptance tests authored by the mining pass (NOT in the fix commit): the fix commit's tests do not pin the
++  // lock check or the nested SpendBond call inside applySpendBond/resolveAcceptedBond (mutants M5/M6 survive them).
++  it('applySpendBond only treats a Bond as locked at the authored cap', () => {
++    expect(() => applySpendBond(bondAt(5, 5), 1, 7)).not.toThrow();
++    expect(() => applySpendBond(bondAt(7, 7), 1, 7)).toThrow();
++  });
++
++  it('resolveAcceptedBond passes the cap through to a legacy SpendBond proposal', () => {
++    const pending = { ...bondAt(0, 2), PendingChange: { Id: 'pc-3', Type: 'SpendBond' as const, ProposedBy: 'ch-1', Payload: { Delta: 1 }, Note: '', ProposedAt: 'x' } };
++    resolveAcceptedBond(pending, 7);
++    expect(pending.BondTrack).toBe(6);
++    expect(pending.BondLevel).toBe(1);
++  });
++});

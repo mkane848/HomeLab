@@ -1,0 +1,17 @@
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-08-aristocrats-false-positives - KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  234 passed (234))
+  prompt: 58 chars (sha256 08A6C430E359)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  238 passed (238))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet; (4 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e952198 - Tests  4 failed | 234 passed (238) - a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet; (4 failed)
+
+Results: 6 PASS, 0 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/rig/tests/results/tasks-summary.tsv
+exit=0

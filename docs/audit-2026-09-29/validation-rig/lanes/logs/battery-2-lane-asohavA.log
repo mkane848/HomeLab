@@ -1,0 +1,21 @@
+asohav-03-glossary-depth-flatten ref exit=0
+asohav-03-glossary-depth-flatten srconly exit=1
+asohav-03-glossary-depth-flatten testsonly exit=1
+asohav-03-glossary-depth-flatten ref.det1 exit=0
+TASK DONE asohav-03-glossary-depth-flatten 09:50:02
+asohav-04-neutral-status-polarity ref exit=0
+asohav-04-neutral-status-polarity srconly exit=1
+asohav-04-neutral-status-polarity testsonly exit=1
+asohav-04-neutral-status-polarity ref.det1 exit=0
+TASK DONE asohav-04-neutral-status-polarity 09:51:14
+asohav-05-library-write-validation ref exit=0
+asohav-05-library-write-validation srconly exit=1
+asohav-05-library-write-validation testsonly exit=1
+asohav-05-library-write-validation ref.det1 exit=0
+TASK DONE asohav-05-library-write-validation 09:52:37
+asohav-06-bond-cap-setting ref exit=0
+asohav-06-bond-cap-setting srconly exit=1
+asohav-06-bond-cap-setting testsonly exit=1
+asohav-06-bond-cap-setting ref.det1 exit=0
+TASK DONE asohav-06-bond-cap-setting 09:53:45
+LANE DONE 09:53:45

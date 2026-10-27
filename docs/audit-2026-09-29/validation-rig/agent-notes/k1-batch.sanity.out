@@ -1,0 +1,13 @@
+[01:14:31] ./run.sh kane-07-find-qualifier-type ref dry
+kane-07-find-qualifier-type dry exit=0
+[01:14:39] ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref exit=0
+[01:14:48] ./run.sh kane-08-aristocrats-false-positives ref dry
+kane-08-aristocrats-false-positives dry exit=0
+[01:14:56] ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref exit=0
+[01:15:04] ./run.sh kane-09-colour-filter-subset ref dry
+kane-09-colour-filter-subset dry exit=0
+[01:15:11] ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref exit=0
+[01:15:22] BATCH DONE: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/work/batch.sanity

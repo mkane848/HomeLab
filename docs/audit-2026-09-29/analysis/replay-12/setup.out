@@ -1,0 +1,18 @@
+[lfc-03] worktree at 4906dc2881
+[lfc-02] worktree at 170b395baf
+[kane-02] worktree at 0e9b703047
+[kane-04] worktree at 420372615e
+[asohav-02] worktree at d83381ad65
+[lfc-03] npm ci --ignore-scripts
+   rc=0 (22s)
+[lfc-02] npm ci --ignore-scripts
+   rc=1 (25s)
+[kane-02] pnpm install --frozen-lockfile --ignore-scripts
+   rc=0 (32s)
+[kane-04] pnpm install --frozen-lockfile --ignore-scripts
+   rc=0 (35s)
+[asohav-02] npm ci --ignore-scripts
+   rc=0 (44s)
+[asohav-02] setup: tsc -p packages/shared
+   rc=0 (47s)
+done

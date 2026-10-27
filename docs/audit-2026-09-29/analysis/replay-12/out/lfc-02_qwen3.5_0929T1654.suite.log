@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/audit12/wt/lfc-02
+
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  00:05:28
+   Duration  3.39s (transform 185ms, setup 0ms, import 753ms, tests 2.51s, environment 0ms)
+

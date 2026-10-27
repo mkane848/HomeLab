@@ -1,0 +1,578 @@
+[
+ {
+  "label": "09-21 21:59 qwen3:8b",
+  "ts": "2026-09-21T21:59:07",
+  "model": "ollama-desktop/qwen3:8b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 0,
+  "misses": 2,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-21 22:05 qwen3:8b",
+  "ts": "2026-09-21T22:05:24",
+  "model": "ollama-desktop/qwen3:8b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 0,
+  "misses": 6,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-21 22:08 qwen3:8b",
+  "ts": "2026-09-21T22:08:14",
+  "model": "ollama-desktop/qwen3:8b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "FAIL",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 1,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-22 07:44 qwen3:8b",
+  "ts": "2026-09-22T07:44:11",
+  "model": "ollama-node3/qwen3:8b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-22 08:01 qwen3:8b",
+  "ts": "2026-09-22T08:01:18",
+  "model": "ollama-node3/qwen3:8b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 0,
+  "misses": 2,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-23 05:55 north-mini-code-1.0",
+  "ts": "2026-09-23T05:55:03",
+  "model": "ollama-desktop/north-mini-code-1.0",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-23 06:56 qwen3.5:9b",
+  "ts": "2026-09-23T06:56:30",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-23 07:16 lfm2.5:8b",
+  "ts": "2026-09-23T07:16:20",
+  "model": "ollama-node3/lfm2.5:8b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-23 08:23 ministral-3:8b",
+  "ts": "2026-09-23T08:23:02",
+  "model": "ollama-node3/ministral-3:8b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 1,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-23 18:46 qwen3.6:35b-a3b-coding",
+  "ts": "2026-09-23T18:46:47",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-26 13:21 qwen3.8-max",
+  "ts": "2026-09-26T13:21:19",
+  "model": "opencode-go/qwen3.8-max",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "PASS"
+  },
+  "applied": 6,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [
+   "cd apps/server && ls ../../packages/shared/dist 2>&1 | head -20; echo \"---NODE_MODULES---\"",
+   "cd apps/server && Copy-Item \"$env:TEMP\\opencode\\repo.fixed.bak\" src/repo.ts -Force && Remo",
+   "cd apps/server && npx tsc -p tsconfig.json --noEmit 2>&1 | Select-Object -First 30; Write-"
+  ],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-27 09:11 devstral:24b",
+  "ts": "2026-09-27T09:11:01",
+  "model": "ollama-desktop/devstral:24b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-27 09:23 nemotron-3.5-lightning",
+  "ts": "2026-09-27T09:23:55",
+  "model": "ollama-desktop/nemotron-3.5-lightning",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-27 10:07 qwen3:14b",
+  "ts": "2026-09-27T10:07:01",
+  "model": "ollama-desktop/qwen3:14b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 0,
+  "misses": 4,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-27 10:11 qwen3:8b",
+  "ts": "2026-09-27T10:11:27",
+  "model": "ollama-desktop/qwen3:8b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 0,
+  "misses": 2,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-27 14:30 laguna-xs-2.1",
+  "ts": "2026-09-27T14:30:02",
+  "model": "ollama-desktop/laguna-xs-2.1",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "PASS"
+  },
+  "applied": 5,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [],
+  "no_db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-27 14:47 qwen3-coder:30b-a3b",
+  "ts": "2026-09-27T14:47:18",
+  "model": "ollama-desktop/qwen3-coder:30b-a3b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 2,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": true,
+   "fOO_is_load_error_only": true
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-27 15:15 nemotron-3.5-lightning",
+  "ts": "2026-09-27T15:15:43",
+  "model": "ollama-desktop/nemotron-3.5-lightning",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 13,
+  "misses": 1,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts",
+   "apps/server/vitest.config.ts"
+  ],
+  "bash_side_effects": [
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && node -e \" const { ",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && DATABASE_URL=postg",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && (setx DATABASE_URL",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && cat apps/server/.e",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run --h",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && .\\node_modules\\.bi",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && (set DATABASE_URL=",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && cat apps/server/.e",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && cat vitest.config.",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id && npx vitest run app"
+  ],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-27 15:31 north-mini-code-1.0",
+  "ts": "2026-09-27T15:31:09",
+  "model": "ollama-desktop/north-mini-code-1.0",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 0,
+  "changed": [],
+  "bash_side_effects": [
+   "find /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id -name \"re",
+   "find /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id -name \"re",
+   "ls -la /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id/apps/se",
+   "ls -la /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id/apps/se",
+   "bash -c 'find /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id ",
+   "bash -c 'find /workspace/M:Projects/dev-docs/tests/.worktrees/asohav-02-changelog-uuid-id "
+  ]
+ },
+ {
+  "label": "09-27 15:41 qwen3.5:9b",
+  "ts": "2026-09-27T15:41:54",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "PASS"
+  },
+  "applied": 13,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [
+   "cd apps/server && cat > /tmp/test-mock.js << 'EOF' const { expect, vi, describe, it } = aw"
+  ],
+  "no_db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-27 15:51 qwen3.6:35b-a3b-coding",
+  "ts": "2026-09-27T15:51:00",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 6,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-29 20:21 qwen3:14b",
+  "ts": "2026-09-29T20:21:21",
+  "model": "ollama-desktop/qwen3:14b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "FAIL",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 3,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-29 20:27 qwen3:14b",
+  "ts": "2026-09-29T20:27:58",
+  "model": "ollama-desktop/qwen3:14b",
+  "recorded": {
+   "scope": "FAIL",
+   "suite": "FAIL",
+   "fOO": "FAIL"
+  },
+  "applied": 0,
+  "misses": 6,
+  "changed": [],
+  "bash_side_effects": []
+ },
+ {
+  "label": "09-29 20:43 qwen3.5:9b",
+  "ts": "2026-09-29T20:43:56",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "FAIL",
+   "fOO": "PASS"
+  },
+  "applied": 22,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id\\apps\\server && npx vi",
+   "cd M:\\Projects\\dev-docs\\tests\\.worktrees\\asohav-02-changelog-uuid-id\\apps\\server && cat sr"
+  ],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-29 20:55 qwen3.5:9b",
+  "ts": "2026-09-29T20:55:50",
+  "model": "ollama-desktop/qwen3.5:9b",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "FAIL"
+  },
+  "applied": 11,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [
+   "Remove-Item apps/server/src/repo.changelog.test.ts"
+  ],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": true,
+   "fOO_is_load_error_only": true
+  },
+  "db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-29 22:18 qwen3.6:35b-a3b-coding",
+  "ts": "2026-09-29T22:18:25",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "PASS"
+  },
+  "applied": 2,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": true,
+   "fOO_is_load_error_only": true
+  },
+  "db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ },
+ {
+  "label": "09-29 22:30 qwen3.6:35b-a3b-coding",
+  "ts": "2026-09-29T22:30:27",
+  "model": "ollama-desktop/qwen3.6:35b-a3b-coding",
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "fOO": "PASS"
+  },
+  "applied": 3,
+  "misses": 0,
+  "changed": [
+   "apps/server/src/repo.changelog.test.ts",
+   "apps/server/src/repo.ts"
+  ],
+  "bash_side_effects": [
+   "git diff 2>&1"
+  ],
+  "no_db": {
+   "suite": "FAIL",
+   "fOO": "PASS",
+   "load_err_in_suite": true,
+   "fOO_is_load_error_only": false
+  },
+  "db": {
+   "suite": "PASS",
+   "fOO": "PASS",
+   "load_err_in_suite": false,
+   "fOO_is_load_error_only": false
+  }
+ }
+]

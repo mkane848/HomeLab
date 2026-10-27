@@ -1,0 +1,20 @@
+Scope: all 5 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +360
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 360, reused 88, downloaded 0, added 0
+Progress: resolved 360, reused 135, downloaded 0, added 0
+Progress: resolved 360, reused 211, downloaded 0, added 0
+Progress: resolved 360, reused 360, downloaded 0, added 114
+Progress: resolved 360, reused 360, downloaded 0, added 359
+Progress: resolved 360, reused 360, downloaded 0, added 360, done
+
+devDependencies:
++ @mtg/config 0.0.0 <- packages/config
++ eslint 9.39.5
++ prettier 3.9.6
++ turbo 2.10.10
++ typescript 6.0.3
+
+Done in 7.3s using pnpm v10.33.0

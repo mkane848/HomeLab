@@ -1,0 +1,3 @@
+asohav-05-library-write-validation ref exit=0
+asohav-05-library-write-validation srconly exit=1
+asohav-05-library-write-validation testsonly exit=1

@@ -1,0 +1,41 @@
+--- 7b5a554:tests/test-tasks.ps1
++++ mutant/M1-stash.ps1
+@@ -502,10 +502,10 @@
+ # failsOnOld reverts the task's source files and puts the model's versions back afterwards.
+ # It used to do that with `git stash push` / `git stash pop`, but refs/stash belongs to the
+ # REPOSITORY, not to a worktree: two tasks of one repo graded at the same time (two terminals,
+-# the documented way to run seats concurrently) pushed and popped each other's
++# which the batch runner's header recommends for concurrency) pushed and popped each other's
+ # stashes. A pop could apply the other task's source into this worktree, or fail and leave this
+ # task's source reverted for the acceptance run that follows, and a collision on the stash lock
+-# would read as "git stash push failed - cannot grade". Saving the model's bytes and checking the
++# read as "git stash push failed - cannot grade". Saving the model's bytes and checking the
+ # files out of the pinned base touches nothing outside this worktree.
+ function Save-SourceFiles {
+     param([string]$WtPath, [string[]]$Files)
+@@ -541,20 +541,11 @@
+ # Restored = $true when the model's files are back byte for byte }.
+ function Invoke-WithSourceReverted {
+     param($Task, [string]$WtPath, [string]$BaseCommit)
+-    $saved = Save-SourceFiles $WtPath @($Task.srcRevertFiles)
+-    $result = $null
+-    $err = $null
+-    try {
+-        # Concatenate, never nest: a nested @($Task.srcRevertFiles) reaches Run-Native's
+-        # [string[]] parameter as ONE space-joined element ("a.ts b.ts"), which git
+-        # rejects as a pathspec, so any task listing 2+ files could not be graded.
+-        $r = Run-Native "git" (@("-C", $WtPath, "checkout", $BaseCommit, "--") + @($Task.srcRevertFiles))
+-        if ($r.ExitCode -ne 0) { $err = "git checkout of the source files failed: $($r.Output -join ' ')" }
+-        else { $result = Invoke-Test $Task $WtPath }
+-    } finally {
+-        $restored = Restore-SourceFiles $WtPath $saved
+-    }
+-    return [pscustomobject]@{ Result = $result; Error = $err; Restored = $restored }
++    $r = Run-Native "git" (@("-C", $WtPath, "stash", "push", "--") + @($Task.srcRevertFiles))
++    if ($r.ExitCode -ne 0) { return [pscustomobject]@{ Result = $null; Error = "git stash push failed"; Restored = $true } }
++    $result = Invoke-Test $Task $WtPath
++    $p = Run-Native "git" @("-C", $WtPath, "stash", "pop")
++    return [pscustomobject]@{ Result = $result; Error = $null; Restored = ($p.ExitCode -eq 0) }
+ }
+ 
+ # Owner-authored acceptance tests, run against whatever source is in the

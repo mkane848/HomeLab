@@ -1,0 +1,88 @@
+diff --git a/apps/commander-recommender/server/src/services/singleton.test.ts b/apps/commander-recommender/server/src/services/singleton.test.ts
+index 43437f5..0794845 100644
+--- a/apps/commander-recommender/server/src/services/singleton.test.ts
++++ b/apps/commander-recommender/server/src/services/singleton.test.ts
+@@ -57,7 +57,6 @@ describe('singletonLimit', () => {
+   });
+ 
+   it('snow basics and Wastes are unlimited too', () => {
+-    // Exempted by supertype, so neither needs naming individually.
+     assert.strictEqual(
+       singletonLimit(
+         makeCard({ name: 'Snow-Covered Forest', type_line: 'Basic Snow Land — Forest' }),
+@@ -71,7 +70,6 @@ describe('singletonLimit', () => {
+   });
+ 
+   it('a nonbasic land sharing a basic land type is still singleton', () => {
+-    // "Land — Forest" (e.g. a dual) is not a *basic* Forest.
+     assert.strictEqual(
+       singletonLimit(makeCard({ name: 'Bayou', type_line: 'Land — Swamp Forest' })),
+       1,
+@@ -98,6 +96,30 @@ describe('singletonLimit', () => {
+     });
+     assert.strictEqual(singletonLimit(nazgul), 9);
+   });
++
++  it('plain-digit "up to N" (e.g. 7) parses to the correct limit', () => {
++    const card = makeCard({
++      name: 'Test Digits',
++      oracle_text: 'A deck can have up to 7 cards named Test Digits.',
++    });
++    assert.strictEqual(singletonLimit(card), 7);
++  });
++
++  it('plain-digit numbers like "thirteen" (past twelve) parse correctly', () => {
++    const card = makeCard({
++      name: 'Test Thirteen',
++      oracle_text: 'A deck can have up to 13 cards named Test Thirteen.',
++    });
++    assert.strictEqual(singletonLimit(card), 13);
++  });
++
++  it('genuinely unparseable value returns 1', () => {
++    const card = makeCard({
++      name: 'Test Unparseable',
++      oracle_text: 'A deck can have up to xyz cards named Test Unparseable.',
++    });
++    assert.strictEqual(singletonLimit(card), 1);
++  });
+ });
+ 
+ describe('applySingletonLimits', () => {
+@@ -127,8 +149,6 @@ describe('applySingletonLimits', () => {
+   });
+ 
+   it('the same card on several lines is merged, then limited', () => {
+-    // The list parser does not combine repeated lines, so this is the shape a
+-    // real paste produces when a card appears in two sections.
+     const solRing = makeCard({ name: 'Sol Ring', type_line: 'Artifact' });
+     const result = applySingletonLimits([owned(solRing, 1), owned(solRing, 1), owned(solRing, 1)]);
+     assert.strictEqual(result.owned.length, 1);
+@@ -137,8 +157,6 @@ describe('applySingletonLimits', () => {
+   });
+ 
+   it('merging repeats does not let one card pose as several distinct cards', () => {
+-    // The signal threshold counts distinct cards, so three lines of one card
+-    // must collapse to one entry rather than reading as three supporters.
+     const seer = makeCard({ name: 'Viscera Seer', oracle_text: 'Sacrifice a creature: scry 1.' });
+     const result = applySingletonLimits([owned(seer), owned(seer), owned(seer)]);
+     assert.strictEqual(result.owned.length, 1);
+diff --git a/apps/commander-recommender/server/src/services/singleton.ts b/apps/commander-recommender/server/src/services/singleton.ts
+index 8f4d655..14d3018 100644
+--- a/apps/commander-recommender/server/src/services/singleton.ts
++++ b/apps/commander-recommender/server/src/services/singleton.ts
+@@ -52,8 +52,12 @@ export function singletonLimit(row: CardRow): number {
+   const capped = UP_TO_N.exec(text);
+   if (capped) {
+     // Group 1 is mandatory in UP_TO_N, so a match always populates it.
+-    const limit = NUMBER_WORDS[capped[1]!.toLowerCase()];
+-    if (limit) return limit;
++    const value = capped[1]!.trim().toLowerCase();
++    const limit = NUMBER_WORDS[value] ?? Number.parseInt(value, 10);
++    if (Number.isFinite(limit)) return limit;
++
++    // Can't determine the limit: not a known word and not a parseable integer.
++    console.warn(`singletonLimit: Could not parse number "${capped[1]}" from card "${row.name}" in oracle_text`);
+   }
+ 
+   return 1;

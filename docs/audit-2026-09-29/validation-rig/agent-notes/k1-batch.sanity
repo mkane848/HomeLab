@@ -1,0 +1,6 @@
+./run.sh kane-07-find-qualifier-type ref dry
+./run.sh kane-07-find-qualifier-type ref
+./run.sh kane-08-aristocrats-false-positives ref dry
+./run.sh kane-08-aristocrats-false-positives ref
+./run.sh kane-09-colour-filter-subset ref dry
+./run.sh kane-09-colour-filter-subset ref

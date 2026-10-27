@@ -1,0 +1,29 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index aeb6b7d..26d7b67 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -402,6 +402,24 @@ describe('qualifiers: a restricted payoff only pays off its own subtype', () =>
+     const signals = signalsFor(generic, ['Sliver']);
+     assert.ok(find(signals, 'reanimator', undefined), 'expected an unqualified reanimator signal');
+   });
++
++  it('qualifies by the type the payoff actually restricts, not the first type word in the clause', () => {
++    // Angel of Glory's Rise — real oracle text. Exiles Zombies (a cost/setup
++    // clause), then returns Humans — the payoff must qualify Human, not
++    // Zombie, even though "Zombies" appears earlier in the same clause.
++    const angel = makeCard({
++      name: "Angel of Glory's Rise",
++      type_line: 'Creature — Angel',
++      creature_types: JSON.stringify(['Angel']),
++      keywords: JSON.stringify(['Flying']),
++      oracle_text:
++        'Flying\nWhen this creature enters, exile all Zombies, then return all Human creature ' +
++        'cards from your graveyard to the battlefield.',
++    });
++    const signals = signalsFor(angel, ['Zombie', 'Human', 'Angel'], ['Flying']);
++    assert.ok(find(signals, 'reanimator', 'Human'), 'expected a Human-qualified reanimator signal');
++    assert.strictEqual(find(signals, 'reanimator', 'Zombie'), undefined);
++  });
+ });
+ 
+ describe('self-mill and opponent mill are different decks', () => {

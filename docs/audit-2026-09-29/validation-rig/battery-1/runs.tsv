@@ -1,0 +1,163 @@
+timestamp	taskId	label	writes	scope	suite	failsOnOld	typecheck	acceptance	acceptanceDetail
+2026-10-03T09:32:12	asohav-03-glossary-depth-flatten	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:32:22	asohav-03-glossary-depth-flatten	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:32:31	asohav-03-glossary-depth-flatten	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:31:53	asohav-03-glossary-depth-flatten	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T22:32:03	asohav-03-glossary-depth-flatten	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:31:44	asohav-03-glossary-depth-flatten	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:31:19	asohav-03-glossary-depth-flatten	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:31:27	asohav-03-glossary-depth-flatten	srconly	1	PASS	FAIL	FAIL	SKIP	PASS	Tests 21 passed (21)
+2026-10-03T09:31:35	asohav-03-glossary-depth-flatten	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 2 failed | 19 passed (21) - does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain); flattens an explicit tag to its plain dis
+2026-10-03T09:33:45	asohav-04-neutral-status-polarity	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:33:54	asohav-04-neutral-status-polarity	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:34:03	asohav-04-neutral-status-polarity	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:33:29	asohav-04-neutral-status-polarity	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T22:33:37	asohav-04-neutral-status-polarity	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:33:18	asohav-04-neutral-status-polarity	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:32:50	asohav-04-neutral-status-polarity	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:33:00	asohav-04-neutral-status-polarity	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 24 passed (24)
+2026-10-03T09:33:08	asohav-04-neutral-status-polarity	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 2 failed | 22 passed (24) - never counts a Neutral Status as helpful or hindering; does not flag Subdued for a Neutral Status at the cap either — only Neg
+2026-10-03T09:35:21	asohav-05-library-write-validation	ref.det1	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:35:31	asohav-05-library-write-validation	ref.det2	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:35:39	asohav-05-library-write-validation	ref.det3	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:34:58	asohav-05-library-write-validation	ref.dummy	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T22:35:10	asohav-05-library-write-validation	ref.tz	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:34:48	asohav-05-library-write-validation	ref.unset	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:34:23	asohav-05-library-write-validation	ref	3	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:34:31	asohav-05-library-write-validation	srconly	2	PASS	PASS	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:34:40	asohav-05-library-write-validation	testsonly	1	FAIL	FAIL	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:42	asohav-06-bond-cap-setting	ref.det1	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:49	asohav-06-bond-cap-setting	ref.det2	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:57	asohav-06-bond-cap-setting	ref.det3	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:27	asohav-06-bond-cap-setting	ref.dummy	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T22:36:35	asohav-06-bond-cap-setting	ref.tz	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:17	asohav-06-bond-cap-setting	ref.unset	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:35:55	asohav-06-bond-cap-setting	ref	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:02	asohav-06-bond-cap-setting	srconly	1	PASS	PASS	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:36:08	asohav-06-bond-cap-setting	testsonly	1	FAIL	FAIL	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:38:19	asohav-07-rapport-clamp	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:38:29	asohav-07-rapport-clamp	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:38:39	asohav-07-rapport-clamp	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:37:59	asohav-07-rapport-clamp	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T22:38:09	asohav-07-rapport-clamp	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:37:49	asohav-07-rapport-clamp	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:37:21	asohav-07-rapport-clamp	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:37:31	asohav-07-rapport-clamp	srconly	1	PASS	FAIL	FAIL	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:37:40	asohav-07-rapport-clamp	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 4 passed (5) - keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+2026-10-03T09:40:12	asohav-08-end-combat-clears-strain	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:40:25	asohav-08-end-combat-clears-strain	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:40:40	asohav-08-end-combat-clears-strain	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:39:45	asohav-08-end-combat-clears-strain	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T22:39:58	asohav-08-end-combat-clears-strain	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:39:34	asohav-08-end-combat-clears-strain	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:39:04	asohav-08-end-combat-clears-strain	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:39:14	asohav-08-end-combat-clears-strain	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 20 passed (20)
+2026-10-03T09:39:22	asohav-08-end-combat-clears-strain	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 19 passed (20) - clears every Hero's marked Strain when Combat ends; (1 failed)
+2026-10-03T09:42:16	asohav-09-seed-virtue-conformance	ref.det1	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:42:28	asohav-09-seed-virtue-conformance	ref.det2	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:42:41	asohav-09-seed-virtue-conformance	ref.det3	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:41:53	asohav-09-seed-virtue-conformance	ref.dummy	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T22:42:05	asohav-09-seed-virtue-conformance	ref.tz	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:41:40	asohav-09-seed-virtue-conformance	ref.unset	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:41:08	asohav-09-seed-virtue-conformance	ref	2	PASS	PASS	PASS	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:41:20	asohav-09-seed-virtue-conformance	srconly	1	PASS	PASS	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:41:29	asohav-09-seed-virtue-conformance	testsonly	1	FAIL	FAIL	FAIL	SKIP	SKIP	task defines no acceptance block
+2026-10-03T09:32:26	kane-07-find-qualifier-type	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:32:37	kane-07-find-qualifier-type	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:32:48	kane-07-find-qualifier-type	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:32:05	kane-07-find-qualifier-type	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T22:32:16	kane-07-find-qualifier-type	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:31:53	kane-07-find-qualifier-type	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:31:24	kane-07-find-qualifier-type	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:31:34	kane-07-find-qualifier-type	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 77 passed (77)
+2026-10-03T09:31:43	kane-07-find-qualifier-type	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+2026-10-03T09:34:15	kane-08-aristocrats-false-positives	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:34:26	kane-08-aristocrats-false-positives	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:34:39	kane-08-aristocrats-false-positives	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:33:53	kane-08-aristocrats-false-positives	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T22:34:04	kane-08-aristocrats-false-positives	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:33:43	kane-08-aristocrats-false-positives	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:33:09	kane-08-aristocrats-false-positives	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:33:21	kane-08-aristocrats-false-positives	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 238 passed (238)
+2026-10-03T09:33:32	kane-08-aristocrats-false-positives	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 4 failed | 234 passed (238) - a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature 
+2026-10-03T09:36:21	kane-09-colour-filter-subset	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:36:36	kane-09-colour-filter-subset	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:36:47	kane-09-colour-filter-subset	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:35:54	kane-09-colour-filter-subset	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T22:36:06	kane-09-colour-filter-subset	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:35:41	kane-09-colour-filter-subset	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:35:03	kane-09-colour-filter-subset	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:35:18	kane-09-colour-filter-subset	srconly	1	PASS	FAIL	FAIL	SKIP	PASS	Tests 17 passed (17)
+2026-10-03T09:35:29	kane-09-colour-filter-subset	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 3 failed | 14 passed (17) - color include keeps only identities that fit inside the included colors; color include keeps a colourless commander — the empt
+2026-10-03T09:38:30	kane-10-combo-permalink-scheme	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:38:44	kane-10-combo-permalink-scheme	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:38:58	kane-10-combo-permalink-scheme	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:38:03	kane-10-combo-permalink-scheme	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T22:38:16	kane-10-combo-permalink-scheme	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:37:49	kane-10-combo-permalink-scheme	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:37:12	kane-10-combo-permalink-scheme	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:37:24	kane-10-combo-permalink-scheme	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 11 passed (11)
+2026-10-03T09:37:36	kane-10-combo-permalink-scheme	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 10 passed (11) - never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)
+2026-10-03T09:41:02	kane-11-useauth-session-reject	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:41:20	kane-11-useauth-session-reject	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:41:35	kane-11-useauth-session-reject	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:40:24	kane-11-useauth-session-reject	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T22:40:43	kane-11-useauth-session-reject	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:40:06	kane-11-useauth-session-reject	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:39:21	kane-11-useauth-session-reject	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:39:36	kane-11-useauth-session-reject	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 12 passed (12)
+2026-10-03T09:39:49	kane-11-useauth-session-reject	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 11 passed (12) - stops loading (rather than hanging forever) when the initial session check rejects; (1 failed)
+2026-10-03T09:42:43	kane-12-error-handler-400	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:50	kane-12-error-handler-400	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:57	kane-12-error-handler-400	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:26	kane-12-error-handler-400	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T22:42:35	kane-12-error-handler-400	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:17	kane-12-error-handler-400	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:41:52	kane-12-error-handler-400	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:00	kane-12-error-handler-400	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:42:08	kane-12-error-handler-400	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 4 passed (5) - reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error; (1 failed)
+2026-10-03T09:43:49	kane-13-front-face-field	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:56	kane-13-front-face-field	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:44:03	kane-13-front-face-field	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:35	kane-13-front-face-field	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T22:43:42	kane-13-front-face-field	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:29	kane-13-front-face-field	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:09	kane-13-front-face-field	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:16	kane-13-front-face-field	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 22 passed (22)
+2026-10-03T09:43:22	kane-13-front-face-field	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 21 passed (22) - reads only the front face for an adventure card, not the joined top-level value; (1 failed)
+2026-10-03T09:47:16	kane-14-undo-toast-timer	ref.det1	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:47:40	kane-14-undo-toast-timer	ref.det2	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:48:04	kane-14-undo-toast-timer	ref.det3	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:46:26	kane-14-undo-toast-timer	ref.dummy	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T22:46:51	kane-14-undo-toast-timer	ref.tz	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:45:57	kane-14-undo-toast-timer	ref.unset	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:44:44	kane-14-undo-toast-timer	ref	3	PASS	PASS	PASS	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:45:09	kane-14-undo-toast-timer	srconly	2	PASS	PASS	FAIL	SKIP	PASS	Tests 111 passed (111)
+2026-10-03T09:45:30	kane-14-undo-toast-timer	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 110 passed (111) - restarts the dismiss timer when a second same-named card is removed within the window; (1 failed)
+2026-10-03T09:32:50	lfc-04-admin-manage-server-permission	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:33:06	lfc-04-admin-manage-server-permission	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:33:20	lfc-04-admin-manage-server-permission	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:32:22	lfc-04-admin-manage-server-permission	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T22:32:35	lfc-04-admin-manage-server-permission	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:32:07	lfc-04-admin-manage-server-permission	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:31:25	lfc-04-admin-manage-server-permission	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:31:40	lfc-04-admin-manage-server-permission	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 5 passed (5)
+2026-10-03T09:31:51	lfc-04-admin-manage-server-permission	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 4 passed (5) - is visible by default to members with Manage Server, not only Administrators; (1 failed)
+2026-10-03T09:37:57	lfc-05-digest-allowed-mentions	ref.det1	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:38:33	lfc-05-digest-allowed-mentions	ref.det2	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:39:09	lfc-05-digest-allowed-mentions	ref.det3	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:36:47	lfc-05-digest-allowed-mentions	ref.dummy	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T22:37:24	lfc-05-digest-allowed-mentions	ref.tz	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:36:08	lfc-05-digest-allowed-mentions	ref.unset	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:34:23	lfc-05-digest-allowed-mentions	ref	2	PASS	PASS	PASS	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:35:00	lfc-05-digest-allowed-mentions	srconly	1	PASS	PASS	FAIL	SKIP	PASS	Tests 7 passed (7)
+2026-10-03T09:35:31	lfc-05-digest-allowed-mentions	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 1 failed | 6 passed (7) - suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel; (1 failed)
+2026-10-03T09:44:30	lfc-07-digest-split	ref.det1	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:45:14	lfc-07-digest-split	ref.det2	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:46:01	lfc-07-digest-split	ref.det3	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:43:06	lfc-07-digest-split	ref.dummy	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T22:43:47	lfc-07-digest-split	ref.tz	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:42:21	lfc-07-digest-split	ref.unset	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:40:19	lfc-07-digest-split	ref	3	PASS	PASS	PASS	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:41:06	lfc-07-digest-split	srconly	2	PASS	PASS	FAIL	SKIP	PASS	Tests 13 passed (13)
+2026-10-03T09:41:37	lfc-07-digest-split	testsonly	1	FAIL	FAIL	FAIL	SKIP	FAIL	Tests 6 failed | 7 passed (13) - returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; start

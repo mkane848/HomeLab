@@ -1,0 +1,32 @@
+-- run order
+PASS rep-outer by default
+PASS -BackToBack keeps a cell's reps adjacent
+PASS models stay grouped (no reload thrash)
+PASS one rep: both orders are the same
+PASS every model x task x rep exactly once
+PASS a cell's reps are one whole pass (4 tasks) apart
+PASS back-to-back: a cell's reps are adjacent
+-- -OnlyMissing
+PASS a graded pair is dropped for every rep
+PASS skipped counts pairs, not runs
+PASS without -OnlyMissing nothing is dropped
+-- opencode version reading and drift (stand-in opencode)
+PASS reads the version
+PASS no drift while it still reports the same
+PASS drift message names both versions
+PASS no expected version: no claim
+PASS output that is not a version reads as unknown
+PASS cannot ask: no drift claim
+PASS opencode failing reads as unknown
+PASS opencode failing: no drift claim
+-- autoupdate pin rule (opencode's own: false or 'notify' in config, or the flag is 1/true)
+PASS autoupdate false is pinned
+PASS autoupdate 'notify' is pinned
+PASS autoupdate true is NOT pinned
+PASS autoupdate unset is NOT pinned (default on)
+PASS no readable config is NOT pinned
+PASS OPENCODE_DISABLE_AUTOUPDATE=1 pins
+PASS OPENCODE_DISABLE_AUTOUPDATE=TRUE pins
+PASS OPENCODE_DISABLE_AUTOUPDATE=0 does not
+PASS OPENCODE_DISABLE_AUTOUPDATE=yes does not (not a truthy value to opencode)
+RESULT: all checks passed

@@ -1,0 +1,11 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M8_restore_sets_empty_instead_of_the_sav.ps1
+@@ -406,7 +406,7 @@
+ function Restore-TaskTestEnv {
+     param($Saved)
+     if (-not $Saved) { return }
+-    foreach ($name in @($Saved.Keys)) { [Environment]::SetEnvironmentVariable($name, $Saved[$name]) }
++    foreach ($name in @($Saved.Keys)) { [Environment]::SetEnvironmentVariable($name, "") }
+ }
+ 
+ function Invoke-Test {

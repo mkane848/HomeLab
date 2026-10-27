@@ -17,6 +17,10 @@ required reading if you're here for the homelab itself.
   desktop, which can reach the server over SSH. It adds operating rules (stop points, `sudo` left to the owner,
   settings held constant) on top of the runbook, which stays the authority. Written 2026-10-13.
 
+- **[../audit-2026-09-29/briefs/](../audit-2026-09-29/briefs/)**: the briefs and
+  all 23 prompts of the subagents the 2026-09-29 benchmark audit started (mining
+  candidate tasks, validating the 18 that were added), with how each run ended.
+
 (`docs/implementation-tasks.md`, the task list the `/plan` command writes and
 reads, stays at the top level of `docs/` — it's a live, regenerated artifact
 the tooling depends on, not a historical note.)

@@ -1,0 +1,35 @@
+diff --git a/apps/commander-recommender/server/src/errorHandler.test.ts b/apps/commander-recommender/server/src/errorHandler.test.ts
+index d116193..338597b 100644
+--- a/apps/commander-recommender/server/src/errorHandler.test.ts
++++ b/apps/commander-recommender/server/src/errorHandler.test.ts
+@@ -36,6 +36,30 @@ describe('errorHandler', () => {
+     vi.restoreAllMocks();
+   });
+ 
++  it('reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error', () => {
++    vi.spyOn(console, 'error').mockImplementation(() => {});
++    const res = mockRes();
++    const bodyParserError = Object.assign(new SyntaxError('Unexpected token in JSON'), {
++      status: 400,
++    });
++
++    errorHandler(bodyParserError, {} as never, res, vi.fn());
++
++    expect(res.status).toHaveBeenCalledWith(400);
++    expect(res.json).toHaveBeenCalledWith({ error: 'Request body is not valid JSON.' });
++    vi.restoreAllMocks();
++  });
++
++  it('still reports a plain SyntaxError with no status as a generic 500', () => {
++    vi.spyOn(console, 'error').mockImplementation(() => {});
++    const res = mockRes();
++
++    errorHandler(new SyntaxError('unrelated parsing bug'), {} as never, res, vi.fn());
++
++    expect(res.status).toHaveBeenCalledWith(500);
++    vi.restoreAllMocks();
++  });
++
+   it('delegates to next(err) instead of writing a second response once headers are sent', () => {
+     vi.spyOn(console, 'error').mockImplementation(() => {});
+     const res = mockRes();
