@@ -1,0 +1,18 @@
+BASE (reference applied)                       rc=0  Tests  21 passed (21)
+M03a: MAX_DEPTH=0 but NO flatten (early return raw) rc=1  Tests  1 failed | 20 passed (21)
+      FAIL  src/glossary.test.ts > linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets
+      × linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets 8ms
+M03b: flatten kept but MAX_DEPTH=1 (constant only reverted) rc=1  Tests  2 failed | 19 passed (21)
+      FAIL  src/glossary.test.ts > linkifyText > does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain)
+      FAIL  src/glossary.test.ts > linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets
+      × linkifyText > does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain) 7ms
+      × linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets 1ms
+M03c: flatten keeps term (segments not stripped) rc=1  Tests  1 failed | 20 passed (21)
+      FAIL  src/glossary.test.ts > linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets
+      × linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets 9ms
+M03d: fully reverted glossary.ts (both halves) rc=1  Tests  2 failed | 19 passed (21)
+      FAIL  src/glossary.test.ts > linkifyText > does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain)
+      FAIL  src/glossary.test.ts > linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets
+      × linkifyText > does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain) 7ms
+      × linkifyText > flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets 1ms
+RESTORED                                       rc=0  Tests  21 passed (21)

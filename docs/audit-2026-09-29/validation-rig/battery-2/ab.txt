@@ -1,0 +1,20 @@
+compared 72 runs; differences: 0
+WARN LINE lfc-07-digest-split.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e644702 - Tests  6 failed | 7 passed (13) - returns a digest that fits as a single message; splits a long digest into messages un
+WARN LINE asohav-04-neutral-status-polarity.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 2729b58 - Tests  2 failed | 22 passed (24) - never counts a Neutral Status as helpful or hindering; does not flag Subdued for a N
+WARN LINE kane-12-error-handler-400.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 4 passed (5) - reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error
+WARN LINE kane-14-undo-toast-timer.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 110 passed (111) - restarts the dismiss timer when a second same-named card is removed within the win
+WARN LINE kane-11-useauth-session-reject.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 11 passed (12) - stops loading (rather than hanging forever) when the initial session check rejects; 
+WARN LINE asohav-03-glossary-depth-flatten.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 3003542 - Tests  2 failed | 19 passed (21) - does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain);
+WARN LINE kane-09-colour-filter-subset.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e0ef290 - Tests  3 failed | 14 passed (17) - color include keeps only identities that fit inside the included colors; color inclu
+WARN LINE kane-07-find-qualifier-type.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 731e985 - Tests  1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the 
+WARN LINE kane-08-aristocrats-false-positives.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e952198 - Tests  4 failed | 234 passed (238) - a "would die ... instead" replacement effect is not a death-trigger reward; a comb
+WARN LINE asohav-07-rapport-clamp.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 2db8a09 - Tests  1 failed | 4 passed (5) - keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+WARN LINE lfc-04-admin-manage-server-permission.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 0e9d123 - Tests  1 failed | 4 passed (5) - is visible by default to members with Manage Server, not only Administrators; (1 faile
+WARN LINE kane-10-combo-permalink-scheme.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 10 passed (11) - never renders a combo permalink with a non-https scheme, since snapshot is unvalidat
+WARN LINE kane-13-front-face-field.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 21 passed (22) - reads only the front face for an adventure card, not the joined top-level value; (1 
+WARN LINE lfc-05-digest-allowed-mentions.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix d998d2d - Tests  1 failed | 6 passed (7) - suppresses mention parsing so a display name like "everyone" cannot mass-ping the chan
+WARN LINE asohav-08-end-combat-clears-strain.testsonly.log [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix d769699 - Tests  1 failed | 19 passed (20) - clears every Hero's marked Strain when Combat ends; (1 failed)
+WARN/stash lines in battery-2 logs: 15
+stash list KaneEnabler -> ''
+stash list lfc-bot -> ''
+stash list ASoHaVCompanionApp -> ''

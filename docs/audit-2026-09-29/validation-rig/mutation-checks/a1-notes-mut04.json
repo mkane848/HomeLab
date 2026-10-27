@@ -1,0 +1,12 @@
+[
+ {"name":"M04a: hindering filter back to !== 'Positive' (site 1)","file":"packages/shared/src/engine.ts",
+  "edits":[["filter((s) => s.Polarity === 'Negative').sort","filter((s) => s.Polarity !== 'Positive').sort"]]},
+ {"name":"M04b: subdued back to !== 'Positive' (site 2)","file":"packages/shared/src/engine.ts",
+  "edits":[["incoming.Polarity === 'Negative' && rawRank >= maxRank","incoming.Polarity !== 'Positive' && rawRank >= maxRank"]]},
+ {"name":"M04c: both sites reverted (= unfixed engine.ts)","file":"packages/shared/src/engine.ts",
+  "edits":[["filter((s) => s.Polarity === 'Negative').sort","filter((s) => s.Polarity !== 'Positive').sort"],["incoming.Polarity === 'Negative' && rawRank >= maxRank","incoming.Polarity !== 'Positive' && rawRank >= maxRank"]]},
+ {"name":"M04d: wrong fix - Neutral dropped from Subdued but Negative never Subdued","file":"packages/shared/src/engine.ts",
+  "edits":[["incoming.Polarity === 'Negative' && rawRank >= maxRank","false && rawRank >= maxRank"]]},
+ {"name":"M04e: wrong fix - Neutral counted as HELPFUL","file":"packages/shared/src/engine.ts",
+  "edits":[["filter((s) => s.Polarity === 'Positive').sort","filter((s) => s.Polarity !== 'Negative').sort"]]}
+]

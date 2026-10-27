@@ -1,0 +1,55 @@
+diff --git a/apps/commander-recommender/client/src/lib/filters.test.ts b/apps/commander-recommender/client/src/lib/filters.test.ts
+index 0f35700..ba4882e 100644
+--- a/apps/commander-recommender/client/src/lib/filters.test.ts
++++ b/apps/commander-recommender/client/src/lib/filters.test.ts
+@@ -58,9 +58,9 @@ describe('filters', () => {
+     );
+   });
+ 
+-  // --- color filtering (any-touch-include, any-touch-exclude) -----------
++  // --- color filtering (subset include, any-touch-exclude) --------------
+ 
+-  it('color include keeps anything touching an included color', () => {
++  it('color include keeps only identities that fit inside the included colors', () => {
+     const golgari = makeSuggestion({ colorIdentity: ['B', 'G'] });
+     const monoBlack = makeSuggestion({ colorIdentity: ['B'] });
+     const wb = makeSuggestion({ colorIdentity: ['W', 'B'] });
+@@ -68,16 +68,16 @@ describe('filters', () => {
+ 
+     const filters = { ...EMPTY_FILTERS, colors: { include: ['B'], exclude: [] } };
+     const kept = applyFilters([golgari, monoBlack, wb, boros], filters);
+-    assert.deepStrictEqual(kept, [golgari, monoBlack, wb]);
++    assert.deepStrictEqual(kept, [monoBlack]);
+   });
+ 
+-  it('color include drops a colourless commander — it touches nothing', () => {
++  it('color include keeps a colourless commander — the empty identity is a subset of anything', () => {
+     const monoBlack = makeSuggestion({ colorIdentity: ['B'] });
+     const colorless = makeSuggestion({ colorIdentity: [] });
+ 
+     const filters = { ...EMPTY_FILTERS, colors: { include: ['B'], exclude: [] } };
+     const kept = applyFilters([monoBlack, colorless], filters);
+-    assert.deepStrictEqual(kept, [monoBlack]);
++    assert.deepStrictEqual(kept, [monoBlack, colorless]);
+   });
+ 
+   it('color exclude drops anything touching an excluded color', () => {
+@@ -90,6 +90,18 @@ describe('filters', () => {
+     assert.deepStrictEqual(kept, [simic]);
+   });
+ 
++  it('Abzan does not survive an R+G include', () => {
++    const gruul = makeSuggestion({ colorIdentity: ['R', 'G'] });
++    const monoRed = makeSuggestion({ colorIdentity: ['R'] });
++    const monoGreen = makeSuggestion({ colorIdentity: ['G'] });
++    const colorless = makeSuggestion({ colorIdentity: [] });
++    const abzan = makeSuggestion({ colorIdentity: ['W', 'B', 'G'] });
++
++    const filters = { ...EMPTY_FILTERS, colors: { include: ['R', 'G'], exclude: [] } };
++    const kept = applyFilters([gruul, monoRed, monoGreen, colorless, abzan], filters);
++    assert.deepStrictEqual(kept, [gruul, monoRed, monoGreen, colorless]);
++  });
++
+   // --- color category (colorless / multicolor), same include/exclude cycle -
+ 
+   it('colorCategory include=colorless keeps only zero-color identities', () => {

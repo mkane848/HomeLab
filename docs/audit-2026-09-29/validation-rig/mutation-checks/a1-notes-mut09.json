@@ -1,0 +1,16 @@
+[
+ {"name":"M09a: m-strike back to null (the real bug)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-strike', Name: 'Strike a Nerve', Kind: 'Basic', VirtueId: 'v-guile',","{ Id: 'm-strike', Name: 'Strike a Nerve', Kind: 'Basic', VirtueId: null,"]]},
+ {"name":"M09b: wrong Virtue on a single-Virtue Move (Assess -> Heart)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-assess', Name: 'Assess the Situation', Kind: 'Basic', VirtueId: 'v-wit',","{ Id: 'm-assess', Name: 'Assess the Situation', Kind: 'Basic', VirtueId: 'v-heart',"]]},
+ {"name":"M09c: choice Move (Wit/Heart) given a single Virtue","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-truth', Name: 'Discern the Truth', Kind: 'Basic', VirtueId: null,","{ Id: 'm-truth', Name: 'Discern the Truth', Kind: 'Basic', VirtueId: 'v-wit',"]]},
+ {"name":"M09d: (Any) Move given a Virtue (Take a Risk -> Might)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-risk', Name: 'Take a Risk', Kind: 'Basic', VirtueId: null,","{ Id: 'm-risk', Name: 'Take a Risk', Kind: 'Basic', VirtueId: 'v-might',"]]},
+ {"name":"M09e: a Basic Move renamed (Stand Defiant -> Stand Fast)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-defiant', Name: 'Stand Defiant',","{ Id: 'm-defiant', Name: 'Stand Fast',"]]},
+ {"name":"M09f: trailing-space heading Move wrong (Follow a Lead -> Wit)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-lead', Name: 'Follow a Lead', Kind: 'Basic', VirtueId: 'v-guile',","{ Id: 'm-lead', Name: 'Follow a Lead', Kind: 'Basic', VirtueId: 'v-wit',"]]},
+ {"name":"M09g: escaped-hyphen heading Move wrong (Offer Solace -> null)","file":"packages/shared/src/seedLibrary.ts",
+  "edits":[["{ Id: 'm-solace', Name: 'Offer Solace', Kind: 'Basic', VirtueId: 'v-heart',","{ Id: 'm-solace', Name: 'Offer Solace', Kind: 'Basic', VirtueId: null,"]]}
+]

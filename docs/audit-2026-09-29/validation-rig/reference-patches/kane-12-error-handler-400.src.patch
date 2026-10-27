@@ -1,0 +1,21 @@
+diff --git a/apps/commander-recommender/server/src/errorHandler.ts b/apps/commander-recommender/server/src/errorHandler.ts
+index e0fdf43..905b4a3 100644
+--- a/apps/commander-recommender/server/src/errorHandler.ts
++++ b/apps/commander-recommender/server/src/errorHandler.ts
+@@ -17,5 +17,16 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+     next(err);
+     return;
+   }
++  // express.json() throws a SyntaxError with status 400 when the request
++  // body isn't valid JSON, before any route handler runs — a client mistake,
++  // not a server failure. Every route validates its own body and answers its
++  // own status code once it does run (see combos.ts's SpellbookError
++  // handling), so this is the only non-500 status body-parser can hand us.
++  // Reporting it as a generic 500 mislabels a bad request as a server
++  // incident to anything that branches on status code.
++  if (err instanceof SyntaxError && (err as SyntaxError & { status?: number }).status === 400) {
++    res.status(400).json({ error: 'Request body is not valid JSON.' });
++    return;
++  }
+   res.status(500).json({ error: 'Something went wrong on the server. Please try again.' });
+ };

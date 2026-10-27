@@ -1,0 +1,93 @@
+diff --git a/apps/server/src/routes/library.test.ts b/apps/server/src/routes/library.test.ts
+index 0b7c95b..a4c9796 100644
+--- a/apps/server/src/routes/library.test.ts
++++ b/apps/server/src/routes/library.test.ts
+@@ -154,3 +154,88 @@ describe('optimistic locking', () => {
+     expect(res.body.error).toMatch(/someone else saved/i);
+   });
+ });
++
++/* 0.51.0 — FieldDef.required and FieldDef.default had been declared in schema.ts since the schema
++   existed and were read by nothing, and PUT /settings shallow-merged its body with no validation
++   at all. These pin the three consequences that actually bit. */
++describe('field validation', () => {
++  it('refuses to create a record missing a required field', async () => {
++    const res = await request(appAs(true)).post('/library/virtues').send({ Tagline: 'No name here' });
++
++    expect(res.status).toBe(400);
++    expect(res.body.error).toMatch(/required/i);
++    expect(repo.saveLibrary).not.toHaveBeenCalled();
++  });
++
++  it('refuses a required field present but blank, not just absent', async () => {
++    // The exact shape the admin panel sends when you hit Save on a fresh record without typing:
++    // createNew() seeds `{ Name: '' }`. This used to store, and render as "(unnamed)".
++    const res = await request(appAs(true)).post('/library/virtues').send({ Name: '   ' });
++
++    expect(res.status).toBe(400);
++    expect(repo.saveLibrary).not.toHaveBeenCalled();
++  });
++
++  it('applies a declared default when the field is omitted', async () => {
++    // items.LoadCost declares `default: 1`.
++    const res = await request(appAs(true)).post('/library/items').send({ Name: 'Lantern' });
++
++    expect(res.status).toBe(200);
++    expect(res.body.object.LoadCost).toBe(1);
++  });
++
++  it('generates the Id itself and ignores a client-supplied one', async () => {
++    const res = await request(appAs(true)).post('/library/virtues').send({ Name: 'Resolve', Id: 'v-injected' });
++
++    expect(res.status).toBe(200);
++    expect(res.body.object.Id).not.toBe('v-injected');
++    expect(res.body.object.Id).toMatch(/^v-/);
++  });
++
++  it('allows an update that omits a required field — a PUT is a partial', async () => {
++    const res = await request(appAs(true)).put('/library/virtues/v-might').send({ Tagline: 'Force' });
++
++    expect(res.status).toBe(200);
++    expect(res.body.object.Name).toBe('Might');
++  });
++
++  it('still refuses an update that blanks a required field', async () => {
++    const res = await request(appAs(true)).put('/library/virtues/v-might').send({ Name: '' });
++
++    expect(res.status).toBe(400);
++    expect(repo.saveLibrary).not.toHaveBeenCalled();
++  });
++});
++
++describe('settings validation', () => {
++  it('accepts a boolean for GlossaryAutoLink', async () => {
++    const res = await request(appAs(true)).put('/library/settings').send({ GlossaryAutoLink: false });
++
++    expect(res.status).toBe(200);
++    expect(repo.saveLibrary).toHaveBeenCalled();
++  });
++
++  it('refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0', async () => {
++    // NaN does not survive JSON, so what actually arrived on the wire was null — which merged in
++    // cleanly and silently disabled glossary auto-linking library-wide.
++    const res = await request(appAs(true)).put('/library/settings').send({ GlossaryAutoLink: null });
++
++    expect(res.status).toBe(400);
++    expect(res.body.error).toMatch(/true or false/i);
++    expect(repo.saveLibrary).not.toHaveBeenCalled();
++  });
++
++  it('refuses a non-integer track length', async () => {
++    const res = await request(appAs(true)).put('/library/settings').send({ PotentialTrackLength: 'five' });
++
++    expect(res.status).toBe(400);
++    expect(repo.saveLibrary).not.toHaveBeenCalled();
++  });
++
++  it('refuses an unknown setting key rather than storing it unread', async () => {
++    const res = await request(appAs(true)).put('/library/settings').send({ PotentialTrackLenght: 5 });
++
++    expect(res.status).toBe(400);
++    expect(res.body.error).toMatch(/unknown setting/i);
++  });
++});

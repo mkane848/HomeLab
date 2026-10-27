@@ -1,0 +1,3 @@
+asohav-06-bond-cap-setting ref exit=0
+asohav-06-bond-cap-setting srconly exit=1
+asohav-06-bond-cap-setting testsonly exit=1

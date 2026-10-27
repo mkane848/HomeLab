@@ -1,0 +1,9 @@
+__baseline__                                77/77   failed=0
+no_whole_clause_fallback                    74/77   failed=3
+      x qualifiers: a restricted payoff only pays off its own subtype a payoff restricted to a creature type is qualified by it
+      x lord wording is normalised onto one shape "All X creatures get" registers the same as "X creatures you control get"
+      x lord wording is normalised onto one shape "X you control get" (no "creatures") registers the same way
+consumes_before_rewards                     76/77   failed=1
+      x qualifiers: a restricted payoff only pays off its own subtype qualifies by the type the payoff actually restricts, not the first type word in the clau
+back_to_first_word_in_clause                76/77   failed=1
+      x qualifiers: a restricted payoff only pays off its own subtype qualifies by the type the payoff actually restricts, not the first type word in the clau

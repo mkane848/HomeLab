@@ -1,0 +1,7 @@
+BASE (reference applied)                       rc=0  Tests  24 passed (24)
+M04a: hindering filter back to !== 'Positive' (site 1) rc=1  Tests  1 failed | 23 passed (24)
+M04b: subdued back to !== 'Positive' (site 2)  rc=1  Tests  1 failed | 23 passed (24)
+M04c: both sites reverted (= unfixed engine.ts) rc=1  Tests  2 failed | 22 passed (24)
+M04d: wrong fix - Neutral dropped from Subdued but Negative never Subdued rc=1  Tests  1 failed | 23 passed (24)
+M04e: wrong fix - Neutral counted as HELPFUL   rc=1  Tests  1 failed | 23 passed (24)
+RESTORED                                       rc=0  Tests  24 passed (24)

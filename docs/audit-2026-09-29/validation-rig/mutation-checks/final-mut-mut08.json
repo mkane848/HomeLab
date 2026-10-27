@@ -1,0 +1,72 @@
+[
+ {
+  "name": "M08a: no sheet handling (old behaviour) but History kept",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    "  await Promise.all(\n    sheets\n      .filter((s): s is CharacterSheet => !!s && s.Strain.some(Boolean))\n      .map((s) => saveSheet({ ...s, Strain: s.Strain.map(() => false) }, campaign.Id)),\n  );\n",
+    "  void sheets;\n"
+   ]
+  ]
+ },
+ {
+  "name": "M08b: save every sheet, marked Strain or not",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    ".filter((s): s is CharacterSheet => !!s && s.Strain.some(Boolean))",
+    ".filter((s): s is CharacterSheet => !!s)"
+   ]
+  ]
+ },
+ {
+  "name": "M08c: save the sheet without clearing Strain",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    ".map((s) => saveSheet({ ...s, Strain: s.Strain.map(() => false) }, campaign.Id))",
+    ".map((s) => saveSheet(s, campaign.Id))"
+   ]
+  ]
+ },
+ {
+  "name": "M08d: saveSheet without the campaign id",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    ".map((s) => saveSheet({ ...s, Strain: s.Strain.map(() => false) }, campaign.Id))",
+    ".map((s) => (saveSheet as any)({ ...s, Strain: s.Strain.map(() => false) }))"
+   ]
+  ]
+ },
+ {
+  "name": "M08e: no History entry",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    "    History: [\n      { Id: newId('ch'), At: nowIso(), Text: 'Combat ended \u2014 every Hero\\'s Strain is cleared.' },\n      ...existing.History,\n    ],\n",
+    "    History: existing.History,\n"
+   ]
+  ]
+ },
+ {
+  "name": "M08f: Strain emptied to [] instead of all false",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    "Strain: s.Strain.map(() => false) }, campaign.Id))",
+    "Strain: [] }, campaign.Id))"
+   ]
+  ]
+ },
+ {
+  "name": "M08g: reads sheets of Enemy participants too",
+  "file": "apps/server/src/routes/combat.ts",
+  "edits": [
+   [
+    "existing.Participants.filter((p) => p.Kind === 'PC').map((p) => getSheet(p.RefId))",
+    "existing.Participants.map((p) => getSheet(p.RefId))"
+   ]
+  ]
+ }
+]

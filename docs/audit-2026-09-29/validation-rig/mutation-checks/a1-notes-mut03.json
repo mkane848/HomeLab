@@ -1,0 +1,10 @@
+[
+ {"name":"M03a: MAX_DEPTH=0 but NO flatten (early return raw)","file":"packages/shared/src/glossary.ts",
+  "edits":[["    const { segments } = scanExplicitTags(text, matcher, excludeTermId);\n    return (segments.length ? segments : [{ text: '' }]).map((s) => ({ text: s.text }));","    return [{ text }];"]]},
+ {"name":"M03b: flatten kept but MAX_DEPTH=1 (constant only reverted)","file":"packages/shared/src/glossary.ts",
+  "edits":[["const MAX_DEPTH = 0;","const MAX_DEPTH = 1;"]]},
+ {"name":"M03c: flatten keeps term (segments not stripped)","file":"packages/shared/src/glossary.ts",
+  "edits":[["(segments.length ? segments : [{ text: '' }]).map((s) => ({ text: s.text }))","(segments.length ? segments : [{ text: '' }])"]]},
+ {"name":"M03d: fully reverted glossary.ts (both halves)","file":"packages/shared/src/glossary.ts",
+  "edits":[["const MAX_DEPTH = 0;","const MAX_DEPTH = 1;"],["    const { segments } = scanExplicitTags(text, matcher, excludeTermId);\n    return (segments.length ? segments : [{ text: '' }]).map((s) => ({ text: s.text }));","    return [{ text }];"]]}
+]

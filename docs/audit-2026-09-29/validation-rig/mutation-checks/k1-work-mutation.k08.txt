@@ -1,0 +1,19 @@
+__baseline__                               238/238  failed=0
+a1_drop_lookbehind_in_rewards              237/238  failed=1
+      x the right archetype for the right object a "would die ... instead" replacement effect is not a death-trigger reward
+a2_drop_lookbehind_in_amplifies            238/238  failed=0
+b_drop_dealt_damage_lookahead              237/238  failed=1
+      x the right archetype for the right object a combat-kill trigger on an opponent's creature is not "your board dying" value
+c_span_whole_clause_again                  237/238  failed=1
+      x sacrificesACreature/sacrificesKind read the cost side only a triggered ability's condition does not bleed into its unrelated effect across a comma
+c2_cut_at_first_comma                      236/238  failed=2
+      x sacrificesACreature/sacrificesKind read the cost side only a spell-cost sacrifice naming a creature type is still an Aristocrats outlet
+      x sacrificesACreature/sacrificesKind read the cost side only a kindred consumer is read from the cost, not wherever the type is mentioned
+c3_anchor_on_sacrifice_before_colon        238/238  failed=0
+d_consumes_uses_broad_helper               237/238  failed=1
+      x sacrificesACreature/sacrificesKind read the cost side only creature listed alongside other fungible resources in a sacrifice cost is not a creature-sp
+d2_specifically_ignores_or                 238/238  failed=0
+d3_specifically_ignores_resource_words     238/238  failed=0
+hidden_rewards_as_function                 236/238  failed=2
+      x qualifier borrowing: a produces-only match can inherit this card's own kindred restriction goWide borrows Cat from kindred, and aristocrats qualifies 
+      x sacrificesACreature/sacrificesKind read the cost side only a kindred consumer is read from the cost, not wherever the type is mentioned

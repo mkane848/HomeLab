@@ -1,0 +1,20 @@
+### lfc-05 mutation / alternative-design checks (worktree at fix commit d998d2d, upstream tests; MANAPOOL_API_KEY unset)
+--- MUTANTS (expect RED unless noted)
+[M1 channel send back to a bare string (the original bug)] Tests  1 failed | 6 passed (7)
+           × suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel 11ms
+       FAIL  tests/services/digest.test.ts > runDigest delivery retry > suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel
+[M2 DM send back to a bare string (channel still fixed) - upstream tests do NOT cover the DM path] Tests  7 passed (7)
+[M3 channel allowedMentions has an extra key] Tests  1 failed | 6 passed (7)
+           × suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel 12ms
+       FAIL  tests/services/digest.test.ts > runDigest delivery retry > suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel
+[M4 channel allowedMentions { users: [], roles: [] } instead of { parse: [] }] Tests  1 failed | 6 passed (7)
+           × suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel 12ms
+       FAIL  tests/services/digest.test.ts > runDigest delivery retry > suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel
+[M5 channel object form but no allowedMentions] Tests  1 failed | 6 passed (7)
+           × suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel 11ms
+       FAIL  tests/services/digest.test.ts > runDigest delivery retry > suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel
+[M6 channel allowedMentions { parse: ['users'] }] Tests  1 failed | 6 passed (7)
+           × suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel 24ms
+       FAIL  tests/services/digest.test.ts > runDigest delivery retry > suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel
+--- ALTERNATIVE CORRECT DESIGNS (expect GREEN)
+[A1 key order swapped] Tests  7 passed (7)

@@ -1,0 +1,45 @@
+# ---- kane-07-find-qualifier-type : four modes
+./run.sh kane-07-find-qualifier-type ref dry
+./run.sh kane-07-find-qualifier-type ref
+./run.sh kane-07-find-qualifier-type srconly
+./run.sh kane-07-find-qualifier-type testsonly
+# ---- kane-07-find-qualifier-type : env matrix (ref mode)
+RIG_TAG=ambient ./run.sh kane-07-find-qualifier-type ref
+RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-07-find-qualifier-type ref
+RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-07-find-qualifier-type ref
+RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-07-find-qualifier-type ref
+RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-07-find-qualifier-type ref
+# ---- kane-07-find-qualifier-type : determinism
+RIG_TAG=det1 ./run.sh kane-07-find-qualifier-type ref
+RIG_TAG=det2 ./run.sh kane-07-find-qualifier-type ref
+RIG_TAG=det3 ./run.sh kane-07-find-qualifier-type ref
+# ---- kane-08-aristocrats-false-positives : four modes
+./run.sh kane-08-aristocrats-false-positives ref dry
+./run.sh kane-08-aristocrats-false-positives ref
+./run.sh kane-08-aristocrats-false-positives srconly
+./run.sh kane-08-aristocrats-false-positives testsonly
+# ---- kane-08-aristocrats-false-positives : env matrix (ref mode)
+RIG_TAG=ambient ./run.sh kane-08-aristocrats-false-positives ref
+RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-08-aristocrats-false-positives ref
+RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-08-aristocrats-false-positives ref
+RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-08-aristocrats-false-positives ref
+RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-08-aristocrats-false-positives ref
+# ---- kane-08-aristocrats-false-positives : determinism
+RIG_TAG=det1 ./run.sh kane-08-aristocrats-false-positives ref
+RIG_TAG=det2 ./run.sh kane-08-aristocrats-false-positives ref
+RIG_TAG=det3 ./run.sh kane-08-aristocrats-false-positives ref
+# ---- kane-09-colour-filter-subset : four modes
+./run.sh kane-09-colour-filter-subset ref dry
+./run.sh kane-09-colour-filter-subset ref
+./run.sh kane-09-colour-filter-subset srconly
+./run.sh kane-09-colour-filter-subset testsonly
+# ---- kane-09-colour-filter-subset : env matrix (ref mode)
+RIG_TAG=ambient ./run.sh kane-09-colour-filter-subset ref
+RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-09-colour-filter-subset ref
+RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-09-colour-filter-subset ref
+RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-09-colour-filter-subset ref
+RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-09-colour-filter-subset ref
+# ---- kane-09-colour-filter-subset : determinism
+RIG_TAG=det1 ./run.sh kane-09-colour-filter-subset ref
+RIG_TAG=det2 ./run.sh kane-09-colour-filter-subset ref
+RIG_TAG=det3 ./run.sh kane-09-colour-filter-subset ref

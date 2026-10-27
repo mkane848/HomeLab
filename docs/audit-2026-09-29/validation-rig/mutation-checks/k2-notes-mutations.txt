@@ -1,0 +1,35 @@
+FIXED tree: Profile.test.tsx       green 11 passed (11)
+FIXED tree: useAuth.test.ts        green 12 passed (12)
+FIXED tree: errorHandler.test.ts   green 5 passed (5)
+FIXED tree: scryfallFields.test.js green 22 passed (22)
+FIXED tree: UndoToast.test.tsx     green 3 passed (3)
+--- kane-10
+10 revert fix (old behaviour)      RED   1 failed | 10 passed (11) | Profile > never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb
+10 never render a link             RED   1 failed | 10 passed (11) | Profile > renders a favourited combo from its stored snapshot
+10 denylist javascript: only       green 11 passed (11) 
+10 allow http: too                 green 11 passed (11) 
+--- kane-11
+11 revert fix (no .catch)          RED   1 failed | 11 passed (12) | useAuth — configured > stops loading (rather than hanging forever) when the initial session check rejects
+11 .catch swallows, loading stays  RED   1 failed | 11 passed (12) | useAuth — configured > stops loading (rather than hanging forever) when the initial session check rejects
+11 .catch w/o cancelled guard      green 12 passed (12) 
+--- kane-12
+12 revert fix (no 400 branch)      RED   1 failed | 4 passed (5) | errorHandler > reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error
+12 status===400 only (no SyntaxError) green 5 passed (5) 
+12 SyntaxError only (no status)    RED   1 failed | 4 passed (5) | errorHandler > still reports a plain SyntaxError with no status as a generic 500
+12 other message                   RED   1 failed | 4 passed (5) | errorHandler > reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error
+12 400 with the generic message    RED   1 failed | 4 passed (5) | errorHandler > reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error
+12 status 422 instead of 400       RED   1 failed | 4 passed (5) | errorHandler > reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error
+--- kane-13
+13 revert fix (old body)           RED   1 failed | 21 passed (22) | frontFaceField > reads only the front face for an adventure card, not the joined top-level value
+13 naive always-front-face         RED   1 failed | 21 passed (22) | frontFaceField > reads a split card's combined top-level mana cost — both halves are real outside the stack
+13 front face for mana_cost only   green 22 passed (22) 
+13 adventure layout only           green 22 passed (22) 
+13 front face wins even for split  RED   1 failed | 21 passed (22) | frontFaceField > reads a split card's combined top-level mana cost — both halves are real outside the stack
+--- kane-14
+14 revert UndoToast deps to cardName RED   1 failed | 2 passed (3) | UndoToast > restarts the dismiss timer when a second same-named card is removed within the window
+14 revert App.tsx only             green 3 passed (3) 
+14 no clearTimeout cleanup         RED   1 failed | 2 passed (3) | UndoToast > restarts the dismiss timer when a second same-named card is removed within the window
+14 AUTO_DISMISS_MS 5000            RED   2 failed | 1 passed (3) | UndoToast > auto-dismisses after 6 seconds; UndoToast > restarts the dismiss timer when a second same-named card is removed within the window
+14 AUTO_DISMISS_MS 7000            RED   2 failed | 1 passed (3) | UndoToast > auto-dismisses after 6 seconds; UndoToast > restarts the dismiss timer when a second same-named card is removed within the window
+14 deps [cardName, instanceId, ...] green 3 passed (3) 
+14 deps [instanceId] only          green 3 passed (3) 

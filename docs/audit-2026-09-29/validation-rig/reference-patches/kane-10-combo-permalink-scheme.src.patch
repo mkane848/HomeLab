@@ -1,0 +1,32 @@
+diff --git a/apps/home/src/components/ComboPreferenceRow.tsx b/apps/home/src/components/ComboPreferenceRow.tsx
+index eab86f7..b0676e9 100644
+--- a/apps/home/src/components/ComboPreferenceRow.tsx
++++ b/apps/home/src/components/ComboPreferenceRow.tsx
+@@ -29,6 +29,11 @@ export function ComboPreferenceRow({
+   const snapshot = (preference.snapshot ?? {}) as ComboSnapshot;
+   const cards = snapshot.cards ?? [];
+   const produces = snapshot.produces ?? [];
++  // snapshot is jsonb with no server-side content validation (only RLS
++  // ownership) — a user could write anything here via the Supabase client
++  // directly, so the scheme is checked before ever using it as an href,
++  // same defense-in-depth as not trusting any other externally-writable value.
++  const permalink = snapshot.permalink?.startsWith('https://') ? snapshot.permalink : null;
+ 
+   return (
+     <li className="profile-combo-row">
+@@ -37,13 +42,8 @@ export function ComboPreferenceRow({
+       </div>
+       {produces.length > 0 && <div className="profile-combo-produces">{produces.join(', ')}</div>}
+       {snapshot.description && <p className="profile-combo-description">{snapshot.description}</p>}
+-      {snapshot.permalink && (
+-        <a
+-          className="profile-combo-link"
+-          href={snapshot.permalink}
+-          target="_blank"
+-          rel="noreferrer"
+-        >
++      {permalink && (
++        <a className="profile-combo-link" href={permalink} target="_blank" rel="noreferrer">
+           View on Commander Spellbook →
+         </a>
+       )}

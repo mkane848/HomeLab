@@ -1,0 +1,18 @@
+[
+ {"name":"M1 isBondLocked ignores cap (site 1)","file":"packages/shared/src/logic.ts",
+  "edits":[["return bond.BondLevel >= cap && bond.BondTrack >= cap;","return bond.BondLevel >= 5 && bond.BondTrack >= 5;"]]},
+ {"name":"M2 spend rollback hardcoded 4 (site 3)","file":"packages/shared/src/logic.ts",
+  "edits":[["bond.BondTrack = cap - 1;","bond.BondTrack = 4;"]]},
+ {"name":"M3 MarkBond clamp hardcoded 5 (site 5)","file":"packages/shared/src/logic.ts",
+  "edits":[["bond.BondTrack = Math.min(cap, bond.BondTrack + (p.Payload.Delta || 1));","bond.BondTrack = Math.min(5, bond.BondTrack + (p.Payload.Delta || 1));"]]},
+ {"name":"M4 Forge clamp hardcoded 5 (site 6)","file":"packages/shared/src/logic.ts",
+  "edits":[["bond.BondLevel = Math.min(cap, bond.BondLevel + 1);","bond.BondLevel = Math.min(5, bond.BondLevel + 1);"]]},
+ {"name":"M5 nested applySpendBond in resolveAcceptedBond drops cap (site 4)","file":"packages/shared/src/logic.ts",
+  "edits":[["detail = applySpendBond(bond, p.Payload.Delta || 1, cap);","detail = applySpendBond(bond, p.Payload.Delta || 1);"]]},
+ {"name":"M6 applySpendBond own lock check drops cap (site 2)","file":"packages/shared/src/logic.ts",
+  "edits":[["if (isBondLocked(bond, cap)) {","if (isBondLocked(bond)) {"]]},
+ {"name":"M7 lock error text says fixed Level 5 (unpinned 7th)","file":"packages/shared/src/logic.ts",
+  "edits":[["`This Bond is locked at Level ${cap} with a full Bond Track","`This Bond is locked at Level 5 with a full Bond Track"]]},
+ {"name":"M0 unfixed logic.ts (all six reverted)","file":"packages/shared/src/logic.ts",
+  "edits":[["return bond.BondLevel >= cap && bond.BondTrack >= cap;","return bond.BondLevel >= 5 && bond.BondTrack >= 5;"],["bond.BondTrack = cap - 1;","bond.BondTrack = 4;"],["bond.BondTrack = Math.min(cap, bond.BondTrack + (p.Payload.Delta || 1));","bond.BondTrack = Math.min(5, bond.BondTrack + (p.Payload.Delta || 1));"],["bond.BondLevel = Math.min(cap, bond.BondLevel + 1);","bond.BondLevel = Math.min(5, bond.BondLevel + 1);"],["detail = applySpendBond(bond, p.Payload.Delta || 1, cap);","detail = applySpendBond(bond, p.Payload.Delta || 1);"],["if (isBondLocked(bond, cap)) {","if (isBondLocked(bond)) {"]]}
+]

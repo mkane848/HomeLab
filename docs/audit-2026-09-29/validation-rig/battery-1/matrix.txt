@@ -1,0 +1,22 @@
+task                                     dry base/acc   ref            srconly        testsonly variants    notes
+kane-07-find-qualifier-type              76/76/F1       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-08-aristocrats-false-positives      234/234/F4     P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-09-colour-filter-subset             16/16/F3       P/P/P/P        P/F/F/P        F/F/F/F   6/6 same    srconly also fails the suite (spec reversal)
+kane-10-combo-permalink-scheme           10/10/F1       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-11-useauth-session-reject           11/11/F1       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-12-error-handler-400                3/3/F1         P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-13-front-face-field                 20/20/F1       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+kane-14-undo-toast-timer                 108/108/F1     P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+lfc-04-admin-manage-server-permission    4/4/F1         P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+lfc-05-digest-allowed-mentions           6/6/F1         P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+lfc-07-digest-split                      7/7/F6         P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+asohav-03-glossary-depth-flatten         20/20/F2       P/P/P/P        P/F/F/P        F/F/F/F   6/6 same    srconly also fails the suite (spec reversal)
+asohav-04-neutral-status-polarity        22/22/F2       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+asohav-05-library-write-validation       14/14/-        P/P/P/S        P/P/F/S        F/F/F/S   6/6 same    
+asohav-06-bond-cap-setting               93/93/-        P/P/P/S        P/P/F/S        F/F/F/S   6/6 same    
+asohav-07-rapport-clamp                  5/5/F1         P/P/P/P        P/F/F/P        F/F/F/F   6/6 same    srconly also fails the suite (spec reversal)
+asohav-08-end-combat-clears-strain       18/18/F1       P/P/P/P        P/P/F/P        F/F/F/F   6/6 same    
+asohav-09-seed-virtue-conformance        368/368/-      P/P/P/S        P/P/F/S        F/F/F/S   6/6 same    
+
+legend: scope/suite/failsOnOld/acceptance (P=PASS F=FAIL S=SKIP)
+tasks needing attention: none

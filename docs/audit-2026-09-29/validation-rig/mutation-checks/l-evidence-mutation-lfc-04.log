@@ -1,0 +1,22 @@
+### lfc-04 mutation / alternative-design checks (worktree at fix commit 0e9d123, upstream tests; MANAPOOL_API_KEY unset)
+--- MUTANTS (expect RED)
+[M1 revert to the buggy 0x8 literal (Administrator bit)] Tests  1 failed | 4 passed (5)
+           × is visible by default to members with Manage Server, not only Administrators 21ms
+       FAIL  tests/commands/admin/admin.test.ts > /admin > is visible by default to members with Manage Server, not only Administrators
+[M2 ManageGuild|Administrator ('40')] Tests  1 failed | 4 passed (5)
+           × is visible by default to members with Manage Server, not only Administrators 22ms
+       FAIL  tests/commands/admin/admin.test.ts > /admin > is visible by default to members with Manage Server, not only Administrators
+[M3 admin-only (0)] Tests  1 failed | 4 passed (5)
+           × is visible by default to members with Manage Server, not only Administrators 20ms
+       FAIL  tests/commands/admin/admin.test.ts > /admin > is visible by default to members with Manage Server, not only Administrators
+[M4 visible to everyone (null)] Tests  1 failed | 4 passed (5)
+           × is visible by default to members with Manage Server, not only Administrators 21ms
+       FAIL  tests/commands/admin/admin.test.ts > /admin > is visible by default to members with Manage Server, not only Administrators
+[M5 wrong bit (ManageMessages)] Tests  1 failed | 4 passed (5)
+           × is visible by default to members with Manage Server, not only Administrators 20ms
+       FAIL  tests/commands/admin/admin.test.ts > /admin > is visible by default to members with Manage Server, not only Administrators
+--- ALTERNATIVE CORRECT DESIGNS (expect GREEN)
+[A1 numeric literal 0x20] Tests  5 passed (5)
+[A2 bigint literal 32n] Tests  5 passed (5)
+[A3 1n << 5n] Tests  5 passed (5)
+[A4 string '32'] Tests  5 passed (5)

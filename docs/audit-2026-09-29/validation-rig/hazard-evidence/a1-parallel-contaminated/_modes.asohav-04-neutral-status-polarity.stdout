@@ -1,0 +1,3 @@
+asohav-04-neutral-status-polarity ref exit=0
+asohav-04-neutral-status-polarity srconly exit=1
+asohav-04-neutral-status-polarity testsonly exit=1
