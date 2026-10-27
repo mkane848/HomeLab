@@ -1,0 +1,118 @@
+[
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:18",
+  "stem": "asohav-02_qwen3.6_0929T2218",
+  "task": "asohav-02-changelog-uuid-id",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:18:25",
+  "writes": 2,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-221825.jsonl",
+  "calls": [
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ],
+   [
+    "edit",
+    "apps/server/src/repo.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/server/src/repo.ts",
+   "apps/server/src/repo.changelog.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 1 file changed, 1 insertion(+), 4 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "",
+   "fails": [
+    "\u001b[22mappendChangeLog \u2014 no explicit id\u001b[2m > \u001b[22mdoes not include an id key in the insert payload"
+   ]
+  },
+  "weakening": {
+   "apps/server/src/repo.changelog.test.ts": {
+    "base_tests": 0,
+    "now_tests": 3,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 18,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:30",
+  "stem": "asohav-02_qwen3.6_0929T2230",
+  "task": "asohav-02-changelog-uuid-id",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:30:27",
+  "writes": 3,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-223027.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/server/src/repo.ts",
+    "opencode diff"
+   ],
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ],
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/server/src/repo.ts",
+   "apps/server/src/repo.changelog.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 1 file changed, 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "",
+   "fails": [
+    "\u001b[22mappendChangeLog\u001b[2m > \u001b[22mdoes not include an explicit id key in the insert payload",
+    "\u001b[22mappendChangeLog\u001b[2m > \u001b[22mincludes every changelog table column mapped to snake_case"
+   ]
+  },
+  "weakening": {
+   "apps/server/src/repo.changelog.test.ts": {
+    "base_tests": 0,
+    "now_tests": 3,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 5,
+    "removed_base_lines": []
+   }
+  }
+ }
+]

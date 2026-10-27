@@ -1,0 +1,16 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M4_call_site_not_wrapped_the_model_sees_.ps1
+@@ -856,12 +856,7 @@
+ 
+     # The model's own shell gets the pinned environment too: a test it sees pass
+     # has to be one the gates can run (opencode inherits this process's env).
+-    $savedEnv = Set-TaskTestEnv $tk
+-    try {
+-        $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+-    } finally {
+-        Restore-TaskTestEnv $savedEnv
+-    }
++    $run = Invoke-OpencodeRun -WtPath $wt.Wt -ModelId $Model -Prompt $prompt -PromptHash $promptHashes[$tk.id] -TimeoutSec $RunTimeout
+     # A run that never reached the model is not a result. opencode exits 0 even
+     # when the model refuses to write (real liar mode), so ANY non-zero exit is
+     # infrastructure: unreachable provider, bad model id, crash. Grading those as

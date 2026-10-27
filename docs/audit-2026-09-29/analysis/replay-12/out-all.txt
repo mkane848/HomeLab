@@ -1,0 +1,84 @@
+
+#1 asohav-02|qwen3.6|09-29 22:18  (10s)
+  calls: write repo.changelog.test.ts [write], edit repo.ts [opencode diff]
+  misses: none | out of scope: none |  1 file changed, 1 insertion(+), 4 deletions(-)
+  suite: exit 1    (recorded gate: PASS)
+  failsOnOld: exit 1  []   (recorded: PASS)
+  repo.changelog.test.ts: tests 0 -> 3, expects 0 -> 18, lost names none, removed base lines 0
+
+#2 asohav-02|qwen3.6|09-29 22:30  (10s)
+  calls: edit repo.ts [opencode diff], write repo.changelog.test.ts [write], write repo.changelog.test.ts [write]
+  misses: none | out of scope: none |  1 file changed, 2 deletions(-)
+  suite: exit 1    (recorded gate: PASS)
+  failsOnOld: exit 1  ['\x1b[22mappendChangeLog\x1b[2m > \x1b[22mdoes not include an explicit id key in the insert payload', '\x1b[22mappendChangeLog\x1b[2m > \x1b[22mincludes every changelog table column mapped to snake_case']   (recorded: PASS)
+  repo.changelog.test.ts: tests 0 -> 3, expects 0 -> 5, lost names none, removed base lines 0
+
+#3 kane-02|qwen3.5|09-29 20:03  (5s)
+  calls: edit signals.ts [opencode diff], edit signals.test.ts [opencode diff], edit signals.test.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 80 insertions(+), 2 deletions(-)
+  suite: exit 0 31 31   (recorded gate: PASS)
+  failsOnOld: exit 1 1 30 31 ['creature types: the vocabulary the rest of this depends on > multi-word creature types > recognizes a known multi-word type as one unit, not dropped or split']   (recorded: PASS)
+  signals.test.ts: tests 28 -> 31, expects 0 -> 0, lost names none, removed base lines 1
+
+#4 kane-02|qwen3.5|09-29 20:06  (3s)
+  calls: edit signals.ts [opencode diff], edit signals.test.ts [opencode diff], edit signals.test.ts [exact replace], edit signals.test.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 65 insertions(+), 2 deletions(-)
+  suite: exit 0 31 31   (recorded gate: PASS)
+  failsOnOld: exit 1 2 29 31 ['creature types: the vocabulary the rest of this depends on > recognizes "Time Lord" as a single multi-word creature type', 'creature types: the vocabulary the rest of this depends on > recognizes "Time Lord" while also extracting independently-known types']   (recorded: PASS)
+  signals.test.ts: tests 28 -> 31, expects 0 -> 0, lost names none, removed base lines 0
+
+#5 kane-02|qwen3.6|09-29 22:00  (2s)
+  calls: edit M:\Projects\dev-docs\tests\.worktrees\kane-02-multiword\multiword-creature-type\apps\commander-recommender\server\src\services\signals.ts [skipped (errored call)], edit signals.ts [opencode diff], edit signals.test.ts [opencode diff], edit signals.ts [exact replace]
+  misses: none | out of scope: none |  2 files changed, 70 insertions(+), 1 deletion(-)
+  suite: exit 0 31 31   (recorded gate: PASS)
+  failsOnOld: exit 1 1 30 31 ['creature types: the vocabulary the rest of this depends on > recognizes a multi-word creature type present in the catalog']   (recorded: PASS)
+  signals.test.ts: tests 28 -> 31, expects 0 -> 0, lost names none, removed base lines 0
+
+#6 kane-02|qwen3.6|09-29 22:08  (3s)
+  calls: edit signals.ts [opencode diff], edit signals.test.ts [opencode diff], edit signals.test.ts [exact replace]
+  misses: none | out of scope: none |  2 files changed, 80 insertions(+), 2 deletions(-)
+  suite: exit 0 33 33   (recorded gate: PASS)
+  failsOnOld: exit 1 3 30 33 ['creature types: the vocabulary the rest of this depends on > a multi-word creature type present in knownTypes is kept as one entry, not dropped', 'creature types: the vocabulary the rest of this depends on > a multi-word type appearing in the middle of subtype text is found']   (recorded: PASS)
+  signals.test.ts: tests 28 -> 33, expects 0 -> 0, lost names none, removed base lines 0
+
+#7 kane-04|qwen3.5|09-29 16:37  (2s)
+  calls: edit singleton.ts [exact replace], edit singleton.ts [opencode diff], edit singleton.ts [exact replace], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], edit singleton.test.ts [skipped (errored call)], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], write singleton.test.ts [write], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], edit singleton.test.ts [opencode diff], write singleton.test.ts [write], write singleton.test.ts [write]
+  misses: none | out of scope: none |  2 files changed, 30 insertions(+), 8 deletions(-)
+  suite: exit 0 16 16   (recorded gate: PASS)
+  failsOnOld: exit 1 2 14 16 ['singletonLimit > plain-digit "up to N" (e.g. 7) parses to the correct limit', 'singletonLimit > plain-digit numbers like "thirteen" (past twelve) parse correctly']   (recorded: PASS)
+  singleton.test.ts: tests 13 -> 16, expects 0 -> 0, lost names none, removed base lines 6
+
+#8 kane-04|qwen3.5|09-29 16:39  (2s)
+  calls: edit M:\Projects\dev-docs\tests\.worktries\kane-04-singleton-up-to-n\apps\commander-recommender\server\src\services\singleton.ts [skipped (errored call)], edit singleton.ts [exact replace], edit singleton.ts [skipped (errored call)], edit singleton.test.ts [opencode diff], edit singleton.ts [opencode diff], edit singleton.ts [skipped (errored call)], edit singleton.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 45 insertions(+), 2 deletions(-)
+  suite: exit 0 14 14   (recorded gate: PASS)
+  failsOnOld: exit 1 2 12 14 ['singletonLimit > "up to N" cards are limited to N', 'singletonLimit > a genuinely unparseable "up to N" phrase defaults to 1 and warns']   (recorded: PASS)
+  singleton.test.ts: tests 13 -> 14, expects 0 -> 0, lost names none, removed base lines 0
+
+#9 lfc-02|qwen3.5|09-29 16:52  (10s)
+  calls: edit scryfall.ts [opencode diff], edit scryfall.ts [opencode diff], edit scryfall.ts [opencode diff], edit scryfall.ts [opencode diff], edit scryfall.ts [skipped (errored call)], edit scryfall.ts [opencode diff], edit scryfall.ts [opencode diff], edit scryfall.test.ts [opencode diff], edit scryfall.test.ts [opencode diff], edit scryfall.test.ts [opencode diff], edit scryfall.test.ts [opencode diff], edit scryfall.test.ts [opencode diff], write scryfall.test.ts [write], write scryfall.ts [write], edit scryfall.test.ts [opencode diff], edit scryfall.ts [opencode diff], edit scryfall.test.ts [opencode diff], edit scryfall.test.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 41 insertions(+), 5 deletions(-)
+  suite: exit 0 12 12   (recorded gate: PASS)
+  failsOnOld: exit 1 1 11 12 ['scryfall service > sends Accept and name/version User-Agent headers on every request']   (recorded: PASS)
+  scryfall.test.ts: tests 11 -> 12, expects 38 -> 45, lost names none, removed base lines 3
+
+#10 lfc-02|qwen3.5|09-29 16:54  (9s)
+  calls: edit scryfall.ts [opencode diff], edit scryfall.ts [exact replace], edit scryfall.test.ts [opencode diff], edit scryfall.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 30 insertions(+), 3 deletions(-)
+  suite: exit 0 12 12   (recorded gate: PASS)
+  failsOnOld: exit 1 1 11 12 ['scryfall service > sends Accept and User-Agent headers on outgoing Scryfall requests']   (recorded: PASS)
+  scryfall.test.ts: tests 11 -> 12, expects 38 -> 40, lost names none, removed base lines 0
+
+#11 lfc-03|qwen3.6|09-29 22:39  (4s)
+  calls: edit listings.ts [opencode diff], edit listings.ts [skipped (errored call)], edit listings.ts [exact replace], edit listings.test.ts [opencode diff], edit listings.test.ts [opencode diff], edit listings.test.ts [opencode diff], edit listings.test.ts [opencode diff], edit listings.test.ts [opencode diff]
+  misses: none | out of scope: none |  2 files changed, 73 insertions(+)
+  suite: exit 0 28 28   (recorded gate: PASS)
+  failsOnOld: exit 1 3 25 28 ['status transition matrix > fulfilled -> fulfilled throws and leaves status unchanged', 'status transition matrix > deleted -> fulfilled throws and leaves status unchanged']   (recorded: PASS)
+  listings.test.ts: tests 21 -> 28, expects 54 -> 66, lost names none, removed base lines 0
+
+#12 lfc-03|qwen3.6|09-29 22:46  (4s)
+  calls: edit listings.ts [opencode diff], edit listings.test.ts [opencode diff], edit listings.test.ts [opencode diff], edit listings.ts [exact replace]
+  misses: none | out of scope: none |  2 files changed, 111 insertions(+)
+  suite: exit 0 31 31   (recorded gate: PASS)
+  failsOnOld: exit 1 7 24 31 ['status transition guard > active -> fulfilled then active -> fulfilled again throws', 'status transition guard > active -> deleted then active -> deleted again throws']   (recorded: PASS)
+  listings.test.ts: tests 21 -> 31, expects 54 -> 81, lost names none, removed base lines 0

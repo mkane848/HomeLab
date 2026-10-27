@@ -1,0 +1,64 @@
+diff --git a/src/services/scryfall.ts b/src/services/scryfall.ts
+index 08c4f33..92eb010 100644
+--- a/src/services/scryfall.ts
++++ b/src/services/scryfall.ts
+@@ -1,12 +1,25 @@
+-import { PROJECT_NAME, PROJECT_REPOSITORY } from '../utils/constants.js';
+ import { buildManapoolUrl } from '../utils/manapool.js';
+-import type { CardFinish, CardVariant, ResolvedCard } from '../types/index.js';
+ import { normalizeCardName } from '../utils/validation.js';
+ import { retryWithBackoff } from '../utils/retry.js';
+ import { buildCacheKey, getCachedCard, upsertCachedCard } from './card-cache.js';
+ import { lookupManapoolPrinting } from './manapool.js';
++import * as fs from 'node:fs';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
+ 
+ const SCRYFALL_BASE = 'https://api.scryfall.com';
++
++const __dirname = path.dirname(fileURLToPath(import.meta.url));
++const packageJsonPath = path.resolve(__dirname, '../../package.json');
++
++function getPackageVersion(): string {
++  try {
++    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
++    return packageJson.version;
++  } catch {
++    return '0.0.0';
++  }
++}
+ const MIN_REQUEST_INTERVAL_MS = 100;
+ const SET_LIST_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+ const ATTEMPT_TIMEOUT_MS = 5000;
+@@ -79,7 +92,8 @@ async function scryfallFetchOnce<T>(path: string): Promise<T | null> {
+   try {
+     const response = await fetch(`${SCRYFALL_BASE}${path}`, {
+       headers: {
+-        'User-Agent': `${PROJECT_NAME}/${PROJECT_REPOSITORY}`,
++        'Accept': 'application/json',
++        'User-Agent': `LFCbot/${getPackageVersion()}`,
+       },
+       signal: controller.signal,
+     });
+diff --git a/tests/services/scryfall.test.ts b/tests/services/scryfall.test.ts
+index 6e7c268..2dc1f95 100644
+--- a/tests/services/scryfall.test.ts
++++ b/tests/services/scryfall.test.ts
+@@ -290,4 +290,17 @@ describe('scryfall service', () => {
+     const choices = await autocompleteSets('mh3');
+     expect(choices).toEqual([{ name: 'Modern Horizons 3 (MH3)', value: 'MH3' }]);
+   });
++
++  it('sends Accept and User-Agent headers on outgoing Scryfall requests', async () => {
++    const fetchMock = vi.fn().mockResolvedValue(
++      jsonResponse({ data: ['Black Lotus'] }),
++    );
++    vi.stubGlobal('fetch', fetchMock);
++
++    await autocompleteCards('blac');
++
++    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
++    expect(options.headers['Accept']).toBe('application/json');
++    expect(options.headers['User-Agent']).toMatch(/^LFCbot\/\d+\.\d+\.\d+/);
++  });
+ });

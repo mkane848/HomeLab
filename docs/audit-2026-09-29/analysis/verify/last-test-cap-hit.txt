@@ -1,0 +1,35 @@
+-- synthetic transcripts
+PASS empty step cut at the cap
+PASS same run, limit 8192: a length stop below the cap is not it
+PASS length stop after a text answer
+PASS length stop after a tool call
+PASS normal stop
+PASS earlier step hit the cap, last step finished normally
+PASS earlier step had content, last step is an empty cap hit
+PASS limit unresolved: cannot confirm a cap
+PASS killed run, no step_finish for the last step
+PASS transcript file missing
+-- real transcripts (tests/results, classified by the 2026-09-29 audit)
+PASS qwen3:8b, kane-02, whole run is one capped step
+PASS nemotron, lfc-02, capped after two tool steps
+PASS ornith, kane-01 (node3), capped after two tool steps
+PASS qwen3.6, kane-02, capped AFTER four edits (8192)
+PASS nemotron, asohav-02, mid-run cap that recovered
+PASS lfm2.5, asohav-01, answered in prose (liar mode)
+PASS lfm2.5, asohav-02, stopped with nothing (liar mode)
+PASS devstral:24b, kane-02, stopped after 159 tokens
+-- Get-ModelOutputLimit against a stand-in for opencode debug config
+PASS registered model with a limit
+PASS registered model without a limit
+PASS model not registered
+PASS provider not registered
+PASS opencode failing degrades to unknown
+-- the writes-gate block as wired in the main loop
+PASS 0 writes, capped last step -> FAIL, named a cap hit
+PASS 0 writes, stop after prose -> FAIL, liar mode
+PASS 0 writes, empty stop -> FAIL, liar mode
+PASS 0 writes, length stop, limit unreadable -> truncated
+PASS 0 writes, length stop below the limit -> truncated
+PASS 3 writes, then a capped step -> PASS with a cap note
+PASS 3 writes, normal stop -> PASS, no cap note
+RESULT: all checks passed

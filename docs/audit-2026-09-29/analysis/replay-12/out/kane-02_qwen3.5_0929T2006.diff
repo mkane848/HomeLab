@@ -1,0 +1,87 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index ff5950b..7e6b56e 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -468,4 +468,36 @@ describe('creature types: the vocabulary the rest of this depends on', () => {
+     assert.deepStrictEqual(parseCreatureTypes('Battle — Control Point'), []);
+     assert.deepStrictEqual(parseCreatureTypes('Creature — Goblin Wizard'), ['Goblin', 'Wizard']);
+   });
++
++  it('recognizes "Time Lord" as a single multi-word creature type', () => {
++    const multiWordTypes = new Set(['Time Lord']);
++    const timeLordType = 'Creature — Time Lord';
++    assert.deepStrictEqual(
++      parseCreatureTypes(timeLordType, multiWordTypes),
++      ['Time Lord'],
++    );
++  });
++
++  it('recognizes "Time Lord" while also extracting independently-known types', () => {
++    // Multi-word type with a standalone type mixed in
++    const hybridTypes = new Set(['Goblin', 'Warrior', 'Time Lord']);
++    const hybridCreature = 'Creature — Time Lord Warrior';
++    assert.deepStrictEqual(
++      parseCreatureTypes(hybridCreature, hybridTypes),
++      ['Time Lord', 'Warrior'],
++    );
++  });
++
++  it('does not prematurely match as multi-word when only the first word appears', () => {
++    // "Time" alone is known, but "Time" is NOT a type here
++    // A creature with "...Time Wizard..." should match "Wizard" but NOT "Time"
++    // even though "Time Lord" exists in the known types.
++    const partialMatchTypes = new Set(['Time Lord', 'Wizard']);
++    const timeWizardCreature = 'Creature — Wizard Time';
++    // Only "Wizard" should match; "Time" is not kept because it's not followed by "Lord"
++    assert.deepStrictEqual(
++      parseCreatureTypes(timeWizardCreature, partialMatchTypes),
++      ['Wizard'],
++    );
++  });
+ });
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 174304d..c83743d 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -260,8 +260,39 @@ export function parseCreatureTypes(typeLine: string, knownTypes?: Set<string>):
+   // whose subtype happened to read "Creature" would otherwise slip through.
+   if (!/\b(Creature|Kindred|Tribal)\b/.test(typePart!)) return [];
+ 
+-  const words = subtypePart.trim().split(/\s+/).filter(Boolean);
+-  return knownTypes ? words.filter((word) => knownTypes.has(word)) : words;
++  const subtypeWords = subtypePart.trim().split(/\s+/).filter(Boolean);
++  const foundTypes = new Set<string>();
++
++  if (knownTypes) {
++    // First, try to match multi-word creature types by checking adjacent word combinations
++    for (let i = 0; i < subtypeWords.length; i++) {
++      let accumulated = subtypeWords[i];
++      for (let j = i + 1; j < subtypeWords.length; j++) {
++        accumulated += ' ' + subtypeWords[j];
++        if (knownTypes.has(accumulated)) {
++          foundTypes.add(accumulated);
++        }
++        // Stop extending if we've already found a matching multi-word type starting here
++        // or if this doesn't lead to a known type
++        if (i < j - 1 && !knownTypes.has(subtypeWords[i] + ' ' + subtypeWords[j])) {
++          continue;
++        }
++      }
++    }
++
++    // Then, for single words that are followed by something that's not the rest of a known type,
++    // check if the single word itself is a known type
++    for (const word of subtypeWords) {
++      if (knownTypes.has(word)) {
++        foundTypes.add(word);
++      }
++    }
++  } else {
++    // Fallback to checking each word individually
++    return subtypeWords;
++  }
++
++  return [...foundTypes];
+ }
+ 
+ /**

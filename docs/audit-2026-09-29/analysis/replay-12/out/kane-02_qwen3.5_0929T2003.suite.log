@@ -1,0 +1,9 @@
+
+ RUN  v4.1.10 /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/audit12/wt/kane-02/apps/commander-recommender/server
+
+
+ Test Files  1 passed (1)
+      Tests  31 passed (31)
+   Start at  00:04:58
+   Duration  694ms (transform 140ms, setup 0ms, import 158ms, tests 21ms, environment 0ms)
+

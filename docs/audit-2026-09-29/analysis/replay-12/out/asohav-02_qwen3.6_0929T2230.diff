@@ -1,0 +1,15 @@
+diff --git a/apps/server/src/repo.ts b/apps/server/src/repo.ts
+index 1692d52..ff2a645 100644
+--- a/apps/server/src/repo.ts
++++ b/apps/server/src/repo.ts
+@@ -113,10 +113,8 @@ export async function libraryExists(): Promise<boolean> {
+ // ---------- Changelog ----------
+ 
+ export async function appendChangeLog(entry: Omit<ChangeLogEntry, 'Id' | 'At'>) {
+-  const id = newId('log');
+   const at = nowIso();
+   const { error } = await supabaseAdmin.from('changelog').insert({
+-    id,
+     at,
+     who: entry.Who,
+     action: entry.Action,

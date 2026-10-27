@@ -1,0 +1,17 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M3_Invoke_Test_restores_only_on_the_happ.ps1
+@@ -413,11 +413,9 @@
+     param($Task, [string]$WtPath)
+     $testDir = Join-Path $WtPath $Task.testDir
+     $savedEnv = Set-TaskTestEnv $Task
+-    try {
+-        return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+-    } finally {
+-        Restore-TaskTestEnv $savedEnv
+-    }
++    $r = Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
++    Restore-TaskTestEnv $savedEnv
++    return $r
+ }
+ 
+ function Get-FailedTestNames {

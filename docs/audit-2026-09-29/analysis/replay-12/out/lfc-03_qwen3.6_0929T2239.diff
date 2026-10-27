@@ -1,0 +1,101 @@
+diff --git a/src/services/listings.ts b/src/services/listings.ts
+index fc95784..854e08c 100644
+--- a/src/services/listings.ts
++++ b/src/services/listings.ts
+@@ -294,8 +294,23 @@ export function softDeleteListing(id: number): ListingRow | undefined {
+   return setStatus(id, 'deleted');
+ }
+ 
++const VALID_TRANSITIONS: Record<string, Set<string>> = {
++  active: new Set(['fulfilled', 'deleted']),
++  fulfilled: new Set(['deleted']),
++};
++
+ function setStatus(id: number, status: 'fulfilled' | 'deleted'): ListingRow | undefined {
+   const db = getDb();
++  const listing = db.select({ status: listings.status }).from(listings).where(eq(listings.id, id)).get();
++  if (!listing) {
++    return undefined;
++  }
++  const allowed = VALID_TRANSITIONS[listing.status];
++  if (!allowed || !allowed.has(status)) {
++    throw new Error(
++      `cannot transition listing #${id} from '${listing.status}' to '${status}'`,
++    );
++  }
+   db.update(listings).set({ status, updatedAt: now() }).where(eq(listings.id, id)).run();
+   return getListingById(id);
+ }
+diff --git a/tests/services/listings.test.ts b/tests/services/listings.test.ts
+index 39d4b61..9f842ca 100644
+--- a/tests/services/listings.test.ts
++++ b/tests/services/listings.test.ts
+@@ -7,6 +7,7 @@ import {
+   createListing,
+   createListingsBatch,
+   fulfillListing,
++  getListingById,
+   searchListings,
+   softDeleteListing,
+   updateListing,
+@@ -514,3 +515,60 @@ describe('updateListing', () => {
+     expect(updated?.sealedSubtype).toBeNull();
+   });
+ });
++
++describe('status transition matrix', () => {
++  function seedActiveListing() {
++    seedServer();
++    return createListing({ ...baseInput(), intent: 'have', accepts: 'cash' }).listing;
++  }
++
++  it('active -> fulfilled is allowed', () => {
++    const listing = seedActiveListing();
++    const result = fulfillListing(listing.id);
++    expect(result?.status).toBe('fulfilled');
++  });
++
++  it('active -> deleted is allowed', () => {
++    const listing = seedActiveListing();
++    const result = softDeleteListing(listing.id);
++    expect(result?.status).toBe('deleted');
++  });
++
++  it('fulfilled -> deleted is allowed', () => {
++    const listing = seedActiveListing();
++    fulfillListing(listing.id);
++    const result = softDeleteListing(listing.id);
++    expect(result?.status).toBe('deleted');
++  });
++
++  it('fulfilled -> fulfilled throws and leaves status unchanged', () => {
++    const listing = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(getListingById(listing.id)?.status).toBe('fulfilled');
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition/);
++    expect(getListingById(listing.id)?.status).toBe('fulfilled');
++  });
++
++  it('deleted -> fulfilled throws and leaves status unchanged', () => {
++    const listing = seedActiveListing();
++    softDeleteListing(listing.id);
++    const beforeStatus = getListingById(listing.id)?.status;
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition/);
++    expect(getListingById(listing.id)?.status).toBe(beforeStatus);
++  });
++
++  it('deleted -> deleted throws and leaves status unchanged', () => {
++    const listing = seedActiveListing();
++    softDeleteListing(listing.id);
++    const beforeStatus = getListingById(listing.id)?.status;
++    expect(() => softDeleteListing(listing.id)).toThrow(/cannot transition/);
++    expect(getListingById(listing.id)?.status).toBe(beforeStatus);
++  });
++
++  it('re-fulfilling an already-fulfilled listing via softDeleteListing throws', () => {
++    const listing = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(getListingById(listing.id)?.status).toBe('fulfilled');
++    expect(() => softDeleteListing(listing.id)).not.toThrow();
++  });
++});
