@@ -1,0 +1,48 @@
+sha	parent	date	class(auto)	subject	src	src+/-	test	test+/-	total_files_in_commit
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/db/schema.ts	+99/-0	tests/db/schema.test.ts	+65/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/services/card-cache.ts	+89/-0	tests/services/card-cache.test.ts	+53/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/services/digest-state.ts	+111/-0	tests/services/digest-state.test.ts	+74/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/services/digest.ts	+147/-0	tests/services/digest.test.ts	+59/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/services/listings.ts	+205/-0	tests/services/listings.test.ts	+118/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/services/scryfall.ts	+189/-0	tests/services/scryfall.test.ts	+61/-0	76
+769268f	97c6fab	2026-08-25	other	Initial commit: LFCbot Discord card trading bot	src/utils/permissions.ts	+44/-0	tests/utils/permissions.test.ts	+25/-0	76
+9a2f2f8	769268f	2026-08-25	other	Proofread user-facing copy and add project docs	src/services/digest-state.ts	+1/-1	tests/services/digest-state.test.ts	+1/-1	13
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/db/schema.ts	+9/-1	tests/db/schema.test.ts	+21/-1	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/services/card-cache.ts	+18/-3	tests/services/card-cache.test.ts	+14/-0	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/services/digest.ts	+4/-6	tests/services/digest.test.ts	+27/-13	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/services/listings.ts	+38/-11	tests/services/listings.test.ts	+83/-15	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/services/manapool.ts	+77/-0	tests/services/manapool.test.ts	+67/-0	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/services/scryfall.ts	+117/-14	tests/services/scryfall.test.ts	+130/-19	39
+d5f387f	77478af	2026-08-27	feature	Add have/want listings with exact printings and Manapool links	src/utils/manapool.ts	+33/-0	tests/utils/manapool.test.ts	+32/-0	39
+c743371	7b480a2	2026-08-27	fix	Fix digital-only Manapool links and stale printing info on edit	src/services/listings.ts	+11/-0	tests/services/listings.test.ts	+63/-0	5
+c743371	7b480a2	2026-08-27	fix	Fix digital-only Manapool links and stale printing info on edit	src/services/scryfall.ts	+20/-9	tests/services/scryfall.test.ts	+83/-6	5
+a6574d5	d7ec705	2026-08-29	feature	Add batch card input: have-multi, want-multi, and mylistings batch actions	src/services/listings.ts	+56/-10	tests/services/listings.test.ts	+148/-0	14
+a6574d5	d7ec705	2026-08-29	feature	Add batch card input: have-multi, want-multi, and mylistings batch actions	src/utils/batch.ts	+88/-0	tests/utils/batch.test.ts	+102/-0	14
+3381023	0f213f8	2026-08-29	feature	Add health checks, Dependabot, correlation IDs, and error alerting	src/services/alerts.ts	+55/-0	tests/services/alerts.test.ts	+46/-0	12
+3381023	0f213f8	2026-08-29	feature	Add health checks, Dependabot, correlation IDs, and error alerting	src/services/health.ts	+57/-0	tests/services/health.test.ts	+54/-0	12
+075eb02	79e19d5	2026-08-29	fix	Fix drizzle-orm SQL injection advisory, add admin audit logging	src/services/audit-log.ts	+35/-0	tests/services/audit-log.test.ts	+86/-0	12
+c901226	eb6efe4	2026-08-29	refactor	Extract customId encode/decode into tested pure functions	src/utils/customId.ts	+107/-0	tests/utils/customId.test.ts	+95/-0	7
+aaae44a	e6b11ce	2026-08-29	fix	Add CodeQL scanning, retry-with-backoff, fix missing deferReply	src/services/digest.ts	+11/-2	tests/services/digest.test.ts	+104/-3	12
+aaae44a	e6b11ce	2026-08-29	fix	Add CodeQL scanning, retry-with-backoff, fix missing deferReply	src/services/scryfall.ts	+31/-5	tests/services/scryfall.test.ts	+37/-0	12
+1749a62	4d0ce43	2026-08-30	feature	Add natural language option to /admin schedule	src/utils/schedule-parser.ts	+86/-0	tests/utils/schedule-parser.test.ts	+79/-0	4
+d998d2d	6f5a503	2026-08-30	fix	Pre-launch readiness pass: fix confirmed bugs, safety net, cleanup	src/services/digest.ts	+9/-6	tests/services/digest.test.ts	+11/-0	15
+0548840	6181260	2026-09-13	feature	feat(db): add sealed product schema contract and migration	src/db/schema.ts	+47/-0	tests/db/schema.test.ts	+136/-1	10
+0548840	6181260	2026-09-13	feature	feat(db): add sealed product schema contract and migration	src/utils/constants.ts	+56/-0	tests/utils/constants.test.ts	+39/-0	10
+04c396b	0548840	2026-09-13	feature	feat(scheduler): add daily sealed catalog sync and boot warm-up	src/services/scheduler.ts	+31/-0	tests/services/scheduler.test.ts	+62/-1	3
+170b395	04c396b	2026-09-13	feature	feat(listings): carry sealed listings through storage, search and rendering	src/commands/user/search.ts	+5/-1	tests/commands/user/search.test.ts	+43/-0	6
+170b395	04c396b	2026-09-13	feature	feat(listings): carry sealed listings through storage, search and rendering	src/services/listings.ts	+11/-0	tests/services/listings.test.ts	+119/-0	6
+30b99a5	170b395	2026-09-13	fix	fix(scryfall): send the required Accept header and a versioned User-Agent	src/services/scryfall.ts	+29/-1	tests/services/scryfall.test.ts	+24/-1	2
+67bddd4	30b99a5	2026-09-13	feature	feat(edit): support editing sealed listings	src/commands/user/edit.ts	+57/-22	tests/commands/user/edit.test.ts	+222/-0	2
+dcc2480	67bddd4	2026-09-13	feature	feat(sealed): add the MTGJSON catalog sync and Mana Pool link lookup	src/services/manapool.ts	+66/-0	tests/services/manapool.test.ts	+103/-1	4
+dcc2480	67bddd4	2026-09-13	feature	feat(sealed): add the MTGJSON catalog sync and Mana Pool link lookup	src/services/sealed.ts	+331/-19	tests/services/sealed.test.ts	+614/-0	4
+fe52a11	dcc2480	2026-09-13	feature	feat(commands): add /have-sealed and /want-sealed	src/commands/user/have-sealed.ts	+138/-0	tests/commands/user/have-sealed.test.ts	+220/-0	7
+fe52a11	dcc2480	2026-09-13	feature	feat(commands): add /have-sealed and /want-sealed	src/commands/user/help.ts	+1/-1	tests/commands/user/help.test.ts	+5/-0	7
+fe52a11	dcc2480	2026-09-13	feature	feat(commands): add /have-sealed and /want-sealed	src/commands/user/want-sealed.ts	+135/-0	tests/commands/user/want-sealed.test.ts	+218/-0	7
+f5fc62b	50c46c1	2026-09-14	feature	feat(commands): support sealed product in /have-multi and /want-multi	src/commands/user/have-multi.ts	+75/-16	tests/commands/user/have-multi.test.ts	+134/-1	11
+f5fc62b	50c46c1	2026-09-14	feature	feat(commands): support sealed product in /have-multi and /want-multi	src/commands/user/want-multi.ts	+71/-14	tests/commands/user/want-multi.test.ts	+87/-1	11
+f5fc62b	50c46c1	2026-09-14	feature	feat(commands): support sealed product in /have-multi and /want-multi	src/utils/batch.ts	+47/-0	tests/utils/batch.test.ts	+50/-0	11
+f5fc62b	50c46c1	2026-09-14	feature	feat(commands): support sealed product in /have-multi and /want-multi	src/utils/customId.ts	+22/-1	tests/utils/customId.test.ts	+25/-0	11
+e644702	d6a5338	2026-09-25	fix	fix(digest): split digests that exceed Discord's message length	src/services/digest.ts	+70/-19	tests/services/digest.test.ts	+98/-3	3
+0e9d123	e644702	2026-09-25	fix	fix(admin): default /admin to Manage Server, not Administrator	src/commands/admin/admin.ts	+3/-2	tests/commands/admin/admin.test.ts	+6/-0	2
+64939c4	2383f24	2026-09-25	fix	fix(autocomplete): stay inside Discord's 3-second window, stop false alerts	src/events/interactionCreate.ts	+8/-2	tests/events/interactionCreate.test.ts	+62/-0	9
+64939c4	2383f24	2026-09-25	fix	fix(autocomplete): stay inside Discord's 3-second window, stop false alerts	src/services/scryfall.ts	+31/-11	tests/services/scryfall.test.ts	+18/-0	9
