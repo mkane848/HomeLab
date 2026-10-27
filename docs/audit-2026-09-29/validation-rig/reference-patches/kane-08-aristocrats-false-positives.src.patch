@@ -1,0 +1,145 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 040f3fb..24f7c5c 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -508,11 +508,39 @@ const SACRIFICE_QUANTIFIER =
+ 
+ const sacrificeKindCache = new Map<string, RegExp>();
+ 
+-/** Everything before a clause's own `:`, or the whole clause if it has none
+- * (a spell's additional cost, which is never an activated ability). */
+-function costSideOf(clause: string): string {
++/**
++ * The portion of a clause that actually describes what's being sacrificed.
++ *
++ * A `:` still wins outright and takes everything before it, unchanged from
++ * the original cost/effect split this replaces (Nim Devourer's "{B}{B}:
++ * Return this card from your graveyard to the battlefield, then sacrifice a
++ * creature" must keep reading only "{B}{B}" as the cost — the "sacrifice"
++ * there is the ability's *effect*, paid for by the loyalty-style colon, not
++ * what's being spent to activate it; searching for "sacrifice" before
++ * checking for a colon at all wrongly credited this, Polygraph Orb, and
++ * Sorin, Imperious Bloodlord with a consumes role neither one has).
++ *
++ * Only once there's no colon at all does this anchor on the word
++ * "sacrifice" and bound forward to the next comma — a triggered ability's
++ * "Whenever/If you sacrifice X, [effect]" shape, where the comma separates
++ * the condition from an unrelated effect rather than continuing a cost
++ * list. Blood Hypnotist's "Whenever you sacrifice one or more Blood
++ * tokens, target creature can't block this turn" must not read the
++ * post-comma "target creature" as the sacrificed object — the old
++ * unbounded scan (a plain "everything before the colon, or the whole
++ * clause" cut) did exactly that. Anchoring on "sacrifice" first (rather
++ * than cutting at the clause's first comma outright) keeps "As an
++ * additional cost to cast this spell, sacrifice a Goblin" working, since
++ * that comma sits *before* "sacrifice" and never enters the scan.
++ */
++function sacrificeObjectSpan(clause: string): string {
+   const colon = clause.indexOf(':');
+-  return colon === -1 ? clause : clause.slice(0, colon);
++  if (colon !== -1) return clause.slice(0, colon);
++  const from = clause.search(/\bsacrifice\b/i);
++  if (from === -1) return clause;
++  const rest = clause.slice(from);
++  const comma = rest.indexOf(',');
++  return comma === -1 ? rest : rest.slice(0, comma);
+ }
+ 
+ /**
+@@ -539,7 +567,7 @@ function sacrificesKind(clause: string, kind: string): boolean {
+     pattern = new RegExp(`\\bsacrifice (?:${SACRIFICE_QUANTIFIER})\\b.*\\b${forms}\\b`, 'i');
+     sacrificeKindCache.set(kind, pattern);
+   }
+-  return pattern.test(costSideOf(clause));
++  return pattern.test(sacrificeObjectSpan(clause));
+ }
+ 
+ const SACRIFICE_OBJECT_PATTERN = new RegExp(
+@@ -556,10 +584,31 @@ const SACRIFICE_OBJECT_PATTERN = new RegExp(
+  */
+ function sacrificesACreature(clause: string, vocab: Vocabulary): boolean {
+   if (sacrificesKind(clause, 'creature')) return true;
+-  const match = SACRIFICE_OBJECT_PATTERN.exec(costSideOf(clause));
++  const match = SACRIFICE_OBJECT_PATTERN.exec(sacrificeObjectSpan(clause));
+   return !!match && vocab.typeByWord.has(match[1]!.toLowerCase());
+ }
+ 
++/** The other resources a sacrifice cost can list alongside creature — when
++ * it does, creature is one co-equal, fungible option rather than the
++ * card's actual plan. Aristocrats' own description draws this line:
++ * "sacrificing an artifact or a land is a different deck." */
++const OTHER_SACRIFICEABLE_RESOURCES = /\b(?:artifact|land|permanent|enchantment|planeswalker)\b/i;
++
++/**
++ * Whether a clause's cost sacrifices a creature *specifically*, not
++ * creature as one interchangeable choice in an "artifact, creature, or
++ * land"-style list. Greater Gargadon's suspend-acceleration cost
++ * ("Sacrifice an artifact, creature, or land: Remove a time counter...")
++ * technically offers creature as a legal choice, but the card has no
++ * preference toward it at all — functionally a ritual/free-spell cost, not
++ * a sacrifice outlet a creature-focused deck is built around.
++ */
++function sacrificesCreatureSpecifically(clause: string, vocab: Vocabulary): boolean {
++  if (!sacrificesACreature(clause, vocab)) return false;
++  const cost = sacrificeObjectSpan(clause);
++  return !(OTHER_SACRIFICEABLE_RESOURCES.test(cost) && /\bor\b/i.test(cost));
++}
++
+ const TIME_COUNTER_PATTERN = new RegExp(`\\b(?:${TIME_COUNTER_KEYWORDS.join('|')})\\b`, 'i');
+ const MINUS_ONE_MINUS_ONE_PATTERN = new RegExp(
+   `\\b(?:${MINUS_ONE_MINUS_ONE_KEYWORDS.map((k) => `${k}(?:s|ed|ing)?`).join('|')})\\b`,
+@@ -1024,9 +1073,13 @@ export const ARCHETYPES: ArchetypeDef[] = [
+       // "Sacrifice a creature:" or "Sacrifice a Goblin:" — an indefinite
+       // creature (by name or by type), not itself. A fetch land sacrificing
+       // itself for mana is not this synergy even though the word appears.
++      // sacrificesCreatureSpecifically (not the broader sacrificesACreature)
++      // — Greater Gargadon's "Sacrifice an artifact, creature, or land" is
++      // not a creature-specific plan just because creature is one legal
++      // choice among three fungible ones.
+       consumes: [
+         (f: CardFacts, vocab: Vocabulary) =>
+-          clauses(f.text).some((clause) => sacrificesACreature(clause, vocab)),
++          clauses(f.text).some((clause) => sacrificesCreatureSpecifically(clause, vocab)),
+         // Exploit's own operative text ("you may sacrifice a creature") is
+         // reminder-only; the keyword's printed name survives stripping.
+         /\bexploit\b/i,
+@@ -1039,8 +1092,26 @@ export const ARCHETYPES: ArchetypeDef[] = [
+       // battlefield — Psychomancer spells that definition out instead of
+       // using the word, and exile-from-the-battlefield is the same shape
+       // (Skullclamp-adjacent "sacrifice or exile" outlets included).
++      //
++      // Two exclusions, both real cards found reviewing a live citation
++      // list rather than the grounding decks. This has to stay a plain
++      // regex (not a function matcher) for both: findQualifier reads a
++      // regex's own match text to find a restricting creature type (Ajani's
++      // "Cats", Wilhelt's "Zombie") but always skips function matchers —
++      // converting this to a function to add the exclusions would silently
++      // make every aristocrats death-trigger unqualifiable again.
++      //   - Flame-Blessed Bolt: "If that creature or planeswalker would die
++      //     this turn, exile it instead." A replacement effect — nothing
++      //     actually dies, so it is not a death payoff. Excluded via a
++      //     lookbehind: "would " immediately before the death word.
++      //   - Markov Enforcer: "Whenever a creature dealt damage by this
++      //     creature this turn dies, create a Blood token." Only ever the
++      //     *opponent's* creature this card just fought — combat/removal
++      //     value, not your own board dying. Excluded via a lookahead
++      //     repeated across the gap so "dealt damage by" can't appear
++      //     anywhere between the trigger word and the death word.
+       rewards: [
+-        /(?:whenever|if)[^.;]*\b(?:dies?|dying)\b/i,
++        /(?:whenever|if)(?:(?!dealt damage by)[^.;])*(?<!would )\b(?:dies?|dying)\b/i,
+         /(?:whenever|if)[^.;]*is put into (?:a|your) graveyard from the battlefield/i,
+         /(?:whenever|if)[^.;]*is put into exile from the battlefield/i,
+       ],
+@@ -1057,7 +1128,10 @@ export const ARCHETYPES: ArchetypeDef[] = [
+         /\bblitz\b/i,
+         /\bfor mirrodin!/i,
+       ],
+-      amplifies: [/\b(?:dies?|dying)\b[^.]*triggers? an additional time/i],
++      // Same "would die" replacement-effect exclusion as rewards above,
++      // kept consistent even though no motivating card combined it with
++      // amplification.
++      amplifies: [/(?<!would )\b(?:dies?|dying)\b[^.]*triggers? an additional time/i],
+     },
+   },
+   {

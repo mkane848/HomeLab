@@ -1,0 +1,140 @@
+diff --git a/src/services/listings.ts b/src/services/listings.ts
+index fc95784..c34e53b 100644
+--- a/src/services/listings.ts
++++ b/src/services/listings.ts
+@@ -296,6 +296,22 @@ export function softDeleteListing(id: number): ListingRow | undefined {
+ 
+ function setStatus(id: number, status: 'fulfilled' | 'deleted'): ListingRow | undefined {
+   const db = getDb();
++  const current = db.select({ status: listings.status }).from(listings).where(eq(listings.id, id)).get();
++  if (!current) {
++    return undefined;
++  }
++  const allowed = new Set<string>(
++    current.status === 'active'
++      ? ['fulfilled', 'deleted']
++      : current.status === 'fulfilled'
++        ? ['deleted']
++        : [],
++  );
++  if (!allowed.has(status)) {
++    throw new Error(
++      `cannot transition from '${current.status}' to '${status}' (listing #${id})`,
++    );
++  }
+   db.update(listings).set({ status, updatedAt: now() }).where(eq(listings.id, id)).run();
+   return getListingById(id);
+ }
+diff --git a/tests/services/listings.test.ts b/tests/services/listings.test.ts
+index 39d4b61..b66381d 100644
+--- a/tests/services/listings.test.ts
++++ b/tests/services/listings.test.ts
+@@ -7,6 +7,7 @@ import {
+   createListing,
+   createListingsBatch,
+   fulfillListing,
++  getListingById,
+   searchListings,
+   softDeleteListing,
+   updateListing,
+@@ -403,6 +404,100 @@ describe('search and status transitions', () => {
+   });
+ });
+ 
++describe('status transition guard', () => {
++  function seedActiveListing(): { listing: import('../../src/db/schema.js').ListingRow } {
++    seedServer();
++    return createListing({ ...baseInput(), intent: 'have', accepts: 'cash' });
++  }
++
++  it('active -> fulfilled is allowed and returns the updated row', () => {
++    const { listing } = seedActiveListing();
++    const result = fulfillListing(listing.id);
++    expect(result).not.toBeUndefined();
++    expect(result!.status).toBe('fulfilled');
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++  });
++
++  it('active -> deleted is allowed and returns the updated row', () => {
++    const { listing } = seedActiveListing();
++    const result = softDeleteListing(listing.id);
++    expect(result).not.toBeUndefined();
++    expect(result!.status).toBe('deleted');
++    expect(getListingById(listing.id)!.status).toBe('deleted');
++  });
++
++  it('fulfilled -> deleted is allowed (cleanup) and returns the updated row', () => {
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++    const result = softDeleteListing(listing.id);
++    expect(result).not.toBeUndefined();
++    expect(result!.status).toBe('deleted');
++    expect(getListingById(listing.id)!.status).toBe('deleted');
++  });
++
++  it('active -> fulfilled then active -> fulfilled again throws', () => {
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++  });
++
++  it('active -> deleted then active -> deleted again throws', () => {
++    const { listing } = seedActiveListing();
++    softDeleteListing(listing.id);
++    expect(getListingById(listing.id)!.status).toBe('deleted');
++    expect(() => softDeleteListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe('deleted');
++  });
++
++  it('active -> fulfilled then fulfilled -> fulfilled throws', () => {
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++  });
++
++  it('active -> deleted then deleted -> fulfilled throws', () => {
++    const { listing } = seedActiveListing();
++    softDeleteListing(listing.id);
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe('deleted');
++  });
++
++  it('active -> fulfilled then fulfilled -> active throws via fulfillListing', () => {
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe('fulfilled');
++  });
++
++  it('throws for fulfilled -> active transition via softDeleteListing (blocked)', () => {
++    // We can't transition TO 'active' via these functions, but we confirm that
++    // trying to re-fulfill or re-delete a fulfilled listing throws.
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    const before = getListingById(listing.id)!.status;
++    expect(() => fulfillListing(listing.id)).toThrow(/cannot transition from/);
++    expect(getListingById(listing.id)!.status).toBe(before);
++  });
++
++  it('throws with a message containing the listing id, current status, and requested status', () => {
++    const { listing } = seedActiveListing();
++    fulfillListing(listing.id);
++    try {
++      fulfillListing(listing.id);
++      expect.fail('should have thrown');
++    } catch (err) {
++      const msg = (err as Error).message;
++      expect(msg).toContain(String(listing.id));
++      expect(msg).toContain('fulfilled');
++      expect(msg).toContain('cannot transition from');
++    }
++  });
++});
++
+ describe('updateListing', () => {
+   it('leaves printing fields untouched when they are not included in the update', () => {
+     seedServer();

@@ -1,0 +1,1 @@
+The upstream fix commit's own test file, swapped in over the model's and run against the model's source - informational, never a gate. Nothing beyond existing exports: the added upstream test drives buildVocabulary/buildCardFacts/detectSignals with Angel of Glory's Rise's real text (quoted in the prompt) and expects a Human-qualified reanimator signal and no Zombie-qualified one.

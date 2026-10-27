@@ -1,0 +1,89 @@
+kane-07-find-qualifier-type dry exit=0
+kane-07-find-qualifier-type ref exit=0
+kane-07-find-qualifier-type srconly exit=1
+kane-07-find-qualifier-type testsonly exit=1
+kane-07-find-qualifier-type ref.unset exit=0
+kane-07-find-qualifier-type ref.dummy exit=0
+kane-07-find-qualifier-type ref.tz exit=0
+kane-07-find-qualifier-type ref.det1 exit=0
+kane-07-find-qualifier-type ref.det2 exit=0
+kane-07-find-qualifier-type ref.det3 exit=0
+TASK DONE kane-07-find-qualifier-type 09:32:48
+kane-08-aristocrats-false-positives dry exit=0
+kane-08-aristocrats-false-positives ref exit=0
+kane-08-aristocrats-false-positives srconly exit=1
+kane-08-aristocrats-false-positives testsonly exit=1
+kane-08-aristocrats-false-positives ref.unset exit=0
+kane-08-aristocrats-false-positives ref.dummy exit=0
+kane-08-aristocrats-false-positives ref.tz exit=0
+kane-08-aristocrats-false-positives ref.det1 exit=0
+kane-08-aristocrats-false-positives ref.det2 exit=0
+kane-08-aristocrats-false-positives ref.det3 exit=0
+TASK DONE kane-08-aristocrats-false-positives 09:34:39
+kane-09-colour-filter-subset dry exit=0
+kane-09-colour-filter-subset ref exit=0
+kane-09-colour-filter-subset srconly exit=1
+kane-09-colour-filter-subset testsonly exit=1
+kane-09-colour-filter-subset ref.unset exit=0
+kane-09-colour-filter-subset ref.dummy exit=0
+kane-09-colour-filter-subset ref.tz exit=0
+kane-09-colour-filter-subset ref.det1 exit=0
+kane-09-colour-filter-subset ref.det2 exit=0
+kane-09-colour-filter-subset ref.det3 exit=0
+TASK DONE kane-09-colour-filter-subset 09:36:47
+kane-10-combo-permalink-scheme dry exit=0
+kane-10-combo-permalink-scheme ref exit=0
+kane-10-combo-permalink-scheme srconly exit=1
+kane-10-combo-permalink-scheme testsonly exit=1
+kane-10-combo-permalink-scheme ref.unset exit=0
+kane-10-combo-permalink-scheme ref.dummy exit=0
+kane-10-combo-permalink-scheme ref.tz exit=0
+kane-10-combo-permalink-scheme ref.det1 exit=0
+kane-10-combo-permalink-scheme ref.det2 exit=0
+kane-10-combo-permalink-scheme ref.det3 exit=0
+TASK DONE kane-10-combo-permalink-scheme 09:38:58
+kane-11-useauth-session-reject dry exit=0
+kane-11-useauth-session-reject ref exit=0
+kane-11-useauth-session-reject srconly exit=1
+kane-11-useauth-session-reject testsonly exit=1
+kane-11-useauth-session-reject ref.unset exit=0
+kane-11-useauth-session-reject ref.dummy exit=0
+kane-11-useauth-session-reject ref.tz exit=0
+kane-11-useauth-session-reject ref.det1 exit=0
+kane-11-useauth-session-reject ref.det2 exit=0
+kane-11-useauth-session-reject ref.det3 exit=0
+TASK DONE kane-11-useauth-session-reject 09:41:35
+kane-12-error-handler-400 dry exit=0
+kane-12-error-handler-400 ref exit=0
+kane-12-error-handler-400 srconly exit=1
+kane-12-error-handler-400 testsonly exit=1
+kane-12-error-handler-400 ref.unset exit=0
+kane-12-error-handler-400 ref.dummy exit=0
+kane-12-error-handler-400 ref.tz exit=0
+kane-12-error-handler-400 ref.det1 exit=0
+kane-12-error-handler-400 ref.det2 exit=0
+kane-12-error-handler-400 ref.det3 exit=0
+TASK DONE kane-12-error-handler-400 09:42:57
+kane-13-front-face-field dry exit=0
+kane-13-front-face-field ref exit=0
+kane-13-front-face-field srconly exit=1
+kane-13-front-face-field testsonly exit=1
+kane-13-front-face-field ref.unset exit=0
+kane-13-front-face-field ref.dummy exit=0
+kane-13-front-face-field ref.tz exit=0
+kane-13-front-face-field ref.det1 exit=0
+kane-13-front-face-field ref.det2 exit=0
+kane-13-front-face-field ref.det3 exit=0
+TASK DONE kane-13-front-face-field 09:44:03
+kane-14-undo-toast-timer dry exit=0
+kane-14-undo-toast-timer ref exit=0
+kane-14-undo-toast-timer srconly exit=1
+kane-14-undo-toast-timer testsonly exit=1
+kane-14-undo-toast-timer ref.unset exit=0
+kane-14-undo-toast-timer ref.dummy exit=0
+kane-14-undo-toast-timer ref.tz exit=0
+kane-14-undo-toast-timer ref.det1 exit=0
+kane-14-undo-toast-timer ref.det2 exit=0
+kane-14-undo-toast-timer ref.det3 exit=0
+TASK DONE kane-14-undo-toast-timer 09:48:04
+LANE DONE 09:48:04

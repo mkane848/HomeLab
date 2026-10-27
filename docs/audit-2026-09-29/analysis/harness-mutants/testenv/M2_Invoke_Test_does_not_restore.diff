@@ -1,0 +1,10 @@
+--- c099957:tests/test-tasks.ps1
++++ mutant/M2_Invoke_Test_does_not_restore.ps1
+@@ -416,7 +416,6 @@
+     try {
+         return Run-Native $Task.testCmd[0] @($Task.testCmd[1..($Task.testCmd.Count - 1)]) $testDir
+     } finally {
+-        Restore-TaskTestEnv $savedEnv
+     }
+ }
+ 

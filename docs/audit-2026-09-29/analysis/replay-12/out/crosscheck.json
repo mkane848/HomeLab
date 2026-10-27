@@ -1,0 +1,182 @@
+[
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:18",
+  "fix": "be055bec6a",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  }
+ },
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:30",
+  "fix": "be055bec6a",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-02|qwen3.5|09-29 20:03",
+  "fix": "8f4555b2fd",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-02|qwen3.5|09-29 20:06",
+  "fix": "8f4555b2fd",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-02|qwen3.6|09-29 22:00",
+  "fix": "8f4555b2fd",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-02|qwen3.6|09-29 22:08",
+  "fix": "8f4555b2fd",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "33 33",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-04|qwen3.5|09-29 16:37",
+  "fix": "5837c59db4",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "16 16",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "16 16",
+   "fails": []
+  }
+ },
+ {
+  "label": "kane-04|qwen3.5|09-29 16:39",
+  "fix": "5837c59db4",
+  "c_model_tests_on_upstream_src": {
+   "exit": 1,
+   "summary": "1 13 14",
+   "fails": [
+    "singletonLimit > a genuinely unparseable \"up to N\" phrase defaults to 1 and warns"
+   ]
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "16 16",
+   "fails": []
+  }
+ },
+ {
+  "label": "lfc-02|qwen3.5|09-29 16:52",
+  "fix": "30b99a5dfc",
+  "c_model_tests_on_upstream_src": {
+   "exit": 0,
+   "summary": "12 12",
+   "fails": []
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "12 12",
+   "fails": []
+  }
+ },
+ {
+  "label": "lfc-02|qwen3.5|09-29 16:54",
+  "fix": "30b99a5dfc",
+  "c_model_tests_on_upstream_src": {
+   "exit": 1,
+   "summary": "1 11 12",
+   "fails": [
+    "scryfall service > sends Accept and User-Agent headers on outgoing Scryfall requests"
+   ]
+  },
+  "d_upstream_tests_on_model_src": {
+   "exit": 0,
+   "summary": "12 12",
+   "fails": []
+  }
+ },
+ {
+  "d0": "asohav-02",
+  "exit": 1,
+  "summary": "",
+  "fails": [
+   "\u001b[22mappendChangeLog\u001b[2m > \u001b[22momits id entirely, so the uuid column default supplies one",
+   "\u001b[22mappendChangeLog\u001b[2m > \u001b[22msends exactly the columns changelog declares, and nothing else"
+  ]
+ },
+ {
+  "d0": "kane-02",
+  "exit": 1,
+  "summary": "2 29 31",
+  "fails": [
+   "creature types: the vocabulary the rest of this depends on > recognizes a multi-word creature type from the catalog instead of splitting it into two words",
+   "creature types: the vocabulary the rest of this depends on > still recognizes ordinary single-word types alongside a multi-word one"
+  ]
+ },
+ {
+  "d0": "kane-04",
+  "exit": 1,
+  "summary": "3 13 16",
+  "fails": [
+   "singletonLimit > \"up to N\" with a digit instead of a spelled-out word still resolves to N",
+   "singletonLimit > a digit above twelve resolves to N instead of silently falling back to 1",
+   "singletonLimit > a value that is neither a digit nor a known word still falls back to 1, but warns instead of failing silently"
+  ]
+ },
+ {
+  "d0": "lfc-02",
+  "exit": 1,
+  "summary": "1 11 12",
+  "fails": [
+   "scryfall service > sends the required User-Agent and Accept headers"
+  ]
+ }
+]

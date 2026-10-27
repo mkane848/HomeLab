@@ -1,0 +1,3 @@
+asohav-03-glossary-depth-flatten ref exit=0
+asohav-03-glossary-depth-flatten srconly exit=1
+asohav-03-glossary-depth-flatten testsonly exit=1

@@ -1,0 +1,6 @@
+BASE (reference applied)                       rc=0  Tests  5 passed (5)
+M07a: hard cap at 5 again (old behaviour for 13) rc=1  Tests  1 failed | 4 passed (5)
+M07b: cap at 99 (13 survives)                  rc=0  Tests  5 passed (5)
+M07c: no floor (negative kept)                 rc=1  Tests  1 failed | 4 passed (5)
+M07d: floor but also zero everything above the track (discard overflow) rc=1  Tests  1 failed | 4 passed (5)
+RESTORED                                       rc=0  Tests  5 passed (5)

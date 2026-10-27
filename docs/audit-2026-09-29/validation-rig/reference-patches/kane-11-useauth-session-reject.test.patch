@@ -1,0 +1,22 @@
+diff --git a/packages/profile/src/useAuth.test.ts b/packages/profile/src/useAuth.test.ts
+index 34de045..30e29f1 100644
+--- a/packages/profile/src/useAuth.test.ts
++++ b/packages/profile/src/useAuth.test.ts
+@@ -85,6 +85,17 @@ describe('useAuth — configured', () => {
+     expect(result.current.user).toBeNull();
+   });
+ 
++  it('stops loading (rather than hanging forever) when the initial session check rejects', async () => {
++    // getSession() normally resolves { data, error } rather than rejecting,
++    // but a rejected fetch (network failure, CSP block) is possible — every
++    // consumer gates its render on `loading`, so a missing .catch here would
++    // hide the sign-in UI forever instead of degrading to signed-out.
++    getSession.mockRejectedValue(new TypeError('Failed to fetch'));
++    const { result } = renderHook(() => useAuth());
++    await waitFor(() => expect(result.current.loading).toBe(false));
++    expect(result.current.user).toBeNull();
++  });
++
+   it('updates the user when onAuthStateChange fires', async () => {
+     getSession.mockResolvedValue({ data: { session: null } });
+     let authCallback: (event: string, session: { user: typeof USER } | null) => void = () => {};

@@ -1,0 +1,17 @@
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/a1/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-09-seed-virtue-conformance - ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  368 passed (368))
+  prompt: 18 chars (sha256 7932E3AC261E)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/seedLibrary.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: gives a Move whose heading names exactly one Virtue that VirtueId; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix aec6644 - Tests  1 failed | 370 passed (371) - gives a Move whose heading names exactly one Virtue that VirtueId; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/a1/rig/tests/results/tasks-summary.tsv
+exit=1

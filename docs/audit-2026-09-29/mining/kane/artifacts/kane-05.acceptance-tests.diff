@@ -1,0 +1,242 @@
+diff --git a/apps/commander-recommender/server/src/services/deckValidation.test.ts b/apps/commander-recommender/server/src/services/deckValidation.test.ts
+index efdbba4..5396720 100644
+--- a/apps/commander-recommender/server/src/services/deckValidation.test.ts
++++ b/apps/commander-recommender/server/src/services/deckValidation.test.ts
+@@ -55,7 +55,7 @@ describe('validateDeck — deck size (903.5a)', () => {
+ 
+     const result = validateDeck(
+       [entry('Test Commander'), entry('Plains', 99)],
+-      nameMapOf([commander, makeCard({ name: 'Plains', color_identity: '["W"]' })]),
++      nameMapOf([commander, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' })]),
+       [commander],
+       [],
+     );
+@@ -70,7 +70,7 @@ describe('validateDeck — deck size (903.5a)', () => {
+ 
+     const result = validateDeck(
+       [entry('Test Commander'), entry('Plains', 97)],
+-      nameMapOf([commander, makeCard({ name: 'Plains', color_identity: '["W"]' })]),
++      nameMapOf([commander, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' })]),
+       [commander],
+       [],
+     );
+@@ -92,7 +92,7 @@ describe('validateDeck — deck size (903.5a)', () => {
+       [entry('Test Commander'), entry('Plains', 98), entry('Banned Card')],
+       nameMapOf([
+         commander,
+-        makeCard({ name: 'Plains', color_identity: '["W"]' }),
++        makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' }),
+         banned,
+       ]),
+       [commander],
+@@ -110,7 +110,7 @@ describe('validateDeck — deck size (903.5a)', () => {
+ 
+     const result = validateDeck(
+       [entry('Test Commander'), entry('Plains', 97), entry('Not A Real Card', 2)],
+-      nameMapOf([commander, makeCard({ name: 'Plains', color_identity: '["W"]' })]),
++      nameMapOf([commander, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' })]),
+       [commander],
+       [],
+     );
+@@ -134,7 +134,7 @@ describe('validateDeck — color identity (903.4)', () => {
+       nameMapOf([
+         commander,
+         offIdentity,
+-        makeCard({ name: 'Island', color_identity: '["U"]' }),
++        makeCard({ name: 'Island', type_line: 'Basic Land — Island', color_identity: '["U"]' }),
+       ]),
+       [commander],
+       [],
+@@ -150,8 +150,8 @@ describe('validateDeck — color identity (903.4)', () => {
+     const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
+ 
+     const result = validateDeck(
+-      [entry('Test Commander'), entry('Artifact Land', 99)],
+-      nameMapOf([commander, makeCard({ name: 'Artifact Land', color_identity: '[]' })]),
++      [entry('Test Commander'), entry('Wastes', 99)],
++      nameMapOf([commander, makeCard({ name: 'Wastes', type_line: 'Basic Land', color_identity: '[]' })]),
+       [commander],
+       [],
+     );
+@@ -167,7 +167,7 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+ 
+     const result = validateDeck(
+       [entry('Plains', 99)],
+-      nameMapOf([notEligible, makeCard({ name: 'Plains', color_identity: '["U"]' })]),
++      nameMapOf([notEligible, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["U"]' })]),
+       [notEligible],
+       [],
+     );
+@@ -196,7 +196,7 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+       nameMapOf([
+         a,
+         b,
+-        makeCard({ name: 'Plains', color_identity: '["U"]' }),
++        makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["U"]' }),
+       ]),
+       [a, b],
+       [],
+@@ -214,7 +214,7 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+ 
+     const result = validateDeck(
+       [entry('Legend A'), entry('Legend B'), entry('Plains', 98)],
+-      nameMapOf([a, b, makeCard({ name: 'Plains', color_identity: '["U"]' })]),
++      nameMapOf([a, b, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["U"]' })]),
+       [a, b],
+       [],
+     );
+@@ -239,7 +239,7 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+ 
+     const result = validateDeck(
+       [entry('Commander with Background'), entry('Plains', 99)],
+-      nameMapOf([chooser, makeCard({ name: 'Plains', color_identity: '["W"]' })]),
++      nameMapOf([chooser, makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' })]),
+       [chooser],
+       [background],
+     );
+@@ -247,4 +247,143 @@ describe('validateDeck — commander unit legality (903.3 / 702.124)', () => {
+     assert.strictEqual(result.commander.pairingLegal, true);
+     assert.strictEqual(result.isValid, true);
+   });
+-});
+\ No newline at end of file
++});
++describe('validateDeck — singleton rule (903.5b)', () => {
++  const solRing = () => makeCard({ name: 'Sol Ring', type_line: 'Artifact', color_identity: '[]' });
++
++  /** A legal shell: one commander, `extra` cards, and enough basic Plains to reach exactly 100. */
++  function validate(extra: ParsedListEntry[], extraCards: CardRow[]) {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++    const plains = makeCard({
++      name: 'Plains',
++      type_line: 'Basic Land — Plains',
++      color_identity: '["W"]',
++    });
++    const used = 1 + extra.reduce((sum, e) => sum + e.quantity, 0);
++    return validateDeck(
++      [entry('Test Commander'), ...extra, entry('Plains', 100 - used)],
++      nameMapOf([commander, plains, ...extraCards]),
++      [commander],
++      [],
++    );
++  }
++
++  it('two copies of a nonbasic card break the rule and invalidate the deck', () => {
++    const result = validate([entry('Sol Ring', 2)], [solRing()]);
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.strictEqual(result.deckSize.isValid, true);
++    assert.strictEqual(result.isValid, false);
++    assert.deepStrictEqual(result.singleton.violations, [
++      { name: 'Sol Ring', quantity: 2, limit: 1 },
++    ]);
++  });
++
++  it('the same card spread over several lines counts as several copies, however it is cased', () => {
++    const result = validate([entry('Sol Ring'), entry('sol ring')], [solRing()]);
++
++    assert.strictEqual(result.isValid, false);
++    assert.deepStrictEqual(result.singleton.violations, [
++      { name: 'Sol Ring', quantity: 2, limit: 1 },
++    ]);
++  });
++
++  it('one copy of each nonbasic card is a legal singleton deck', () => {
++    const other = makeCard({ name: 'Arcane Signet', type_line: 'Artifact' });
++    const result = validate([entry('Sol Ring'), entry('Arcane Signet')], [solRing(), other]);
++
++    assert.strictEqual(result.isValid, true);
++  });
++
++  it('basic lands are exempt at any quantity — plain, snow and Wastes alike', () => {
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["W"]' });
++    const cards = [
++      commander,
++      makeCard({ name: 'Plains', type_line: 'Basic Land — Plains', color_identity: '["W"]' }),
++      makeCard({
++        name: 'Snow-Covered Plains',
++        type_line: 'Basic Snow Land — Plains',
++        color_identity: '["W"]',
++      }),
++      makeCard({ name: 'Wastes', type_line: 'Basic Land', color_identity: '[]' }),
++    ];
++    const result = validateDeck(
++      [
++        entry('Test Commander'),
++        entry('Plains', 60),
++        entry('Snow-Covered Plains', 30),
++        entry('Wastes', 9),
++      ],
++      nameMapOf(cards),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.strictEqual(result.isValid, true);
++  });
++
++  it('a nonbasic land with a basic land type is not exempt', () => {
++    // Stomping Ground is "Land — Mountain Forest": it has basic land TYPES but is not
++    // a basic land, so the exemption must key on the Basic supertype.
++    const stomping = makeCard({
++      name: 'Stomping Ground',
++      type_line: 'Land — Mountain Forest',
++      color_identity: '["R","G"]',
++    });
++    const commander = eligibleCommander({ name: 'Test Commander', color_identity: '["R","G"]' });
++    const result = validateDeck(
++      [entry('Test Commander'), entry('Stomping Ground', 2), entry('Mountain', 97)],
++      nameMapOf([
++        commander,
++        stomping,
++        makeCard({ name: 'Mountain', type_line: 'Basic Land — Mountain', color_identity: '["R"]' }),
++      ]),
++      [commander],
++      [],
++    );
++
++    assert.strictEqual(result.isValid, false);
++    assert.deepStrictEqual(result.singleton.violations, [
++      { name: 'Stomping Ground', quantity: 2, limit: 1 },
++    ]);
++  });
++
++  it('a card that says "any number of cards named" is exempt', () => {
++    const rats = makeCard({
++      name: 'Relentless Rats',
++      type_line: 'Creature — Rat',
++      oracle_text: 'Relentless Rats gets +1/+1 for each other Rat on the battlefield.\nA deck can have any number of cards named Relentless Rats.',
++    });
++    const result = validate([entry('Relentless Rats', 30)], [rats]);
++
++    assert.strictEqual(result.deckSize.total, 100);
++    assert.strictEqual(result.isValid, true);
++  });
++
++  it('an "up to N" card is allowed exactly N copies and reports its own limit beyond that', () => {
++    const dwarves = () =>
++      makeCard({
++        name: 'Seven Dwarves',
++        type_line: 'Creature — Dwarf',
++        oracle_text: 'Seven Dwarves gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves.',
++      });
++
++    assert.strictEqual(validate([entry('Seven Dwarves', 7)], [dwarves()]).isValid, true);
++
++    const over = validate([entry('Seven Dwarves', 8)], [dwarves()]);
++    assert.strictEqual(over.isValid, false);
++    assert.deepStrictEqual(over.singleton.violations, [
++      { name: 'Seven Dwarves', quantity: 8, limit: 7 },
++    ]);
++  });
++
++  it('a banned card listed twice is reported as banned, not as a singleton violation', () => {
++    const banned = makeCard({ name: 'Banned Card', legality_commander: 'banned' });
++    const result = validate([entry('Banned Card', 2)], [banned]);
++
++    assert.strictEqual(result.isValid, false);
++    assert.deepStrictEqual(result.singleton.violations, []);
++    assert.ok(result.legality.banned.includes('Banned Card'));
++  });
++});

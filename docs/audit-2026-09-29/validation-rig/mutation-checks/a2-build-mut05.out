@@ -1,0 +1,44 @@
+BASELINE (fixed tree): Tests  24 passed (24)
+M1 drop PUT /settings validation   -> Tests  3 failed | 21 passed (24)
+      x settings validation > refuses a non-integer track length 2ms
+      x settings validation > refuses an unknown setting key rather than storing it unread 2ms
+      x settings validation > refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0 4ms
+      x src/routes/library.test.ts > settings validation > refuses a non-integer track length
+      x src/routes/library.test.ts > settings validation > refuses an unknown setting key rather than storing it unread
+      x src/routes/library.test.ts > settings validation > refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0
+M1a settings: no bool check        -> Tests  1 failed | 23 passed (24)
+      x settings validation > refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0 4ms
+      x src/routes/library.test.ts > settings validation > refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0
+M1b settings: no int check         -> Tests  1 failed | 23 passed (24)
+      x settings validation > refuses a non-integer track length 4ms
+      x src/routes/library.test.ts > settings validation > refuses a non-integer track length
+M1c settings: unknown key accepted -> Tests  1 failed | 23 passed (24)
+      x settings validation > refuses an unknown setting key rather than storing it unread 6ms
+      x src/routes/library.test.ts > settings validation > refuses an unknown setting key rather than storing it unread
+M2 Id spread order (client Id wins) -> Tests  1 failed | 23 passed (24)
+      x field validation > generates the Id itself and ignores a client-supplied one 3ms
+      x src/routes/library.test.ts > field validation > generates the Id itself and ignores a client-supplied one
+M3 drop PUT validation             -> Tests  1 failed | 23 passed (24)
+      x field validation > still refuses an update that blanks a required field 4ms
+      x src/routes/library.test.ts > field validation > still refuses an update that blanks a required field
+M4 drop declared defaults          -> Tests  1 failed | 23 passed (24)
+      x field validation > applies a declared default when the field is omitted 4ms
+      x src/routes/library.test.ts > field validation > applies a declared default when the field is omitted
+M5 drop POST validation            -> Tests  2 failed | 22 passed (24)
+      x field validation > refuses a required field present but blank, not just absent 2ms
+      x field validation > refuses to create a record missing a required field 4ms
+      x src/routes/library.test.ts > field validation > refuses a required field present but blank, not just absent
+      x src/routes/library.test.ts > field validation > refuses to create a record missing a required field
+M6 blank = only empty string (no trim) -> Tests  1 failed | 23 passed (24)
+      x field validation > refuses a required field present but blank, not just absent 5ms
+      x src/routes/library.test.ts > field validation > refuses a required field present but blank, not just absent
+M7 PUT treated as full create (not partial) -> Tests  2 failed | 22 passed (24)
+      x field validation > allows an update that omits a required field — a PUT is a partial 3ms
+      x library CRUD > updates an existing record by merging the body over it 9ms
+      x src/routes/library.test.ts > field validation > allows an update that omits a required field — a PUT is a partial
+      x src/routes/library.test.ts > library CRUD > updates an existing record by merging the body over it
+M8 required missing not enforced (absent ok) -> Tests  1 failed | 23 passed (24)
+      x field validation > refuses to create a record missing a required field 5ms
+      x src/routes/library.test.ts > field validation > refuses to create a record missing a required field
+M9 defaults override explicit (|| style) -> Tests  24 passed (24)
+RESTORED: Tests  24 passed (24)

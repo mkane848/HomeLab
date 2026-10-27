@@ -1,0 +1,28 @@
+09-21 21:59 qwen3:8b               recorded suite FAIL fOO PASS | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 2
+09-21 22:05 qwen3:8b               recorded suite FAIL fOO PASS | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 6
+09-21 22:08 qwen3:8b               recorded suite FAIL fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 1
+09-22 07:44 qwen3:8b               recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-22 08:01 qwen3:8b               recorded suite FAIL fOO PASS | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 2
+09-23 05:55 north-mini-code-1.0    recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-23 06:56 qwen3.5:9b             recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-23 07:16 lfm2.5:8b              recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-23 08:23 ministral-3:8b         recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 1 miss 0
+09-23 18:46 qwen3.6:35b-a3b-coding recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-26 13:21 qwen3.8-max            recorded suite PASS fOO PASS | replay no-DB: suite FAIL fOO PASS | with-DB: suite FAIL fOO PASS | applied 6 miss 0  bash-side-effects: 3
+09-27 09:11 devstral:24b           recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-27 09:23 nemotron-3.5-lightning recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0
+09-27 10:07 qwen3:14b              recorded suite FAIL fOO PASS | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 4
+09-27 10:11 qwen3:8b               recorded suite FAIL fOO PASS | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 2
+09-27 14:30 laguna-xs-2.1          recorded suite PASS fOO PASS | replay no-DB: suite PASS fOO PASS | with-DB: suite PASS fOO PASS | applied 5 miss 0
+09-27 14:47 qwen3-coder:30b-a3b    recorded suite FAIL fOO PASS | replay no-DB: suite FAIL fOO PASS (load error only) | with-DB: suite FAIL fOO PASS | applied 2 miss 0
+09-27 15:15 nemotron-3.5-lightning recorded suite FAIL fOO PASS | replay no-DB: suite FAIL fOO PASS | with-DB: suite FAIL fOO PASS | applied 13 miss 1  bash-side-effects: 24
+09-27 15:31 north-mini-code-1.0    recorded suite PASS fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 0  bash-side-effects: 6
+09-27 15:41 qwen3.5:9b             recorded suite PASS fOO PASS | replay no-DB: suite PASS fOO PASS | with-DB: suite PASS fOO PASS | applied 13 miss 0  bash-side-effects: 1
+09-27 15:51 qwen3.6:35b-a3b-coding recorded suite FAIL fOO PASS | replay no-DB: suite FAIL fOO PASS | with-DB: suite FAIL fOO PASS | applied 6 miss 0
+09-29 20:21 qwen3:14b              recorded suite FAIL fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 3
+09-29 20:27 qwen3:14b              recorded suite FAIL fOO FAIL | replay no-DB: n/a (no test file / no edits) | with-DB: n/a | applied 0 miss 6
+09-29 20:43 qwen3.5:9b             recorded suite FAIL fOO PASS | replay no-DB: suite FAIL fOO PASS | with-DB: suite FAIL fOO PASS | applied 22 miss 0  bash-side-effects: 2
+09-29 20:55 qwen3.5:9b             recorded suite PASS fOO FAIL | replay no-DB: suite FAIL fOO PASS (load error only) | with-DB: suite FAIL fOO PASS | applied 11 miss 0  bash-side-effects: 1
+09-29 22:18 qwen3.6:35b-a3b-coding recorded suite PASS fOO PASS | replay no-DB: suite FAIL fOO PASS (load error only) | with-DB: suite PASS fOO PASS | applied 2 miss 0
+09-29 22:30 qwen3.6:35b-a3b-coding recorded suite PASS fOO PASS | replay no-DB: suite FAIL fOO PASS | with-DB: suite PASS fOO PASS | applied 3 miss 0  bash-side-effects: 1
+envcheck exit 0

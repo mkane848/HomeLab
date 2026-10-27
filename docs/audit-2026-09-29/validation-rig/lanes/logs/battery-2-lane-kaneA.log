@@ -1,0 +1,21 @@
+kane-07-find-qualifier-type ref exit=0
+kane-07-find-qualifier-type srconly exit=1
+kane-07-find-qualifier-type testsonly exit=1
+kane-07-find-qualifier-type ref.det1 exit=0
+TASK DONE kane-07-find-qualifier-type 09:50:03
+kane-08-aristocrats-false-positives ref exit=0
+kane-08-aristocrats-false-positives srconly exit=1
+kane-08-aristocrats-false-positives testsonly exit=1
+kane-08-aristocrats-false-positives ref.det1 exit=0
+TASK DONE kane-08-aristocrats-false-positives 09:51:24
+kane-09-colour-filter-subset ref exit=0
+kane-09-colour-filter-subset srconly exit=1
+kane-09-colour-filter-subset testsonly exit=1
+kane-09-colour-filter-subset ref.det1 exit=0
+TASK DONE kane-09-colour-filter-subset 09:52:57
+kane-10-combo-permalink-scheme ref exit=0
+kane-10-combo-permalink-scheme srconly exit=1
+kane-10-combo-permalink-scheme testsonly exit=1
+kane-10-combo-permalink-scheme ref.det1 exit=0
+TASK DONE kane-10-combo-permalink-scheme 09:54:15
+LANE DONE 09:54:15

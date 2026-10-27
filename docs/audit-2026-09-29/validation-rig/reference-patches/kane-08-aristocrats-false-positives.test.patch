@@ -1,0 +1,86 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index 06cfeab..40f8255 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -691,6 +691,38 @@ describe('the right archetype for the right object', () => {
+     // The creature-token buff is a go-wide payoff in its own right.
+     assert.ok(rolesOf(signals, 'goWide').includes('rewards'));
+   });
++
++  it('a "would die ... instead" replacement effect is not a death-trigger reward', () => {
++    // Flame-Blessed Bolt — real oracle text. Nothing actually dies here —
++    // the replacement effect exiles the creature instead — so this is not
++    // an Aristocrats payoff, even though it names "die" in a "whenever/if"
++    // shape.
++    const bolt = makeCard({
++      name: 'Flame-Blessed Bolt',
++      type_line: 'Instant',
++      oracle_text:
++        'Flame-Blessed Bolt deals 2 damage to target creature or planeswalker. If that creature or ' +
++        'planeswalker would die this turn, exile it instead.',
++    });
++    assert.strictEqual(find(signalsFor(bolt), 'aristocrats'), undefined);
++  });
++
++  it('a combat-kill trigger on an opponent\'s creature is not "your board dying" value', () => {
++    // Markov Enforcer — real oracle text. "A creature dealt damage by this
++    // creature" is whatever it just fought — an opponent's creature — not
++    // your own board, so this is combat/removal value, not Aristocrats.
++    const markov = makeCard({
++      name: 'Markov Enforcer',
++      type_line: 'Creature — Vampire Soldier',
++      creature_types: JSON.stringify(['Vampire', 'Soldier']),
++      oracle_text:
++        'Whenever this creature or another Vampire you control enters, this creature fights up to one ' +
++        'target creature an opponent controls.\n' +
++        'Whenever a creature dealt damage by this creature this turn dies, create a Blood token. (It\'s ' +
++        'an artifact with "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.")',
++    });
++    assert.strictEqual(find(signalsFor(markov, ['Vampire']), 'aristocrats'), undefined);
++  });
+ });
+ 
+ describe('qualifiers: a restricted payoff only pays off its own subtype', () => {
+@@ -973,6 +1005,42 @@ describe('sacrificesACreature/sacrificesKind read the cost side only', () => {
+     });
+     assert.ok(!rolesOf(signalsFor(edict), 'aristocrats').includes('consumes'));
+   });
++
++  it('a triggered ability\'s condition does not bleed into its unrelated effect across a comma', () => {
++    // Blood Hypnotist — real oracle text. Never sacrifices a creature at
++    // all (Blood tokens are artifacts) — "target creature can't block" is
++    // the unrelated effect half of the trigger, past the comma, not the
++    // sacrificed object. The old unbounded scan (a plain "everything before
++    // the colon, or the whole clause" cut, with no colon here at all)
++    // credited this as a sacrifice outlet purely because "creature"
++    // appeared later in the same sentence.
++    const bloodHypnotist = makeCard({
++      name: 'Blood Hypnotist',
++      type_line: 'Creature — Vampire',
++      creature_types: JSON.stringify(['Vampire']),
++      oracle_text:
++        "This creature can't block.\nWhenever you sacrifice one or more Blood tokens, target creature " +
++        "can't block this turn. This ability triggers only once each turn.",
++    });
++    assert.strictEqual(find(signalsFor(bloodHypnotist), 'aristocrats'), undefined);
++  });
++
++  it('creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet', () => {
++    // Greater Gargadon — real oracle text. Creature is a real, literal
++    // choice, but co-equal with two non-creature resources (artifact,
++    // land) with no preference toward it — Aristocrats' own description
++    // draws the line at "deliberately creature-specific: sacrificing an
++    // artifact or a land is a different deck," and this card's actual
++    // deckbuilding role is suspend acceleration, not a sacrifice outlet.
++    const gargadon = makeCard({
++      name: 'Greater Gargadon',
++      type_line: 'Creature — Beast',
++      oracle_text:
++        'Suspend 10—{R}\nSacrifice an artifact, creature, or land: Remove a time counter from this ' +
++        'card. Activate only if this card is suspended.',
++    });
++    assert.ok(!rolesOf(signalsFor(gargadon), 'aristocrats').includes('consumes'));
++  });
+ });
+ 
+ describe('reminder-only keywords get explicit matchers', () => {

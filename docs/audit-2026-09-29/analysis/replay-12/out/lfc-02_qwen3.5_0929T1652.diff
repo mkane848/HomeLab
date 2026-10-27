@@ -1,0 +1,85 @@
+diff --git a/src/services/scryfall.ts b/src/services/scryfall.ts
+index 08c4f33..bd14bd1 100644
+--- a/src/services/scryfall.ts
++++ b/src/services/scryfall.ts
+@@ -1,4 +1,3 @@
+-import { PROJECT_NAME, PROJECT_REPOSITORY } from '../utils/constants.js';
+ import { buildManapoolUrl } from '../utils/manapool.js';
+ import type { CardFinish, CardVariant, ResolvedCard } from '../types/index.js';
+ import { normalizeCardName } from '../utils/validation.js';
+@@ -10,6 +9,16 @@ const SCRYFALL_BASE = 'https://api.scryfall.com';
+ const MIN_REQUEST_INTERVAL_MS = 100;
+ const SET_LIST_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+ const ATTEMPT_TIMEOUT_MS = 5000;
++const PACKAGE_JSON_PATH = new URL('../package.json', import.meta.url).href;
++
++async function getPackageVersion(): Promise<{ name?: string; version?: string }> {
++  try {
++    const pkg = await import(PACKAGE_JSON_PATH);
++    return pkg.default || {};
++  } catch {
++    return { name: 'LFCbot', version: '0.0.0' };
++  }
++}
+ 
+ interface ScryfallCard {
+   id?: string | null;
+@@ -77,9 +86,12 @@ async function scryfallFetchOnce<T>(path: string): Promise<T | null> {
+   const controller = new AbortController();
+   const timeout = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+   try {
++    const pkg = await getPackageVersion();
++    const userAgent = `${pkg.name ?? 'LFCbot'}/${pkg.version ?? '0.0.0'}`;
+     const response = await fetch(`${SCRYFALL_BASE}${path}`, {
+       headers: {
+-        'User-Agent': `${PROJECT_NAME}/${PROJECT_REPOSITORY}`,
++        'User-Agent': userAgent,
++        'Accept': 'application/json',
+       },
+       signal: controller.signal,
+     });
+diff --git a/tests/services/scryfall.test.ts b/tests/services/scryfall.test.ts
+index 6e7c268..d64483b 100644
+--- a/tests/services/scryfall.test.ts
++++ b/tests/services/scryfall.test.ts
+@@ -1,8 +1,13 @@
+-import { afterEach, describe, expect, it, vi } from 'vitest';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import { closeDb } from '../../src/db/index.js';
++import { runMigrations } from '../../src/db/migrate.js';
+ import { autocompleteCards, autocompleteSets, resolveCard } from '../../src/services/scryfall.js';
+-import { setupTestDb } from '../helpers/db.js';
+ 
+-setupTestDb();
++beforeEach(() => {
++  process.env.DATABASE_PATH = ':memory:';
++  closeDb();
++  runMigrations();
++});
+ 
+ afterEach(() => {
+   vi.unstubAllGlobals();
+@@ -290,4 +295,23 @@ describe('scryfall service', () => {
+     const choices = await autocompleteSets('mh3');
+     expect(choices).toEqual([{ name: 'Modern Horizons 3 (MH3)', value: 'MH3' }]);
+   });
++
++  it('sends Accept and name/version User-Agent headers on every request', async () => {
++    vi.stubGlobal(
++      'fetch',
++      vi.fn().mockResolvedValue(jsonResponse({ data: ['test'] })),
++    );
++    const fetchMock = vi.mocked(fetch);
++    await expect(autocompleteCards('test')).resolves.toEqual(['test']);
++
++    const calls = fetchMock.mock.calls;
++    expect(calls).not.toHaveLength(0);
++    const [url, init] = calls[0] as [string, RequestInit?];
++    expect(init).toBeDefined();
++    const headers = init?.headers as Record<string, string>;
++    expect(typeof headers?.['Accept']).toBe('string');
++    expect(headers?.['Accept']).toMatch(/^application\/json/);
++    expect(typeof headers?.['User-Agent']).toBe('string');
++    expect(headers?.['User-Agent']).toMatch(/^LFCbot\/\d+\.\d+\.\d+/);
++  });
+ });

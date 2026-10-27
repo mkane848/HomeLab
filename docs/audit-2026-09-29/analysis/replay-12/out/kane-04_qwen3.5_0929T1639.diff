@@ -1,0 +1,69 @@
+diff --git a/apps/commander-recommender/server/src/services/singleton.test.ts b/apps/commander-recommender/server/src/services/singleton.test.ts
+index 43437f5..81f885d 100644
+--- a/apps/commander-recommender/server/src/services/singleton.test.ts
++++ b/apps/commander-recommender/server/src/services/singleton.test.ts
+@@ -97,6 +97,33 @@ describe('singletonLimit', () => {
+       oracle_text: 'A deck can have up to nine cards named Nazgûl.',
+     });
+     assert.strictEqual(singletonLimit(nazgul), 9);
++    const plainDigit = makeCard({
++      name: 'Test Card',
++      oracle_text: 'A deck can have up to 7 cards named Test Card.',
++    });
++    assert.strictEqual(singletonLimit(plainDigit), 7);
++    const plainDigitEight = makeCard({
++      name: 'Test Card 2',
++      oracle_text: 'A deck can have up to 12 cards named Test Card 2.',
++    });
++    assert.strictEqual(singletonLimit(plainDigitEight), 12);
++  });
++
++  it('a genuinely unparseable "up to N" phrase defaults to 1 and warns', () => {
++    // spy on console.warn to verify it was called
++    const originalWarn = console.warn;
++    let warnCalled = false;
++    console.warn = () => {
++      warnCalled = true;
++    };
++    const unparseable = makeCard({
++      name: 'Test Card',
++      oracle_text: 'A deck can have up to thirteen cards named Test Card.',
++    });
++    const limit = singletonLimit(unparseable);
++    console.warn = originalWarn;
++    assert.strictEqual(limit, 1, 'returns conservative default of 1 for unparseable value');
++    assert.strictEqual(warnCalled, true, 'emits a warning when value cannot be determined');
+   });
+ });
+ 
+diff --git a/apps/commander-recommender/server/src/services/singleton.ts b/apps/commander-recommender/server/src/services/singleton.ts
+index 8f4d655..cc29e7c 100644
+--- a/apps/commander-recommender/server/src/services/singleton.ts
++++ b/apps/commander-recommender/server/src/services/singleton.ts
+@@ -52,8 +52,24 @@ export function singletonLimit(row: CardRow): number {
+   const capped = UP_TO_N.exec(text);
+   if (capped) {
+     // Group 1 is mandatory in UP_TO_N, so a match always populates it.
+-    const limit = NUMBER_WORDS[capped[1]!.toLowerCase()];
+-    if (limit) return limit;
++    const word = capped[1]!.toLowerCase();
++    // Try the spelled-out word first (e.g., "seven"), then fall back to a
++    // plain digit (e.g., "7"). Only warn if neither matches.
++    const parsed = Number(word);
++    if (NUMBER_WORDS[word]) {
++      return NUMBER_WORDS[word];
++    }
++    if (!isNaN(parsed)) {
++      return parsed;
++    }
++    // Neither a known word nor a valid number — genuinely unparseable.
++    console.warn(
++      `singletonLimit: could not determine limit from oracle text: "${text?.slice(
++        0,
++        80
++      )}"`,
++    );
++    return 1;
+   }
+ 
+   return 1;

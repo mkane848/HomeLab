@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the 2026-09-29 benchmark audit's working material is kept in the repo (2026-10-27).** `docs/audit-2026-09-29/`
+  holds what the audit session had only in its scratch directory, which is lost when the container is reclaimed: the
+  independent review and its section 9 update, the per-attempt table, the 29-row candidate list, the briefs and prompts
+  of all 23 subagents, the mining agents' notes and verification logs, the scripts behind the recomputed figures and the
+  replay of the 12 passes, the validation rig (the stand-in `opencode`, 36 reference patches, both batteries of runs, the
+  mutation checks, the harness mutants) and an extract of the conversation. Its README maps each finding to the PR that
+  acted on it, records that the rig could not see the 280 KB instruction file that got `asohav-05` and `asohav-06`
+  retired, and lists what was left out. Files are copied byte for byte (`MANIFEST.tsv` has each one's origin and
+  SHA-256); nothing under `tests/` changed.
 - **fix: scripts/config audit (2026-10-26).** Found by a read-only audit; every fix is in a shell or PowerShell script, a profile or a config file.
   - Profiles: `select-model.sh` sourced the profile inside its own child process, so nothing reached the caller; it now prints
     the `source` line (`--print` for `eval`). `dev-desktop-only.ps1` read `.env` one directory too high and exported no

@@ -1,0 +1,9 @@
+
+ RUN  v5.0.0 /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/audit12/wt/lfc-03
+
+
+ Test Files  1 passed (1)
+      Tests  31 passed (31)
+   Start at  00:05:43
+   Duration  982ms (transform 42%, import 36%, tests 22%)
+

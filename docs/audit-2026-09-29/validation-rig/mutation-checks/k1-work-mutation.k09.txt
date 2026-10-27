@@ -1,0 +1,14 @@
+__baseline__                                17/17   failed=0
+old_intersection                            14/17   failed=3
+      x filters color include keeps only identities that fit inside the included colors
+      x filters color include keeps a colourless commander — the empty identity is a subset of anything
+      x filters Abzan does not survive an R+G include
+subset_but_colourless_dropped               15/17   failed=2
+      x filters color include keeps a colourless commander — the empty identity is a subset of anything
+      x filters Abzan does not survive an R+G include
+include_means_contains_all                  14/17   failed=3
+      x filters color include keeps only identities that fit inside the included colors
+      x filters color include keeps a colourless commander — the empty identity is a subset of anything
+      x filters Abzan does not survive an R+G include
+exclude_dropped                             16/17   failed=1
+      x filters color exclude drops anything touching an excluded color

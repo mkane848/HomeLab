@@ -1,0 +1,1407 @@
+===== asohav-03-glossary-depth-flatten.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-03-glossary-depth-flatten - ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2694 chars (sha256 89DA8B3500EA)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/glossary.test.ts, packages/shared/src/glossary.ts
+  [PASS] suite  -> green after change (Tests  21 passed (21))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain); flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets; (2 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 3003542 pass on the model's source: Tests  21 passed (21)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-03-glossary-depth-flatten.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-03-glossary-depth-flatten - ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets ===
+    adding throwaway worktree at 5c891936847a844bb23dd74b02aa1fa6f1525f84 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2694 chars (sha256 89DA8B3500EA)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/glossary.test.ts, packages/shared/src/glossary.ts
+  [PASS] suite  -> green after change (Tests  21 passed (21))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain); flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets; (2 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 3003542 pass on the model's source: Tests  21 passed (21)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-03-glossary-depth-flatten.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-03-glossary-depth-flatten - ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2694 chars (sha256 89DA8B3500EA)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/glossary.ts
+  [FAIL] suite  -> suite fails after change: does not link past MAX_DEPTH; (1 failed)
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 3003542 pass on the model's source: Tests  21 passed (21)
+
+Results: 5 PASS, 2 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-03-glossary-depth-flatten.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-03-glossary-depth-flatten - ASoHaVCompanionApp: a glossary definition nested one bubble deep must render as plain text, with explicit [display][id] tags flattened to their display text instead of leaking raw brackets ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2694 chars (sha256 89DA8B3500EA)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/glossary.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain); flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets; (2 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 3003542 - Tests  2 failed | 19 passed (21) - does not link past MAX_DEPTH (0 as of 0.25.0 — one nested definition renders plain); flattens an explicit tag to its plain display text past MAX_DEPTH instead of leaking brackets; (2 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-04-neutral-status-polarity.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-04-neutral-status-polarity - ASoHaVCompanionApp: a Neutral Status must not count as a hindering roll modifier or trigger Subdued ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  22 passed (22))
+  prompt: 2695 chars (sha256 095E3B4B02E3)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/engine.test.ts, packages/shared/src/engine.ts
+  [PASS] suite  -> green after change (Tests  24 passed (24))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: never counts a Neutral Status as helpful or hindering; does not flag Subdued for a Neutral Status at the cap either — only Negative triggers it; (2 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2729b58 pass on the model's source: Tests  24 passed (24)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-04-neutral-status-polarity.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-04-neutral-status-polarity - ASoHaVCompanionApp: a Neutral Status must not count as a hindering roll modifier or trigger Subdued ===
+    adding throwaway worktree at f15a58cb9ef29c3b511caa0d88949a7b10686874 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  22 passed (22))
+  prompt: 2695 chars (sha256 095E3B4B02E3)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/engine.test.ts, packages/shared/src/engine.ts
+  [PASS] suite  -> green after change (Tests  24 passed (24))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: never counts a Neutral Status as helpful or hindering; does not flag Subdued for a Neutral Status at the cap either — only Negative triggers it; (2 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2729b58 pass on the model's source: Tests  24 passed (24)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-04-neutral-status-polarity.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-04-neutral-status-polarity - ASoHaVCompanionApp: a Neutral Status must not count as a hindering roll modifier or trigger Subdued ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  22 passed (22))
+  prompt: 2695 chars (sha256 095E3B4B02E3)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/engine.ts
+  [PASS] suite  -> green after change (Tests  22 passed (22))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2729b58 pass on the model's source: Tests  24 passed (24)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-04-neutral-status-polarity.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-04-neutral-status-polarity - ASoHaVCompanionApp: a Neutral Status must not count as a hindering roll modifier or trigger Subdued ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  22 passed (22))
+  prompt: 2695 chars (sha256 095E3B4B02E3)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/engine.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: never counts a Neutral Status as helpful or hindering; does not flag Subdued for a Neutral Status at the cap either — only Negative triggers it; (2 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 2729b58 - Tests  2 failed | 22 passed (24) - never counts a Neutral Status as helpful or hindering; does not flag Subdued for a Neutral Status at the cap either — only Negative triggers it; (2 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-05-library-write-validation.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-05-library-write-validation - ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  14 passed (14))
+  prompt: 2797 chars (sha256 E035793F95A4)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/adminLogic.ts, apps/server/src/routes/library.test.ts, apps/server/src/routes/library.ts
+  [PASS] suite  -> green after change (Tests  24 passed (24))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: refuses to create a record missing a required field; refuses a required field present but blank, not just absent; applies a declared default when the field is omitted; generates the Id itself and ignores a client-supplied one; still refuses an update that blanks a required field; refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0; refuses a non-integer track length; refuses an unknown setting key rather than storing it unread; (8 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-05-library-write-validation.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-05-library-write-validation - ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it ===
+    adding throwaway worktree at 79b369d7ba01ed02affa6534a33ef698d17b5518 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+    setup: npx tsc -p tsconfig.json (in packages/shared)
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  14 passed (14))
+  prompt: 2797 chars (sha256 E035793F95A4)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/adminLogic.ts, apps/server/src/routes/library.test.ts, apps/server/src/routes/library.ts
+  [PASS] suite  -> green after change (Tests  24 passed (24))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: refuses to create a record missing a required field; refuses a required field present but blank, not just absent; applies a declared default when the field is omitted; generates the Id itself and ignores a client-supplied one; still refuses an update that blanks a required field; refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0; refuses a non-integer track length; refuses an unknown setting key rather than storing it unread; (8 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-05-library-write-validation.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-05-library-write-validation - ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  14 passed (14))
+  prompt: 2797 chars (sha256 E035793F95A4)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/adminLogic.ts, apps/server/src/routes/library.ts
+  [PASS] suite  -> green after change (Tests  14 passed (14))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 5 PASS, 1 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-05-library-write-validation.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-05-library-write-validation - ASoHaVCompanionApp: the Content Admin library write routes must validate the request body instead of trusting it ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  14 passed (14))
+  prompt: 2797 chars (sha256 E035793F95A4)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/server/src/routes/library.ts, apps/server/src/adminLogic.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: refuses to create a record missing a required field; refuses a required field present but blank, not just absent; applies a declared default when the field is omitted; generates the Id itself and ignores a client-supplied one; still refuses an update that blanks a required field; refuses the NaN-to-null a number input produced for GlossaryAutoLink before 0.51.0; refuses a non-integer track length; refuses an unknown setting key rather than storing it unread; (8 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 3 PASS, 3 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-06-bond-cap-setting.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-06-bond-cap-setting - ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  93 passed (93))
+  prompt: 2508 chars (sha256 1835952E9426)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/logic.test.ts, packages/shared/src/logic.ts
+  [PASS] suite  -> green after change (Tests  97 passed (97))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: does not treat a 5/5 Bond as locked when the authored cap is 7; rolls a spent-below-zero track back to cap - 1, not a hardcoded 4; clamps an accepted MarkBond and a Forge to the authored cap; (3 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-06-bond-cap-setting.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-06-bond-cap-setting - ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5 ===
+    adding throwaway worktree at 84719041b3312cab3e49901dea20d7129bb24761 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  93 passed (93))
+  prompt: 2508 chars (sha256 1835952E9426)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/logic.test.ts, packages/shared/src/logic.ts
+  [PASS] suite  -> green after change (Tests  97 passed (97))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: does not treat a 5/5 Bond as locked when the authored cap is 7; rolls a spent-below-zero track back to cap - 1, not a hardcoded 4; clamps an accepted MarkBond and a Forge to the authored cap; (3 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-06-bond-cap-setting.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-06-bond-cap-setting - ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  93 passed (93))
+  prompt: 2508 chars (sha256 1835952E9426)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/logic.ts
+  [PASS] suite  -> green after change (Tests  93 passed (93))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 5 PASS, 1 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-06-bond-cap-setting.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-06-bond-cap-setting - ASoHaVCompanionApp: the Bond cap must follow GameSettings.BondTrackLength instead of a hardcoded 5 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  93 passed (93))
+  prompt: 2508 chars (sha256 1835952E9426)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/logic.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: does not treat a 5/5 Bond as locked when the authored cap is 7; rolls a spent-below-zero track back to cap - 1, not a hardcoded 4; clamps an accepted MarkBond and a Forge to the authored cap; (3 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 3 PASS, 3 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-07-rapport-clamp.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-07-rapport-clamp - ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  5 passed (5))
+  prompt: 2409 chars (sha256 8F82A36A716D)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/party.test.ts, apps/server/src/routes/party.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2db8a09 pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-07-rapport-clamp.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-07-rapport-clamp - ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away ===
+    adding throwaway worktree at d73d6c978f478e3aca5fb836683fcfe639debd43 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+    setup: npx tsc -p tsconfig.json (in packages/shared)
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  5 passed (5))
+  prompt: 2409 chars (sha256 8F82A36A716D)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/party.test.ts, apps/server/src/routes/party.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2db8a09 pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-07-rapport-clamp.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-07-rapport-clamp - ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  5 passed (5))
+  prompt: 2409 chars (sha256 8F82A36A716D)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/party.ts
+  [FAIL] suite  -> suite fails after change: clamps Rapport down to the track length; (1 failed)
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 2db8a09 pass on the model's source: Tests  5 passed (5)
+
+Results: 5 PASS, 2 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-07-rapport-clamp.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-07-rapport-clamp - ASoHaVCompanionApp: the party save route must keep banked Rapport above the track length instead of clamping it away ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  5 passed (5))
+  prompt: 2409 chars (sha256 8F82A36A716D)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/server/src/routes/party.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 2db8a09 - Tests  1 failed | 4 passed (5) - keeps Rapport above the track length (overflow banks until Make Camp); (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-08-end-combat-clears-strain.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-08-end-combat-clears-strain - ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  18 passed (18))
+  prompt: 2631 chars (sha256 00B17B0AB757)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/combat.test.ts, apps/server/src/routes/combat.ts
+  [PASS] suite  -> green after change (Tests  20 passed (20))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: clears every Hero's marked Strain when Combat ends; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d769699 pass on the model's source: Tests  20 passed (20)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-08-end-combat-clears-strain.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-08-end-combat-clears-strain - ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet ===
+    adding throwaway worktree at 9afb9112b0e2596edac0e7fe4055149512ab3b62 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+    setup: npx tsc -p tsconfig.json (in packages/shared)
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  18 passed (18))
+  prompt: 2631 chars (sha256 00B17B0AB757)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/combat.test.ts, apps/server/src/routes/combat.ts
+  [PASS] suite  -> green after change (Tests  20 passed (20))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: clears every Hero's marked Strain when Combat ends; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d769699 pass on the model's source: Tests  20 passed (20)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-08-end-combat-clears-strain.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-08-end-combat-clears-strain - ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  18 passed (18))
+  prompt: 2631 chars (sha256 00B17B0AB757)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/server/src/routes/combat.ts
+  [PASS] suite  -> green after change (Tests  18 passed (18))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d769699 pass on the model's source: Tests  20 passed (20)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-08-end-combat-clears-strain.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-08-end-combat-clears-strain - ASoHaVCompanionApp: ending a Combat must clear the marked Strain on every participating Hero's sheet ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  18 passed (18))
+  prompt: 2631 chars (sha256 00B17B0AB757)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/server/src/routes/combat.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: clears every Hero's marked Strain when Combat ends; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix d769699 - Tests  1 failed | 19 passed (20) - clears every Hero's marked Strain when Combat ends; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-09-seed-virtue-conformance.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-09-seed-virtue-conformance - ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  368 passed (368))
+  prompt: 2410 chars (sha256 0174F0B15812)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/seedLibrary.ts, packages/shared/src/seedLibrary.test.ts
+  [PASS] suite  -> green after change (Tests  371 passed (371))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: gives a Move whose heading names exactly one Virtue that VirtueId; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-09-seed-virtue-conformance.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-09-seed-virtue-conformance - ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name ===
+    adding throwaway worktree at 8686bf41c9ac130bd521f05e056460ca777f43bf (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  368 passed (368))
+  prompt: 2410 chars (sha256 0174F0B15812)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/seedLibrary.ts, packages/shared/src/seedLibrary.test.ts
+  [PASS] suite  -> green after change (Tests  371 passed (371))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: gives a Move whose heading names exactly one Virtue that VirtueId; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 6 PASS, 0 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== asohav-09-seed-virtue-conformance.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-09-seed-virtue-conformance - ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  368 passed (368))
+  prompt: 2410 chars (sha256 0174F0B15812)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/shared/src/seedLibrary.ts
+  [PASS] suite  -> green after change (Tests  368 passed (368))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 5 PASS, 1 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== asohav-09-seed-virtue-conformance.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== asohav-09-seed-virtue-conformance - ASoHaVCompanionApp: the seeded Basic Moves must carry the Virtue their ruleset headings name ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  368 passed (368))
+  prompt: 2410 chars (sha256 0174F0B15812)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/shared/src/seedLibrary.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: gives a Move whose heading names exactly one Virtue that VirtueId; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [SKIP] acceptance (informational)  -> task defines no acceptance block
+
+Results: 3 PASS, 3 FAIL, 0 WARN, 2 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-07-find-qualifier-type.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-07-find-qualifier-type - KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  76 passed (76))
+  prompt: 2546 chars (sha256 1A842FA4FF31)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  77 passed (77))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 731e985 pass on the model's source: Tests  77 passed (77)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-07-find-qualifier-type.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-07-find-qualifier-type - KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause ===
+    adding throwaway worktree at 10889539112089dcd122014f934520f9f11cf558 (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  76 passed (76))
+  prompt: 2546 chars (sha256 1A842FA4FF31)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  77 passed (77))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 731e985 pass on the model's source: Tests  77 passed (77)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-07-find-qualifier-type.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-07-find-qualifier-type - KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  76 passed (76))
+  prompt: 2546 chars (sha256 1A842FA4FF31)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  76 passed (76))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 731e985 pass on the model's source: Tests  77 passed (77)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-07-find-qualifier-type.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-07-find-qualifier-type - KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  76 passed (76))
+  prompt: 2546 chars (sha256 1A842FA4FF31)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/commander-recommender/server/src/services/signals.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 731e985 - Tests  1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-08-aristocrats-false-positives.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-08-aristocrats-false-positives - KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  234 passed (234))
+  prompt: 2771 chars (sha256 C1D53A7D43ED)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  238 passed (238))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; (4 failed); creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e952198 pass on the model's source: Tests  238 passed (238)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-08-aristocrats-false-positives.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-08-aristocrats-false-positives - KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs) ===
+    adding throwaway worktree at 45095ab148d27fdbe20765a112d1dd7d743e4fcd (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  234 passed (234))
+  prompt: 2771 chars (sha256 C1D53A7D43ED)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  238 passed (238))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet; (4 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e952198 pass on the model's source: Tests  238 passed (238)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-08-aristocrats-false-positives.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-08-aristocrats-false-positives - KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  234 passed (234))
+  prompt: 2771 chars (sha256 C1D53A7D43ED)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  234 passed (234))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e952198 pass on the model's source: Tests  238 passed (238)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-08-aristocrats-false-positives.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-08-aristocrats-false-positives - KaneEnabler: four false positives in the Aristocrats signal (replacement effects, combat-kill triggers, sacrifice-cost scan, multi-resource costs) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  234 passed (234))
+  prompt: 2771 chars (sha256 C1D53A7D43ED)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/commander-recommender/server/src/services/signals.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet; (4 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e952198 - Tests  4 failed | 234 passed (238) - a "would die ... instead" replacement effect is not a death-trigger reward; a combat-kill trigger on an opponent's creature is not "your board dying" value; a triggered ability's condition does not bleed into its unrelated effect across a comma; creature listed alongside other fungible resources in a sacrifice cost is not a creature-specific outlet; (4 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-09-colour-filter-subset.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-09-colour-filter-subset - KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  16 passed (16))
+  prompt: 2456 chars (sha256 B2665D080FD1)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/client/src/lib/filters.test.ts, apps/commander-recommender/client/src/lib/filters.ts
+  [PASS] suite  -> green after change (Tests  17 passed (17))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: color include keeps only identities that fit inside the included colors; color include keeps a colourless commander — the empty identity is a subset of anything; Abzan does not survive an R+G include; (3 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e0ef290 pass on the model's source: Tests  17 passed (17)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-09-colour-filter-subset.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-09-colour-filter-subset - KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection) ===
+    adding throwaway worktree at f0abf087f92323e69a0a706e14c22b427fb80d31 (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  16 passed (16))
+  prompt: 2456 chars (sha256 B2665D080FD1)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/client/src/lib/filters.test.ts, apps/commander-recommender/client/src/lib/filters.ts
+  [PASS] suite  -> green after change (Tests  17 passed (17))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: color include keeps only identities that fit inside the included colors; color include keeps a colourless commander — the empty identity is a subset of anything; Abzan does not survive an R+G include; (3 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e0ef290 pass on the model's source: Tests  17 passed (17)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-09-colour-filter-subset.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-09-colour-filter-subset - KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  16 passed (16))
+  prompt: 2456 chars (sha256 B2665D080FD1)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/client/src/lib/filters.ts
+  [FAIL] suite  -> suite fails after change: color include keeps anything touching an included color; color include drops a colourless commander — it touches nothing; (2 failed)
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e0ef290 pass on the model's source: Tests  17 passed (17)
+
+Results: 5 PASS, 2 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-09-colour-filter-subset.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-09-colour-filter-subset - KaneEnabler: the colour include-filter must keep commanders whose colour identity fits inside the chosen colours (subset, not intersection) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  16 passed (16))
+  prompt: 2456 chars (sha256 B2665D080FD1)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/commander-recommender/client/src/lib/filters.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: color include keeps only identities that fit inside the included colors; color include keeps a colourless commander — the empty identity is a subset of anything; Abzan does not survive an R+G include; (3 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e0ef290 - Tests  3 failed | 14 passed (17) - color include keeps only identities that fit inside the included colors; color include keeps a colourless commander — the empty identity is a subset of anything; Abzan does not survive an R+G include; (3 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-10-combo-permalink-scheme.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-10-combo-permalink-scheme - KaneEnabler: a stored combo permalink must only become a link when its scheme is https ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  10 passed (10))
+  prompt: 2454 chars (sha256 E069593B2091)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/home/src/components/ComboPreferenceRow.tsx, apps/home/src/routes/Profile.test.tsx
+  [PASS] suite  -> green after change (Tests  11 passed (11))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  11 passed (11)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-10-combo-permalink-scheme.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-10-combo-permalink-scheme - KaneEnabler: a stored combo permalink must only become a link when its scheme is https ===
+    adding throwaway worktree at 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  10 passed (10))
+  prompt: 2454 chars (sha256 E069593B2091)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/home/src/components/ComboPreferenceRow.tsx, apps/home/src/routes/Profile.test.tsx
+  [PASS] suite  -> green after change (Tests  11 passed (11))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  11 passed (11)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-10-combo-permalink-scheme.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-10-combo-permalink-scheme - KaneEnabler: a stored combo permalink must only become a link when its scheme is https ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  10 passed (10))
+  prompt: 2454 chars (sha256 E069593B2091)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/home/src/components/ComboPreferenceRow.tsx
+  [PASS] suite  -> green after change (Tests  10 passed (10))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  11 passed (11)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-10-combo-permalink-scheme.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-10-combo-permalink-scheme - KaneEnabler: a stored combo permalink must only become a link when its scheme is https ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  10 passed (10))
+  prompt: 2454 chars (sha256 E069593B2091)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/home/src/components/ComboPreferenceRow.tsx) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 10 passed (11) - never renders a combo permalink with a non-https scheme, since snapshot is unvalidated jsonb; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-11-useauth-session-reject.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-11-useauth-session-reject - KaneEnabler: a rejected initial session check must not leave useAuth loading forever ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  11 passed (11))
+  prompt: 2117 chars (sha256 D962D289B25B)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/profile/src/useAuth.test.ts, packages/profile/src/useAuth.ts
+  [PASS] suite  -> green after change (Tests  12 passed (12))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: stops loading (rather than hanging forever) when the initial session check rejects; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  12 passed (12)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-11-useauth-session-reject.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-11-useauth-session-reject - KaneEnabler: a rejected initial session check must not leave useAuth loading forever ===
+    adding throwaway worktree at 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  11 passed (11))
+  prompt: 2117 chars (sha256 D962D289B25B)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/profile/src/useAuth.test.ts, packages/profile/src/useAuth.ts
+  [PASS] suite  -> green after change (Tests  12 passed (12))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: stops loading (rather than hanging forever) when the initial session check rejects; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  12 passed (12)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-11-useauth-session-reject.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-11-useauth-session-reject - KaneEnabler: a rejected initial session check must not leave useAuth loading forever ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  11 passed (11))
+  prompt: 2117 chars (sha256 D962D289B25B)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/profile/src/useAuth.ts
+  [PASS] suite  -> green after change (Tests  11 passed (11))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  12 passed (12)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-11-useauth-session-reject.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-11-useauth-session-reject - KaneEnabler: a rejected initial session check must not leave useAuth loading forever ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  11 passed (11))
+  prompt: 2117 chars (sha256 D962D289B25B)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/profile/src/useAuth.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: stops loading (rather than hanging forever) when the initial session check rejects; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 11 passed (12) - stops loading (rather than hanging forever) when the initial session check rejects; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-12-error-handler-400.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-12-error-handler-400 - KaneEnabler: a malformed JSON request body must be answered with 400, not 500 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  3 passed (3))
+  prompt: 2332 chars (sha256 38B82B03CC84)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/errorHandler.test.ts, apps/commander-recommender/server/src/errorHandler.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-12-error-handler-400.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-12-error-handler-400 - KaneEnabler: a malformed JSON request body must be answered with 400, not 500 ===
+    adding throwaway worktree at 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  3 passed (3))
+  prompt: 2332 chars (sha256 38B82B03CC84)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/errorHandler.test.ts, apps/commander-recommender/server/src/errorHandler.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-12-error-handler-400.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-12-error-handler-400 - KaneEnabler: a malformed JSON request body must be answered with 400, not 500 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  3 passed (3))
+  prompt: 2332 chars (sha256 38B82B03CC84)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/errorHandler.ts
+  [PASS] suite  -> green after change (Tests  3 passed (3))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  5 passed (5)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-12-error-handler-400.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-12-error-handler-400 - KaneEnabler: a malformed JSON request body must be answered with 400, not 500 ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  3 passed (3))
+  prompt: 2332 chars (sha256 38B82B03CC84)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/commander-recommender/server/src/errorHandler.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 4 passed (5) - reports a malformed-JSON body as 400, not 500 — express.json() marks it a client error; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-13-front-face-field.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-13-front-face-field - KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card's combined value ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2777 chars (sha256 68434547D568)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/card-model/src/scryfallFields.js, packages/card-model/src/scryfallFields.test.js
+  [PASS] suite  -> green after change (Tests  22 passed (22))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: reads only the front face for an adventure card, not the joined top-level value; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  22 passed (22)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-13-front-face-field.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-13-front-face-field - KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card's combined value ===
+    adding throwaway worktree at 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2777 chars (sha256 68434547D568)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: packages/card-model/src/scryfallFields.js, packages/card-model/src/scryfallFields.test.js
+  [PASS] suite  -> green after change (Tests  22 passed (22))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: reads only the front face for an adventure card, not the joined top-level value; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  22 passed (22)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-13-front-face-field.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-13-front-face-field - KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card's combined value ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2777 chars (sha256 68434547D568)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: packages/card-model/src/scryfallFields.js
+  [PASS] suite  -> green after change (Tests  20 passed (20))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  22 passed (22)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-13-front-face-field.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-13-front-face-field - KaneEnabler: frontFaceField must read only the front face of an adventure card, but keep a split card's combined value ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  20 passed (20))
+  prompt: 2777 chars (sha256 68434547D568)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (packages/card-model/src/scryfallFields.js) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: reads only the front face for an adventure card, not the joined top-level value; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 21 passed (22) - reads only the front face for an adventure card, not the joined top-level value; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-14-undo-toast-timer.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-14-undo-toast-timer - KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  108 passed (108))
+  prompt: 2703 chars (sha256 B20669CCDD6B)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: apps/time-counters/src/App.tsx, apps/time-counters/src/components/UndoToast.tsx, apps/time-counters/src/components/UndoToast.test.tsx
+  [PASS] suite  -> green after change (Tests  111 passed (111))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: restarts the dismiss timer when a second same-named card is removed within the window; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  111 passed (111)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-14-undo-toast-timer.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-14-undo-toast-timer - KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window ===
+    adding throwaway worktree at 605a2e080cfddee855337f1b3d0b9cf7e48ddd6e (detached)...
+    pnpm install --frozen-lockfile --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  108 passed (108))
+  prompt: 2703 chars (sha256 B20669CCDD6B)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: apps/time-counters/src/App.tsx, apps/time-counters/src/components/UndoToast.tsx, apps/time-counters/src/components/UndoToast.test.tsx
+  [PASS] suite  -> green after change (Tests  111 passed (111))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: restarts the dismiss timer when a second same-named card is removed within the window; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  111 passed (111)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== kane-14-undo-toast-timer.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-14-undo-toast-timer - KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  108 passed (108))
+  prompt: 2703 chars (sha256 B20669CCDD6B)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/time-counters/src/App.tsx, apps/time-counters/src/components/UndoToast.tsx
+  [PASS] suite  -> green after change (Tests  108 passed (108))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 271636f pass on the model's source: Tests  111 passed (111)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== kane-14-undo-toast-timer.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-14-undo-toast-timer - KaneEnabler: the undo toast's dismiss timer must restart for a second same-named card removed inside the window ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  108 passed (108))
+  prompt: 2703 chars (sha256 B20669CCDD6B)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (apps/time-counters/src/components/UndoToast.tsx, apps/time-counters/src/App.tsx) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: restarts the dismiss timer when a second same-named card is removed within the window; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 271636f - Tests  1 failed | 110 passed (111) - restarts the dismiss timer when a second same-named card is removed within the window; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-04-admin-manage-server-permission.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-04-admin-manage-server-permission - lfc-bot: /admin's default visibility must be the Manage Server permission, not the Administrator bit ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  4 passed (4))
+  prompt: 1993 chars (sha256 08C5B9716E3B)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: src/commands/admin/admin.ts, tests/commands/admin/admin.test.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: is visible by default to members with Manage Server, not only Administrators; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 0e9d123 pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-04-admin-manage-server-permission.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-04-admin-manage-server-permission - lfc-bot: /admin's default visibility must be the Manage Server permission, not the Administrator bit ===
+    adding throwaway worktree at e644702a6ce9753b69ca3291e1bdc388e2d1a7d3 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  4 passed (4))
+  prompt: 1993 chars (sha256 08C5B9716E3B)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: src/commands/admin/admin.ts, tests/commands/admin/admin.test.ts
+  [PASS] suite  -> green after change (Tests  5 passed (5))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: is visible by default to members with Manage Server, not only Administrators; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 0e9d123 pass on the model's source: Tests  5 passed (5)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-04-admin-manage-server-permission.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-04-admin-manage-server-permission - lfc-bot: /admin's default visibility must be the Manage Server permission, not the Administrator bit ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  4 passed (4))
+  prompt: 1993 chars (sha256 08C5B9716E3B)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: src/commands/admin/admin.ts
+  [PASS] suite  -> green after change (Tests  4 passed (4))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix 0e9d123 pass on the model's source: Tests  5 passed (5)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-04-admin-manage-server-permission.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-04-admin-manage-server-permission - lfc-bot: /admin's default visibility must be the Manage Server permission, not the Administrator bit ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  4 passed (4))
+  prompt: 1993 chars (sha256 08C5B9716E3B)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (src/commands/admin/admin.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: is visible by default to members with Manage Server, not only Administrators; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 0e9d123 - Tests  1 failed | 4 passed (5) - is visible by default to members with Manage Server, not only Administrators; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-05-digest-allowed-mentions.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-05-digest-allowed-mentions - lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  6 passed (6))
+  prompt: 2324 chars (sha256 A23B63C487A5)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts, tests/services/digest.test.ts
+  [PASS] suite  -> green after change (Tests  7 passed (7))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d998d2d pass on the model's source: Tests  7 passed (7)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-05-digest-allowed-mentions.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-05-digest-allowed-mentions - lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing) ===
+    adding throwaway worktree at 6f5a5038aef79c2ccdcd460d9ebfa9c6b2e16cef (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  6 passed (6))
+  prompt: 2324 chars (sha256 A23B63C487A5)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts, tests/services/digest.test.ts
+  [PASS] suite  -> green after change (Tests  7 passed (7))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel; (1 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d998d2d pass on the model's source: Tests  7 passed (7)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-05-digest-allowed-mentions.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-05-digest-allowed-mentions - lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  6 passed (6))
+  prompt: 2324 chars (sha256 A23B63C487A5)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts
+  [PASS] suite  -> green after change (Tests  6 passed (6))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix d998d2d pass on the model's source: Tests  7 passed (7)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-05-digest-allowed-mentions.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-05-digest-allowed-mentions - lfc-bot: the digest must not let a user-controlled display name mass-ping the channel (suppress mention parsing) ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  6 passed (6))
+  prompt: 2324 chars (sha256 A23B63C487A5)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (src/services/digest.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel; (1 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix d998d2d - Tests  1 failed | 6 passed (7) - suppresses mention parsing so a display name like "everyone" cannot mass-ping the channel; (1 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-07-digest-split.ref.det1.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref.det1)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-07-digest-split - lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  7 passed (7))
+  prompt: 3349 chars (sha256 13627E1AE2C0)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts, src/utils/constants.ts, tests/services/digest.test.ts
+  [PASS] suite  -> green after change (Tests  13 passed (13))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; starts a new message at a section heading rather than splitting a section that fits; hard-splits a single line longer than the limit instead of dropping it; sends a digest longer than one message as several, each within the limit; leaves the watermark unchanged when a later message fails, so nothing is dropped; (6 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e644702 pass on the model's source: Tests  13 passed (13)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-07-digest-split.ref.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-07-digest-split - lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure ===
+    adding throwaway worktree at d6a5338d809407d181b7d74eef064bbd0d81ffa2 (detached)...
+    npm ci --ignore-scripts (first run on this worktree)...
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  7 passed (7))
+  prompt: 3349 chars (sha256 13627E1AE2C0)
+  [PASS] opencode run  -> exit 0, 3 write/edit tool calls
+  [PASS] writes gate  -> 3 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts, src/utils/constants.ts, tests/services/digest.test.ts
+  [PASS] suite  -> green after change (Tests  13 passed (13))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; starts a new message at a section heading rather than splitting a section that fits; hard-splits a single line longer than the limit instead of dropping it; sends a digest longer than one message as several, each within the limit; leaves the watermark unchanged when a later message fails, so nothing is dropped; (6 failed)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e644702 pass on the model's source: Tests  13 passed (13)
+
+Results: 7 PASS, 0 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=0
+
+===== lfc-07-digest-split.srconly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label srconly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-07-digest-split - lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  7 passed (7))
+  prompt: 3349 chars (sha256 13627E1AE2C0)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: src/services/digest.ts, src/utils/constants.ts
+  [PASS] suite  -> green after change (Tests  7 passed (7))
+  [FAIL] fails-on-old  -> the test file was never modified - the pre-existing tests are green on the buggy source (the claimed branch is never exercised)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [PASS] acceptance (informational)  -> owner tests @ upstream-fix e644702 pass on the model's source: Tests  13 passed (13)
+
+Results: 6 PASS, 1 FAIL, 0 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+
+===== lfc-07-digest-split.testsonly.log =====
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/tasks/manifest.json
+model: rig/standin (label testsonly)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== lfc-07-digest-split - lfc-bot: an over-long digest must be split across several Discord messages without losing a line or advancing the watermark on a partial failure ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  7 passed (7))
+  prompt: 3349 chars (sha256 13627E1AE2C0)
+  [PASS] opencode run  -> exit 0, 1 write/edit tool calls
+  [PASS] writes gate  -> 1 write/edit calls
+  [FAIL] scope  -> no change to any source file (src/services/digest.ts, src/utils/constants.ts) - a test-only change passes a buggy source
+  [FAIL] suite  -> suite fails after change: returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; starts a new message at a section heading rather than splitting a section that fits; hard-splits a single line longer than the limit instead of dropping it; sends a digest longer than one message as several, each within the limit; leaves the watermark unchanged when a later message fails, so nothing is dropped; (6 failed)
+  [FAIL] fails-on-old  -> no source changes to revert - the pairing test would pass on broken code (test never enters its claimed branch)
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix e644702 - Tests  6 failed | 7 passed (13) - returns a digest that fits as a single message; splits a long digest into messages under the limit without losing a line; starts a new message at a section heading rather than splitting a section that fits; hard-splits a single line longer than the limit instead of dropping it; sends a digest longer than one message as several, each within the limit; leaves the watermark unchanged when a later message fails, so nothing is dropped; (6 failed)
+
+Results: 3 PASS, 3 FAIL, 1 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/final2/rig/tests/results/tasks-summary.tsv
+exit=1
+

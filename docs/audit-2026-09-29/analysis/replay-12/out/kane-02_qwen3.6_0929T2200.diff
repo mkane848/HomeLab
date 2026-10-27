@@ -1,0 +1,91 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index ff5950b..26b135d 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -468,4 +468,31 @@ describe('creature types: the vocabulary the rest of this depends on', () => {
+     assert.deepStrictEqual(parseCreatureTypes('Battle — Control Point'), []);
+     assert.deepStrictEqual(parseCreatureTypes('Creature — Goblin Wizard'), ['Goblin', 'Wizard']);
+   });
++
++  it('recognizes a multi-word creature type present in the catalog', () => {
++    // "Time Lord" is the one multi-word creature type in Magic's catalog.
++    const withTimeLord = new Set([...CREATURE_TYPES, 'Time Lord']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Time Lord', withTimeLord),
++      ['Time Lord'],
++    );
++  });
++
++  it('does not keep a prefix-only word when the full multi-word type is absent', () => {
++    // knownTypes has 'Time Lord' but the card says 'Time Wizard'.
++    // 'Time' by itself is NOT a creature type, so it must not be kept.
++    const withTimeLord = new Set([...CREATURE_TYPES, 'Time Lord']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Time Wizard', withTimeLord),
++      [],
++    );
++  });
++
++  it('still works with ordinary single-word types', () => {
++    const withTimeLord = new Set([...CREATURE_TYPES, 'Time Lord']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Goblin Knight Elf', withTimeLord),
++      ['Goblin', 'Knight', 'Elf'],
++    );
++  });
+ });
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 174304d..641a091 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -261,7 +261,49 @@ export function parseCreatureTypes(typeLine: string, knownTypes?: Set<string>):
+   if (!/\b(Creature|Kindred|Tribal)\b/.test(typePart!)) return [];
+ 
+   const words = subtypePart.trim().split(/\s+/).filter(Boolean);
+-  return knownTypes ? words.filter((word) => knownTypes.has(word)) : words;
++  if (!knownTypes) return words;
++
++  const lowerToCanonical = new Map<string, string>();
++  for (const t of knownTypes) lowerToCanonical.set(t.toLowerCase(), t);
++
++  // Separate single-word and multi-word types for efficient lookup.
++  const multiWordTypes = new Map<string, string>();
++  for (const t of knownTypes) {
++    if ((t.toLowerCase().split(' ')).length > 1) {
++      multiWordTypes.set(t.toLowerCase(), t);
++    }
++  }
++
++  const found: string[] = [];
++  const used = new Set<number>();
++
++  // First pass: greedily match multi-word types left-to-right, mark consumed
++  // positions so those words cannot later match as single words.
++  for (let pos = 0; pos < words.length; pos++) {
++    for (const [mlower, canonical] of multiWordTypes) {
++      const parts = mlower.split(' ');
++      if (words.length - pos < parts.length) continue;
++      let ok = true;
++      for (let j = 0; j < parts.length; j++) {
++        if (words[pos + j]!.toLowerCase() !== parts[j]) { ok = false; break; }
++      }
++      if (ok) {
++        for (let i = pos; i < pos + parts.length; i++) used.add(i);
++        found.push(canonical);
++        break;
++      }
++    }
++  }
++
++  // Second pass: for unused positions, check if the word matches a
++  // single-word type directly (case-insensitive).
++  for (let i = 0; i < words.length; i++) {
++    if (used.has(i)) continue;
++    const c = lowerToCanonical.get(words[i]!.toLowerCase());
++    if (c && !found.includes(c)) found.push(c);
++  }
++
++  return found;
+ }
+ 
+ /**

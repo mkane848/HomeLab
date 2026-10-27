@@ -1,0 +1,28 @@
+diff --git a/tests/services/digest.test.ts b/tests/services/digest.test.ts
+index 4d59499..4d27308 100644
+--- a/tests/services/digest.test.ts
++++ b/tests/services/digest.test.ts
+@@ -169,6 +169,23 @@ describe('runDigest delivery retry', () => {
+     expect(send).toHaveBeenCalledWith(expect.objectContaining({ allowedMentions: { parse: [] } }));
+   });
+ 
++  it('suppresses mention parsing on the DM delivery too', async () => {
++    getDb()
++      .insert(servers)
++      .values({ ...serverRow, digestMode: 'dm', adminChannelId: null, digestDmUserId: 'user-9' })
++      .run();
++    addListing();
++    const send = vi.fn().mockResolvedValue(undefined);
++    const client = {
++      users: { fetch: vi.fn().mockResolvedValue({ send }) },
++    } as unknown as Client;
++
++    const result = await runDigest(client, getServerConfig('500')!, 'scheduled');
++
++    expect(result.dmOk).toBe(true);
++    expect(send).toHaveBeenCalledWith(expect.objectContaining({ allowedMentions: { parse: [] } }));
++  });
++
+   it('gives up after repeated failures and leaves the watermark unchanged', async () => {
+     getDb().insert(servers).values(serverRow).run();
+     addListing();

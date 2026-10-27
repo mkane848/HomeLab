@@ -1,0 +1,46 @@
+diff --git a/packages/card-model/src/scryfallFields.js b/packages/card-model/src/scryfallFields.js
+index 529a0a0..9a8cabe 100644
+--- a/packages/card-model/src/scryfallFields.js
++++ b/packages/card-model/src/scryfallFields.js
+@@ -37,22 +37,31 @@ export function isTwoSidedLayout(layout) {
+ }
+ 
+ /**
+- * A card's own value for `field`, falling back to its front face's value for
+- * a multi-faced card. Never combines faces — mana cost, power, and toughness
+- * are all per-face characteristics, and a modal DFC is cast as one face or
+- * the other, never both, so joining them (e.g. "{1}{G}" and "{3}{G}{G}" into
+- * "{1}{G} // {3}{G}{G}") would show five pips for what is really one cost.
+- * Same front-face principle as commander eligibility (CR 712.4, see
+- * `frontFaceCharacteristics` in `@mtg/rules`): a card outside the
+- * battlefield is its front face only.
++ * A card's own value for `field`, reading only the front face for every
++ * multi-faced layout except `split`. Mirrors `frontFaceCharacteristics` in
++ * `@mtg/rules` (CR 712.4/709.4) exactly, and for the same reason: a modal DFC
++ * or adventurer card is cast as one face or the other, never both, so
++ * joining faces (e.g. "{1}{G}" and "{3}{G}{G}" into "{1}{G} // {3}{G}{G}")
++ * would show five pips for what is really one cost. A split card genuinely
++ * has both halves' mana cost outside the stack (CR 709.3) — its top-level
++ * value already reflects that combination correctly, so it stays unjoined.
++ *
++ * This can't simply prefer the top-level value when present: Scryfall's
++ * top-level `mana_cost`/`power`/`toughness` for a split *or adventure* card
++ * is already the two faces joined (e.g. Bonecrusher Giant's top-level
++ * `mana_cost` is `"{2}{R} // {1}{R}"`), so checking `!== undefined` would
++ * read that joined string for adventure too — the exact bug this function
++ * exists to avoid, just for a different layout than modal DFC.
+  *
+  * @param {ScryfallBulkCard} card
+  * @param {'mana_cost' | 'power' | 'toughness'} field
+  * @returns {string | undefined}
+  */
+ export function frontFaceField(card, field) {
+-  if (card[field] !== undefined) return card[field];
+-  return card.card_faces?.[0]?.[field];
++  const faces = card.card_faces;
++  const useFrontOnly = Array.isArray(faces) && faces.length > 0 && card.layout !== 'split';
++  if (useFrontOnly) return faces[0]?.[field];
++  return card[field];
+ }
+ 
+ /**

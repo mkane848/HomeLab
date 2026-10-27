@@ -1,0 +1,18 @@
+tasks manifest: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/rig/tests/tasks/manifest.json
+model: rig/standin (label ref)
+ollama: n/a (rig is not an Ollama provider) | opencode: rig-standin | num_ctx: n/a | limit.output: unknown
+=== kane-07-find-qualifier-type - KaneEnabler: a payoff must qualify by the creature type it actually restricts, not the first type word in its clause ===
+  [PASS] baseline  -> suite green on untouched branch tip (Tests  76 passed (76))
+  prompt: 50 chars (sha256 64F3543B3D78)
+  [PASS] opencode run  -> exit 0, 2 write/edit tool calls
+  [PASS] writes gate  -> 2 write/edit calls
+  [PASS] scope  -> diff limited to: apps/commander-recommender/server/src/services/signals.test.ts, apps/commander-recommender/server/src/services/signals.ts
+  [PASS] suite  -> green after change (Tests  77 passed (77))
+  [PASS] fails-on-old  -> suite fails with source reverted, test kept: qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+  [WARN] fails-on-old  -> stash pop failed - worktree may hold stashed changes; inspecting recommended
+  [SKIP] typecheck (scoped)  -> task defines no typecheck block - nothing compiled, nothing claimed
+  [WARN] acceptance (informational)  -> FAIL: owner tests @ upstream-fix 731e985 - Tests  1 failed | 76 passed (77) - qualifies by the type the payoff actually restricts, not the first type word in the clause; (1 failed)
+
+Results: 6 PASS, 0 FAIL, 2 WARN, 1 SKIP
+Summary: 1 row(s) appended to /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/rig/tests/results/tasks-summary.tsv
+exit=0

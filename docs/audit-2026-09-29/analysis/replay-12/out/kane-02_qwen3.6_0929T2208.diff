@@ -1,0 +1,102 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index ff5950b..8faaa5f 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -468,4 +468,51 @@ describe('creature types: the vocabulary the rest of this depends on', () => {
+     assert.deepStrictEqual(parseCreatureTypes('Battle — Control Point'), []);
+     assert.deepStrictEqual(parseCreatureTypes('Creature — Goblin Wizard'), ['Goblin', 'Wizard']);
+   });
++
++  it('a multi-word creature type present in knownTypes is kept as one entry, not dropped', () => {
++    // "Time Lord" is the only real multi-word creature type in Magic.
++    const types = new Set(['Time Lord', 'Goblin']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Time Lord', types),
++      ['Time Lord'],
++    );
++  });
++
++  it('a multi-word type appearing in the middle of subtype text is found', () => {
++    const types = new Set(['Time Lord', 'Wizard']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Elder Time Lord Wizard', types),
++      ['Time Lord', 'Wizard'],
++    );
++  });
++
++  it('a word that is the first word of a known multi-word type but is not part of it is not kept on its own', () => {
++    // knownTypes has "Time Lord" but NOT "Time". "Time Wizard" is not a known type.
++    // Neither "Time" alone nor any partial match should survive.
++    const types = new Set(['Time Lord', 'Wizard']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Time Wizard', types),
++      ['Wizard'],
++    );
++  });
++
++  it('single-word types still work exactly as before', () => {
++    const types = new Set(['Goblin', 'Wizard', 'Cat']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Goblin Wizard', types),
++      ['Goblin', 'Wizard'],
++    );
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Cat Warrior', types),
++      ['Cat'], // Warrior not in knownTypes
++    );
++  });
++
++  it('multiple multi-word types are each found independently', () => {
++    const types = new Set(['Time Lord', 'Spirit Warrior', 'Human']);
++    assert.deepStrictEqual(
++      parseCreatureTypes('Creature — Time Lord Spirit Warrior', types),
++      ['Time Lord', 'Spirit Warrior'],
++    );
++  });
+ });
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 174304d..f3b8299 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -260,8 +260,39 @@ export function parseCreatureTypes(typeLine: string, knownTypes?: Set<string>):
+   // whose subtype happened to read "Creature" would otherwise slip through.
+   if (!/\b(Creature|Kindred|Tribal)\b/.test(typePart!)) return [];
+ 
+-  const words = subtypePart.trim().split(/\s+/).filter(Boolean);
+-  return knownTypes ? words.filter((word) => knownTypes.has(word)) : words;
++  const raw = subtypePart.trim().split(/\s+/).filter(Boolean);
++
++  // knownTypes is a Set whose keys are the canonical types (e.g. "Time Lord").
++  // We build a set of what's available so multi-word types can be recognised
++  // before falling back to the single-word path.
++  if (knownTypes) {
++    // 1) Look for multi-word matches first (longest token sequences that form a known type).
++    const found = new Set<string>();
++    let i = 0;
++    while (i < raw.length) {
++      let best = 0;
++      for (let len = Math.min(5, raw.length - i); len >= 2; len--) {
++        if (len < best) break; // already found a longer match starting here
++        const candidate = raw.slice(i, i + len).join(' ');
++        if (knownTypes.has(candidate)) {
++          best = len;
++        }
++      }
++      if (best > 0) {
++        found.add(raw.slice(i, i + best).join(' '));
++        i += best;
++      } else {
++        // 2) No multi-word match; check single word against catalog.
++        if (knownTypes.has(raw[i])) {
++          found.add(raw[i]);
++        }
++        i++;
++      }
++    }
++    return [...found];
++  }
++
++  return raw;
+ }
+ 
+ /**

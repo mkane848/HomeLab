@@ -27,6 +27,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [llamacpp-trial.md](llamacpp-trial.md) | llama.cpp engine trial: runbook and results |
 | [main-seat-trial.md](main-seat-trial.md) | The plain-language trial that chose the main seat |
 | [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) | What each harness measures, what to stop claiming (the second was written by a Claude subagent) |
+| [audit-2026-09-29/](audit-2026-09-29/README.md) | Working material of the 2026-09-29 benchmark audit: the independent review, mining notes, validation rig and its runs, and the conversation |
 | [methodology-research.md](methodology-research.md) | Methodology and community resources (2026-09-24; superseded in places by the reviews above) |
 | [planner-tests-experiment.md](planner-tests-experiment.md) | Experiment 3 design. Not yet run |
 | [review-gate/README.md](review-gate/README.md) | Can a local LLM gate code review? Answer 2026-09-19: no (n=18, with a floor effect) |

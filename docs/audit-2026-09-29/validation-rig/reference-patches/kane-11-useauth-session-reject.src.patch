@@ -1,0 +1,32 @@
+diff --git a/packages/profile/src/useAuth.ts b/packages/profile/src/useAuth.ts
+index 9a3c0de..1aa922f 100644
+--- a/packages/profile/src/useAuth.ts
++++ b/packages/profile/src/useAuth.ts
+@@ -27,11 +27,22 @@ export function useAuth(): AuthState {
+     if (!supabase) return;
+     let cancelled = false;
+ 
+-    supabase.auth.getSession().then(({ data }) => {
+-      if (cancelled) return;
+-      setUser(data.session?.user ?? null);
+-      setLoading(false);
+-    });
++    supabase.auth
++      .getSession()
++      .then(({ data }) => {
++        if (cancelled) return;
++        setUser(data.session?.user ?? null);
++        setLoading(false);
++      })
++      .catch(() => {
++        // getSession() normally resolves rather than rejects, but if the
++        // underlying fetch itself throws (network failure, CSP block), a
++        // missing .catch here would leave loading stuck true forever — every
++        // consumer (AccountMenu, the /profile route) gates its render on it,
++        // so this degrades to "no session" instead of an eternal spinner.
++        if (cancelled) return;
++        setLoading(false);
++      });
+ 
+     const {
+       data: { subscription },

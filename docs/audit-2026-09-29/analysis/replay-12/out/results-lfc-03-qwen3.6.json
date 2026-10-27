@@ -1,0 +1,165 @@
+[
+ {
+  "label": "lfc-03|qwen3.6|09-29 22:39",
+  "stem": "lfc-03_qwen3.6_0929T2239",
+  "task": "lfc-03-status-transition-guard",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:39:28",
+  "writes": 8,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-223928.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/listings.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/listings.ts",
+   "tests/services/listings.test.ts",
+   "src/services/listings.ts.rej"
+  ],
+  "out_of_scope": [
+   "src/services/listings.ts.rej"
+  ],
+  "stat": " 2 files changed, 73 insertions(+)",
+  "suite": {
+   "exit": 0,
+   "summary": "28 28",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "3 25 28",
+   "fails": [
+    "status transition matrix > fulfilled -> fulfilled throws and leaves status unchanged",
+    "status transition matrix > deleted -> fulfilled throws and leaves status unchanged",
+    "status transition matrix > deleted -> deleted throws and leaves status unchanged"
+   ]
+  },
+  "weakening": {
+   "tests/services/listings.test.ts": {
+    "base_tests": 21,
+    "now_tests": 28,
+    "lost_names": [],
+    "base_expects": 54,
+    "now_expects": 66,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "lfc-03|qwen3.6|09-29 22:46",
+  "stem": "lfc-03_qwen3.6_0929T2246",
+  "task": "lfc-03-status-transition-guard",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:46:11",
+  "writes": 4,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-224611.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/listings.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "exact replace"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/listings.ts",
+   "tests/services/listings.test.ts",
+   "src/services/listings.ts.rej"
+  ],
+  "out_of_scope": [
+   "src/services/listings.ts.rej"
+  ],
+  "stat": " 2 files changed, 111 insertions(+)",
+  "suite": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "7 24 31",
+   "fails": [
+    "status transition guard > active -> fulfilled then active -> fulfilled again throws",
+    "status transition guard > active -> deleted then active -> deleted again throws",
+    "status transition guard > active -> fulfilled then fulfilled -> fulfilled throws",
+    "status transition guard > active -> deleted then deleted -> fulfilled throws",
+    "status transition guard > active -> fulfilled then fulfilled -> active throws via fulfillListing",
+    "status transition guard > throws for fulfilled -> active transition via softDeleteListing (blocked)"
+   ]
+  },
+  "weakening": {
+   "tests/services/listings.test.ts": {
+    "base_tests": 21,
+    "now_tests": 31,
+    "lost_names": [],
+    "base_expects": 54,
+    "now_expects": 81,
+    "removed_base_lines": []
+   }
+  }
+ }
+]

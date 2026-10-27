@@ -1,0 +1,9 @@
+asohav-05-library-write-validation ref exit=0
+asohav-05-library-write-validation srconly exit=1
+asohav-05-library-write-validation testsonly exit=1
+asohav-07-rapport-clamp ref exit=0
+asohav-07-rapport-clamp srconly exit=1
+asohav-07-rapport-clamp testsonly exit=1
+asohav-08-end-combat-clears-strain ref exit=0
+asohav-08-end-combat-clears-strain srconly exit=1
+asohav-08-end-combat-clears-strain testsonly exit=1

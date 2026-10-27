@@ -1,0 +1,57 @@
+diff --git a/apps/time-counters/src/components/UndoToast.test.tsx b/apps/time-counters/src/components/UndoToast.test.tsx
+new file mode 100644
+index 0000000..735e313
+--- /dev/null
++++ b/apps/time-counters/src/components/UndoToast.test.tsx
+@@ -0,0 +1,51 @@
++import { render, screen } from '@testing-library/react';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
++import UndoToast from './UndoToast';
++
++describe('UndoToast', () => {
++  beforeEach(() => {
++    vi.useFakeTimers();
++  });
++
++  afterEach(() => {
++    vi.useRealTimers();
++  });
++
++  it('auto-dismisses after 6 seconds', () => {
++    const onDismiss = vi.fn();
++    render(<UndoToast instanceId="a" cardName="Test Card" onUndo={vi.fn()} onDismiss={onDismiss} />);
++
++    vi.advanceTimersByTime(5999);
++    expect(onDismiss).not.toHaveBeenCalled();
++    vi.advanceTimersByTime(1);
++    expect(onDismiss).toHaveBeenCalledOnce();
++  });
++
++  it('restarts the dismiss timer when a second same-named card is removed within the window', () => {
++    // Two copies of the same card share a name but never an instanceId —
++    // the timer must key off instanceId, or the first removal's
++    // already-running timer would cut the second toast's window short.
++    const onDismiss = vi.fn();
++    const { rerender } = render(
++      <UndoToast instanceId="a" cardName="Suspended Spell" onUndo={vi.fn()} onDismiss={onDismiss} />,
++    );
++
++    vi.advanceTimersByTime(5000);
++    rerender(
++      <UndoToast instanceId="b" cardName="Suspended Spell" onUndo={vi.fn()} onDismiss={onDismiss} />,
++    );
++
++    // The first timer's original 6s deadline (1s from now) has passed, but
++    // the second removal's own window hasn't — it needs its own full 6s.
++    vi.advanceTimersByTime(1000);
++    expect(onDismiss).not.toHaveBeenCalled();
++
++    vi.advanceTimersByTime(5000);
++    expect(onDismiss).toHaveBeenCalledOnce();
++  });
++
++  it('shows the current removal\'s card name', () => {
++    render(<UndoToast instanceId="a" cardName="Test Card" onUndo={vi.fn()} onDismiss={vi.fn()} />);
++    expect(screen.getByText('Test Card removed')).toBeInTheDocument();
++  });
++});

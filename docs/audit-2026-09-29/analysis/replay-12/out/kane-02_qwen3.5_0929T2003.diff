@@ -1,0 +1,112 @@
+diff --git a/apps/commander-recommender/server/src/services/signals.test.ts b/apps/commander-recommender/server/src/services/signals.test.ts
+index ff5950b..3f2330d 100644
+--- a/apps/commander-recommender/server/src/services/signals.test.ts
++++ b/apps/commander-recommender/server/src/services/signals.test.ts
+@@ -427,7 +427,50 @@ describe('Voltron', () => {
+ });
+ 
+ describe('creature types: the vocabulary the rest of this depends on', () => {
+-  const CREATURE_TYPES = new Set(['Boar', 'Lhurgoyf', 'Knight', 'Goblin', 'Elf', 'Wall']);
++  const CREATURE_TYPES = new Set(['Boar', 'Lhurgoyf', 'Knight', 'Goblin', 'Elf', 'Wall', 'Time Lord']);
++
++  describe('multi-word creature types', () => {
++    it('recognizes a known multi-word type as one unit, not dropped or split', () => {
++      // Real multi-word creature type from Scryfall: 'Time Lord'
++      // Neither 'Time' nor 'Lord' alone is a creature type; only 'Time Lord' as a whole.
++      const TIME_LORD_CREATURE_TYPES = new Set(['Time Lord']);
++      const timeLordCreature = {
++        typeLine: 'Legendary Creature — Human Time Lord',
++      } as const;
++      assert.deepStrictEqual(
++        parseCreatureTypes(timeLordCreature.typeLine, TIME_LORD_CREATURE_TYPES),
++        ['Time Lord'],
++      );
++    });
++
++    it('single-word types still work exactly as before', () => {
++      const singleWordTypes = new Set(['Goblin', 'Knight', 'Wizard']);
++      const creature = {
++        typeLine: 'Creature — Goblin Knight Wizard',
++      } as const;
++      assert.deepStrictEqual(
++        parseCreatureTypes(creature.typeLine, singleWordTypes),
++        ['Goblin', 'Knight', 'Wizard'],
++      );
++    });
++
++    it('a word that is the first word of a multi-word type but not followed by its partner is NOT kept', () => {
++      // 'Time' alone is not a creature type, only 'Time Lord' together.
++      // If the type line is '...Time Wizard...' and 'Time Wizard' is not a known type,
++      // then 'Time' should not be kept — even though it's a standalone word.
++      // This tests that we don't fall back to keeping individual words that happen to be
++      // partial multi-word types.
++      const PARTIAL_MULTI_WORD_CREATURE_TYPES = new Set(['Time Lord', 'Wizard']);
++      const partialCreature = {
++        typeLine: 'Creature — Human Time Wizard',
++      } as const;
++      // Only 'Wizard' should be kept; 'Time' must not appear on its own.
++      assert.deepStrictEqual(
++        parseCreatureTypes(partialCreature.typeLine, PARTIAL_MULTI_WORD_CREATURE_TYPES),
++        ['Wizard'],
++      );
++    });
++  });
+ 
+   it('a card with no subtypes has no creature types', () => {
+     assert.deepStrictEqual(parseCreatureTypes('Instant'), []);
+diff --git a/apps/commander-recommender/server/src/services/signals.ts b/apps/commander-recommender/server/src/services/signals.ts
+index 174304d..f5ee6a5 100644
+--- a/apps/commander-recommender/server/src/services/signals.ts
++++ b/apps/commander-recommender/server/src/services/signals.ts
+@@ -251,6 +251,21 @@ function findProducedTokenTypes(text: string, vocab: Vocabulary): string[] {
+  * seeded before the catalog existed gets — narrower than nothing, and it
+  * degrades rather than failing.
+  */
++function multiWordTypes(subtypePart: string, knownTypes: Set<string>): string[] {
++  const words = subtypePart.split(/\s+/);
++  const found = new Set<string>();
++
++  for (let i = 0; i < words.length - 1; i++) {
++    const phrase = `${words[i]} ${words[i + 1]}`;
++    if (knownTypes.has(phrase)) {
++      found.add(phrase);
++      i++; // Skip the next word since it's part of this multi-word type
++    }
++  }
++
++  return [...found];
++}
++
+ export function parseCreatureTypes(typeLine: string, knownTypes?: Set<string>): string[] {
+   const [typePart, subtypePart] = typeLine.split('—');
+   if (!subtypePart) return [];
+@@ -260,8 +275,28 @@ export function parseCreatureTypes(typeLine: string, knownTypes?: Set<string>):
+   // whose subtype happened to read "Creature" would otherwise slip through.
+   if (!/\b(Creature|Kindred|Tribal)\b/.test(typePart!)) return [];
+ 
++  if (!knownTypes) {
++    return subtypePart.trim().split(/\s+/).filter(Boolean);
++  }
++
++  const multiWord = multiWordTypes(subtypePart.trim(), knownTypes);
+   const words = subtypePart.trim().split(/\s+/).filter(Boolean);
+-  return knownTypes ? words.filter((word) => knownTypes.has(word)) : words;
++
++  // Check for multi-word types first. A word that is the first word of a multi-word
++  // type (but not followed by its partner) must not be kept on its own.
++  const used = new Set(multiWord.map((t) => t.split(' ')[0]));
++
++  const singleWordFound: string[] = [];
++  for (const word of words) {
++    // Skip words that are part of a matched multi-word type
++    if (used.has(word)) continue;
++    // Check if this word is a recognized single-word type
++    if (knownTypes.has(word)) {
++      singleWordFound.push(word);
++    }
++  }
++
++  return [...multiWord, ...singleWordFound];
+ }
+ 
+ /**

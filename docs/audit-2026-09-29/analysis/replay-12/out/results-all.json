@@ -1,0 +1,953 @@
+[
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:18",
+  "stem": "asohav-02_qwen3.6_0929T2218",
+  "task": "asohav-02-changelog-uuid-id",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:18:25",
+  "writes": 2,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-221825.jsonl",
+  "calls": [
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ],
+   [
+    "edit",
+    "apps/server/src/repo.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/server/src/repo.ts",
+   "apps/server/src/repo.changelog.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 1 file changed, 1 insertion(+), 4 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "",
+   "fails": [
+    "\u001b[22mappendChangeLog \u2014 no explicit id\u001b[2m > \u001b[22mdoes not include an id key in the insert payload"
+   ]
+  },
+  "weakening": {
+   "apps/server/src/repo.changelog.test.ts": {
+    "base_tests": 0,
+    "now_tests": 3,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 18,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "asohav-02|qwen3.6|09-29 22:30",
+  "stem": "asohav-02_qwen3.6_0929T2230",
+  "task": "asohav-02-changelog-uuid-id",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:30:27",
+  "writes": 3,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-asohav-02-changelog-uuid-id-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-223027.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/server/src/repo.ts",
+    "opencode diff"
+   ],
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ],
+   [
+    "write",
+    "apps/server/src/repo.changelog.test.ts",
+    "write"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/server/src/repo.ts",
+   "apps/server/src/repo.changelog.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 1 file changed, 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "",
+   "fails": [
+    "\u001b[22mappendChangeLog\u001b[2m > \u001b[22mdoes not include an explicit id key in the insert payload",
+    "\u001b[22mappendChangeLog\u001b[2m > \u001b[22mincludes every changelog table column mapped to snake_case"
+   ]
+  },
+  "weakening": {
+   "apps/server/src/repo.changelog.test.ts": {
+    "base_tests": 0,
+    "now_tests": 3,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 5,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "kane-02|qwen3.5|09-29 20:03",
+  "stem": "kane-02_qwen3.5_0929T2003",
+  "task": "kane-02-multiword-creature-type",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T20:03:17",
+  "writes": 3,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-02-multiword-creature-type-ollama-desktop_qwen3.5_9b_20260929-200317.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/signals.test.ts",
+   "apps/commander-recommender/server/src/services/signals.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 80 insertions(+), 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "1 30 31",
+   "fails": [
+    "creature types: the vocabulary the rest of this depends on > multi-word creature types > recognizes a known multi-word type as one unit, not dropped or split"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/signals.test.ts": {
+    "base_tests": 28,
+    "now_tests": 31,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": [
+     "  const CREATURE_TYPES = new Set(['Boar', 'Lhurgoyf', 'Knight', 'Goblin', 'Elf', 'Wall']);"
+    ]
+   }
+  }
+ },
+ {
+  "label": "kane-02|qwen3.5|09-29 20:06",
+  "stem": "kane-02_qwen3.5_0929T2006",
+  "task": "kane-02-multiword-creature-type",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T20:06:31",
+  "writes": 4,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-02-multiword-creature-type-ollama-desktop_qwen3.5_9b_20260929-200631.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/signals.test.ts",
+   "apps/commander-recommender/server/src/services/signals.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 65 insertions(+), 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "2 29 31",
+   "fails": [
+    "creature types: the vocabulary the rest of this depends on > recognizes \"Time Lord\" as a single multi-word creature type",
+    "creature types: the vocabulary the rest of this depends on > recognizes \"Time Lord\" while also extracting independently-known types"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/signals.test.ts": {
+    "base_tests": 28,
+    "now_tests": 31,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "kane-02|qwen3.6|09-29 22:00",
+  "stem": "kane-02_qwen3.6_0929T2200",
+  "task": "kane-02-multiword-creature-type",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:00:20",
+  "writes": 4,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-02-multiword-creature-type-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-220020.jsonl",
+  "calls": [
+   [
+    "edit",
+    "M:\\Projects\\dev-docs\\tests\\.worktrees\\kane-02-multiword\\multiword-creature-type\\apps\\commander-recommender\\server\\src\\services\\signals.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.ts",
+    "exact replace"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/signals.test.ts",
+   "apps/commander-recommender/server/src/services/signals.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 70 insertions(+), 1 deletion(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "1 30 31",
+   "fails": [
+    "creature types: the vocabulary the rest of this depends on > recognizes a multi-word creature type present in the catalog"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/signals.test.ts": {
+    "base_tests": 28,
+    "now_tests": 31,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "kane-02|qwen3.6|09-29 22:08",
+  "stem": "kane-02_qwen3.6_0929T2208",
+  "task": "kane-02-multiword-creature-type",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:08:20",
+  "writes": 3,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-02-multiword-creature-type-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-220820.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/signals.test.ts",
+    "exact replace"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/signals.test.ts",
+   "apps/commander-recommender/server/src/services/signals.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 80 insertions(+), 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "33 33",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "3 30 33",
+   "fails": [
+    "creature types: the vocabulary the rest of this depends on > a multi-word creature type present in knownTypes is kept as one entry, not dropped",
+    "creature types: the vocabulary the rest of this depends on > a multi-word type appearing in the middle of subtype text is found",
+    "creature types: the vocabulary the rest of this depends on > multiple multi-word types are each found independently"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/signals.test.ts": {
+    "base_tests": 28,
+    "now_tests": 33,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "kane-04|qwen3.5|09-29 16:37",
+  "stem": "kane-04_qwen3.5_0929T1637",
+  "task": "kane-04-singleton-up-to-n",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T16:37:13",
+  "writes": 17,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-04-singleton-up-to-n-ollama-desktop_qwen3.5_9b_20260929-163713.jsonl",
+  "calls": [
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "write",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "write"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "write",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "write"
+   ],
+   [
+    "write",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "write"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/singleton.test.ts",
+   "apps/commander-recommender/server/src/services/singleton.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 30 insertions(+), 8 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "16 16",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "2 14 16",
+   "fails": [
+    "singletonLimit > plain-digit \"up to N\" (e.g. 7) parses to the correct limit",
+    "singletonLimit > plain-digit numbers like \"thirteen\" (past twelve) parse correctly"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/singleton.test.ts": {
+    "base_tests": 13,
+    "now_tests": 16,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": [
+     "    // Exempted by supertype, so neither needs naming individually.",
+     "    // \"Land \u2014 Forest\" (e.g. a dual) is not a *basic* Forest.",
+     "    // The list parser does not combine repeated lines, so this is the shape a",
+     "    // real paste produces when a card appears in two sections.",
+     "    // The signal threshold counts distinct cards, so three lines of one card",
+     "    // must collapse to one entry rather than reading as three supporters."
+    ]
+   }
+  }
+ },
+ {
+  "label": "kane-04|qwen3.5|09-29 16:39",
+  "stem": "kane-04_qwen3.5_0929T1639",
+  "task": "kane-04-singleton-up-to-n",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T16:39:46",
+  "writes": 7,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-kane-04-singleton-up-to-n-ollama-desktop_qwen3.5_9b_20260929-163946.jsonl",
+  "calls": [
+   [
+    "edit",
+    "M:\\Projects\\dev-docs\\tests\\.worktries\\kane-04-singleton-up-to-n\\apps\\commander-recommender\\server\\src\\services\\singleton.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "apps/commander-recommender/server/src/services/singleton.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "apps/commander-recommender/server/src/services/singleton.test.ts",
+   "apps/commander-recommender/server/src/services/singleton.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 45 insertions(+), 2 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "14 14",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "2 12 14",
+   "fails": [
+    "singletonLimit > \"up to N\" cards are limited to N",
+    "singletonLimit > a genuinely unparseable \"up to N\" phrase defaults to 1 and warns"
+   ]
+  },
+  "weakening": {
+   "apps/commander-recommender/server/src/services/singleton.test.ts": {
+    "base_tests": 13,
+    "now_tests": 14,
+    "lost_names": [],
+    "base_expects": 0,
+    "now_expects": 0,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "lfc-02|qwen3.5|09-29 16:52",
+  "stem": "lfc-02_qwen3.5_0929T1652",
+  "task": "lfc-02-scryfall-headers",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T16:52:09",
+  "writes": 18,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-02-scryfall-headers-ollama-desktop_qwen3.5_9b_20260929-165209.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "write",
+    "tests/services/scryfall.test.ts",
+    "write"
+   ],
+   [
+    "write",
+    "src/services/scryfall.ts",
+    "write"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/scryfall.ts",
+   "tests/services/scryfall.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 41 insertions(+), 5 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "12 12",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "1 11 12",
+   "fails": [
+    "scryfall service > sends Accept and name/version User-Agent headers on every request"
+   ]
+  },
+  "weakening": {
+   "tests/services/scryfall.test.ts": {
+    "base_tests": 11,
+    "now_tests": 12,
+    "lost_names": [],
+    "base_expects": 38,
+    "now_expects": 45,
+    "removed_base_lines": [
+     "import { afterEach, describe, expect, it, vi } from 'vitest';",
+     "import { setupTestDb } from '../helpers/db.js';",
+     "setupTestDb();"
+    ]
+   }
+  }
+ },
+ {
+  "label": "lfc-02|qwen3.5|09-29 16:54",
+  "stem": "lfc-02_qwen3.5_0929T1654",
+  "task": "lfc-02-scryfall-headers",
+  "seat": "qwen3.5",
+  "ts": "2026-09-29T16:54:20",
+  "writes": 4,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-02-scryfall-headers-ollama-desktop_qwen3.5_9b_20260929-165420.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "tests/services/scryfall.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/scryfall.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/scryfall.ts",
+   "tests/services/scryfall.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 30 insertions(+), 3 deletions(-)",
+  "suite": {
+   "exit": 0,
+   "summary": "12 12",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "1 11 12",
+   "fails": [
+    "scryfall service > sends Accept and User-Agent headers on outgoing Scryfall requests"
+   ]
+  },
+  "weakening": {
+   "tests/services/scryfall.test.ts": {
+    "base_tests": 11,
+    "now_tests": 12,
+    "lost_names": [],
+    "base_expects": 38,
+    "now_expects": 40,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "lfc-03|qwen3.6|09-29 22:39",
+  "stem": "lfc-03_qwen3.6_0929T2239",
+  "task": "lfc-03-status-transition-guard",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:39:28",
+  "writes": 8,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-223928.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/listings.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "skipped (errored call)"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "exact replace"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/listings.ts",
+   "tests/services/listings.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 73 insertions(+)",
+  "suite": {
+   "exit": 0,
+   "summary": "28 28",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "3 25 28",
+   "fails": [
+    "status transition matrix > fulfilled -> fulfilled throws and leaves status unchanged",
+    "status transition matrix > deleted -> fulfilled throws and leaves status unchanged",
+    "status transition matrix > deleted -> deleted throws and leaves status unchanged"
+   ]
+  },
+  "weakening": {
+   "tests/services/listings.test.ts": {
+    "base_tests": 21,
+    "now_tests": 28,
+    "lost_names": [],
+    "base_expects": 54,
+    "now_expects": 66,
+    "removed_base_lines": []
+   }
+  }
+ },
+ {
+  "label": "lfc-03|qwen3.6|09-29 22:46",
+  "stem": "lfc-03_qwen3.6_0929T2246",
+  "task": "lfc-03-status-transition-guard",
+  "seat": "qwen3.6",
+  "ts": "2026-09-29T22:46:11",
+  "writes": 4,
+  "recorded": {
+   "scope": "PASS",
+   "suite": "PASS",
+   "failsOnOld": "PASS"
+  },
+  "transcript": "tasks-lfc-03-status-transition-guard-ollama-desktop_qwen3.6_35b-a3b-coding_20260929-224611.jsonl",
+  "calls": [
+   [
+    "edit",
+    "src/services/listings.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "tests/services/listings.test.ts",
+    "opencode diff"
+   ],
+   [
+    "edit",
+    "src/services/listings.ts",
+    "exact replace"
+   ]
+  ],
+  "misses": [],
+  "changed": [
+   "src/services/listings.ts",
+   "tests/services/listings.test.ts"
+  ],
+  "out_of_scope": [],
+  "stat": " 2 files changed, 111 insertions(+)",
+  "suite": {
+   "exit": 0,
+   "summary": "31 31",
+   "fails": []
+  },
+  "failsOnOld": {
+   "exit": 1,
+   "summary": "7 24 31",
+   "fails": [
+    "status transition guard > active -> fulfilled then active -> fulfilled again throws",
+    "status transition guard > active -> deleted then active -> deleted again throws",
+    "status transition guard > active -> fulfilled then fulfilled -> fulfilled throws",
+    "status transition guard > active -> deleted then deleted -> fulfilled throws",
+    "status transition guard > active -> fulfilled then fulfilled -> active throws via fulfillListing",
+    "status transition guard > throws for fulfilled -> active transition via softDeleteListing (blocked)"
+   ]
+  },
+  "weakening": {
+   "tests/services/listings.test.ts": {
+    "base_tests": 21,
+    "now_tests": 31,
+    "lost_names": [],
+    "base_expects": 54,
+    "now_expects": 81,
+    "removed_base_lines": []
+   }
+  }
+ }
+]

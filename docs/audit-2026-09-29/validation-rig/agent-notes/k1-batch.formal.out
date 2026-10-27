@@ -1,0 +1,76 @@
+[01:23:52] ./run.sh kane-07-find-qualifier-type ref dry
+kane-07-find-qualifier-type dry exit=0
+[01:23:56] ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref exit=0
+[01:24:02] ./run.sh kane-07-find-qualifier-type srconly
+kane-07-find-qualifier-type srconly exit=1
+[01:24:10] ./run.sh kane-07-find-qualifier-type testsonly
+kane-07-find-qualifier-type testsonly exit=1
+[01:24:16] RIG_TAG=ambient ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.ambient exit=0
+[01:24:24] RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.unset exit=0
+[01:24:31] RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.dummy exit=0
+[01:24:39] RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.tz exit=0
+[01:24:46] RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-07-find-qualifier-type ref
+./run.sh: line 16: warning: setlocale: LC_ALL: cannot change locale (tr_TR.UTF-8): No such file or directory
+kane-07-find-qualifier-type ref.tr exit=0
+[01:24:54] RIG_TAG=det1 ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.det1 exit=0
+[01:25:01] RIG_TAG=det2 ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.det2 exit=0
+[01:25:08] RIG_TAG=det3 ./run.sh kane-07-find-qualifier-type ref
+kane-07-find-qualifier-type ref.det3 exit=0
+[01:25:16] ./run.sh kane-08-aristocrats-false-positives ref dry
+kane-08-aristocrats-false-positives dry exit=0
+[01:25:21] ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref exit=0
+[01:25:29] ./run.sh kane-08-aristocrats-false-positives srconly
+kane-08-aristocrats-false-positives srconly exit=1
+[01:25:40] ./run.sh kane-08-aristocrats-false-positives testsonly
+kane-08-aristocrats-false-positives testsonly exit=1
+[01:25:48] RIG_TAG=ambient ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.ambient exit=0
+[01:26:01] RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.unset exit=0
+[01:26:13] RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.dummy exit=0
+[01:26:25] RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.tz exit=0
+[01:26:37] RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-08-aristocrats-false-positives ref
+./run.sh: line 16: warning: setlocale: LC_ALL: cannot change locale (tr_TR.UTF-8): No such file or directory
+kane-08-aristocrats-false-positives ref.tr exit=0
+[01:26:47] RIG_TAG=det1 ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.det1 exit=0
+[01:26:57] RIG_TAG=det2 ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.det2 exit=0
+[01:27:08] RIG_TAG=det3 ./run.sh kane-08-aristocrats-false-positives ref
+kane-08-aristocrats-false-positives ref.det3 exit=0
+[01:27:18] ./run.sh kane-09-colour-filter-subset ref dry
+kane-09-colour-filter-subset dry exit=0
+[01:27:24] ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref exit=0
+[01:27:36] ./run.sh kane-09-colour-filter-subset srconly
+kane-09-colour-filter-subset srconly exit=1
+[01:27:47] ./run.sh kane-09-colour-filter-subset testsonly
+kane-09-colour-filter-subset testsonly exit=1
+[01:27:55] RIG_TAG=ambient ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.ambient exit=0
+[01:28:07] RIG_UNSET="MANAPOOL_API_KEY DATABASE_URL" RIG_TAG=unset ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.unset exit=0
+[01:28:18] RIG_ENV="DATABASE_URL=postgres://u:p@127.0.0.1:9/x MANAPOOL_API_KEY=dummy-key" RIG_TAG=dummy ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.dummy exit=0
+[01:28:28] RIG_ENV="TZ=Pacific/Auckland" RIG_TAG=tz ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.tz exit=0
+[01:28:38] RIG_ENV="LC_ALL=tr_TR.UTF-8 LANG=tr_TR.UTF-8" RIG_TAG=tr ./run.sh kane-09-colour-filter-subset ref
+./run.sh: line 16: warning: setlocale: LC_ALL: cannot change locale (tr_TR.UTF-8): No such file or directory
+kane-09-colour-filter-subset ref.tr exit=0
+[01:28:48] RIG_TAG=det1 ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.det1 exit=0
+[01:28:59] RIG_TAG=det2 ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.det2 exit=0
+[01:29:10] RIG_TAG=det3 ./run.sh kane-09-colour-filter-subset ref
+kane-09-colour-filter-subset ref.det3 exit=0
+[01:29:21] BATCH DONE: /tmp/claude-0/-home-user-HomeLab/f0484f3b-8cac-50d6-af0c-d45af7ec3928/scratchpad/rig/k1/work/batch.formal
