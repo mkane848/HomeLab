@@ -76,7 +76,8 @@ foreach ($t in $Tasks) {
     Add-Content -LiteralPath $real -Value "2026-01-01T00:00:00`t$t`t$Model"
 }
 Write-Host ("retries: {0} task(s), mean 1.1 attempt(s) per task, cap reached on 0 (0)" -f $Tasks.Count)
-Write-Host "falsifier: holds - within the design's bounds"
+$fals = [bool]($plan -and $plan.$leaf -and $plan.$leaf.falsified)
+Write-Host $(if ($fals) { "falsifier: FALSIFIED - mean attempts 1.6 > 1.5" } else { "falsifier: holds - within the design's bounds" })
 exit 0
 '@ | Set-Content -LiteralPath $fxRetries
 
@@ -111,33 +112,50 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
         [IO.File]::WriteAllText($ocNone, "#!/usr/bin/env bash`nexit 0`n"); & chmod +x $ocNone
     }
 
-    # llama-server, as far as the runner asks: /health, /models (router mode), /props.
+    # llama-server, as far as the runner asks: /health, /models (router mode), /props. A bare TcpListener answering HTTP/1.1
+    # with Connection: close, so it needs no URL reservation on Windows.
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0); $listener.Start()
-    $port = $listener.LocalEndpoint.Port; $listener.Stop()
+    $port = $listener.LocalEndpoint.Port
     $server = [hashtable]::Synchronized(@{ Up = $true; Models = @("qwen3.6:35b-a3b-coding"); Stop = $false })
-    $serverJob = Start-ThreadJob -ArgumentList $port, $server -ScriptBlock {
-        param($port, $st)
-        $l = [System.Net.HttpListener]::new(); $l.Prefixes.Add("http://127.0.0.1:$port/"); $l.Start()
+    $serverJob = Start-ThreadJob -ArgumentList $listener, $server -ScriptBlock {
+        param($tcp, $st)
         try {
             while (-not $st.Stop) {
-                $task = $l.GetContextAsync()
-                while (-not $task.Wait(200)) { if ($st.Stop) { return } }
-                $ctx = $task.Result
-                $code = 200; $body = "{}"
-                switch ($ctx.Request.Url.AbsolutePath) {
-                    "/health" { if ($st.Up) { $body = '{"status":"ok"}' } else { $code = 503; $body = '{"error":{"message":"down"}}' } }
-                    "/models" { $body = (@{ data = @($st.Models | ForEach-Object { @{ id = $_; aliases = @(); status = @{ value = "loaded" } } }) } | ConvertTo-Json -Depth 6 -Compress) }
-                    "/props" { $body = '{"build_info":"b11561-stand-in"}' }
-                    default { $code = 404 }
-                }
-                $bytes = [Text.Encoding]::UTF8.GetBytes($body)
-                $ctx.Response.StatusCode = $code; $ctx.Response.ContentType = "application/json"
-                $ctx.Response.OutputStream.Write($bytes, 0, $bytes.Length); $ctx.Response.Close()
+                if (-not $tcp.Pending()) { Start-Sleep -Milliseconds 25; continue }
+                $client = $tcp.AcceptTcpClient()
+                try {
+                    $stream = $client.GetStream(); $reader = [IO.StreamReader]::new($stream)
+                    $request = $reader.ReadLine()
+                    while (($h = $reader.ReadLine()) -and $h -ne "") { }
+                    $path = (($request -split " ")[1] -split "\?")[0]
+                    $code = 200; $body = "{}"
+                    switch ($path) {
+                        "/health" { if ($st.Up) { $body = '{"status":"ok"}' } else { $code = 503; $body = '{"error":{"message":"down"}}' } }
+                        "/models" { $body = (@{ data = @($st.Models | ForEach-Object { @{ id = $_; aliases = @(); status = @{ value = "loaded" } } }) } | ConvertTo-Json -Depth 6 -Compress) }
+                        "/props" { $body = '{"build_info":"b11561-stand-in"}' }
+                        default { $code = 404 }
+                    }
+                    $bytes = [Text.Encoding]::UTF8.GetBytes($body)
+                    $head = [Text.Encoding]::ASCII.GetBytes("HTTP/1.1 $code X`r`nContent-Type: application/json`r`nContent-Length: $($bytes.Length)`r`nConnection: close`r`n`r`n")
+                    $stream.Write($head, 0, $head.Length); $stream.Write($bytes, 0, $bytes.Length); $stream.Flush()
+                } catch { } finally { $client.Close() }
             }
-        } finally { $l.Stop(); $l.Close() }
+        } finally { $tcp.Stop() }
     }
     $url = "http://127.0.0.1:$port/v1"
 
+    # A helper that waits for the runner to start a phase (its command file appears), then acts after a short delay: the
+    # scenarios no longer depend on how long the runner took to get there.
+    function Start-AfterPhase([string]$Phase, [double]$DelaySec, [scriptblock]$Action, $Arg) {
+        $cmdFile = Join-Path $tmp ("out-" + ($script:n + 1) + "/commands/$Phase.ps1")
+        Start-ThreadJob -ArgumentList $cmdFile, $DelaySec, $Action, $Arg -ScriptBlock {
+            param($file, $delay, $action, $arg)
+            $until = (Get-Date).AddSeconds(120)
+            while (-not (Test-Path -LiteralPath $file) -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 50 }
+            Start-Sleep -Milliseconds ([int]($delay * 1000))
+            & $action $arg
+        }
+    }
     $script:n = 0
     function Invoke-Window([hashtable]$Extra = @{}, [string]$Plan = "", [switch]$KeepFx) {
         $script:n++
@@ -270,6 +288,9 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Has "...and the report flags it" $r.Report 'batch smoke was NO-GO'
 
     Write-Host "-- milestone 4's report"
+    $r = Invoke-Window -Plan '{"m4":{"falsified":true}}'
+    Has "a tripped falsifier is flagged under 'Needs your eyes', with the 2-of-15 caveat" $r.Report '(?s)## Needs your eyes.*falsifier tripped \(mean attempts 1\.6 > 1\.5\).*2 of 15'
+    Check "...and a window whose falsifier holds flags nothing" ((Invoke-Window).Report -match '(?m)^- Nothing flagged') "True"
     $r = Invoke-Window -Plan '{"m4":{"tasks":{"real-02":"acceptance,acceptance,acceptance","wp-5b":"tampered,tampered,tampered","wp-3a":"suite,accepted"}}}'
     Has "attempts and the verdict per task" $r.Report 'real-02 +3 attempt\(s\) +not accepted +\[acceptance;acceptance;acceptance\]'
     Has "...an accepted retry" $r.Report 'wp-3a +2 attempt\(s\) +ACCEPTED +\[suite;accepted\]'
@@ -287,14 +308,14 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
 
     Write-Host "-- STOP"
     $stopFile = Join-Path $tmp "out-$($script:n + 1)/STOP"
-    $helpers += Start-ThreadJob -ArgumentList $stopFile -ScriptBlock { param($f) Start-Sleep -Seconds 4; New-Item -ItemType Directory -Force -Path (Split-Path $f) | Out-Null; New-Item -ItemType File -Path $f -Force | Out-Null }
+    $helpers += Start-AfterPhase "baseline" 2 { param($f) New-Item -ItemType File -Path $f -Force | Out-Null } $stopFile
     $r = Invoke-Window @{ Run = @("baseline") } -Plan '{"baseline":{"sleep":120}}'
     Check "a STOP file ends the window: exit 0" $r.Exit 0
     Check "...the phase did not run to its 120 s" ($r.Seconds -lt 60) "True"
     Has "...the report says why" $r.Report 'STOP file ended the window'
 
     Write-Host "-- the server goes away"
-    $helpers += Start-ThreadJob -ArgumentList $server -ScriptBlock { param($s) Start-Sleep -Seconds 2; $s.Up = $false }
+    $helpers += Start-AfterPhase "smoke-retries" 2 { param($s) $s.Up = $false } $server
     $r = Invoke-Window @{ Run = @("smoke"); ServerDownMinutes = 0.05; RecoverMinutes = 0.05 } -Plan '{"smoke-retries":{"sleep":120}}'
     Check "a server down past -ServerDownMinutes ends the phase (not at the stand-in's 120 s)" ($r.Seconds -lt 70) "True"
     Has "...the report says the phase ended because the server stayed down" $r.Report 'ended because the server stayed down'
@@ -302,7 +323,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "...and the next step never started" ((Phase-Row $r "smoke-batch") + "|" + (Calls-Like $r '^batch\|').Count) "|0"
     Has "...with the outage in the server section" $r.Report '(?s)## Server.*Down \(as seen'
     $server.Up = $true
-    $helpers += Start-ThreadJob -ArgumentList $server -ScriptBlock { param($s) Start-Sleep -Seconds 2; $s.Up = $false; Start-Sleep -Seconds 7; $s.Up = $true }
+    $helpers += Start-AfterPhase "smoke-retries" 2 { param($s) $s.Up = $false; Start-Sleep -Seconds 7; $s.Up = $true } $server
     $r = Invoke-Window @{ Run = @("smoke"); ServerDownMinutes = 0.05; RecoverMinutes = 0.5 } -Plan '{"smoke-retries":{"sleep":120}}'
     Check "a server that comes back inside -RecoverMinutes: the next step still runs" (Phase-Row $r "smoke-batch") "ok"
     Check "...while the interrupted step is nogo (so m4 would have been skipped)" (Phase-Row $r "smoke-retries") "nogo"
