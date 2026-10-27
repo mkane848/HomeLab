@@ -129,7 +129,8 @@ Each step says what to record. Nothing below writes to the Ollama volume or edit
 ### 0. Open the window
 
 Ollama keeps `qwen3.6` loaded for 4 h and the card can't hold both engines' copies, so announce the window and free
-the GPU:
+the GPU (`server/scripts/llamacpp-window.sh up` does this and step 2 in one go, with a deadline and a watchdog, for a window
+nobody is watching: [unattended-window.md](unattended-window.md)):
 
 ```bash
 docker exec ollama-server ollama ps

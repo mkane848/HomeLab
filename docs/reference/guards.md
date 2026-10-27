@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-47 guards.
+49 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -29,6 +29,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-gpu-placement.ps1` | GPU-placement check (CPU-only run = exit -5), runHost and phaseSeconds | How a run's outcome is classified or the batch reacts to one |
 | `tests/test-hosted-seats.ps1` | OpenCode Go seats and the batch spend cap / plan meters | How the batch picks seats or measures spend |
 | `tests/test-llamacpp-stack.ps1` | llama.cpp compose file, models.ini and llamacpp-check.sh invariants | The llama.cpp compose file, preset, templates or checker |
+| `tests/test-llamacpp-window.ps1` | server/scripts/llamacpp-window.sh (open, watchdog, deadline and close of an unattended llama.cpp window) | server/scripts/llamacpp-window.sh or the llama.cpp compose file it starts |
 | `tests/test-no-push.ps1` | Set-NoPushEnv: a model cannot push or open a PR from a task checkout | How a run is launched |
 | `tests/test-opencode-profiles.ps1` | Launcher routing and env restore for opencode <profile> | desktop/scripts/opencode.ps1 or opencode-profiles.ps1 |
 | `tests/test-opencode-run.ps1` | Invoke-AgentRun: normal run, non-zero exit, timeout, job dying | How a run is launched, waited for or collected |
@@ -43,6 +44,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-retry-loop.ps1` | run-retries.ps1 dispatcher loop, verdict and falsifier | run-retries.ps1 |
 | `tests/test-revert-source.ps1` | failsOnOld source revert (Save/Restore-SourceFiles, multi-file, two worktrees) | How test-tasks.ps1 reverts source or builds native argument lists |
 | `tests/test-run-cost.ps1` | Run usage and cost estimates (Get-TranscriptUsage, Get-RunCostEstimate) | How a transcript is read or a cost is computed |
+| `tests/test-run-window.ps1` | run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, report) | run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter |
 | `tests/test-sealed-checkout.ps1` | Sealed task checkout (no future commits, refs, stashes or remotes) | How a task's checkout is made, reset or graded |
 | `tests/test-show-acceptance.ps1` | -ShowAcceptance / -ReadOnlyAcceptance / -ShownPrompt modes | How acceptance tests are placed, a run is prompted or scope is graded |
 | `tests/test-stop-nudge.ps1` | -NudgeOnStop and Get-StopKind classifiers 2 and 3 | The nudge, Get-StopKind or where results are written |
