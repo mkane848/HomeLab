@@ -1852,8 +1852,9 @@ the wrong value (`asohav-09`).
 **How they were checked.** Each entry ran through the real
 `tests/test-tasks.ps1` against a local clone, with a stand-in `opencode` that
 applies a known change instead of calling a model (the stand-in and the
-reference patches lived in the session scratch, not in the repo), in a fresh
-worktree at the pin:
+reference patches lived in the session scratch until 2026-10-27, when they
+were archived in [audit-2026-09-29/validation-rig/](audit-2026-09-29/validation-rig/)),
+in a fresh worktree at the pin:
 
 - `-DryRun`: install and `setup` work, the baseline equals `baselineExpect`,
   and the acceptance tests fail on the untouched base.
