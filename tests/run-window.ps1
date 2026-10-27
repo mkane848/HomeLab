@@ -38,7 +38,8 @@
 # -Run takes any of smoke, m4, baseline (the gate always runs). -Model, -ServerUrl (default $env:LLAMACPP_SERVER_BASE_URL,
 # else http://<SERVER_IP>:8090/v1 from the repo's .env), -PrivateRoot (default: the HomeLab-private checkout beside this one)
 # and the task selections are parameters; the script sets OPENCODE_DISABLE_AUTOUPDATE=1 for its children, because the
-# batch stops when opencode changes version under it.
+# batch stops when opencode changes version under it, and turns git's prompts off (GIT_TERMINAL_PROMPT=0), because a
+# fetch that waits for a credential would sit there all night.
 # The -Script* / -LockPath / -OpencodeCmd / -RequiredTools parameters are the guard's seams (tests/test-run-window.ps1).
 param(
     [string]$Name = (Get-Date -Format "yyyyMMdd-HHmm"),
@@ -579,6 +580,10 @@ function Write-Report {
 
 # --- main -----------------------------------------------------------------------------------------------
 $env:OPENCODE_DISABLE_AUTOUPDATE = "1"
+# Nothing here may wait for a person: a git that cannot find a commit fetches from origin (Resolve-TaskBase), and on a
+# machine with no credentials for a private origin that would otherwise sit at a prompt for the rest of the night.
+$env:GIT_TERMINAL_PROMPT = "0"
+$env:GCM_INTERACTIVE = "Never"
 Write-Log ("window {0}: {1:N1} h, model {2}, run {3}, output {4}" -f $Name, $Hours, $Model, ($Run -join ","), $OutDir)
 
 if ($Plan) {

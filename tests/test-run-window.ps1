@@ -59,7 +59,7 @@ param([string[]]$Tasks, [string]$Model, [int]$MaxAttempts, [string]$TaskManifest
 $leaf = Split-Path -Leaf $ResultsDir
 $plan = if ($env:FX_PLAN) { $env:FX_PLAN | ConvertFrom-Json } else { $null }
 $h = ($HarnessArgs.Keys | Sort-Object | ForEach-Object { "$_=$($HarnessArgs[$_])" }) -join ";"
-Add-Content -LiteralPath (Join-Path $env:FX_DIR "calls.log") ("retries|{0}|max={1}|tasks={2}|harness={3}|autoupdate={4}|manifest={5}" -f $leaf, $MaxAttempts, ($Tasks -join ","), $h, $env:OPENCODE_DISABLE_AUTOUPDATE, (Split-Path -Leaf (Split-Path -Parent $TaskManifest)))
+Add-Content -LiteralPath (Join-Path $env:FX_DIR "calls.log") ("retries|{0}|max={1}|tasks={2}|harness={3}|autoupdate={4}|manifest={5}|gitprompt={6}" -f $leaf, $MaxAttempts, ($Tasks -join ","), $h, $env:OPENCODE_DISABLE_AUTOUPDATE, (Split-Path -Leaf (Split-Path -Parent $TaskManifest)), $env:GIT_TERMINAL_PROMPT)
 $sleep = if ($plan -and $plan.$leaf -and $plan.$leaf.sleep) { [int]$plan.$leaf.sleep } else { 0 }
 if ($sleep) { Start-Sleep -Seconds $sleep }
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
@@ -86,7 +86,7 @@ exit 0
 param([switch]$SkipSetup, [string]$Mode, [string[]]$Models, [string[]]$Tasks, [int]$Reps = 0, [switch]$Yes, [int]$RunTimeout = 0, [string]$ResultsDir = "")
 $leaf = Split-Path -Leaf $ResultsDir
 $plan = if ($env:FX_PLAN) { $env:FX_PLAN | ConvertFrom-Json } else { $null }
-Add-Content -LiteralPath (Join-Path $env:FX_DIR "calls.log") ("batch|{0}|skip={1}|mode={2}|yes={3}|reps={4}|timeout={5}|tasks={6}|autoupdate={7}" -f $leaf, [bool]$SkipSetup, $Mode, [bool]$Yes, $Reps, $RunTimeout, ($Tasks -join ","), $env:OPENCODE_DISABLE_AUTOUPDATE)
+Add-Content -LiteralPath (Join-Path $env:FX_DIR "calls.log") ("batch|{0}|skip={1}|mode={2}|yes={3}|reps={4}|timeout={5}|tasks={6}|autoupdate={7}|gitprompt={8}" -f $leaf, [bool]$SkipSetup, $Mode, [bool]$Yes, $Reps, $RunTimeout, ($Tasks -join ","), $env:OPENCODE_DISABLE_AUTOUPDATE, $env:GIT_TERMINAL_PROMPT)
 $spec = if ($plan -and $plan.$leaf) { $plan.$leaf } else { $null }
 if ($spec -and $spec.sleep) { Start-Sleep -Seconds ([int]$spec.sleep) }
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
@@ -162,6 +162,8 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
         $out = Join-Path $tmp ("out-" + $script:n)
         Remove-Item -Recurse -Force $fxDir -ErrorAction SilentlyContinue; New-Item -ItemType Directory -Force -Path $fxDir | Out-Null
         $env:FX_DIR = $fxDir; $env:FX_PLAN = $Plan
+        # The machine may already have these set (CI and cloud sandboxes do); the children must get them from the runner.
+        Remove-Item Env:GIT_TERMINAL_PROMPT, Env:GCM_INTERACTIVE -ErrorAction SilentlyContinue
         $a = @{
             Name = "t$($script:n)"; ServerUrl = $url; PrivateRoot = $priv; OutDir = $out; LockPath = $lock
             ScriptRetries = $fxRetries; ScriptBatch = $fxBatch; ScriptSummarize = $fxSummarize; OpencodeCmd = $ocGood
@@ -224,10 +226,11 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $order = @($r.Calls | ForEach-Object { ($_ -split "\|")[0..1] -join ":" })
     Check "the phases ran in order" ($order -join " ") "retries:smoke-retries batch:smoke-batch retries:m4 batch:baseline"
     $c = $r.Calls
-    Has "smoke retries: cap 2, the two quick tasks, the private manifest" $c[0] 'max=2\|tasks=real-01,wp-0a\|.*manifest=tasks$'
+    Has "smoke retries: cap 2, the two quick tasks, the private manifest" $c[0] 'max=2\|tasks=real-01,wp-0a\|.*manifest=tasks\|gitprompt=0$'
     Has "m4: cap 3 and real-02, wp-5b last of 15 tasks" $c[2] 'max=3\|tasks=real-01,real-03,wp-0a,wp-1a,wp-2b,wp-3a,wp-3b,wp-4a,wp-5a,wp-6a,wp-6f,wp-7a,wp-9a,real-02,wp-5b\|'
     Has "m4: nudged, classifier 3, 2700 s runs, shown prompt 2" $c[2] 'harness=NudgeOnStop=True;RunTimeout=2700;ShownPrompt=2;StopClassifier=3\|'
     Has "every child had opencode's auto-update off" ($c -join "`n") '(?s)autoupdate=1.*autoupdate=1.*autoupdate=1.*autoupdate=1'
+    Has "...and git's prompts off, so a fetch cannot wait for a credential" ($c -join "`n") '(?s)gitprompt=0.*gitprompt=0.*gitprompt=0.*gitprompt=0'
     Has "smoke batch: one rep, no setup, no prompts" $c[1] 'skip=True\|mode=Tasks\|yes=True\|reps=1\|'
     Has "baseline: six reps of 16 tasks, kane-07 first" $c[3] 'reps=6\|timeout=2700\|tasks=kane-07-find-qualifier-type,.*asohav-09-seed-virtue-conformance\|'
     Check "baseline: 16 tasks, none of the retired" (@(($c[3] -split "tasks=")[1] -split "\|")[0] -split ",").Count 16
