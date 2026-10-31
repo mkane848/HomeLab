@@ -712,7 +712,29 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
       4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1), which
          is done (2026-10-25: prompt 2, no read-only files), on node3 rows of the new shell era (#162). A window to run
          it and the capability baseline with no one there: `tests/run-window.ps1` and
-         `server/scripts/llamacpp-window.sh` ([unattended-window.md](unattended-window.md), 2026-10-27; not yet run live).
+         `server/scripts/llamacpp-window.sh` ([unattended-window.md](unattended-window.md), 2026-10-27).
+         **First live window, 2026-10-30 21:30 to 10-31 06:57 (9.5 h): the loop's falsifier holds, and nothing was
+         flagged.** The server's llama.cpp (build b11561), tools on node3 (repo `40c1f27`, the #174 fix), opencode
+         1.18.34, sealed checkouts, classifier 3; the server answered every health poll. Private results
+         `window-20261030-2130` (its `REPORT.md`).
+
+         | Phase | Result |
+         |---|---|
+         | gate | 14 checks, 0 warnings |
+         | smoke | retries 2 of 2 accepted; batch 3 graded rows |
+         | m4: 18 tasks (every live private task with an `acceptance.dir`; the 3 checklist tasks left out), cap 3, shown prompt 2, nudged | **18 of 18 accepted on the first attempt**: 1.0 attempts a task, cap reached on none; 105 min of runs, 217k output tokens, `wp-5b` alone 42 min |
+         | baseline: the 16 live mined public tasks, unassisted, 6 reps | **83 of 96 (86%) per run**; pass^6 0.69; 11 of 16 every run, none never; `kane-08` 1 of 6, `lfc-07` 3 of 6, `kane-07` and `kane-14` 4 of 6, `asohav-09` 5 of 6 |
+
+         - **Read the m4 result as a ceiling, not a verdict on milestone 5.** The tests shown were the tasks' own
+           hidden tests, so "the given test passes" is an oracle by construction: an accepted attempt cannot be wrong.
+           `real-02` and `wp-5b`, which hidden rounds rarely pass, both passed with their tests shown, as in item 10.
+           What a dispatcher accepts on a planner's tests is experiment 3's question (item 3 above).
+         - **The baseline is a new era**: llama.cpp, sealed checkouts and node3's PowerShell 7 shell (#162). Don't
+           pool it with the Ollama-era public rows in `tests/results/tasks-summary.tsv`.
+         - Found on the way: `-M4Tasks` was ignored (fixed in #174, before the window started); `llamacpp-window.sh
+           up` refuses a stack that is already running (the GPU check sees its own seat), so close it with `down`
+           first; and the window closes the stack at its deadline, so the daily profile's server needs a restart
+           afterwards.
     - **Task sets (2026-10-24), from the sealed llama.cpp hidden rounds:**
       - **Regression set:** the 12 tasks that passed all 3 hidden runs: `real-01`, `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`,
         `wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`, `wp-6f`, `wp-7a`, `wp-9a`. One round of them guards a harness or engine

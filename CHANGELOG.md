@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the first unattended window's results (2026-10-31).** `docs/roadmap.md` item 10 step 4: milestone 4's loop
+  accepted 18 of 18 tasks on the first attempt with the tasks' own tests shown (an oracle selector, so a ceiling), and
+  the public baseline on llama.cpp scored 83 of 96 (pass^6 0.69). Nothing flagged; the server answered every poll.
 - **fix: `run-window.ps1 -M4Tasks` was ignored (2026-10-31).** PowerShell names are case-insensitive, so the script-scope
   `$m4Tasks` initialised at load was the `-M4Tasks` parameter itself; a narrowed m4 resolved an empty list, which reads as
   "all". Found with `-Plan` on node3 before the first window; the window of 2026-10-30 ran from this fix's commit on the
