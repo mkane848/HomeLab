@@ -69,6 +69,12 @@ jobs:
       - name: Reference tables are current (guard headers, machines)
         run: python3 tests/make-reference.py --check
 
+      # The server's unattended-window script is Ubuntu-only, so its guard is run here, for real; on the
+      # Windows runner the same guard (run-guards.ps1) reports SKIP.
+      - name: llamacpp-window.sh against stand-ins
+        shell: pwsh
+        run: ./tests/test-llamacpp-window.ps1
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest

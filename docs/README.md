@@ -17,6 +17,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [model-architecture.md](model-architecture.md) | Which models run where (partly stale; see its banner) |
 | [target-setup.md](target-setup.md) | The planned end state: roles and milestones |
 | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) | Live log of a BIOS-flash recovery |
+| [unattended-window.md](unattended-window.md) | A testing window with no one there: the server's script, node3's runner, the morning report |
 | [CONTRIBUTING.md](../CONTRIBUTING.md), [owner-setup.md](owner-setup.md) | How to contribute; owner-only repo settings |
 
 ## History and evidence (internal)
