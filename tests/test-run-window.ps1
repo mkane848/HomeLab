@@ -247,6 +247,11 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "-Run m4 -NoNudge: only m4 ran, unnudged" ($r.Calls.Count -eq 1 -and $r.Calls[0] -match 'harness=NudgeOnStop=False;') "True"
     Has "...and the report says what was not selected" $r.Report '\| smoke \| not selected'
 
+    # PowerShell names are case-insensitive: a script-scope $m4Tasks once reset the -M4Tasks parameter to empty,
+    # which reads as "all", so a narrowed m4 ran every live task (found on node3, 2026-10-30).
+    $r = Invoke-Window @{ Run = @("m4"); M4Tasks = @("wp-0a,wp-1a") }
+    Has "-M4Tasks narrows m4 to the tasks named" $r.Calls[0] 'tasks=wp-0a,wp-1a\|'
+
     # --- the gate ---------------------------------------------------------------------------------------------
     Write-Host "-- the gate"
     $server.Up = $false
