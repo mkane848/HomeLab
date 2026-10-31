@@ -1,4 +1,4 @@
-# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic and pass rule
+# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule and the planner arm's selector counts
 # run-after: summarize-rounds.ps1
 # test-summarize-rounds.ps1 - regression guard for tests/summarize-rounds.ps1 (pass@k and pass^k).
 #
@@ -15,6 +15,9 @@
 #      checklist task (left out).
 #   2. Get-RoundSummary on synthetic runs: two models kept apart, k defaulting
 #      to the smallest n, a task with fewer than k runs left out of the means.
+#      Experiment 3 (a planner's tests shown, docs/planner-tests-experiment.md): the selector against the
+#      hidden tests' verdict: false positives, false negatives, what a dispatcher would keep and was wrong,
+#      the Wilson interval, planner-shown arms apart (ACCEPTANCE-PLANNER), oracle-shown rows not counted.
 #   3. The REAL script end to end on a throwaway folder (-AsJson and the table),
 #      a missing folder and an empty one (exit 1), and, when this machine has
 #      the private results, the desktop's four reps: 47 of 60, 9 of 15 tasks
@@ -95,6 +98,33 @@ Check "a passing run with writes = 0 is counted and noted, not silently dropped"
 $s = Get-RoundSummary -Runs $runs -K 4
 Check "-K 4: tasks with fewer runs are listed and left out of the means" ("{0}|{1}|{2}" -f ($s[0].tasksBelowK -join ","), $s[0].passAtK, $s[0].passHatK) "t1,t2|0|0"
 
+Write-Host "-- the selector against the truth (a planner's tests shown)"
+function PR([string]$Sel, [string]$Truth, [string]$Scope = "PASS", [string]$Suite = "PASS", [string[]]$Tampered = @(), [string]$Source = "planner") {
+    [pscustomobject]@{ model = "m"; taskId = "t"; grading = "acceptance"; gates = [ordered]@{ scope = $Scope; suite = $Suite; failsOnOld = "SKIP" }
+        acceptance = [ordered]@{ status = $Truth }; selector = [ordered]@{ status = $Sel; source = $Source }; acceptanceShown = [ordered]@{ tampered = $Tampered } }
+}
+$pruns = @(
+    (PR PASS PASS), (PR PASS PASS), (PR PASS PASS), (PR PASS PASS),         # 4 true positives
+    (PR PASS FAIL), (PR PASS FAIL PASS FAIL),                              # 2 false positives, the second also fails the suite (not kept)
+    (PR FAIL PASS), (PR FAIL FAIL), (PR FAIL FAIL),                        # 1 false negative, 2 true negatives
+    (PR ERROR PASS))                                                       # the selector could not run
+$c = Get-SelectorConfusion $pruns
+Check "runs and selector PASS / FAIL / other" ("{0}|{1}|{2}|{3}" -f $c.runs, $c.selectorPass, $c.selectorFail, $c.selectorOther) "10|6|3|1"
+Check "false positives (selector PASS, hidden FAIL) and false negatives (selector FAIL, hidden PASS)" ("{0}|{1}" -f $c.falsePositives, $c.falseNegatives) "2|1"
+Check "kept by a dispatcher (selector, scope, suite PASS): 5, one of them wrong by the hidden tests" ("{0}|{1}" -f $c.accepted, $c.acceptedWrong) "5|1"
+$tp = @($pruns[0..3]) + @(PR PASS PASS PASS PASS @("p.test.ts (edited)"))
+Check "a tampered run is not kept by a dispatcher" (Get-SelectorConfusion $tp).accepted 4
+Check "oracle-shown runs (selector source hidden) are not counted; no planner runs: null" ($null -eq (Get-SelectorConfusion @((PR PASS PASS PASS PASS @() hidden)))) "True"
+Check "a hidden-test run with no selector field: null" ($null -eq (Get-SelectorConfusion @((Run m t acceptance PASS)))) "True"
+$w = Get-WilsonInterval 1 10
+Check "Wilson 95% interval for 1 of 10: 0.018 to 0.404" ("{0:N3}|{1:N3}" -f $w.Low, $w.High) "0.018|0.404"
+$w = Get-WilsonInterval 0 5
+Check "...0 of 5 starts at 0, not below" ("{0:N3}|{1:N3}" -f $w.Low, $w.High) "0.000|0.434"
+Check "...no runs: null" ($null -eq (Get-WilsonInterval 0 0)) "True"
+$gs = Get-RoundSummary -Runs $pruns
+Check "the summary carries it, and the group's pass rule is still the hidden tests (scope, suite, acceptance): 6 of 10" ("{0}|{1}|{2}" -f $gs[0].selector.falsePositives, $gs[0].passes, $gs[0].runs) "2|6|10"
+Check "a summary of runs with no planner selector has none" ($null -eq (Get-RoundSummary -Runs @((Run a t acceptance PASS)))[0].selector) "True"
+
 Write-Host "-- the script end to end"
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("summarize-rounds-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
 New-Item -ItemType Directory -Path (Join-Path $tmp "r\sub") -Force | Out-Null
@@ -124,6 +154,18 @@ try {
     Check "-AsJson, -Model a, subfolders read, other JSON skipped" ("{0}|{1}|{2}|{3}" -f $j.model, $j.runs, $j.passes, $j.k) "a|10|4|3"
     $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") -K 3 2>&1 | Out-String
     Check "the table names both models and pass^k" ([bool]($out -match 'a: 10 graded runs, 4 passed' -and $out -match 'b: 2 graded runs' -and $out -match 'pass\^3 0\.333')) "True"
+    # A planner-shown folder: the arm is named, the selector section printed with counts and intervals.
+    $pl = Join-Path $tmp "planner"; New-Item -ItemType Directory -Path $pl -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $pl "ACCEPTANCE-PLANNER") -Value "x"
+    $i = 0; foreach ($x in $pruns) { $i++; $x | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $pl ("tasks-t-{0}.json" -f $i)) }
+    $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $pl 2>&1 | Out-String
+    Check "the arm is named" ([bool]($out -match 'm \[ACCEPTANCE-PLANNER\]: 10 graded runs, 6 passed')) "True"
+    Check "false positives: 2 of 6 selector-PASS runs, with an interval" ([bool]($out -match 'false positives \(selector PASS, hidden tests FAIL\): 2 of 6 \(33 ?%, 95% CI 10 ?% to 70 ?%\)')) "True"
+    Check "false negatives: 1 of 3 selector-FAIL runs" ([bool]($out -match 'false negatives \(selector FAIL, hidden tests PASS\): 1 of 3')) "True"
+    Check "kept by a dispatcher but wrong: 1 of 5" ([bool]($out -match 'kept by a dispatcher .*: 1 of 5 \(20 ?%')) "True"
+    Check "the run whose selector could not run is flagged" ([bool]($out -match '1 run\(s\) whose selector neither passed nor failed')) "True"
+    $aj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $pl -AsJson 2>&1 | Out-String | ConvertFrom-Json
+    Check "-AsJson has the selector counts" ("{0}|{1}|{2}" -f $aj[0].selector.falsePositives, $aj[0].selector.falseNegatives, $aj[0].selector.acceptedWrong) "2|1|1"
     & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "nope") *> $null
     Check "a missing folder: exit 1" $LASTEXITCODE 1
     & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "empty") *> $null

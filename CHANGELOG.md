@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: experiment 3's harness, a planner's tests shown while the hidden tests grade (2026-10-31).** The first build
+  was lost with a container before it was pushed; this is the rebuild. `test-tasks.ps1 -ShowAcceptance -AcceptanceDir
+  <folder>` shows the planner's set; the run JSON gains `selector` (that set's verdict) beside `acceptance` (the hidden
+  tests, the truth) and `plannerSet`; `-DryRun -AcceptanceDir` validates the set (fails on base, passes on
+  `acceptance.solution`) into `planner-sets.tsv`; rows are their own arm (`ACCEPTANCE-PLANNER`). `run-retries.ps1`
+  decides on `selector`, records `selectors`, `truths`, `falsePositive`, `falseNegatives` (a summary written before
+  keeps its 11 columns) and substitutes `{task}` in string `-HarnessArgs`. `summarize-rounds.ps1` reports the false
+  positive and false negative rates with Wilson 95% intervals. Guards extended: `test-show-acceptance.ps1`,
+  `test-retry-loop.ps1`, `test-summarize-rounds.ps1`. No planner has been run yet; the 10% rule is still unmeasured.
 - **tests: an unattended testing window, `tests/run-window.ps1` and `server/scripts/llamacpp-window.sh` (2026-10-27).** The
   window plan of 2026-10-27 (a gate, milestone 4's loop, a capability baseline of the 16 live mined tasks) had no way to
   start without someone at a keyboard to run each step and decide the next. The runner (on node3) runs the existing entry
