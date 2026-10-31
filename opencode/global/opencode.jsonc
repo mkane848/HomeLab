@@ -104,9 +104,11 @@
     // (server/docker/.env, 16384 by default), so its entry is capped at 16384.
     // tool_call here reflects the DESKTOP probe of the same weights
     // (tests/test-toolcalls.ps1) unless a server probe is logged for the tag in
-    // tests/results/toolcalls-summary.tsv (host "server"). gemma3, codestral,
-    // gpt-oss and qwq are NOT installed anywhere yet and are therefore
-    // UNPROBED - their "tool_call": true is an assumption. Probe before
+    // tests/results/toolcalls-summary.tsv (host "server"). gemma3, codestral
+    // and qwq are NOT installed anywhere yet and are therefore
+    // UNPROBED - their "tool_call": true is an assumption. gpt-oss:20b is a
+    // llama.cpp seat (models/server-seats.tsv, probe PASS 2026-10-23); this Ollama
+    // entry is unbaked, so it stays at the 16384 default. Probe before
     // seating any of them. glm4 IS measured: FAIL on node3 2026-09-20 (ignored
     // the tool, answered in prose). The server copy itself is unprobed - re-probe
     // it there before trusting this entry.
@@ -200,7 +202,7 @@
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
           "limit": { "context": 16384, "output": 2048 }
         },
-        "codestral": {
+        "codestral:22b": {
           "name": "Codestral 22B (Server, edge)",
           "attachment": true,
           "reasoning": false,
@@ -212,7 +214,7 @@
         "gpt-oss:20b": {
           "name": "GPT-OSS 20B (Server, edge)",
           "attachment": true,
-          "reasoning": false,
+          "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },

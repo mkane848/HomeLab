@@ -33,7 +33,7 @@ fi
 # The GPU as the CONTAINER sees it. The host's nvidia-smi can be fine while the
 # container has lost the device (a systemd reload resets its device-access rules):
 # Ollama then runs on the CPU alone and still answers the API.
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx ollama-server; then
+if grep -qx ollama-server <<<"$(docker ps --format '{{.Names}}' 2>/dev/null)"; then
     if docker exec ollama-server nvidia-smi -L &>/dev/null; then
         echo "In ollama-server: $(docker exec ollama-server nvidia-smi -L | head -1)"
     else
@@ -66,7 +66,7 @@ if [[ -f "$CATALOG" ]]; then
     installed=$(curl -sf http://localhost:11434/api/tags 2>/dev/null | python3 -c "import sys,json; [print(m['name']) for m in json.load(sys.stdin)['models']]" 2>/dev/null || true)
     if [[ -n "$installed" ]]; then
         for tag in $(awk -F '\t' 'NR>1 { print $1 }' "$(dirname "$CATALOG")/catalog.tsv"); do
-            if echo "$installed" | grep -qF "$tag"; then
+            if echo "$installed" | grep -qxF "$tag"; then
                 printf "  installed %-24s %s\n" "$tag" "OK"
             else
                 printf "  missing   %-24s %s\n" "$tag" "(install-model.sh $tag)"

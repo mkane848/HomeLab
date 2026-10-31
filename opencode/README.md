@@ -20,9 +20,9 @@ referenced via `{file:...}` substitution in the config:
 ```
 ~/.config/opencode/
 ├── opencode.jsonc          # Main config (providers reference .secrets/)
-├── skills/                 # Active skills (synced from dev-docs\skills)
-├── commands/               # Custom commands (synced from dev-docs\opencode\commands)
-├── agents/                 # Custom agents (synced from dev-docs\opencode\agents)
+├── skills/                 # Active skills (synced from <repo>\skills)
+├── commands/               # Custom commands (synced from <repo>\opencode\commands)
+├── agents/                 # Custom agents (synced from <repo>\opencode\agents)
 ├── .secrets/
 │   ├── github-pat          # GitHub PAT (already set up)
 │   └── opencode-go-api-key # OpenCode Go API key
@@ -50,7 +50,7 @@ The template `opencode/global/opencode.jsonc` is staged into `~/.config/opencode
 on the machine you run the script on. Nothing leaves the machine by default:
 
 ```powershell
-# from the dev-docs checkout
+# from the repo checkout
 .\desktop\scripts\sync-opencode.ps1
 ```
 
@@ -73,7 +73,7 @@ config is intentionally skipped.
 ## Imported Skills (from Claude)
 
 Skills, commands, and agents were imported from the local Claude Code
-installation and vended into dev-docs (`skills/`, `opencode/commands/`,
+installation and vended into this repo (`skills/`, `opencode/commands/`,
 `opencode/agents/`). Provenance and licenses live in
 [`claude/README.md`](../claude/README.md).
 
@@ -96,11 +96,11 @@ frontend-design 1). Only **8 of them deploy globally** — `frontend-design` and
 rest stay in this repo and a project opts in by path:
 
 ```jsonc
-"skills": { "paths": ["M:/Projects/dev-docs/skills/vercel"] }
+"skills": { "paths": ["<path-to-this-repo>/skills/vercel"] }
 ```
 
 Why: opencode advertises every installed skill's name + description in the
-system prompt of **every** request (~5.5k tokens for all 65). Use
+system prompt of **every** request (~5.5k tokens for all 73). Use
 `-Scope all` to deploy everything globally, and `-Prune` when narrowing scope
 or the old ones stay behind.
 
@@ -161,7 +161,7 @@ block so it appears in OpenCode's `/models`.
 
 - `global/opencode.jsonc` — config template (already applied to `~/.config/opencode/`)
 - `project-override/opencode.jsonc` — per-project override example
-- `.env.example` — shared variable reference (actual `.env` is in dev-docs root)
+- `../.env.example` — shared variable reference (copy to `.env` at the repo root)
 
 ## Open Items
 

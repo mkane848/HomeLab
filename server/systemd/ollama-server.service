@@ -10,7 +10,7 @@ Group=YOUR_GROUP
 WorkingDirectory=/home/YOUR_USER
 
 # Pull and start the container
-ExecStartPre=/usr/bin/docker compose -f /path/to/docker-compose.yml pull
+# The image is pinned by tag, so no pull at boot: an offline boot must still start.
 ExecStart=/usr/bin/docker compose -f /path/to/docker-compose.yml up
 
 # Clean stop

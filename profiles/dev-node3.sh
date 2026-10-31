@@ -19,8 +19,8 @@ export DEV_TIERS_GO=false
 export DEV_SERVER_MODELS="autocomplete"
 export DEV_NODE3_MODELS="general embed"
 
-export OLLAMA_SERVER_URL="http://localhost:11434"
-export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://localhost:11434/v1}"
+export OLLAMA_SERVER_URL="http://${SERVER_IP:-SERVER_IP}:11434"
+export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://${SERVER_IP:-SERVER_IP}:11434/v1}"
 
 # llama.cpp providers (docs/roadmap.md -> "Replacing Ollama", Phase 2). {env:...} has
 # no fallbacks, so every live profile exports the server's endpoint even if it seats

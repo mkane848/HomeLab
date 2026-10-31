@@ -8,7 +8,7 @@
 #   install-model.sh --info <tag>    # show catalog entry for one model
 #   install-model.sh <tag> [...]     # pull specific tags
 #   install-model.sh <group> [...]   # pull a whole group (autocomplete/coder/reasoner/general/creative/embed)
-#   install-model.sh all             # pull every catalog model
+#   install-model.sh all             # pull every catalog model eligible for the server
 #   install-model.sh --profile       # pull whatever the active profile asked for (DEV_SERVER_MODELS)
 #
 # Options:
@@ -41,7 +41,7 @@ check_docker() {
 }
 
 ensure_container() {
-    if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
+    if ! grep -qx "$CONTAINER" <<<"$(docker ps --format '{{.Names}}')"; then
         echo "[install-model] $CONTAINER is not running. Starting it with docker compose..."
         if [[ "$DRY_RUN" -eq 1 ]]; then
             echo "[install-model] (dry-run) would run: docker compose -f $DOCKER_DIR/docker-compose.yml up -d"
@@ -50,7 +50,7 @@ ensure_container() {
             sleep 3
         fi
     fi
-    docker ps --format '{{.Names}}' | grep -qx "$CONTAINER" || die "$CONTAINER still not running. Check 'docker ps' and logs."
+    [[ "$DRY_RUN" -eq 1 ]] || grep -qx "$CONTAINER" <<<"$(docker ps --format '{{.Names}}')" || die "$CONTAINER still not running. Check 'docker ps' and logs."
 }
 
 ollama_exec() {
@@ -76,7 +76,7 @@ ollama_pull() {
     ollama_exec pull "$tag"
 
     if [[ -n "$CTX" ]]; then
-        local derived="${tag}-${CTX}k"
+        local derived="${tag}-$(( CTX >= 1024 ? CTX / 1024 : CTX ))k"
         echo "[install-model] Creating derived model $derived (num_ctx $CTX)..."
         # The Modelfile is written inside the container: `docker exec` without -i
         # drops a heredoc on stdin (this path silently created nothing before
@@ -91,7 +91,8 @@ ollama_pull() {
 }
 
 catalog_tags() {
-    awk -F '\t' 'NR>1 { print $1 }' "$CATALOG_TSV"
+    # Tags eligible for this host: hosts column is "all" or lists "server".
+    awk -F '\t' 'NR>1 && ($6 == "all" || $6 ~ /(^|,)server(,|$)/) { print $1 }' "$CATALOG_TSV"
 }
 
 expand_target() {
@@ -127,6 +128,7 @@ main() {
                 exit 0
                 ;;
             --ctx)
+                [[ $# -ge 2 ]] || die "--ctx needs a number (e.g. 32768)"
                 shift
                 CTX="$1"
                 [[ "$CTX" =~ ^[0-9]+$ ]] || die "--ctx expects a number (e.g. 32768)"
@@ -145,7 +147,7 @@ main() {
     done
 
     if [[ "$profile_mode" -eq 1 ]]; then
-        [[ -z "${DEV_SERVER_MODELS:-}" ]] && die "DEV_SERVER_MODELS is not set. Source a profile first (e.g. source profiles/dev-server-all.sh)."
+        [[ -z "${DEV_SERVER_MODELS:-}" ]] && die "DEV_SERVER_MODELS is not set. Source a profile first (e.g. source profiles/dev-workflow-server.sh)."
         # shellcheck disable=SC2206
         targets=($DEV_SERVER_MODELS)
     fi

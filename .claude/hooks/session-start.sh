@@ -27,9 +27,9 @@ TARBALL="powershell-${PWSH_VERSION}-linux-${PWSH_ARCH}.tar.gz"
 URL="https://github.com/PowerShell/PowerShell/releases/download/v${PWSH_VERSION}/${TARBALL}"
 
 TMP="$(mktemp -d)"
-if ! curl -sSL -o "$TMP/$TARBALL" "$URL"; then
+trap 'rm -rf "$TMP"' EXIT
+if ! curl -fsSL -o "$TMP/$TARBALL" "$URL"; then
   echo "session-start.sh: failed to download pwsh, skipping" >&2
-  rm -rf "$TMP"
   exit 0
 fi
 
@@ -37,6 +37,5 @@ mkdir -p /opt/microsoft/powershell/7
 tar zxf "$TMP/$TARBALL" -C /opt/microsoft/powershell/7
 chmod +x /opt/microsoft/powershell/7/pwsh
 ln -sf /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh
-rm -rf "$TMP"
 
 pwsh --version

@@ -42,13 +42,13 @@ it from the run automatically. No test changes were needed.
 ## Bringing one back
 
 ```bash
-git mv profiles/parked/dev-workflow-server.sh profiles/
+git mv profiles/parked/<name>.sh profiles/     # e.g. dev-quick.sh
 ```
 
 Then confirm it before trusting it:
 
 ```powershell
-.\tests\test-profiles.ps1 -Profile dev-workflow-server
+.\tests\test-profiles.ps1 -Profile <name>
 ```
 
 The harness picks it up again with no other change, and

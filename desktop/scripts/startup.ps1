@@ -2,7 +2,11 @@
 
 param(
     [switch]$Force,
-    [int]$ContextLength = 16384
+    [int]$ContextLength = 16384,
+    # Pull every missing $contextModels entry (~180 GB), not just the active
+    # profile's models. Without it, startup only pulls what DEV_DESKTOP_MODELS
+    # and the profile's OPENCODE_*MODEL name, and bakes what is already installed.
+    [switch]$PullAll
 )
 
 $ErrorActionPreference = "Stop"
@@ -123,7 +127,24 @@ if ($ctxOverride) {
     Write-Host "[startup] -ContextLength $ContextLength overrides every per-model context" -ForegroundColor Yellow
 }
 
-$tags = (Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5).models
+try {
+    $tags = (Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 15).models
+} catch {
+    Write-Host "[startup] ERROR: Ollama API not responding at localhost:11434 ($($_.Exception.Message))." -ForegroundColor Red
+    Write-Host "  Start Ollama (or re-run with -Force) and try again." -ForegroundColor Gray
+    exit 1
+}
+
+# Tags the active profile wants on this host: DEV_DESKTOP_MODELS plus the desktop
+# tags in OPENCODE_MODEL / OPENCODE_SMALL_MODEL. Only these are pulled when
+# missing; anything else in $contextModels is baked only if already installed.
+$wantedTags = @()
+if ($env:DEV_DESKTOP_MODELS) { $wantedTags += $env:DEV_DESKTOP_MODELS -split '\s+' }
+foreach ($v in @($env:OPENCODE_MODEL, $env:OPENCODE_SMALL_MODEL)) {
+    if ($v -match '^ollama-desktop/(.+)$') { $wantedTags += $Matches[1] }
+}
+$wantedTags = @($wantedTags | Where-Object { $_ })
+$failedSteps = @()
 
 # `ollama pull` and `ollama create` write progress to stderr, which under
 # $ErrorActionPreference = "Stop" becomes a terminating error (AGENTS.md
@@ -133,10 +154,20 @@ $ErrorActionPreference = "Continue"
 
 foreach ($m in $contextModels) {
     if (-not ($tags | Where-Object { $_.name -eq $m.Base })) {
+        $bareBase = $m.Base -replace ':latest$', ''
+        if (-not ($PullAll -or $wantedTags -contains $m.Base -or $wantedTags -contains $bareBase)) {
+            Write-Host "[startup] $($m.Base) not installed and not in the active profile; skipping (-PullAll to pull)." -ForegroundColor DarkGray
+            continue
+        }
         Write-Host ""
         Write-Host "[startup] $($m.Base) not found. Pulling now..." -ForegroundColor Yellow
         Write-Host "  This may take a while on first run." -ForegroundColor Gray
         & ollama pull $m.Base
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "[startup] ERROR: ollama pull $($m.Base) failed (exit $LASTEXITCODE); not baking it." -ForegroundColor Red
+            $failedSteps += "pull $($m.Base)"
+            continue
+        }
     }
 
     $shortName = $m.Base.Split(':')[0]
@@ -148,12 +179,14 @@ foreach ($m in $contextModels) {
     $mf = Join-Path $env:TEMP "Modelfile-context-$shortName"
     Set-Content -LiteralPath $mf -Value "FROM $($m.Base)`nPARAMETER num_ctx $baseCtx" -Encoding ascii
     & ollama create $m.Base -f $mf | Out-Null
+    if ($LASTEXITCODE -ne 0) { $failedSteps += "create $($m.Base)" }
 
     foreach ($aliasCtx in $aliasCtxs) {
         $ctxModel = "$shortName-$([math]::Round($aliasCtx / 1024))k"
         Write-Host "[startup]   + alias $ctxModel (num_ctx=$aliasCtx)" -ForegroundColor Cyan
         Set-Content -LiteralPath $mf -Value "FROM $($m.Base)`nPARAMETER num_ctx $aliasCtx" -Encoding ascii
         & ollama create $ctxModel -f $mf | Out-Null
+        if ($LASTEXITCODE -ne 0) { $failedSteps += "create $ctxModel" }
     }
 
     Remove-Item -LiteralPath $mf -Force
@@ -169,12 +202,17 @@ $derivedModels = @(
     @{ Name = "qwen2.5-coder-3b-cpu"; From = "qwen2.5-coder:3b"; Ctx = 16384; NumGpu = 0 }
 )
 foreach ($d in $derivedModels) {
+    if (-not (& ollama list 2>$null | Select-String -SimpleMatch $d.From -Quiet)) {
+        Write-Host "[startup] $($d.From) not installed; skipping derived $($d.Name)." -ForegroundColor DarkGray
+        continue
+    }
     $dCtx = if ($ctxOverride) { $ContextLength } else { $d.Ctx }
     Write-Host ""
     Write-Host "[startup] Deriving $($d.Name) from $($d.From) (num_ctx=$dCtx, num_gpu=$($d.NumGpu))..." -ForegroundColor Cyan
     $mf = Join-Path $env:TEMP "Modelfile-derived-$($d.Name)"
     Set-Content -LiteralPath $mf -Value "FROM $($d.From)`nPARAMETER num_ctx $dCtx`nPARAMETER num_gpu $($d.NumGpu)" -Encoding ascii
     & ollama create $d.Name -f $mf | Out-Null
+    if ($LASTEXITCODE -ne 0) { $failedSteps += "create $($d.Name)" }
     Remove-Item -LiteralPath $mf -Force
 }
 
@@ -192,6 +230,10 @@ foreach ($m in $contextModels) {
 foreach ($d in $derivedModels) {
     $dCtx = if ($ctxOverride) { $ContextLength } else { $d.Ctx }
     Write-Host ("  {0,-22} {1}  (from {2}, num_gpu {3})" -f $d.Name, $dCtx, $d.From, $d.NumGpu)
+}
+if ($failedSteps.Count) {
+    Write-Host "[startup] FAILED steps: $($failedSteps -join '; ')" -ForegroundColor Red
+    exit 1
 }
 Write-Host "[startup] Desktop ready." -ForegroundColor Green
 

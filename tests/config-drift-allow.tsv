@@ -1,0 +1,31 @@
+# tests/config-drift-allow.tsv - deliberate differences tests/check_config_drift.py must not flag.
+# Columns (tab-separated): check, key (exactly as the check prints it), reason.
+# A row that matches nothing fails the check, so entries cannot outlive the difference.
+# The categories are the ones AGENTS.md lists as "by design": embed models, a tag on one
+# host only, local-GGUF imports with no catalog row; plus derived/alias tags and the one
+# uncatalogued small model.
+check	key	reason
+seat-not-on-desktop	gpt-oss:20b	llama.cpp seat only (models/server-seats.tsv note); the desktop has no copy
+server-limit	gpt-oss:20b	the Ollama entry is unbaked and serves the 16384 default; 65536 applies to llama.cpp
+uncatalogued	ollama-server/qwen2.5-coder-3b-cpu	derived model built by bake-models.sh / startup.ps1, not a pull target
+uncatalogued	ollama-desktop/qwen2.5-coder-3b-cpu	derived model built by startup.ps1 ($derivedModels)
+uncatalogued	ollama-desktop/deepseek-r1-32k	baked alias of deepseek-r1:14b (startup.ps1 $contextModels Aliases)
+uncatalogued	ollama-desktop/deepseek-r1-16k	baked alias of deepseek-r1:14b (startup.ps1 $contextModels Aliases)
+uncatalogued	ollama-desktop/qwen2.5-coder-16k	baked alias of qwen2.5-coder:7b (startup.ps1 $contextModels Aliases)
+uncatalogued	ollama-desktop/qwen2.5-coder:3b	the CPU companion's base; baked by startup.ps1, listed in profiles, no catalog row
+uncatalogued	ollama-desktop/qwen3-coder:30b-a3b	local GGUF import (server-seats.tsv source=import); no catalog row by design
+uncatalogued	ollama-desktop/qwen3.5:9b	local GGUF import (retired executor); no catalog row by design
+uncatalogued	ollama-desktop/deepseek-r1-0528:8b	local GGUF import; no catalog row by design
+profile-models	dev-workflow-quality qwen2.5-coder:3b	not catalogued; startup.ps1/bake-models.sh pull it as the CPU companion's base
+profile-models	dev-workflow-server qwen2.5-coder:3b	not catalogued; bake-models.sh pulls it as the CPU companion's base
+profile-models	dev-workflow-server-llamacpp qwen2.5-coder:3b	not catalogued; bake-models.sh pulls it as the CPU companion's base
+unregistered	ollama-desktop/codestral:22b	registered on the server block only; unprobed
+unregistered	ollama-desktop/gemma3:12b	registered on the server block only; unprobed
+unregistered	ollama-desktop/glm4:9b	registered on the node3 block only; probed FAIL (no tools)
+unregistered	ollama-desktop/gpt-oss:20b	llama.cpp server seat only
+unregistered	ollama-desktop/qwq:32b	registered on the server block only; CPU offload
+unregistered	ollama-server/devstral:24b	desktop seat; the server has not probed it
+unregistered	ollama-server/devstral-small-2:24b	desktop seat; the server has not probed it
+unregistered	ollama-server/north-mini-code-1.0	desktop seat; the server has not probed it
+unregistered	ollama-server/laguna-xs-2.1	desktop seat; the server has not probed it
+unregistered	ollama-server/nemotron-3.5-lightning	desktop seat; the server has not probed it
