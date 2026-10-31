@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: experiment 3's harness open items recorded (2026-10-31).** `docs/planner-tests-experiment.md` now lists what
+  the merged harness does not yet show: no planner has been run (the false-positive rate is unmeasured), the first
+  build's mutation controls were lost and not re-run on the rebuild, and the Linux-sandbox guard failures that are
+  identical on `main`.
 - **tests: experiment 3's harness, a planner's tests shown while the hidden tests grade (2026-10-31).** The first build
   was lost with a container before it was pushed; this is the rebuild. `test-tasks.ps1 -ShowAcceptance -AcceptanceDir
   <folder>` shows the planner's set; the run JSON gains `selector` (that set's verdict) beside `acceptance` (the hidden

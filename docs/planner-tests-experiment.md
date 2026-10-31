@@ -112,3 +112,15 @@ pwsh tests/run-retries.ps1 -Tasks <ids> -Model <m> -MaxAttempts 3 -TaskManifest 
      -HarnessArgs @{ AcceptanceDir = "planner/{task}" }
 pwsh tests/summarize-rounds.ps1 -ResultsDir <that folder>
 ```
+
+### Open items (2026-10-31)
+
+- **No planner has been run.** The harness is only the instrument. The selector's false-positive rate, which the 10%
+  rule needs, is still unmeasured.
+- **The mutation controls were not re-run.** The first build of this harness was lost with a container before it was
+  pushed, and so were the mutation checks run against it (a mutant of the harness that each guard should catch). The
+  rebuild's guards pass, but no mutant has been run against them, so a green guard here shows the cases pass, not
+  that a broken harness would fail one. Re-run them before trusting a planner arm's numbers.
+- **Guards on Linux:** `test-show-acceptance.ps1` has one failure as root on Linux (the read-only plain-write check),
+  identical on `main` before this harness, and needs `TEMP=/tmp` set. The other 28 guards that fail on a Linux
+  sandbox are the Windows-first ones and fail the same on `main`. CI (Windows, pwsh 7) is the authority.
