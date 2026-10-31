@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: `run-window.ps1 -M4Tasks` was ignored (2026-10-31).** PowerShell names are case-insensitive, so the script-scope
+  `$m4Tasks` initialised at load was the `-M4Tasks` parameter itself; a narrowed m4 resolved an empty list, which reads as
+  "all". Found with `-Plan` on node3 before the first window; the window of 2026-10-30 ran from this fix's commit on the
+  #171 branch, which merged a few minutes before the fix was pushed. Now `$script:m4Ids` / `$script:smokeIds`;
+  `tests/test-run-window.ps1` gains a `-M4Tasks` case, which the unfixed script fails.
 - **tests: experiment 3's harness, a planner's tests shown while the hidden tests grade (2026-10-31).** The first build
   was lost with a container before it was pushed; this is the rebuild. `test-tasks.ps1 -ShowAcceptance -AcceptanceDir
   <folder>` shows the planner's set; the run JSON gains `selector` (that set's verdict) beside `acceptance` (the hidden
