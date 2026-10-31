@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeps its 11 columns) and substitutes `{task}` in string `-HarnessArgs`. `summarize-rounds.ps1` reports the false
   positive and false negative rates with Wilson 95% intervals. Guards extended: `test-show-acceptance.ps1`,
   `test-retry-loop.ps1`, `test-summarize-rounds.ps1`. No planner has been run yet; the 10% rule is still unmeasured.
+- **tests: an unattended testing window, `tests/run-window.ps1` and `server/scripts/llamacpp-window.sh` (2026-10-27).** The
+  window plan of 2026-10-27 (a gate, milestone 4's loop, a capability baseline of the 16 live mined tasks) had no way to
+  start without someone at a keyboard to run each step and decide the next. The runner (on node3) runs the existing entry
+  points in that order with automatic go or no-go between them (a smoke of `run-retries.ps1` and of the batch; an
+  infrastructure-only smoke skips only its own pipeline), watches the server's `/health`, kills a phase at a hard deadline,
+  honours a `STOP` file, and writes `REPORT.md`; `-Plan` shows the exact commands, `-Detach` runs it as a one-shot scheduled
+  task. The server script opens the llama.cpp stack (stops Ollama's resident seat, waits for the GPU, loads the seat, runs
+  `llamacpp-check.sh --url`), restarts a dead container up to four times an hour, and takes the stack down at its deadline
+  whatever else happens. New guards `test-run-window.ps1` and `test-llamacpp-window.ps1` (stand-ins for docker, curl, the
+  harness and llama-server; each script was also run against mutants). Not run on the real machines: `-Detach` and the
+  first live window. Runbook: `docs/unattended-window.md`.
 - **docs: the 2026-09-29 benchmark audit's working material is kept in the repo (2026-10-27).** `docs/audit-2026-09-29/`
   holds what the audit session had only in its scratch directory, which is lost when the container is reclaimed: the
   independent review and its section 9 update, the per-attempt table, the 29-row candidate list, the briefs and prompts

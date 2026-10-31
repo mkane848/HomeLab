@@ -710,7 +710,9 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
       2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones: the hidden arm of (1).
       3. **Planner-written tests:** designed in [planner-tests-experiment.md](planner-tests-experiment.md); harness built 2026-10-31.
       4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1), which
-         is done (2026-10-25: prompt 2, no read-only files), on node3 rows of the new shell era (#162).
+         is done (2026-10-25: prompt 2, no read-only files), on node3 rows of the new shell era (#162). A window to run
+         it and the capability baseline with no one there: `tests/run-window.ps1` and
+         `server/scripts/llamacpp-window.sh` ([unattended-window.md](unattended-window.md), 2026-10-27; not yet run live).
     - **Task sets (2026-10-24), from the sealed llama.cpp hidden rounds:**
       - **Regression set:** the 12 tasks that passed all 3 hidden runs: `real-01`, `wp-0a`, `wp-1a`, `wp-2b`, `wp-3a`,
         `wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`, `wp-6f`, `wp-7a`, `wp-9a`. One round of them guards a harness or engine
