@@ -117,10 +117,19 @@ pwsh tests/summarize-rounds.ps1 -ResultsDir <that folder>
 
 - **No planner has been run.** The harness is only the instrument. The selector's false-positive rate, which the 10%
   rule needs, is still unmeasured.
-- **The mutation controls were not re-run.** The first build of this harness was lost with a container before it was
-  pushed, and so were the mutation checks run against it (a mutant of the harness that each guard should catch). The
-  rebuild's guards pass, but no mutant has been run against them, so a green guard here shows the cases pass, not
-  that a broken harness would fail one. Re-run them before trusting a planner arm's numbers.
+- ~~**The mutation controls were not re-run.**~~ **Re-run 2026-10-31 on `main` (desktop, PowerShell 7): 6 of 6
+  mutants caught.** The first build's checks were lost with its container. The guards themselves passed first: 238
+  checks across `test-retry-loop`, `test-run-window`, `test-show-acceptance` and `test-summarize-rounds`. Then each
+  mutant broke one line and its guard failed:
+
+  | Mutant | Guard | FAIL lines |
+  |---|---|---|
+  | `run-retries.ps1` decides on the hidden tests instead of the selector | `test-retry-loop` | 8 |
+  | `run-retries.ps1` ignores a failing selector | `test-retry-loop` | 13 |
+  | `test-tasks.ps1` grades the selector with the hidden tests, not the planner's set | `test-show-acceptance` | 4 |
+  | `test-tasks.ps1` records no selector | `test-show-acceptance` | 5 |
+  | a planner set counted valid when it passes on the base | `test-show-acceptance` | 1 |
+  | `summarize-rounds.ps1` counts false positives as hidden PASS | `test-summarize-rounds` | 4 |
 - **Guards on Linux:** `test-show-acceptance.ps1` has one failure as root on Linux (the read-only plain-write check),
   identical on `main` before this harness, and needs `TEMP=/tmp` set. The other 28 guards that fail on a Linux
   sandbox are the Windows-first ones and fail the same on `main`. CI (Windows, pwsh 7) is the authority.
