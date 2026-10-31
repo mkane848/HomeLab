@@ -32,6 +32,12 @@ literature search goes before the run.
   checks. No source changes.
 - **Its prompt:** fixed text, kept in the private task folder and hashed into each row, so planner runs are
   comparable. It asks for tests that fail on the current code and pass once the task is done, and nothing more.
+- **How it runs (2026-10-31):** in a container, not a cloud session. `desktop/scripts/make-planner-packs.py` builds one
+  pack per task (the request and a git bundle of the base commit and its history, nothing later);
+  `desktop/scripts/run-planner.ps1` runs Claude Code on it inside `desktop/docker/planner/`, on an internal network
+  whose only exit is a proxy that allows `api.anthropic.com` and `registry.npmjs.org`. The task repos are public, so
+  the fix is one `git clone` away for any planner with open internet; the proxy removes that, and the web tools are
+  switched off because WebSearch runs on Anthropic's side. CPU only.
 - **Where its output goes:** `HomeLab-private/tasks/planner/<task>/<n>/`, one folder per planner run, outside every
   repo, like the hidden tests.
 

@@ -1,0 +1,38 @@
+# The planner's network (docs/planner-tests-experiment.md). CPU-only, like every container on the desktop.
+#
+#   planner-net   internal: containers on it cannot reach the internet or the host
+#   egress        the proxy's way out, and nothing else's
+#
+# Only planner-proxy is on both. Start the proxy with `docker compose -f <this file> up -d --build`; the planner
+# itself is started per run by desktop\scripts\run-planner.ps1 with `docker run --rm`.
+name: planner
+
+services:
+  planner-proxy:
+    build:
+      context: .
+      dockerfile: proxy.dockerfile
+    image: planner-proxy:1
+    container_name: planner-proxy
+    restart: "no"
+    networks:
+      - planner-net
+      - egress
+    read_only: true
+    tmpfs:
+      - /var/run/squid
+      - /var/cache/squid
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+networks:
+  planner-net:
+    name: planner-net
+    internal: true
+  egress:
+    name: planner-egress
