@@ -19,8 +19,11 @@
 # models' means are comparable); a task with fewer than k runs is listed and left
 # out of the means.
 # Rows are grouped by model AND arm: a run in a folder (or under one) that holds an
-# ASSISTED, ACCEPTANCE-SHOWN or ACCEPTANCE-READONLY marker is a different condition
-# and is never pooled with unmarked runs. Run JSONs whose agent exit was not 0 (an
+# ASSISTED, ACCEPTANCE-SHOWN, ACCEPTANCE-READONLY or ACCEPTANCE-PLANNER marker is a
+# different condition and is never pooled with unmarked runs. A group of planner-shown
+# runs (experiment 3, docs/planner-tests-experiment.md) also gets the selector against
+# the truth: how often the planner's tests passed code the hidden tests fail (false
+# positives, the rate that decides milestone 5) and failed code they pass (false negatives). Run JSONs whose agent exit was not 0 (an
 # infrastructure failure, no measurement) are skipped and counted. Runs of one
 # group that differ in numCtx, engine, plugins or agent version are pooled but
 # listed under "eras" so the mix is visible.
@@ -67,6 +70,38 @@ function Get-RunVerdict {
     return $(if ($ok) { "PASS" } else { "FAIL" })
 }
 
+function Get-WilsonInterval {
+    # The 95% Wilson score interval for k of n.
+    param([int]$K, [int]$N, [double]$Z = 1.96)
+    if ($N -le 0) { return $null }
+    $p = $K / $N; $z2 = $Z * $Z; $den = 1 + $z2 / $N
+    $center = ($p + $z2 / (2 * $N)) / $den
+    $half = $Z * [math]::Sqrt($p * (1 - $p) / $N + $z2 / (4 * $N * $N)) / $den
+    return [pscustomobject]@{ Low = [math]::Max(0.0, $center - $half); High = [math]::Min(1.0, $center + $half) }
+}
+
+function Get-SelectorConfusion {
+    # Planner-shown runs only (selector.source "planner"): the verdict of the tests the model was shown against
+    # the hidden tests' (`acceptance`). "Accepted" is what a dispatcher would keep: selector, scope and suite PASS,
+    # nothing tampered. $null when no run has a planner selector.
+    param([object[]]$Runs)
+    $pl = @($Runs | Where-Object { $_.PSObject.Properties['selector'] -and $_.selector -and $_.selector.source -eq "planner" })
+    if ($pl.Count -eq 0) { return $null }
+    $selPass = @($pl | Where-Object { $_.selector.status -eq "PASS" })
+    $selFail = @($pl | Where-Object { $_.selector.status -eq "FAIL" })
+    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 })
+    [pscustomobject]@{
+        runs = $pl.Count
+        selectorPass = $selPass.Count
+        falsePositives = @($selPass | Where-Object { $_.acceptance.status -ne "PASS" }).Count
+        selectorFail = $selFail.Count
+        falseNegatives = @($selFail | Where-Object { $_.acceptance.status -eq "PASS" }).Count
+        selectorOther = $pl.Count - $selPass.Count - $selFail.Count
+        accepted = $accepted.Count
+        acceptedWrong = @($accepted | Where-Object { $_.acceptance.status -ne "PASS" }).Count
+    }
+}
+
 function Get-RoundSummary {
     # One summary per model over the run objects given.
     param([object[]]$Runs, [int]$K = 0)
@@ -100,7 +135,7 @@ function Get-RoundSummary {
             if ($vals.Count -gt 1) { $eras[$name] = $vals }
         }
         $first = $mg.Group[0]
-        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses }
+        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group) }
     }
     # One k for every model shown, so the means can be compared across models.
     $allN = @($groups | ForEach-Object { $_.tasks } | ForEach-Object { $_.n })
@@ -117,7 +152,7 @@ function Get-RoundSummary {
         $passCount = ($tasks | Measure-Object c -Sum).Sum
         $out += [pscustomobject]@{
             model = $grp.model; arm = $grp.arm; k = $k; tasks = $tasks
-            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses
+            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector
             runs = [int]$runCount; passes = [int]$passCount
             perRun = $(if ($runCount) { [math]::Round($passCount / $runCount, 3) } else { $null })
             passAtK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passAtK -Average).Average, 3) } else { $null })
@@ -134,7 +169,7 @@ function Get-RoundSummary {
 if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
     $runs = @()
     $skippedExit = 0
-    $markerNames = @("ASSISTED", "ACCEPTANCE-SHOWN", "ACCEPTANCE-READONLY")
+    $markerNames = @("ASSISTED", "ACCEPTANCE-SHOWN", "ACCEPTANCE-READONLY", "ACCEPTANCE-PLANNER")
     foreach ($d in $ResultsDir) {
         if (-not (Test-Path -LiteralPath $d)) { Write-Host "ERROR: no folder $d" -ForegroundColor Red; exit 1 }
         $root = (Resolve-Path -LiteralPath $d).Path.TrimEnd('\', '/')
@@ -170,6 +205,15 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
         Write-Host ("  pass@{0} {1:N3}  pass^{0} {2:N3}  (means over tasks); passed every run: {3} of {4} tasks; never: {5}" -f $s.k, $s.passAtK, $s.passHatK, $s.tasksAlwaysPassed, $s.tasks.Count, $s.tasksNeverPassed)
         if ($s.tasksBelowK.Count) { Write-Host ("  fewer than {0} runs, left out of the means: {1}" -f $s.k, ($s.tasksBelowK -join ", ")) }
         if ($s.manualRuns) { Write-Host ("  {0} checklist run(s) left out: the owner rates them" -f $s.manualRuns) }
+        if ($s.selector) {
+            $c = $s.selector
+            $fmt = { param($k, $n) $w = Get-WilsonInterval $k $n; if ($w) { "{0} of {1} ({2:P0}, 95% CI {3:P0} to {4:P0})" -f $k, $n, ($k / $n), $w.Low, $w.High } else { "none" } }
+            Write-Host ("  selector (the planner's tests) against the hidden tests, {0} run(s):" -f $c.runs)
+            Write-Host ("    false positives (selector PASS, hidden tests FAIL): {0}" -f (& $fmt $c.falsePositives $c.selectorPass))
+            Write-Host ("    false negatives (selector FAIL, hidden tests PASS): {0}" -f (& $fmt $c.falseNegatives $c.selectorFail))
+            Write-Host ("    kept by a dispatcher (selector, scope and suite PASS, nothing tampered) but wrong by the hidden tests: {0}" -f (& $fmt $c.acceptedWrong $c.accepted))
+            if ($c.selectorOther) { Write-Host ("    {0} run(s) whose selector neither passed nor failed (could not run)" -f $c.selectorOther) -ForegroundColor Yellow }
+        }
         $s.tasks | ForEach-Object { [pscustomobject]@{ task = $_.task; runs = $_.n; passed = $_.c; "pass@$($s.k)" = $(if ($null -ne $_.passAtK) { [math]::Round($_.passAtK, 3) } else { "-" }); "pass^$($s.k)" = $(if ($null -ne $_.passHatK) { [math]::Round($_.passHatK, 3) } else { "-" }) } } | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
     }
 }

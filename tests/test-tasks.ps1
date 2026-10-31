@@ -53,6 +53,8 @@
 #                `acceptance.dir` (a folder beside a private manifest), placed in
 #                the worktree only after the model's run. -DryRun also checks they
 #                PASS on `acceptance.solution`, the commit that really did the job.
+#                -AcceptanceDir shows a planner's own tests in their place while
+#                these still grade (experiment 3, docs/planner-tests-experiment.md).
 #   failsOnOld - SKIP ("not asked") unless the task sets `requireTest`.
 # A task may add `followUps`: fixed later turns (the owner's "go ahead" after a
 # plan), each sent with `opencode run --session` into the same session and
@@ -225,6 +227,16 @@ param(
     # model cleared (readOnlyCleared). Rows need a folder of their own, marked
     # ACCEPTANCE-READONLY.
     [switch]$ReadOnlyAcceptance,
+    # Experiment 3 (docs/planner-tests-experiment.md): show the tests in THIS folder, a
+    # planner's set written without sight of the hidden tests, instead of the task's
+    # acceptance.dir. Relative paths are read against the manifest's folder. With
+    # -ShowAcceptance the model gets the planner's tests and the task's own acceptance.dir
+    # still grades (`acceptance`, the truth); the planner's set is also run on the model's
+    # source as the run JSON's `selector`, the verdict a dispatcher in real use would see.
+    # Rows are their own arm (an ACCEPTANCE-PLANNER marker). Alone with -DryRun it checks
+    # the set instead: it must FAIL on the untouched base and PASS on acceptance.solution
+    # (planner-sets.tsv in the results folder keeps the answer).
+    [string]$AcceptanceDir = "",
     # After each run that exited 0 against an Ollama provider, ask that host's
     # /api/ps where -Model sits (Get-EngineGpuPlacement). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
@@ -334,6 +346,22 @@ if (-not $ReadOnlyAcceptance -and (Test-Path -LiteralPath $readOnlyMarker)) {
     Write-Host "ERROR: $resultsDir holds runs whose given tests were read-only ($readOnlyMarker); other rows don't belong there. Pass another -ResultsDir." -ForegroundColor Red
     exit 1
 }
+# -AcceptanceDir: the tests shown are a planner's, and its rows are their own arm. It needs -ShowAcceptance to be
+# shown at all (-DryRun alone only checks the set).
+$plannerMarker = Join-Path $resultsDir "ACCEPTANCE-PLANNER"
+$plannerRun = [bool]($AcceptanceDir -and $ShowAcceptance)
+if ($AcceptanceDir -and -not $ShowAcceptance -and -not $DryRun) {
+    Write-Host "ERROR: -AcceptanceDir gives the model a planner's tests; it needs -ShowAcceptance (or -DryRun, which only checks the set)." -ForegroundColor Red
+    exit 1
+}
+if ($plannerRun -and $hasRows -and -not (Test-Path -LiteralPath $plannerMarker)) {
+    Write-Host "ERROR: -AcceptanceDir runs need a results folder of their own, and $resultsDir already holds rows whose given tests were not a planner's. Pass -ResultsDir <a folder of its own>." -ForegroundColor Red
+    exit 1
+}
+if (-not $plannerRun -and -not $DryRun -and (Test-Path -LiteralPath $plannerMarker)) {
+    Write-Host "ERROR: $resultsDir holds runs whose given tests were a planner's ($plannerMarker); other rows don't belong there. Pass another -ResultsDir." -ForegroundColor Red
+    exit 1
+}
 if (-not (Test-Path -LiteralPath $resultsDir)) {
     New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 }
@@ -342,6 +370,9 @@ if ($ReadOnlyAcceptance -and -not (Test-Path -LiteralPath $readOnlyMarker)) {
 }
 if ($ShowAcceptance -and -not (Test-Path -LiteralPath $shownMarker)) {
     Set-Content -LiteralPath $shownMarker -Value "Rows in this folder come from -ShowAcceptance runs: the model was given the acceptance tests it is graded on. Don't compare them with hidden-test rows as if the tests were unseen."
+}
+if ($plannerRun -and -not (Test-Path -LiteralPath $plannerMarker)) {
+    Set-Content -LiteralPath $plannerMarker -Value "Rows in this folder come from -ShowAcceptance -AcceptanceDir runs: the model was given a planner's tests, not the task's own, and the run JSON's selector is the planner set's verdict beside acceptance, the hidden tests'. Don't pool them with other shown rows."
 }
 if ($assistedRun -and -not (Test-Path -LiteralPath $assistedMarker)) {
     Set-Content -LiteralPath $assistedMarker -Value "Rows in this folder come from assisted runs ($assistedSwitches): the harness sent extra messages into the session. Don't compare them with unassisted rows as if the model ran alone."
@@ -1189,16 +1220,26 @@ function Invoke-WithSourceReverted {
 # only enter the worktree after the model's run, and leave before the next step.
 # The result's Label names the source; Hash fingerprints a folder's files.
 function Get-AcceptanceDirFiles {
-    param($Task)
+    param($Task, [string]$Folder = "")
+    # -Folder names another folder, already resolved (-AcceptanceDir: a planner's set).
     # A task with no acceptance block (the public tasks) has no folder: Join-Path
     # with a null child throws before the caller's friendly refusal can run.
-    if (-not $Task.acceptance -or -not $Task.acceptance.dir) { return $null }
-    $dir = Join-Path $manifestDir $Task.acceptance.dir
+    if ($Folder) { $dir = $Folder }
+    elseif (-not $Task.acceptance -or -not $Task.acceptance.dir) { return $null }
+    else { $dir = Join-Path $manifestDir $Task.acceptance.dir }
     if (-not (Test-Path -LiteralPath $dir -PathType Container)) { return $null }
     $root = (Resolve-Path -LiteralPath $dir).Path.TrimEnd('\', '/')
     return @(Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName | ForEach-Object {
         [pscustomobject]@{ Rel = ($_.FullName.Substring($root.Length + 1) -replace '\\', '/'); Bytes = [System.IO.File]::ReadAllBytes($_.FullName) }
     })
+}
+
+# -AcceptanceDir as an absolute path, "" when it was not given. A relative one is read
+# against the manifest's folder, like acceptance.dir.
+function Resolve-PlannerFolder {
+    if (-not $AcceptanceDir) { return "" }
+    if ([System.IO.Path]::IsPathRooted($AcceptanceDir)) { return $AcceptanceDir }
+    return (Join-Path $manifestDir $AcceptanceDir)
 }
 
 # -ShowAcceptance: put the task's acceptance.dir files into the checkout before
@@ -1207,9 +1248,9 @@ function Get-AcceptanceDirFiles {
 # folder's fingerprint (the same hash Invoke-Acceptance reports). $null when the
 # task has no acceptance.dir (the caller refuses the run).
 function Add-ShownAcceptance {
-    param($Task, [string]$WtPath, [string]$Head)
-    if (-not $Task.acceptance -or -not $Task.acceptance.dir) { return $null }
-    $dirFiles = Get-AcceptanceDirFiles $Task
+    param($Task, [string]$WtPath, [string]$Head, [string]$Folder = "")
+    if (-not $Folder -and (-not $Task.acceptance -or -not $Task.acceptance.dir)) { return $null }
+    $dirFiles = Get-AcceptanceDirFiles $Task -Folder $Folder
     if (-not $dirFiles) { return $null }
     $sha256 = [Security.Cryptography.SHA256]::Create()
     try {
@@ -1275,15 +1316,19 @@ function Get-ShownReadOnlyCleared {
 }
 
 function Invoke-Acceptance {
-    param($Task, [string]$WtPath)
+    # -Folder: run another folder's tests (a planner's set) the same way, resolved already.
+    param($Task, [string]$WtPath, [string]$Folder = "")
 
     $acc = $Task.acceptance
     $dirFiles = $null
     $sha = $null
     $hash = $null
-    if ($acc.dir) {
-        $dirFiles = Get-AcceptanceDirFiles $Task
+    if ($Folder -or $acc.dir) {
+        $dirFiles = Get-AcceptanceDirFiles $Task -Folder $Folder
         if (-not $dirFiles) {
+            if ($Folder) {
+                return [pscustomobject]@{ Status = "ERROR"; Ref = "dir"; Commit = $null; Hash = $null; Label = "planner tests in $Folder"; Detail = "the planner's folder $Folder is missing or empty" }
+            }
             return [pscustomobject]@{ Status = "ERROR"; Ref = "dir"; Commit = $null; Hash = $null; Label = "hidden tests in $($acc.dir)"; Detail = "acceptance.dir $($acc.dir) is missing or empty (resolved against $manifestDir)" }
         }
         $files = @($dirFiles | ForEach-Object Rel)
@@ -1293,7 +1338,7 @@ function Invoke-Acceptance {
             foreach ($df in $dirFiles) { $nb = [Text.Encoding]::UTF8.GetBytes($df.Rel + "`n"); $ms.Write($nb, 0, $nb.Length); $ms.Write($df.Bytes, 0, $df.Bytes.Length) }
             $hash = ([BitConverter]::ToString($sha256.ComputeHash($ms.ToArray())) -replace '-', '').Substring(0, 12).ToLowerInvariant()
         } finally { $sha256.Dispose() }
-        $label = "hidden tests in $($acc.dir) ($hash)"
+        $label = if ($Folder) { "planner tests ($hash)" } else { "hidden tests in $($acc.dir) ($hash)" }
     } else {
         $accBase = Resolve-AcceptanceCommit $Task
         if (-not $accBase.Commit) {
@@ -2006,10 +2051,13 @@ foreach ($tk in $tasksToRun) {
     # -ShowAcceptance names the tests the model is given (Add-ShownAcceptance
     # puts them in place just before the run). Part of the prompt, so the hash.
     $shownFiles = @()
+    $plannerFolder = Resolve-PlannerFolder
     if ($ShowAcceptance) {
-        $shownFiles = @(Get-AcceptanceDirFiles $tk | ForEach-Object Rel)
+        # Where-Object first: a folder that is missing gives $null, and $null | ForEach-Object still runs once (one empty name).
+        $shownFiles = @(Get-AcceptanceDirFiles $tk -Folder $plannerFolder | Where-Object { $_ } | ForEach-Object Rel)
         if (-not $tk.acceptance -or -not $tk.acceptance.dir -or $shownFiles.Count -eq 0) {
-            Write-Result $tk.id "acceptance shown" "FAIL" "-ShowAcceptance needs a task whose acceptance tests are an acceptance.dir folder; $($tk.id) has none (or it is empty)"
+            $shownWhy = if ($plannerFolder -and $tk.acceptance -and $tk.acceptance.dir) { "-AcceptanceDir $AcceptanceDir holds no files (resolved to $plannerFolder)" } else { "-ShowAcceptance needs a task whose acceptance tests are an acceptance.dir folder (they grade, even when -AcceptanceDir shows a planner's); $($tk.id) has none (or it is empty)" }
+            Write-Result $tk.id "acceptance shown" "FAIL" $shownWhy
             $overallPass = $false
             continue
         }
@@ -2070,6 +2118,44 @@ foreach ($tk in $tasksToRun) {
                 Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null
             }
         }
+        # A planner's set (-AcceptanceDir, experiment 3) is checked at the same two fixed points as the hidden
+        # tests: it must FAIL on the untouched base and PASS on the known-good solution. Both answers are
+        # logged (planner-sets.tsv); an executor run uses the set as written, valid or not, because a
+        # dispatcher in real use can run neither check.
+        if ($plannerFolder) {
+            $pBase = Invoke-Acceptance $tk $wt.Wt -Folder $plannerFolder
+            switch ($pBase.Status) {
+                "FAIL"  { Write-Result $tk.id "planner set (fails on base)" "PASS" "$($pBase.Label) fail on the untouched source: $($pBase.Detail)" }
+                "PASS"  { Write-Result $tk.id "planner set (fails on base)" "WARN" "$($pBase.Label) PASS on the untouched source - they check nothing the task asks for: $($pBase.Detail)" }
+                default { Write-Result $tk.id "planner set (fails on base)" "WARN" $pBase.Detail }
+            }
+            $pSolStatus = "unchecked"
+            if ($tk.acceptance -and $tk.acceptance.solution) {
+                $co = Add-CommitToCheckout -Repo $tk.repo -WtPath $wt.Wt -Sha $tk.acceptance.solution
+                if ($co.ExitCode -eq 0) { $co = Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $tk.acceptance.solution) }
+                if ($co.ExitCode -ne 0) {
+                    Write-Result $tk.id "planner set (passes on solution)" "WARN" "cannot check out acceptance.solution $($tk.acceptance.solution): $($co.Output -join ' ')"
+                } else {
+                    $pSol = Invoke-Acceptance $tk $wt.Wt -Folder $plannerFolder
+                    $pSolStatus = $pSol.Status
+                    switch ($pSol.Status) {
+                        "PASS"  { Write-Result $tk.id "planner set (passes on solution)" "PASS" "$($pSol.Label) pass on $($tk.acceptance.solution.Substring(0, 10)): $($pSol.Detail)" }
+                        "FAIL"  { Write-Result $tk.id "planner set (passes on solution)" "WARN" "$($pSol.Label) FAIL on the real solution - over-strict or wrong: $($pSol.Detail)" }
+                        default { Write-Result $tk.id "planner set (passes on solution)" "WARN" $pSol.Detail }
+                    }
+                }
+                Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $wt.Head) | Out-Null
+                Run-Native "git" @("-C", $wt.Wt, "reset", "--hard", $wt.Head) | Out-Null
+                Run-Native "git" @("-C", $wt.Wt, "clean", "-fd") | Out-Null
+            } else {
+                Write-Result $tk.id "planner set (passes on solution)" "WARN" "$($tk.id) names no acceptance.solution: the set cannot be checked against a known-good fix"
+            }
+            $pValid = if ($pBase.Status -eq "ERROR" -or $pSolStatus -eq "ERROR") { "error" } elseif ($pSolStatus -eq "unchecked") { "unchecked" } elseif ($pBase.Status -eq "FAIL" -and $pSolStatus -eq "PASS") { "valid" } else { "invalid" }
+            Write-Host ("    planner set {0}: {1} (base: {2}, solution: {3})" -f $AcceptanceDir, $pValid, $pBase.Status, $pSolStatus) -ForegroundColor DarkGray
+            $pSetsTsv = Join-Path $resultsDir "planner-sets.tsv"
+            if (-not (Test-Path -LiteralPath $pSetsTsv)) { Set-Content -LiteralPath $pSetsTsv -Value "timestamp`ttask`tset`thash`tbase`tsolution`tvalid" }
+            Add-Content -LiteralPath $pSetsTsv -Value (@((Get-Date -Format "yyyy-MM-ddTHH:mm:ss"), $tk.id, $AcceptanceDir, $pBase.Hash, $pBase.Status, $pSolStatus, $pValid) -join "`t")
+        }
         Write-Result $tk.id "dry-run" "PASS" "worktree + install + baseline validated; model run skipped (add -DryRun removed)"
         continue
     }
@@ -2079,9 +2165,9 @@ foreach ($tk in $tasksToRun) {
     $shownTampered = @()
     $shownReadOnlyCleared = @()
     if ($ShowAcceptance) {
-        $shown = Add-ShownAcceptance -Task $tk -WtPath $wt.Wt -Head $wt.Head
+        $shown = Add-ShownAcceptance -Task $tk -WtPath $wt.Wt -Head $wt.Head -Folder $plannerFolder
         if ($ReadOnlyAcceptance) { Set-ShownReadOnly -Shown $shown -WtPath $wt.Wt -ReadOnly $true }
-        Write-Host ("    acceptance shown: {0} file(s) put in the checkout ({1}){2}" -f $shown.Files.Count, $shown.Hash, $(if ($ReadOnlyAcceptance) { ", read-only" } else { "" })) -ForegroundColor DarkGray
+        Write-Host ("    acceptance shown: {0} file(s) put in the checkout ({1}){2}{3}" -f $shown.Files.Count, $shown.Hash, $(if ($ReadOnlyAcceptance) { ", read-only" } else { "" }), $(if ($plannerFolder) { ", a planner's set: $AcceptanceDir" } else { "" })) -ForegroundColor DarkGray
     }
     # The model's own shell gets the pinned environment too: a test it sees pass
     # has to be one the gates can run (opencode inherits this process's env).
@@ -2552,6 +2638,22 @@ foreach ($tk in $tasksToRun) {
         }
     }
 
+    # --- the selector: the tests the model was shown, run on its source -----------
+    # A dispatcher in real use sees only this verdict, never the hidden tests'. With a planner's set
+    # (-AcceptanceDir) it is a second run of different tests, recorded beside `acceptance`, the truth; with
+    # the task's own tests shown it is the acceptance verdict again (an oracle, as milestone 3 and 4 had it).
+    # Informational: no gate reads it.
+    $selectorRecord = $null
+    if ($shown -and $plannerFolder) {
+        $swPhase.Restart()
+        $sel = Invoke-Acceptance $tk $wt.Wt -Folder $plannerFolder
+        $phaseSec["selector"] = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
+        $selectorRecord = [pscustomobject]@{ status = $sel.Status; source = "planner"; set = $AcceptanceDir; hash = $sel.Hash; detail = $sel.Detail }
+        Write-Result $tk.id "selector (planner tests)" $(if ($sel.Status -eq "PASS") { "PASS" } else { "WARN" }) "$($sel.Label): $($sel.Status) - $($sel.Detail)"
+    } elseif ($shown) {
+        $selectorRecord = [pscustomobject]@{ status = $acceptanceRecord.status; source = "hidden"; set = $null; hash = $acceptanceRecord.hash; detail = "the shown tests are the hidden tests: the selector is the acceptance verdict" }
+    }
+
     # --- record ----------------------------------------------------------------
     $scopeOk = if ($guardrail) { $guardrail.Ok } else {
         ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
@@ -2621,6 +2723,12 @@ foreach ($tk in $tasksToRun) {
         scopeDetail     = $scopeDetail
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
+        # Experiment 3: the verdict of the tests the model was shown, run on its source (null on a
+        # hidden-test run), which is what a dispatcher selects on; source "planner" when a planner's set
+        # was shown (-AcceptanceDir; plannerSet names it), "hidden" when the task's own tests were.
+        # Rows before 2026-10-27 have neither field.
+        selector        = $selectorRecord
+        plannerSet      = $(if ($plannerFolder) { [ordered]@{ folder = $AcceptanceDir; hash = $shown.Hash } } else { $null })
         elapsedSec      = $run.ElapsedSec
         # The opencode run's time limit (-RunTimeout). A run that finished under it
         # ends the same under any longer limit; only a timeout depends on it.
