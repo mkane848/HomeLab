@@ -78,15 +78,37 @@ either check (it has no solution to check against).
   [Quantifying infrastructure noise](https://www.anthropic.com/engineering/infrastructure-noise) applies a
   fortiori.
 
-## Harness changes it needs (none built yet)
+## Harness (built 2026-10-31)
 
-1. A per-task or per-run override of the shown folder (an `-AcceptanceDir` beside `-ShowAcceptance`), so the
-   planner's set is shown while the hidden folder still grades.
-2. A second acceptance verdict in the run JSON: `selector` (the shown set's result) beside `acceptance` (the hidden
-   tests'), and the planner set's id and hash.
-3. The planner-set validator (base fails, solution passes), reusing `-DryRun`'s path.
-4. The reconciled shown prompt (roadmap item 10, step 1).
-5. `run-retries.ps1` reading `selector` instead of `acceptance` once it exists, so the dispatcher never sees the
-   truth.
+All five pieces exist in `tests/`, each with a guard (`test-show-acceptance.ps1`, `test-retry-loop.ps1`,
+`test-summarize-rounds.ps1`):
 
-Each gets a guard, as usual.
+1. **`-AcceptanceDir <folder>`** on `test-tasks.ps1`, with `-ShowAcceptance`: the folder (absolute, or relative to the
+   manifest's folder like `acceptance.dir`) is shown instead of the task's own tests, while the task's hidden tests
+   still grade. Alone it is refused, except under `-DryRun`.
+2. **`selector` beside `acceptance` in the run JSON.** `selector` is the shown set's verdict (`source: "planner"`);
+   `acceptance` stays the hidden tests' verdict, the truth. `plannerSet` records the folder and the set's hash. With
+   the task's own tests shown the selector is those tests (`source: "hidden"`); a hidden-test run has neither. A selector
+   that does not pass is a WARN, never a harness failure.
+3. **The set validator**, in `-DryRun -AcceptanceDir`: the set must fail on the untouched base and pass on the task's
+   `acceptance.solution`. Each answer goes to `planner-sets.tsv` (`valid`, `invalid`, `unchecked` when no solution is
+   named, `error`); an executor run uses the set as written, valid or not, because a dispatcher in real use can run
+   neither check.
+4. **The reconciled shown prompt** (`-ShownPrompt 2`, the default) was already in.
+5. **`run-retries.ps1` decides on `selector`**, never on the hidden tests, and records both per attempt
+   (`selectors`, `truths`, `falsePositive`, `falseNegatives` in `retry-summary.tsv`). `{task}` in a string
+   `-HarnessArgs` value is the task being run, so one command can give every task its own set.
+
+Planner-shown rows are their own arm (an `ACCEPTANCE-PLANNER` marker in the results folder; the folder rules are the
+other shown modes'). `summarize-rounds.ps1` prints, per planner arm, the false positives (selector PASS, hidden tests
+FAIL) and false negatives (selector FAIL, hidden tests PASS) with Wilson 95% intervals, and how many runs a dispatcher
+would have kept that the hidden tests call wrong. The 10% false-positive rule decides milestone 5.
+
+Running it, for one task with a set per task under `<manifest folder>/planner/<task>/`:
+
+```
+pwsh tests/test-tasks.ps1 -Task <id> -Model <m> -TaskManifest <manifest> -DryRun -AcceptanceDir planner/<id>   # validate the set
+pwsh tests/run-retries.ps1 -Tasks <ids> -Model <m> -MaxAttempts 3 -TaskManifest <manifest> -ResultsDir <own folder> `
+     -HarnessArgs @{ AcceptanceDir = "planner/{task}" }
+pwsh tests/summarize-rounds.ps1 -ResultsDir <that folder>
+```

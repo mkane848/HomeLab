@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: experiment 3's harness, a planner's tests shown while the hidden tests grade (2026-10-31).** The first build
+  was lost with a container before it was pushed; this is the rebuild. `test-tasks.ps1 -ShowAcceptance -AcceptanceDir
+  <folder>` shows the planner's set; the run JSON gains `selector` (that set's verdict) beside `acceptance` (the hidden
+  tests, the truth) and `plannerSet`; `-DryRun -AcceptanceDir` validates the set (fails on base, passes on
+  `acceptance.solution`) into `planner-sets.tsv`; rows are their own arm (`ACCEPTANCE-PLANNER`). `run-retries.ps1`
+  decides on `selector`, records `selectors`, `truths`, `falsePositive`, `falseNegatives` (a summary written before
+  keeps its 11 columns) and substitutes `{task}` in string `-HarnessArgs`. `summarize-rounds.ps1` reports the false
+  positive and false negative rates with Wilson 95% intervals. Guards extended: `test-show-acceptance.ps1`,
+  `test-retry-loop.ps1`, `test-summarize-rounds.ps1`. No planner has been run yet; the 10% rule is still unmeasured.
 - **docs: the 2026-09-29 benchmark audit's working material is kept in the repo (2026-10-27).** `docs/audit-2026-09-29/`
   holds what the audit session had only in its scratch directory, which is lost when the container is reclaimed: the
   independent review and its section 9 update, the per-attempt table, the 29-row candidate list, the briefs and prompts
