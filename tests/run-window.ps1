@@ -242,7 +242,7 @@ function Add-Attention([string]$Text) { $script:attention += $Text; Write-Log "A
 $script:gateResults = @()
 $script:go = @{ retries = $true; batch = $true; window = $true }
 $script:exitCode = 0
-$script:m4Tasks = @(); $script:baselineTasks = @()
+$script:m4Ids = @(); $script:baselineTasks = @()
 $script:child = $null
 
 function Test-Server {
@@ -377,7 +377,7 @@ function Invoke-Gate {
             try {
                 $a = Resolve-WindowTasks -Manifest $privateManifest -Names $M4Tasks -Last $Last
                 $b = Resolve-WindowTasks -Manifest $privateManifest -Names $SmokeTasks
-                $script:m4Tasks = $a.Ids; $script:smokeTasks = $b.Ids
+                $script:m4Ids = $a.Ids; $script:smokeIds = $b.Ids
                 if ($b.Missing.Count) { Add-Gate "smoke tasks" "FAIL" "not in the private manifest: $($b.Missing -join ', ')" } else { Add-Gate "smoke tasks" "PASS" ($b.Ids -join ", ") }
                 if ($a.Ids.Count -eq 0) { Add-Gate "m4 tasks" "FAIL" "no live task in $privateManifest" }
                 elseif ($a.Missing.Count) { Add-Gate "m4 tasks" "FAIL" "not in the private manifest: $($a.Missing -join ', ')" }
@@ -430,7 +430,7 @@ function Invoke-Smoke {
     # retries
     if (Test-Path -LiteralPath $privateManifest) {
         $dir = Join-Path $OutDir "smoke-retries"
-        $res = Invoke-Phase -Id "smoke-retries" -ScriptText (New-RetriesScript -Script $ScriptRetries -Tasks $script:smokeTasks -Model $Model -Attempts 2 -Manifest $privateManifest -ResultsDir $dir -HarnessArgs (Get-HarnessArgs)) -Limit $limit
+        $res = Invoke-Phase -Id "smoke-retries" -ScriptText (New-RetriesScript -Script $ScriptRetries -Tasks $script:smokeIds -Model $Model -Attempts 2 -Manifest $privateManifest -ResultsDir $dir -HarnessArgs (Get-HarnessArgs)) -Limit $limit
         if ($res) {
             $rows = Get-TsvRows (Join-Path $dir "retry-summary.tsv")
             $accepted = @($rows | Where-Object { $_.accepted -eq "True" }).Count
@@ -473,16 +473,16 @@ function Invoke-M4 {
     if (-not $script:go.retries) { Set-Phase "m4" "skipped" "the retries smoke was not GO"; return }
     $dir = Join-Path $OutDir "m4"
     $limit = (@((Get-Date).AddMinutes($M4Minutes), $harnessEnd) | Sort-Object)[0]
-    $res = Invoke-Phase -Id "m4" -ScriptText (New-RetriesScript -Script $ScriptRetries -Tasks $script:m4Tasks -Model $Model -Attempts $MaxAttempts -Manifest $privateManifest -ResultsDir $dir -HarnessArgs (Get-HarnessArgs)) -Limit $limit
+    $res = Invoke-Phase -Id "m4" -ScriptText (New-RetriesScript -Script $ScriptRetries -Tasks $script:m4Ids -Model $Model -Attempts $MaxAttempts -Manifest $privateManifest -ResultsDir $dir -HarnessArgs (Get-HarnessArgs)) -Limit $limit
     if (-not $res) { return }
     $rows = Get-TsvRows (Join-Path $dir "retry-summary.tsv")
     $done = @($rows | ForEach-Object task)
-    $notReached = @($script:m4Tasks | Where-Object { $_ -notin $done })
+    $notReached = @($script:m4Ids | Where-Object { $_ -notin $done })
     $accepted = @($rows | Where-Object { $_.accepted -eq "True" }).Count
     $attempts = ($rows | ForEach-Object { [int]$_.attempts } | Measure-Object -Sum).Sum
     $capHits = @($rows | Where-Object { $_.accepted -ne "True" -and [int]$_.attempts -ge $MaxAttempts })
     $summaryLines = @(if (Test-Path -LiteralPath (Join-Path $OutDir "m4.log")) { Get-Content -LiteralPath (Join-Path $OutDir "m4.log") | Where-Object { $_ -match '^(retries:|falsifier:)' } })
-    $detail = "{0} of {1} task(s) reached, {2} accepted, {3} attempt(s); exit {4}{5}" -f $rows.Count, $script:m4Tasks.Count, $accepted, $attempts, $res.Exit, $(if ($res.Reason) { "; ended: $($res.Reason)" } else { "" })
+    $detail = "{0} of {1} task(s) reached, {2} accepted, {3} attempt(s); exit {4}{5}" -f $rows.Count, $script:m4Ids.Count, $accepted, $attempts, $res.Exit, $(if ($res.Reason) { "; ended: $($res.Reason)" } else { "" })
     $table = $rows | ForEach-Object { "    {0,-8} {1} attempt(s)  {2}  [{3}]" -f $_.task, $_.attempts, $(if ($_.accepted -eq "True") { "ACCEPTED" } else { "not accepted" }), $_.reasons }
     Add-Detail "m4" ($detail + "`n" + ($table -join "`n"))
     if ($summaryLines) { Add-Detail "m4" ("the loop's own summary:`n" + (($summaryLines | ForEach-Object { "    $_" }) -join "`n")) }
@@ -593,10 +593,10 @@ if ($Plan) {
         if ($id -notin $Run) { continue }
         switch ($id) {
             "smoke" {
-                if ($script:smokeTasks) { Write-Host "-- smoke-retries`n$(New-RetriesScript -Script $ScriptRetries -Tasks $script:smokeTasks -Model $Model -Attempts 2 -Manifest $privateManifest -ResultsDir (Join-Path $OutDir 'smoke-retries') -HarnessArgs (Get-HarnessArgs))`n" }
+                if ($script:smokeIds) { Write-Host "-- smoke-retries`n$(New-RetriesScript -Script $ScriptRetries -Tasks $script:smokeIds -Model $Model -Attempts 2 -Manifest $privateManifest -ResultsDir (Join-Path $OutDir 'smoke-retries') -HarnessArgs (Get-HarnessArgs))`n" }
                 if ($script:smokeBatchTasks) { Write-Host "-- smoke-batch`n$(New-BatchScript -Script $ScriptBatch -Tasks $script:smokeBatchTasks -Model $Model -Reps 1 -RunTimeout $RunTimeout -ResultsDir (Join-Path $OutDir 'smoke-batch'))`n" }
             }
-            "m4" { if ($script:m4Tasks) { Write-Host "-- m4 ($($script:m4Tasks.Count) task(s), up to $M4Minutes min)`n$(New-RetriesScript -Script $ScriptRetries -Tasks $script:m4Tasks -Model $Model -Attempts $MaxAttempts -Manifest $privateManifest -ResultsDir (Join-Path $OutDir 'm4') -HarnessArgs (Get-HarnessArgs))`n" } }
+            "m4" { if ($script:m4Ids) { Write-Host "-- m4 ($($script:m4Ids.Count) task(s), up to $M4Minutes min)`n$(New-RetriesScript -Script $ScriptRetries -Tasks $script:m4Ids -Model $Model -Attempts $MaxAttempts -Manifest $privateManifest -ResultsDir (Join-Path $OutDir 'm4') -HarnessArgs (Get-HarnessArgs))`n" } }
             "baseline" { if ($script:baselineTasks) { Write-Host "-- baseline ($($script:baselineTasks.Count) task(s) x $BaselineReps rep(s), the rest of the window)`n$(New-BatchScript -Script $ScriptBatch -Tasks $script:baselineTasks -Model $Model -Reps $BaselineReps -RunTimeout $RunTimeout -ResultsDir (Join-Path $OutDir 'baseline'))`n" } }
         }
     }
