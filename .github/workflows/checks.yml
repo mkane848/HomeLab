@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   syntax:
-    name: syntax (ps1, sh, python, manifest, config drift)
+    name: syntax (ps1, sh, python, manifest)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
