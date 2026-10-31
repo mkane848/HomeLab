@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: experiment 3's planner runs in a container (2026-10-31).** `desktop/docker/planner/` is a squid proxy on an
+  internal Docker network whose only answers are `api.anthropic.com` and `registry.npmjs.org`, and a planner image
+  (Claude Code on `dev-base:1`, non-root, no secrets baked in). `desktop/scripts/run-planner.ps1` starts one throwaway
+  container per task and run with the pack read-only and one output folder, the token passed through the process
+  environment; `desktop/scripts/make-planner-packs.py` builds the packs (a git bundle of each task's base commit and
+  history, and its request). The task repos are public, so GitHub is blocked by the proxy rather than by the prompt.
+  WebSearch runs on Anthropic's side through the allowed API host, so the proxy cannot stop it and the script switches
+  the web tools off. CPU only (`.wslconfig` `gpuSupport=false`). Smoke-tested on `real-03` (85 s, one test file, 12
+  tests failing on the base for the right reason).
 - **docs: the first unattended window's results (2026-10-31).** `docs/roadmap.md` item 10 step 4: milestone 4's loop
   accepted 18 of 18 tasks on the first attempt with the tasks' own tests shown (an oracle selector, so a ceiling), and
   the public baseline on llama.cpp scored 83 of 96 (pass^6 0.69). Nothing flagged; the server answered every poll.
