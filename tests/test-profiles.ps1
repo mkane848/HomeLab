@@ -701,7 +701,7 @@ foreach ($profileName in $profileNames) {
     if ($profileName -eq "dev-workflow-server-llamacpp" -and $tiers.server -and $envMap["SERVER_IP"] -ne "<unset>" -and $envMap["LLAMACPP_SERVER_BASE_URL"] -match 'localhost|127\.0\.0\.1') {
         Write-Result $profileName "server baseURL" "WARN" "LLAMACPP_SERVER_BASE_URL points at localhost, but SERVER_IP=$($envMap['SERVER_IP']) - opencode on the desktop would hit its own port 8090, not the server"
     }
-    if ($profileName -eq "dev-workflow-server" -and $tiers.server -and $envMap["SERVER_IP"] -ne "<unset>" -and $envMap["OLLAMA_SERVER_BASE_URL"] -match 'localhost|127\.0\.0\.1') {
+    if ($profileName -in @("dev-workflow-server","dev-node3") -and $tiers.server -and $envMap["SERVER_IP"] -ne "<unset>" -and $envMap["OLLAMA_SERVER_BASE_URL"] -match 'localhost|127\.0\.0\.1') {
         Write-Result $profileName "server baseURL" "WARN" "OLLAMA_SERVER_BASE_URL points at localhost, but SERVER_IP=$($envMap['SERVER_IP']) - opencode on the desktop would hit its own Ollama, not the server"
     }
 

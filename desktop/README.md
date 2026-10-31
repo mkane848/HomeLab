@@ -19,7 +19,7 @@ Scripts and configs for the personal desktop machine — the native-Vulkan Ollam
 
 ```powershell
 # Pick a profile (from the dev-docs root)
-#   bash profiles/select-model.sh   -- or source one (dev-local-only, dev-full, ...)
+#   bash profiles/select-model.sh   -- or source one (dev-desktop-only, dev-workflow-quality, ...)
 
 # Install the profile's model groups (uses models/catalog.tsv)
 .\desktop\scripts\models.ps1 -Profile

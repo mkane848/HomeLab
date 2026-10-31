@@ -21,6 +21,8 @@
 # Env overrides: URL (http://localhost:8090), HOURS (24), INTERVAL (600),
 # LOG (~/llamacpp-soak.tsv), CONTAINER (llamacpp-server).
 set -uo pipefail
+REPLY_FILE="$(mktemp)"
+trap 'rm -f "$REPLY_FILE"' EXIT
 
 URL="${URL:-http://localhost:8090}"
 HOURS="${HOURS:-24}"
@@ -76,16 +78,17 @@ while [ "$(date +%s)" -lt "$end" ]; do
     request="skipped"; requestS=""
     if [ "$load" = "loaded" ]; then
         t1=$(date +%s.%N)
-        code=$(curl -s --max-time 300 -o /tmp/llamacpp-soak-reply.json -w '%{http_code}' \
+        code=$(curl -s --max-time 300 -o "$REPLY_FILE" -w '%{http_code}' \
             "$URL/v1/chat/completions" -H 'Content-Type: application/json' \
             -d "{\"model\":\"$seat\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_tokens\":400}")
         requestS=$(python3 -c "import sys; print(round(float(sys.argv[2]) - float(sys.argv[1]), 1))" "$t1" "$(date +%s.%N)")
-        if [ "$code" = "200" ] && grep -q '"choices"' /tmp/llamacpp-soak-reply.json; then request="200"; else request="${code:-000}"; fi
+        if [ "$code" = "200" ] && grep -q '"choices"' "$REPLY_FILE"; then request="200"; else request="${code:-000}"; fi
     fi
     ok=0; [ "$load" = "loaded" ] && [ "$request" = "200" ] && ok=1
 
     vram=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')
-    read -r ramUsed ramAvail < <(free -m | awk '/^Mem:/{print $3, $7}')
+    read -r ramUsed ramAvail < <(free -m | awk '/^Mem:/{print $3, $7}') || true
+    ramUsed="${ramUsed:--}"; ramAvail="${ramAvail:--}"
     health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$CONTAINER" 2>/dev/null || echo gone)
     restarts=$(docker inspect --format '{{.RestartCount}}' "$CONTAINER" 2>/dev/null || echo -)
 

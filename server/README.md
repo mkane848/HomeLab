@@ -21,7 +21,7 @@ Scripts and configs for the Ubuntu development server — the primary Ollama nod
 ```bash
 # 1. Pick a profile (from the dev-docs root — .env is auto-sourced)
 cd /path/to/dev-docs
-source profiles/dev-server-all.sh
+source profiles/dev-workflow-server.sh
 
 # 2. Install the profile's model groups (uses models/catalog.tsv)
 ./server/scripts/install-model.sh --profile

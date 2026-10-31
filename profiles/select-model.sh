@@ -46,16 +46,16 @@ fzf_menu() {
 }
 
 fallback_menu() {
-    echo ""
-    echo "  Profile Selection"
-    echo "  -------------------------------------------"
+    echo "" >&2
+    echo "  Profile Selection" >&2
+    echo "  -------------------------------------------" >&2
     local i
     for i in $(seq 1 ${#PROFILE_FILES[@]}); do
         printf "  [%d] %-26s %s\n" "$i" \
             "$(basename "${PROFILE_FILES[$i - 1]}")" \
-            "$(describe "${PROFILE_FILES[$i - 1]}")"
+            "$(describe "${PROFILE_FILES[$i - 1]}")" >&2
     done
-    echo ""
+    echo "" >&2
     read -rp "  Enter choice [1-${#PROFILE_FILES[@]}]: " choice
     echo "$choice"
 }
@@ -75,9 +75,15 @@ fi
 
 PROFILE_PATH="${PROFILE_FILES[$CHOICE - 1]}"
 
+# This script runs in a child process, so sourcing the profile here would lose
+# every export when it exits. With --print, emit the command for the caller to
+# eval; otherwise show it. Usage: eval "$(bash profiles/select-model.sh --print)"
+if [[ "${1:-}" == "--print" ]]; then
+    printf 'source %q\n' "$PROFILE_PATH"
+    exit 0
+fi
 echo ""
-echo "Activating: $(basename "$PROFILE_PATH")"
-echo "------------------------------------------"
-# shellcheck disable=SC1090
-source "$PROFILE_PATH"
-echo "Done. Run your startup scripts next."
+echo "Selected: $(basename "$PROFILE_PATH")"
+echo "This script cannot set variables in your shell. Run:"
+echo "  source $PROFILE_PATH"
+echo "or: eval \"\$(bash profiles/select-model.sh --print)\""

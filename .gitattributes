@@ -8,3 +8,7 @@
 *.yml   text eol=lf
 *.yaml  text eol=lf
 *.py    text eol=lf
+*.tsv   text eol=lf
+# The audit archive keeps its files byte for byte (docs/audit-2026-09-29/MANIFEST.tsv holds their SHA-256).
+# Two mining tables were written with CRLF, so they are exempt from the *.tsv rule above.
+docs/audit-2026-09-29/mining/lfc/*.tsv -text

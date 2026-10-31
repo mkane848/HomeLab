@@ -191,7 +191,7 @@ try {
     }
 
     Write-Host "[1/4] Creating remote directories..."
-    ssh "${user}@${host_}" "mkdir -p ~/.config/opencode/.secrets ~/.config/opencode/skills ~/.config/opencode/agents ~/.config/opencode/commands ~/.config/opencode/tools ~/.config/opencode/plugins ~/.config/opencode/themes"
+    ssh "${user}@${host_}" "mkdir -p ~/.config/opencode/.secrets ~/.config/opencode/skills ~/.config/opencode/agents ~/.config/opencode/commands ~/.config/opencode/tools ~/.config/opencode/plugins ~/.config/opencode/themes && chmod 700 ~/.config/opencode/.secrets"
     if ($LASTEXITCODE -ne 0) { Fail "ssh failed." }
 
     Write-Host "[2/4] Pushing opencode.jsonc..."

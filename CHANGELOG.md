@@ -27,6 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   acted on it, records that the rig could not see the 280 KB instruction file that got `asohav-05` and `asohav-06`
   retired, and lists what was left out. Files are copied byte for byte (`MANIFEST.tsv` has each one's origin and
   SHA-256); nothing under `tests/` changed.
+- **fix: scripts/config audit (2026-10-26).** Found by a read-only audit; every fix is in a shell or PowerShell script, a profile or a config file.
+  - Profiles: `select-model.sh` sourced the profile inside its own child process, so nothing reached the caller; it now prints
+    the `source` line (`--print` for `eval`). `dev-desktop-only.ps1` read `.env` one directory too high and exported no
+    `LLAMACPP_*`; `dev-node3.sh` defaulted `OLLAMA_SERVER_BASE_URL` to localhost (`test-profiles.ps1` now warns for it too).
+  - `startup.ps1` pulled and baked all 14 `$contextModels` (~180 GB) on any run. It now pulls only the active profile's models
+    (`-PullAll` restores the old behaviour), guards the `/api/tags` call, and exits 1 when a pull or create fails.
+  - Server scripts: `startup.sh` exits 1 when the container never becomes healthy and no longer matches `unhealthy`;
+    `install-model.sh all` pulls only server-eligible tags and `--ctx N` names `<tag>-<N/1024>k` as `startup.ps1` does;
+    `bake-models.sh --only <typo>` is an error; `docker ps | grep -q` SIGPIPE pattern removed.
+  - `sync-skills.ps1` no longer pushes to the server unless `-Server` is named, and ssh/scp time out; `sync-opencode.ps1 -Push`
+    sets `chmod 700` on the remote `.secrets`. `opencode.jsonc`: `codestral` → `codestral:22b`, `gpt-oss:20b` `reasoning` true.
+  - Housekeeping: exec bits on `server/scripts/*.sh`; root `.env.example` (with `NODE3_IP`); `.gitignore`/`.gitattributes` gaps;
+    tracked `.coverage` removed; `profiles/README.md` rewritten as tables with the real live/parked counts.
+  - **New offline drift check** `tests/check_config_drift.py` (+ `tests/test_config_drift.py`, allowlist
+    `tests/config-drift-allow.tsv`) compares `startup.ps1`, `server-seats.tsv`, `models.ini`, `opencode.jsonc`, `catalog.tsv` and
+    the profiles; CI runs it with `llamacpp-check.sh` and an advisory shellcheck.
 - **docs: troubleshooting trimmed, results README split, methodology caveats (2026-10-26).** `docs/troubleshooting.md` (821 → ~575 lines) keeps the symptom index and the common fixes; the long incident write-ups moved, text unchanged, to `docs/archive/troubleshooting-incidents.md` (stubs keep the old section names). `tests/results/README.md` (631 → ~150) is now a how-to-read page; the dated logs and row inventories are in `tests/results/NOTES.md`. `docs/vscode.md` (644 → ~80) is a setup table; the review-gate method and case studies moved to `docs/review-gate/methodology.md`. `docs/roadmap.md` gains a cited-sections table and real headings for "After the trial" and "By opencode version". Methodology: quoted p-values dropped from `docs/target-setup.md`; `docs/methodology-caveats.md` lists what is unreplicated and what is still open; `tests/lint-doc-claims.sh` (new CI step) fails when a public doc repeats a claim the 2026-10-23 review retired.
 - **tests: harness audit fixes (2026-10-26).** Found by a read-only audit of `tests/`.
   - **Exit and grading:** an agent job that ended with no exit code (`opencode` never started) was read as exit 0 and

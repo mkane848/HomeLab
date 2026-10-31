@@ -4,7 +4,7 @@
 # Background
 # ----------
 # The server's Ollama is pinned by `server/docker/docker-compose.yml` (image
-# tag) and `server/ollama/version-pin`. The desktop is a NATIVE Inno Setup
+# tag). The desktop is a NATIVE Inno Setup
 # install (`%LOCALAPPDATA%\Programs\Ollama`) with no image tag to pin, and its
 # tray app ("ollama app.exe") runs the auto-updater. Upstream has explicitly
 # refused a CLI/env switch to disable the updater
@@ -56,7 +56,7 @@ $AppPath = Join-Path $env:LOCALAPPDATA "Programs\Ollama\ollama app.exe"
 
 Write-Host "[pin-ollama] targeting: $AppPath" -ForegroundColor DarkGray
 
-if (-not (Test-Path -LiteralPath $AppPath) -and -not $Force) {
+if (-not (Test-Path -LiteralPath $AppPath) -and -not $Force -and -not $Remove) {
     throw "Ollama tray app not found at '$AppPath'. Refusing to block a path that doesn't exist. (Use -Force if the layout differs and you know the updater binary.)"
 }
 

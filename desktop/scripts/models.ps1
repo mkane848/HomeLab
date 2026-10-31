@@ -45,7 +45,7 @@ if ($List) {
     "{0,-24} {1,-8} {2,-10} {3,-7} {4,-24} {5}" -f "TAG", "SIZE", "CLASS", "CTX", "GROUPS", "DESC"
     "".PadRight(96, "-")
     $rows | ForEach-Object {
-        "{0,-24} {1,-8} {2,-10} {3,-7} {4,-24} {5}" -f $_.tag, ($_.size_gb + "G"), $_.class, ($_.ctx + "k"), $_.groups, $_.desc
+        "{0,-24} {1,-8} {2,-10} {3,-7} {4,-24} {5}" -f $_.tag, ($_.size_gb + "G"), $_.class, $_.ctx, $_.groups, $_.desc
     }
     exit 0
 }
@@ -65,7 +65,7 @@ $targets = [System.Collections.Generic.List[string]]::new()
 
 if ($Profile) {
     if ([string]::IsNullOrWhiteSpace($env:DEV_DESKTOP_MODELS)) {
-        Write-Host "[models] DEV_DESKTOP_MODELS not set. Source a profile first (e.g. source profiles/dev-local-only.sh)" -ForegroundColor Red
+        Write-Host "[models] DEV_DESKTOP_MODELS not set. Source a profile first (e.g. source profiles/dev-desktop-only.sh)" -ForegroundColor Red
         exit 1
     }
     $env:DEV_DESKTOP_MODELS -split ' ' | Where-Object { $_ } | ForEach-Object { $targets.Add($_) }
@@ -126,7 +126,7 @@ foreach ($tag in ($tags | Select-Object -Unique)) {
     }
 
     if ($Context -gt 0) {
-        $derived = "$tag-$($Context)k"
+        $derived = "$tag-$(if ($Context -ge 1024) { [math]::Round($Context / 1024) } else { $Context })k"
         Write-Host "[models] Creating derived model $derived (num_ctx $Context)..." -ForegroundColor Cyan
         if ($DryRun) {
             Write-Host "[models] (dry-run) ollama create $derived -f Modelfile(num_ctx $Context)"

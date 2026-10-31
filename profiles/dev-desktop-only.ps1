@@ -2,8 +2,8 @@
 # Sets the same env vars as profiles/dev-desktop-only.sh so that
 # models.ps1 -Profile and startup.ps1 work from a pure-PowerShell session.
 
-$scriptDir = Split-Path -Parent $PSScriptRoot
-$envFile   = Join-Path (Split-Path -Parent $scriptDir) ".env"
+# $PSScriptRoot is <repo>/profiles; the .sh profiles read <repo>/.env.
+$envFile   = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
 
 # Load .env (same logic as the bash profiles)
 if (Test-Path $envFile) {
@@ -26,6 +26,15 @@ if (Test-Path $envFile) {
 # Running on this box — localhost, immune to LAN/IP changes
 [System.Environment]::SetEnvironmentVariable("OLLAMA_DESKTOP_URL",       "http://localhost:11434",        "Process")
 [System.Environment]::SetEnvironmentVariable("OLLAMA_DESKTOP_BASE_URL", "http://localhost:11434/v1",      "Process")
+
+# llama.cpp providers: {env:...} has no fallbacks, so every live profile exports
+# these (mirrors profiles/dev-desktop-only.sh).
+$serverIp = [Environment]::GetEnvironmentVariable("SERVER_IP", "Process"); if (-not $serverIp) { $serverIp = "SERVER_IP" }
+function Set-Default($n, $v) { if (-not [Environment]::GetEnvironmentVariable($n, "Process")) { [Environment]::SetEnvironmentVariable($n, $v, "Process") } }
+Set-Default "LLAMACPP_SERVER_BASE_URL"  "http://${serverIp}:8090/v1"
+Set-Default "LLAMACPP_SERVER_SSH"       "server"
+Set-Default "LLAMACPP_DESKTOP_BASE_URL" "http://localhost:8090/v1"
+[System.Environment]::SetEnvironmentVariable("OPENCODE_DISABLE_CLAUDE_CODE_SKILLS", "1", "Process")
 
 # MAIN SEAT = qwen3:8b - the only model that emits a parseable tool call
 # (probe: tests/test-toolcalls.ps1). deepseek-r1 here made the console
