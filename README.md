@@ -45,13 +45,13 @@ on the server's llama.cpp. If the server is down or in a trial window, use
 and the other profile names work from any PowerShell window. The profiles are
 described in [docs/profiles.md](docs/profiles.md).
 
-On the Ubuntu server (the Ollama twin; the llama.cpp default needs its own stack):
+On the Ubuntu server, where llama.cpp is the engine that starts at boot (Phase 3, 2026-11-01):
 
 ```bash
-source profiles/dev-workflow-server.sh
-./server/scripts/startup.sh        # the Ollama container
-./server/scripts/bake-models.sh    # pull and bake the seats in models/server-seats.tsv
-./server/scripts/status.sh         # each loaded model's GPU share
+./server/scripts/startup.sh        # the llama.cpp stack (--engine ollama for the stopped Ollama container)
+./server/scripts/llamacpp-check.sh --url http://localhost:8090 --weights-container llamacpp-server
+                                   # the preset against models/server-seats.tsv, the live server, the weights
+./server/scripts/status.sh         # both engines, their restart policies, the GPU
 ```
 
 The llama.cpp stack is `server/docker/docker-compose.llamacpp.yml`. Its runbook and

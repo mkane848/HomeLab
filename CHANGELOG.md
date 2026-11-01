@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: `llamacpp-check.sh` replaces `bake-models.sh` (the last server item of "Replacing Ollama" Phase 3;
+  2026-11-01).** Under llama.cpp the bake is the preset's `c`, which the checker already held to
+  `models/server-seats.tsv`; what nothing checked was that each seat's weights are really there. `--weights-container
+  llamacpp-server` (through `docker exec`: the host cannot read Ollama's volume without `sudo`) or `--weights-dir DIR`
+  fails a blob that is missing, empty or not GGUF, and says how to pull it; `--hash` re-hashes each blob against its
+  name. On the server: all four seats present and matching, 42.6 GB in 30 s. `bake-models.sh` is marked Ollama-only,
+  kept for a rollback until Phase 6; README, `server/README.md`, the seat table's header and the roadmap point at the
+  checker. `tests/test_llamacpp_check.py` has 11 new tests (33), each of the three new failure paths confirmed to turn
+  a test red when broken. The server's `~/HomeLab`, a copy 15 files behind `main` (all older versions from history, no
+  local edits), is now a git clone; the copy is kept as `~/HomeLab.copy-20261101`.
 - **server: llama.cpp is the engine that starts at boot ("Replacing Ollama" Phase 3, server side; 2026-11-01).** The
   llama.cpp stack is `restart: unless-stopped`; the Ollama container is `restart: "no"` and stopped, not removed, for the
   soak (owner's decision), and `tests/test-llamacpp-stack.ps1` checks that only one of the two starts at boot. Before

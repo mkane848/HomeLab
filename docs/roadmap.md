@@ -3193,7 +3193,10 @@ across engines as if nothing changed); `ollama-*` provider ids are never renamed
   of them starts at boot); `startup.sh` and `stop.sh` take `--engine llamacpp|ollama` (llama.cpp the default) and use a
   systemd unit when one is installed; `status.sh` reports both engines; `server/systemd/llamacpp-server.service` is the
   unit template, whose install (`sudo`) is the owner's; `llamacpp-window.sh up` adopts a stack that is already up and
-  leaves it up when the window closes. `llamacpp-check.sh` replacing `bake-models.sh` is still to do. The soak runs from
+  leaves it up when the window closes. `llamacpp-check.sh` replaces `bake-models.sh` (2026-11-01): the preset's `c`
+  is the bake, and `--weights-container llamacpp-server [--hash]` checks that each seat's blob is in Ollama's volume
+  (all four present and matching their pins, 42.6 GB hashed in 30 s); `bake-models.sh` is Ollama-only until Phase 6.
+  The server's `~/HomeLab` is a git clone since the same day (it was a copy, 15 files behind `main`). The soak runs from
   here; Phase 6 (retire Ollama) is decided after it.
   Repeat the `daemon-reload` drill after any Docker, driver or toolkit upgrade.
 - **Phase 4, desktop (RX 6800 XT, Vulkan, native).** First the missing baseline: `bench-speed.ps1` on the desktop under
