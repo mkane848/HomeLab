@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: experiment 3's review step, version 1, on the `real-02` bench (2026-11-01).** Two Opus sessions ($1.29)
+  reviewed both `real-02` sets; scored on the twelve rebuilt attempts, the reviewed sets have 0 false positives (from
+  1 and 2) but reject every correct answer, the owner's fix included, for things a strict reading of "up to date"
+  asks for and the fix does not do. The original sets, scored on all twelve, were already too strict (4 and 6 of 6).
+  The gap is the vague request, not the test writer; the next candidate is an owner confirmation of what "done"
+  means. `docs/planner-tests-experiment.md` → "Review step, version 1".
 - **server: `llamacpp-check.sh` replaces `bake-models.sh` (the last server item of "Replacing Ollama" Phase 3;
   2026-11-01).** Under llama.cpp the bake is the preset's `c`, which the checker already held to
   `models/server-seats.tsv`; what nothing checked was that each seat's weights are really there. `--weights-container

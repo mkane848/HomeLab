@@ -234,7 +234,50 @@ runs. The prompt was written after seeing these failures, so passing that bench 
 test that counts is the next run's new vague tasks.
 
 **Next, revised:**
-1. Run the review prompt on both `real-02` sets (two planner sessions, about $1.50) and score them on the bench.
+1. ~~Run the review prompt on both `real-02` sets (two planner sessions, about $1.50) and score them on the bench.~~
+   Done the same day: "Review step, version 1" below. It did not pass, so step 2 changed.
 2. If both reject the three false positives and pass the fix, write three to five new vague real-use tasks (the
    owner's own wording, like `real-02`), with hidden tests, before any power-sized run.
 3. Then the power-sized run with the review step in the planner arm (about 40 accepted attempts).
+
+## Review step, version 1 (2026-11-01)
+
+The draft review prompt (private `tasks/planner/REVIEW.md`, run as the pack's `PROMPT.md`, sha256 `0871269fad16`),
+run once on each `real-02` set in the planner container (Opus 5.5, Claude Code 2.1.316, web tools off): 276 s and
+229 s, $1.29 together. The sessions were started by `run-planner.ps1` unchanged, whose opening line still says "Plan
+the acceptance tests"; both noticed and followed `/pack/PROMPT.md`. Scored on the bench by
+`tasks/planner/meta/score_real02.py`, which first reproduced all six recorded selector verdicts of the original sets.
+Private: `tasks/planner/real-02/review-v1/` (the reviewed sets, both reviews, the sessions, `bench-scores.txt`).
+
+| Set | Passes the fix | False positives (of 6 hidden FAIL) | False negatives (of 6 hidden PASS) |
+|---|---|---|---|
+| set 1 | no (3 tests fail) | 1 | 4 |
+| set 2 | no (3) | 2 | 6 |
+| set 1, reviewed | no (6) | **0** | 6 |
+| set 2, reviewed | no (7) | **0** | 6 |
+
+- **The review removed every false positive and rejected every correct answer, the owner's own fix included.** It
+  traded one error for the other: a selector that accepts nothing has no false positives.
+- **Scored on all twelve attempts, the original sets were already too strict** (4 and 6 of 6 correct answers
+  rejected). The first run's "0 of 7 false negatives" held only because each set judged attempts made by executors
+  who had been shown that set and wrote to it.
+- **What the fix fails is not wrong tests but a higher bar.** The reviewed sets ask `AGENTS.md` to mention CI's
+  `npm audit` gate, the GitHub Pages workflow, Dependabot, `auto-update.sh` and every npm script, and to drop a
+  stale claim that command tests exist. Each is defensible under "up to date"; the owner's fix does none of them.
+  Asked "too strict?", the reviewer measured against its own reading of the request, not the owner's.
+- **So the gap is the request, not the test writer.** How complete "make sure @AGENTS.md is up to date and clean"
+  has to be is in the owner's head, not the repository; no amount of reviewing recovers it. The work packages, whose
+  prompts name files and behaviour, had no false positives in the first run for the same reason.
+
+**What this changes.** For a vague request, a planner's tests are a guess at the owner's bar, and the guess is the
+error. The next candidate is a checkpoint, not a better reviewer: the planner lists what it reads "done" to mean
+(for `real-02`, the reviewers' lists are ready-made), the owner keeps or strikes each line, and the tests are written
+to the confirmed list. That costs the owner a minute a task and changes the unattended claim of milestone 5 to
+"unattended after one confirmation". Whether that is acceptable is the owner's call.
+
+**Next, after this:**
+1. Owner's call: the confirmation checkpoint for vague requests, or keep vague requests out of the unattended path.
+2. With a checkpoint, a bench test that needs no runs: strike the reviewed sets' items the owner's fix does not
+   cover, and score the result on the twelve attempts.
+3. The new vague tasks and the power-sized run as before, with whichever selector survives.
+
