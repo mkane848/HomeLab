@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: markdown cleanup (2026-10-31).** Typos, broken relative links and markdown formatting across the docs; no content changes.
 - **tests: experiment 3's planner runs in a container (2026-10-31).** `desktop/docker/planner/` is a squid proxy on an
   internal Docker network whose only answers are `api.anthropic.com` and `registry.npmjs.org`, and a planner image
   (Claude Code on `dev-base:1`, non-root, no secrets baked in). `desktop/scripts/run-planner.ps1` starts one throwaway
