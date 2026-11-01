@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: markdown cleanup (2026-10-31).** Typos, broken relative links and markdown formatting across the docs; no content changes.
 - **node3: llama-server beside Ollama ("Replacing Ollama" Phase 5, model-host half; 2026-10-31).** `node3/` holds the
   router preset (one seat, `qwen3:8b`, the same blob and sampling as the server's seat), a start script that registers
   a boot-time scheduled task running the pinned b11562 Windows CUDA 12.4 build directly (node3's Store `pwsh` alias
