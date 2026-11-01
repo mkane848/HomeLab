@@ -709,6 +709,11 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
                read. Fixed in #164: the lines list every project's summary and, with no test named, the output's last error lines (AGENTS.md → `test-failure-detail.ps1`).
       2. **Paired hidden re-runs** of the 4 re-run tasks, in the same hours as shown ones: the hidden arm of (1).
       3. **Planner-written tests:** designed in [planner-tests-experiment.md](planner-tests-experiment.md); harness built 2026-10-31.
+         **First run 2026-10-31/11-01, a screen: selector false positives 3 of 28 (11%, 95% CI 4% to 27%), all on
+         `real-02`; false negatives 0 of 7.** Opus 5.5 as planner in a container, 12 sets (8 valid), 71 executor runs.
+         A planner's tests gave no lift over hidden (25 of 35 against 13 of 18), the task's own tests a large one (17 of
+         18). Every false positive missed a completeness check on a vague documentation request. Next: a completeness
+         review of the planner's tests, more vague tasks, then a power-sized run (the experiment doc, "Results").
       4. **Milestone 4's loop** (item 6): built as `tests/run-retries.ps1` (#157); first live run after (1), which
          is done (2026-10-25: prompt 2, no read-only files), on node3 rows of the new shell era (#162). A window to run
          it and the capability baseline with no one there: `tests/run-window.ps1` and

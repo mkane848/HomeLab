@@ -30,7 +30,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) | What each harness measures, what to stop claiming (the second was written by a Claude subagent) |
 | [audit-2026-09-29/](audit-2026-09-29/README.md) | Working material of the 2026-09-29 benchmark audit: the independent review, mining notes, validation rig and its runs, and the conversation |
 | [methodology-research.md](methodology-research.md) | Methodology and community resources (2026-09-24; superseded in places by the reviews above) |
-| [planner-tests-experiment.md](planner-tests-experiment.md) | Experiment 3 design. Not yet run |
+| [planner-tests-experiment.md](planner-tests-experiment.md) | Experiment 3: planner-written acceptance tests; design, and the first run's results (2026-10-31) |
 | [review-gate/README.md](review-gate/README.md) | Can a local LLM gate code review? Answer 2026-09-19: no (n=18, with a floor effect) |
 | [implementation-tasks.md](implementation-tasks.md) | Live file written by `/plan`; the latest planning pass |
 | [fleet-side-projects.md](fleet-side-projects.md), [hardware-planning.md](hardware-planning.md) | Planning lists; nothing scheduled |
