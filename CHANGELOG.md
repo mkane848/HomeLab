@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: the planner container allows `nodejs.org` and pins Claude Code 2.1.316 (2026-10-31).** In experiment 3's planner
+  runs, LFCbot's `npm ci` failed because `better-sqlite3` downloads Node headers from `nodejs.org`, which the proxy
+  refused; the planners fell back to `npm ci --ignore-scripts`, enough for its document-only tasks. The image built
+  `latest`; it is now pinned to the version the 12 planner sets were written with.
 - **tests: experiment 3's planner runs in a container (2026-10-31).** `desktop/docker/planner/` is a squid proxy on an
   internal Docker network whose only answers are `api.anthropic.com` and `registry.npmjs.org`, and a planner image
   (Claude Code on `dev-base:1`, non-root, no secrets baked in). `desktop/scripts/run-planner.ps1` starts one throwaway
