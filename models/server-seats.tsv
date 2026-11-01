@@ -1,4 +1,6 @@
-# models/server-seats.tsv - what the server serves, read by server/scripts/bake-models.sh.
+# models/server-seats.tsv - what the server serves, read by server/scripts/llamacpp-check.sh (against
+# server/llamacpp/models.ini and, with --weights-container, the blobs) and by bake-models.sh (Ollama only, the
+# rollback engine since Phase 3, 2026-11-01).
 #
 # The server's Ollama must match the desktop's measured setup before any of its
 # results can be compared (docs/roadmap.md -> "Next up (2026-10-10): server

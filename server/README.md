@@ -52,16 +52,21 @@ it uses `systemctl`; otherwise it falls back to `docker compose up -d`.
 - `scripts/install-model.sh` — catalog-aware model installer (`--list`, `--info`, `--ctx`, `--profile`, `--dry-run`)
 - `../models/server-seats.tsv` — the seats this server serves: `num_ctx`, `num_gpu`, the base of a derived model, and
   the desktop copy's weights `sha256`. Candidate seats are commented out until they are probed on this host.
-- `scripts/bake-models.sh` — reads that list: pulls a missing seat, bakes `num_ctx` into the desktop's tag (plus the
-  CPU-pinned 3b companion), reads the value back and compares the weights blob with the desktop's
-  (`--dry-run`, `--only <tag>`, `--no-pull`). Run it after changing the list.
+- `scripts/llamacpp-check.sh` — checks `llamacpp/models.ini` against that list (pinned blob, `c` equal to `num_ctx`,
+  one slot, the CPU seat). `--url http://localhost:8090` checks the running server; `--weights-container
+  llamacpp-server` checks that each seat's blob is really in Ollama's volume (`--hash` re-hashes it: about 30 s for all
+  four seats) and says how to pull a missing one. Run it after changing the list or the preset. Since Phase 3
+  (2026-11-01) it replaces `bake-models.sh` on the live path.
+- `scripts/bake-models.sh` — the Ollama engine only (its container is stopped): pulls a missing seat, bakes `num_ctx`
+  into the desktop's tag (plus the CPU-pinned 3b companion), reads the value back and compares the weights blob with
+  the desktop's (`--dry-run`, `--only <tag>`, `--no-pull`). Kept for a rollback until Phase 6.
 - `scripts/startup.sh` — bring services online
 - `scripts/stop.sh` — stop services
 - `scripts/status.sh` — GPU (`nvidia-smi`), API, loaded-model context, catalog gaps
 
 ## Notes
 
-- The server honors `OLLAMA_CONTEXT_LENGTH` (unlike the Windows Ollama app), so
+- Under Ollama (the rollback engine since Phase 3): the server honors `OLLAMA_CONTEXT_LENGTH` (unlike the Windows Ollama app), so
   un-baked tags serve at the env default (16384). Seats get their own `num_ctx` from
   `bake-models.sh` under the **same tag** as on the desktop, so one `opencode.jsonc`
   limit and one `tests/run-tasks-models.tsv` row hold on both hosts. Change a number

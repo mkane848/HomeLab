@@ -192,5 +192,98 @@ class ChatTemplate(Base):
         self.assertEqual(messages("FAIL"), [])
 
 
+class Weights(Base):
+    # bake-models.sh's last job under llama.cpp (Phase 3, 2026-11-01): the pinned blob is really in the volume.
+    def setUp(self):
+        super().setUp()
+        import hashlib
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.body = b"GGUF" + b"\x00" * 60
+        self.sha = hashlib.sha256(self.body).hexdigest()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+        super().tearDown()
+
+    def write(self, sha, body):
+        with open(os.path.join(self.tmp.name, "sha256-" + sha), "wb") as fh:
+            fh.write(body)
+
+    def ini(self, sha):
+        return {"*": {}, "t:1": {"model": "/ollama/models/blobs/sha256-" + sha}}
+
+    def check(self, sha, rehash=False, seats=None):
+        lc.weights_checks(self.ini(sha), seats or {}, lc.LocalBlobs(self.tmp.name), rehash)
+
+    def test_a_present_gguf_blob_passes(self):
+        self.write(self.sha, self.body)
+        self.check(self.sha)
+        self.assertEqual([l for l, _ in levels()], ["OK"])
+
+    def test_a_missing_blob_fails_and_says_how_to_pull_it(self):
+        self.check(self.sha, seats={"t:1": {"source": "pull", "from": "-"}})
+        self.assertEqual(len(messages("FAIL")), 1)
+        self.assertIn("ollama pull t:1", messages("FAIL")[0])
+
+    def test_a_derived_seat_pulls_its_base(self):
+        self.check(self.sha, seats={"t:1": {"source": "derived", "from": "base:3b"}})
+        self.assertIn("ollama pull base:3b", messages("FAIL")[0])
+
+    def test_a_file_that_is_not_gguf_fails(self):
+        self.write(self.sha, b"<html>rate limited</html>")
+        self.check(self.sha)
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_an_empty_blob_fails(self):
+        self.write(self.sha, b"")
+        self.check(self.sha)
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_hash_matches_its_name(self):
+        self.write(self.sha, self.body)
+        self.check(self.sha, rehash=True)
+        self.assertEqual([l for l, _ in levels()], ["OK"])
+        self.assertIn("sha256 matches", messages("OK")[0])
+
+    def test_hash_catches_bytes_that_are_not_the_pinned_weights(self):
+        # Right name and magic, wrong bytes (a corrupted or partial pull): only --hash sees it.
+        self.write(self.sha, b"GGUF" + b"\x01" * 60)
+        self.check(self.sha)
+        self.assertEqual(messages("FAIL"), [])
+        lc.results.clear()
+        self.check(self.sha, rehash=True)
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_an_unpinned_model_path_is_left_to_the_static_check(self):
+        lc.weights_checks({"*": {}, "t:1": {"model": "/models/x.gguf"}}, {}, lc.LocalBlobs(self.tmp.name))
+        self.assertEqual(lc.results, [])
+
+    def test_the_container_reader_parses_stat_and_magic(self):
+        calls = []
+
+        class R:
+            def __init__(self, code, out):
+                self.returncode, self.stdout = code, out
+
+        def run(cmd, capture_output, timeout):
+            calls.append(cmd)
+            if cmd[3] == "sha256sum":
+                return R(0, (self.sha + "  /ollama/x\n").encode())
+            return R(0, b"64\nGGUF")
+        lc.weights_checks(self.ini(self.sha), {}, lc.ContainerBlobs("llamacpp-server", run), True)
+        self.assertEqual([l for l, _ in levels()], ["OK"])
+        self.assertEqual(calls[0][:3], ["docker", "exec", "llamacpp-server"])
+        self.assertIn("/ollama/models/blobs/sha256-" + self.sha, calls[0])
+
+    def test_the_container_reader_reports_a_missing_blob(self):
+        run = lambda cmd, capture_output, timeout: type("R", (), {"returncode": 1, "stdout": b""})()
+        lc.weights_checks(self.ini(self.sha), {}, lc.ContainerBlobs("llamacpp-server", run))
+        self.assertEqual(len(messages("FAIL")), 1)
+
+    def test_hash_without_a_weights_option_is_a_usage_error(self):
+        self.assertEqual(lc.main(["--hash"]), 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

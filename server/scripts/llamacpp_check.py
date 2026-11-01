@@ -22,6 +22,16 @@ Run through llamacpp-check.sh. Standard library only.
   --url U           a running llama-server: /health, the model list, and for each
                     section /props (n_ctx must equal `c`, total_slots must be 1).
                     Asked with autoload=false, so checking never loads a model.
+  --weights-container NAME | --weights-dir DIR
+                    the weights are really there (the job bake-models.sh did under
+                    Ollama, "Replacing Ollama" Phase 3): each section's blob exists,
+                    is not empty and starts with the GGUF magic. Through
+                    `docker exec NAME` (the container sees Ollama's volume at
+                    /ollama; the host cannot read it without sudo), or in a local
+                    copy of the blobs directory. A missing blob says how to get it.
+  --hash            with a weights option: also recompute each blob's sha256 and
+                    compare it with its name (reads every byte: about a minute for
+                    the 20 GB seat).
 
 Exit 1 if anything FAILs, 2 on a usage problem. WARN and INFO never fail.
 """
@@ -29,7 +39,9 @@ import argparse
 import configparser
 import json
 import os
+import hashlib
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -224,6 +236,102 @@ def sampling_checks(ini, ollama_url):
                     say("FAIL", tag, "Ollama drafts with MTP (draft_num_predict = %s); the preset needs spec-type = draft-mtp" % value)
 
 
+GGUF_MAGIC = b"GGUF"
+BLOB_RE = re.compile(r"/blobs/(sha256-[0-9a-f]{64})$")
+
+
+class LocalBlobs:
+    """Blobs in a local directory (tests, or a copy of the volume)."""
+
+    def __init__(self, directory):
+        self.dir = directory
+
+    def stat(self, name):
+        """(size, first 4 bytes), or None when the blob is not there."""
+        p = os.path.join(self.dir, name)
+        if not os.path.isfile(p):
+            return None
+        with open(p, "rb") as fh:
+            return os.path.getsize(p), fh.read(4)
+
+    def sha256(self, name):
+        h = hashlib.sha256()
+        with open(os.path.join(self.dir, name), "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+
+class ContainerBlobs:
+    """Blobs read through `docker exec`, at the path the preset gives (the container's own view)."""
+
+    def __init__(self, container, run=subprocess.run):
+        self.container, self.run = container, run
+        self.paths = {}
+
+    def _exec(self, *cmd, timeout=60):
+        r = self.run(["docker", "exec", self.container] + list(cmd), capture_output=True, timeout=timeout)
+        return r.returncode, r.stdout
+
+    def stat(self, name):
+        path = self.paths[name]
+        code, out = self._exec("sh", "-c", 'test -f "$1" && stat -c %s "$1" && head -c 4 "$1"', "_", path)
+        if code != 0 or b"\n" not in out:
+            return None
+        size, magic = out.split(b"\n", 1)
+        return int(size), magic[:4]
+
+    def sha256(self, name):
+        code, out = self._exec("sha256sum", self.paths[name], timeout=1800)
+        if code != 0:
+            raise OSError("sha256sum failed in %s" % self.container)
+        return out.split()[0].decode()
+
+
+def how_to_get(tag, seat):
+    """The fix for a missing blob. Ollama's volume is where the weights live until Phase 6."""
+    src = (seat or {}).get("source")
+    pull = (seat or {}).get("from") if src == "derived" else tag
+    if src == "import":
+        return "an import seat: copy the desktop's GGUF and 'ollama create %s' from it" % tag
+    return ("pull it into Ollama's volume: docker start ollama-server && docker exec ollama-server ollama pull %s "
+            "&& docker stop ollama-server (no model loads, so it does not fight llama.cpp for the GPU)" % pull)
+
+
+def weights_checks(ini, seats, blobs, rehash=False):
+    for tag in [s for s in ini if s not in ("*", "__global__")]:
+        m = BLOB_RE.search(ini[tag].get("model", ""))
+        if not m:
+            continue  # static_checks already WARNs that it is unpinned
+        name = m.group(1)
+        if isinstance(blobs, ContainerBlobs):
+            blobs.paths[name] = ini[tag]["model"]
+        try:
+            st = blobs.stat(name)
+        except Exception as e:  # noqa: BLE001 - docker missing, container down: the same finding
+            say("FAIL", tag, "could not read the weights: %s" % e)
+            continue
+        if st is None:
+            say("FAIL", tag, "weights blob %s... is not there; %s" % (name[7:19], how_to_get(tag, seats.get(tag))))
+            continue
+        size, magic = st
+        if size == 0 or magic != GGUF_MAGIC:
+            say("FAIL", tag, "blob %s... is not a GGUF file (%d bytes, starts %r): re-pull it" % (name[7:19], size, magic))
+            continue
+        if not rehash:
+            say("OK", tag, "weights present (%.1f GB, GGUF)" % (size / 1e9))
+            continue
+        try:
+            got = blobs.sha256(name)
+        except Exception as e:  # noqa: BLE001
+            say("FAIL", tag, "could not hash the weights: %s" % e)
+            continue
+        if got == name[7:]:
+            say("OK", tag, "weights present (%.1f GB) and their sha256 matches the name" % (size / 1e9))
+        else:
+            say("FAIL", tag, "blob %s... hashes to %s...: the bytes are not the pinned weights; re-pull it" % (name[7:19], got[:12]))
+
+
 def live_checks(ini, url):
     base = url.rstrip("/")
     try:
@@ -276,7 +384,14 @@ def main(argv):
     ap.add_argument("--seats", default=DEFAULT_SEATS)
     ap.add_argument("--ollama-url", help="compare sampling parameters with this Ollama (e.g. http://localhost:11434)")
     ap.add_argument("--url", help="check a running llama-server (e.g. http://localhost:8090)")
+    where = ap.add_mutually_exclusive_group()
+    where.add_argument("--weights-container", metavar="NAME", help="check the weights blobs through docker exec (e.g. llamacpp-server)")
+    where.add_argument("--weights-dir", metavar="DIR", help="check the weights blobs in a local blobs directory")
+    ap.add_argument("--hash", action="store_true", help="with a weights option: recompute each blob's sha256 (slow)")
     args = ap.parse_args(argv)
+    if args.hash and not (args.weights_container or args.weights_dir):
+        print("llamacpp-check: --hash needs --weights-container or --weights-dir", file=sys.stderr)
+        return 2
     for p in (args.ini, args.seats):
         if not os.path.isfile(p):
             print("llamacpp-check: no such file: %s" % p, file=sys.stderr)
@@ -287,6 +402,10 @@ def main(argv):
         sampling_checks(ini, args.ollama_url)
     if args.url:
         live_checks(ini, args.url)
+    if args.weights_container:
+        weights_checks(ini, seats, ContainerBlobs(args.weights_container), args.hash)
+    elif args.weights_dir:
+        weights_checks(ini, seats, LocalBlobs(args.weights_dir), args.hash)
     width = max([len(s) for _, s, _ in results] + [8])
     for level, subject, message in results:
         print("[%-4s] %-*s  %s" % (level, width, subject, message))

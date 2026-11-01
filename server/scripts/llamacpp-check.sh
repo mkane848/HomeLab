@@ -8,6 +8,11 @@
 #   --url http://localhost:8090           check a running llama-server (/health,
 #                                         /props n_ctx and total_slots; never
 #                                         loads a model)
+#   --weights-container llamacpp-server   each seat's blob is in Ollama's volume and is
+#                                         a GGUF file; a missing one says how to pull
+#                                         it (replaces bake-models.sh, Phase 3)
+#   --weights-dir DIR                     the same, in a local blobs directory
+#   --hash                                with either: re-hash every blob (~30 s)
 # See llamacpp_check.py for the detail and docs/llamacpp-trial.md for where it
 # sits in the trial. Needs python3 (standard on Ubuntu Server); nothing else.
 # Exit 1 on any FAIL. Run it with `bash` if the exec bit was lost in a copy

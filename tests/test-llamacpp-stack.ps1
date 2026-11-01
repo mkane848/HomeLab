@@ -184,7 +184,7 @@ if (-not $bash -or -not $python) {
         try { $py = & $python.Source -I (Join-Path $PSScriptRoot "test_llamacpp_check.py") 2>&1 | Out-String; $pyExit = $LASTEXITCODE } finally { $ErrorActionPreference = $prev }
         Check "test_llamacpp_check.py passes"                      $pyExit 0
         if ($pyExit -ne 0) { Write-Host $py }
-        Has   "...and ran its 22 tests"                            $py 'Ran 22 tests'
+        Has   "...and ran its 33 tests"                            $py 'Ran 33 tests'
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }

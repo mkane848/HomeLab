@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# bake-models.sh - put the server's seats into the shape the desktop measured.
+# bake-models.sh - put the server's seats into the shape the desktop measured. OLLAMA ENGINE ONLY.
+#
+# Since Phase 3 (2026-11-01) llama.cpp is the server's engine and the Ollama container is stopped, so this
+# script is off the live path: llama.cpp takes num_ctx from server/llamacpp/models.ini (`c`), and
+# `llamacpp-check.sh --weights-container llamacpp-server` checks the weights. It stays for a rollback to
+# Ollama and goes in Phase 6 ("Replacing Ollama" in docs/roadmap.md).
 #
 # Reads models/server-seats.tsv and, for each seat, inside the ollama-server
 # container:
