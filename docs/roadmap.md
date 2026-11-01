@@ -3200,6 +3200,12 @@ across engines as if nothing changed); `ollama-*` provider ids are never renamed
   `nvidia-smi` driver, `0.0.0.0:8090` with a LAN-scoped firewall rule, an explicit `c =` in place of its 32768 env
   default. This folds in the parked Q4 `qwen3.5:9b` question: overflow should become an explicit error instead of
   a silent loss the harness can't see on a remote host (unmeasured until the trial). Disable Windows sleep first (owner).
+  **Model-host half started 2026-10-31 (owner's go, ahead of Phase 3's server items):** llama.cpp b11562 (Windows CUDA
+  12.4) beside Ollama, one seat (`qwen3:8b`, the server's blob), in `node3/`. Tool probe PASS; an over-long request
+  is an explicit HTTP 400 that OpenCode classifies (Ollama there truncated silently, 38% evaluated, 2026-10-14);
+  speed level with Ollama 0.40.4. Still to do: the LAN firewall rule (owner), and a Windows branch for the
+  GPU-placement check (`ps` and per-process `nvidia-smi` memory do not exist on Windows), so runs against
+  `llamacpp-node3` record placement `unchecked`.
 - **Phase 6, retire Ollama (owner's decision, after a clean soak on every host).** Remove live-path Ollama only:
   `startup.ps1`'s bakes, the Ollama modes of `models.ps1`, `pin-ollama-desktop.ps1` (run `-Remove` first), `OLLAMA_*`
   User env, the Ollama compose file, unit and `bake-models.sh`, the `ollama-*` provider blocks (they stay in git

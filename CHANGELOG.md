@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - **docs: markdown cleanup (2026-10-31).** Typos, broken relative links and markdown formatting across the docs; no content changes.
+- **node3: llama-server beside Ollama ("Replacing Ollama" Phase 5, model-host half; 2026-10-31).** `node3/` holds the
+  router preset (one seat, `qwen3:8b`, the same blob and sampling as the server's seat), a start script that registers
+  a boot-time scheduled task running the pinned b11562 Windows CUDA 12.4 build directly (node3's Store `pwsh` alias
+  cannot be launched by a task), and a README with the asset digests and the owner's firewall rule. Measured on node3:
+  tool probe PASS; an over-long request is an explicit HTTP 400 that OpenCode classifies (Ollama 0.40.4 truncated it
+  silently, 38% evaluated, 2026-10-14); prefill and decode level with Ollama at 3k, 16k and 30k tokens. Rows in
+  `toolcalls-summary-llamacpp.tsv`, `overflow-probe.tsv`, `bench-speed.tsv`, and a `run-tasks-models.tsv` row. Known
+  gap: the GPU-placement check is Linux-only (`ps`, per-process `nvidia-smi` memory), so `llamacpp-node3` runs record
+  placement `unchecked`.
 - **tests: the harness moves to opencode 1.19.5 (2026-10-31).** The desktop and node3 are both on 1.19.5. Every
   opencode source file the adapter and both plugins were read against is byte-identical between v1.18.34 and v1.19.5
   (`session/compaction.ts`, `session/prompt.ts`, `session/tools.ts`, `session/processor.ts`, `session/status.ts`,
