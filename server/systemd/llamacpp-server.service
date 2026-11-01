@@ -1,0 +1,25 @@
+[Unit]
+Description=llama.cpp server (Docker) - the server's primary model engine since Phase 3 (2026-11-01)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=YOUR_USER
+Group=YOUR_GROUP
+WorkingDirectory=/home/YOUR_USER
+
+# The image is pinned by build tag and digest in the compose file, so nothing is pulled at boot: an offline boot must
+# still start. The container also has `restart: unless-stopped`; this unit adds an ordered start/stop and a place for
+# `systemctl status`. Install (the owner's step: it needs sudo):
+#   sed -e "s/YOUR_USER/$USER/; s/YOUR_GROUP/$(id -gn)/; s#/path/to/HomeLab#$HOME/HomeLab#" \
+#       server/systemd/llamacpp-server.service | sudo tee /etc/systemd/system/llamacpp-server.service
+#   sudo systemctl daemon-reload && sudo systemctl enable llamacpp-server.service
+# After any daemon-reload, check the container still sees the GPU (status.sh; docs/troubleshooting.md ->
+# "Container lost the GPU").
+ExecStart=/usr/bin/docker compose -f /path/to/HomeLab/server/docker/docker-compose.llamacpp.yml up -d
+ExecStop=/usr/bin/docker compose -f /path/to/HomeLab/server/docker/docker-compose.llamacpp.yml down
+
+[Install]
+WantedBy=multi-user.target

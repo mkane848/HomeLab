@@ -35,8 +35,11 @@
 #   same Docker, cgroup driver and toolkit, so it has the same hazard. A
 #   llama-server that loses the GPU may not say so, which is why the trial has a
 #   drill for it (docs/llamacpp-trial.md, measurement E).
-# * restart: "no". While this is a trial it must never start at boot and fight
-#   Ollama for the GPU. Phase 3 (cutover) changes this deliberately.
+# * restart: unless-stopped since Phase 3 (cutover, 2026-11-01): llama.cpp is the
+#   server's primary engine and comes back after a reboot. During the trial it was
+#   "no", so it could never start at boot and fight Ollama for the GPU; that rule now
+#   sits on the Ollama stack instead (docker-compose.yml: restart "no", container
+#   stopped). Only one of the two may start at boot (tests/test-llamacpp-stack.ps1).
 # * The image's own HEALTHCHECK probes port 8080 (LLAMA_ARG_PORT=8080 in its
 #   Dockerfile); this stack serves 8090, so the healthcheck is overridden below.
 #   The image installs curl; verify on first start with
@@ -47,7 +50,7 @@ services:
   llamacpp-server:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda-b11561@sha256:20c6e722e2fcc5ca9c15401d3fd8e35408aaf8f9c54a12f32920f637c57959bb
     container_name: llamacpp-server
-    restart: "no"
+    restart: unless-stopped
     ports:
       - "8090:8090"
     volumes:

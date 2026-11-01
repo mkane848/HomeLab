@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: llama.cpp is the engine that starts at boot ("Replacing Ollama" Phase 3, server side; 2026-11-01).** The
+  llama.cpp stack is `restart: unless-stopped`; the Ollama container is `restart: "no"` and stopped, not removed, for the
+  soak (owner's decision), and `tests/test-llamacpp-stack.ps1` checks that only one of the two starts at boot. Before
+  this the default engine had `restart: "no"` while Ollama had `unless-stopped`, so after a reboot the default was down
+  and the engine nothing uses came back. `startup.sh` / `stop.sh` take `--engine llamacpp|ollama` (or
+  `SERVER_ENGINE`), llama.cpp by default, and use a systemd unit when one is installed; `status.sh` reports both engines,
+  their restart policies and the GPU as each container sees it; `server/systemd/llamacpp-server.service` is the unit
+  template (installing it needs `sudo`). `llamacpp-window.sh up` adopts a stack that is already running and healthy (no
+  Ollama stop, no GPU check, no start) and leaves it up when the window closes, where it used to refuse it (the GPU
+  check saw its own seat) and, at the deadline, take the daily engine down; `tests/test-llamacpp-window.ps1` covers it.
 - **docs: markdown cleanup (2026-10-31).** Typos, broken relative links and markdown formatting across the docs; no content changes.
 - **node3: llama-server beside Ollama ("Replacing Ollama" Phase 5, model-host half; 2026-10-31).** `node3/` holds the
   router preset (one seat, `qwen3:8b`, the same blob and sampling as the server's seat), a start script that registers

@@ -191,6 +191,33 @@ try {
     Check "down cleared the deadline" (Test-Path (Join-Path $win "deadline")) "False"
     Check "status exits 1 when closed" (Invoke-Window @("status")).Exit 1
 
+    Write-Host "-- up adopts a stack that is already up (the primary engine since Phase 3)"
+    Reset-State
+    Set-Content -LiteralPath (Join-Path $state "container") -Value "running"
+    Set-Content -LiteralPath (Join-Path $state "health") -Value "healthy"
+    $r = Invoke-Window @("up", "--no-watch")
+    Check "adopt: exit 0" $r.Exit 0
+    Check "...the stack was not started again" (CallCount 'compose .* up') 0
+    Check "...Ollama was left alone" (CallCount 'ollama stop') 0
+    Check "...the seat was still loaded and checked" ("{0}|{1}" -f (CallCount 'curl .*-X POST .*/models/load'), (CallCount 'llamacpp-check --url')) "1|1"
+    Check "...and the window says it adopted it" ((WindowLog) -match 'adopting the running stack') "True"
+    $d = Invoke-Window @("down")
+    Check "down after adopting: exit 0" $d.Exit 0
+    Check "...the stack is still running" ((Get-Content -Raw (Join-Path $state "container")).Trim()) "running"
+    Check "...compose down was never called" (CallCount 'compose .* down') 0
+    Check "...and the marker is gone, so the next window decides afresh" (Test-Path (Join-Path $win "adopted")) "False"
+
+    Reset-State
+    Set-Content -LiteralPath (Join-Path $state "container") -Value "running"
+    Set-Content -LiteralPath (Join-Path $state "health") -Value "healthy"
+    $r = Invoke-Window @("up", "--hours", "0.0005")
+    $closed = Wait-For { (WindowLog) -match 'deadline reached' }
+    Check "adopt + watchdog: the deadline fires" $closed "True"
+    $null = Wait-For { -not (Test-Path (Join-Path $win "watch.pid")) }
+    Check "...and the adopted stack is left running" ((Get-Content -Raw (Join-Path $state "container")).Trim()) "running"
+    Check "...with no compose down" (CallCount 'compose .* down') 0
+    Check "...and the log says why" ((WindowLog) -match 'leaving the stack up') "True"
+
     Write-Host "-- up --hours"
     Reset-State
     $null = Invoke-Window @("up", "--hours", "0.5", "--no-watch")

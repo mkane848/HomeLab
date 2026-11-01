@@ -12,7 +12,7 @@
 # What it does:
 #   1. The compose file's invariants, read from the REAL file: its own project (so it
 #      never orphans the Ollama stack), an image pinned by build tag AND digest and
-#      not the CUDA 13 build, no restart at boot, the SAME five GPU device nodes as
+#      not the CUDA 13 build, restart unless-stopped and the Ollama stack restart "no" (Phase 3), the SAME five GPU device nodes as
 #      the Ollama compose file, a healthcheck that runs nvidia-smi inside the
 #      container, the Ollama volume external and read-only, and the preset mounted
 #      where the command reads it. Every model path in the preset sits under the
@@ -60,7 +60,9 @@ Check "its own compose project, not the Ollama stack's"      ([regex]::IsMatch($
 $image = ($lines | Where-Object { $_ -match '^\s*image:' } | Select-Object -First 1)
 Has   "image pinned by build tag AND sha256 digest"           $image 'server-cuda-b\d+@sha256:[0-9a-f]{64}\s*$'
 Check "...never :latest, and never the CUDA 13 build (driver 580)" (($image -match 'latest') -or ($image -match 'cuda13')) "False"
-Check "restart is `"no`" (a trial must not start at boot and fight Ollama for the GPU)" ([regex]::IsMatch($code, '(?m)^\s*restart:\s*"no"\s*$')) "True"
+Check "restart is unless-stopped (the primary engine since Phase 3, 2026-11-01)" ([regex]::IsMatch($code, '(?m)^\s*restart:\s*unless-stopped\s*$')) "True"
+$ollamaCode = (@(Get-Content -LiteralPath $ollamaCompose | Where-Object { $_ -notmatch '^\s*#' }) -join "`n")
+Check "...and the Ollama stack does NOT start at boot (only one engine may hold the card at boot)" ([regex]::IsMatch($ollamaCode, '(?m)^\s*restart:\s*"no"\s*$')) "True"
 $devs = @($lines | Where-Object { $_ -match '^\s*-\s*/dev/nvidia' } | ForEach-Object { ($_ -replace '^\s*-\s*', '').Trim() } | Sort-Object)
 $ollamaDevs = @(Get-Content -LiteralPath $ollamaCompose | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '^\s*-\s*/dev/nvidia' } | ForEach-Object { ($_ -replace '^\s*-\s*', '').Trim() } | Sort-Object)
 Check "lists five GPU device nodes explicitly"                $devs.Count 5

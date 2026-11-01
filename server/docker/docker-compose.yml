@@ -17,7 +17,11 @@ services:
     #   .\tests\test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434 -HostLabel server
     image: ollama/ollama:0.34.3
     container_name: ollama-server
-    restart: unless-stopped
+    # "no" since Phase 3 (2026-11-01): llama.cpp (docker-compose.llamacpp.yml) is the primary engine and the one
+    # that starts at boot; this container is stopped, not removed, for the soak ("Replacing Ollama" in
+    # docs/roadmap.md). Roll back: `docker update --restart unless-stopped ollama-server && docker start
+    # ollama-server`, after stopping the llama.cpp stack (the card cannot hold both engines' seats).
+    restart: "no"
     ports:
       - "11434:11434"
     volumes:

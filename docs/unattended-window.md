@@ -95,6 +95,11 @@ restart inside an hour makes it give up, write `GAVE-UP`, and take the stack dow
 when a file named `STOP` appears in `~/llamacpp-window/`, it takes the stack down too, so a window nobody closes cannot hold
 the GPU into the morning. Its log is `~/llamacpp-window/window.log`.
 
+**Since Phase 3 (2026-11-01) the stack is usually up already**, because llama.cpp is the server's primary engine
+(`restart: unless-stopped`). `up` then adopts it: it does not stop Ollama, check the GPU or start anything, but it still
+loads the seat, runs the contract check, sets the deadline and starts the watchdog. A window that adopted the stack leaves
+it running when it closes (deadline, `STOP`, give-up or `down`); only a stack the window itself started is taken down.
+
 **What neither half does:** merge or push anything, edit the repo or the task repos, touch Ollama's stack beyond
 `ollama stop` of the resident seat, use `sudo`, or retry a run the harness already graded.
 
