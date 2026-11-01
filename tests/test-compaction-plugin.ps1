@@ -1,4 +1,4 @@
-# protects: opencode/plugins/compaction-continue.js (fails on any opencode other than 1.18.34)
+# protects: opencode/plugins/compaction-continue.js (fails on any opencode other than 1.19.5)
 # run-after: The plugin, any opencode upgrade, Start/Stop-AgentRunEnv
 # test-compaction-plugin.ps1 - regression guard for opencode/plugins/compaction-continue.js
 #
@@ -28,11 +28,11 @@
 #     session/compaction.ts and session/prompt.ts and moves the pin.
 # Exit 1 on any failure.
 #
-# Usage:  .\tests\test-compaction-plugin.ps1 [-PluginPath <js>] [-ScriptPath <test-tasks.ps1>] [-PinnedOpencode 1.18.34]
+# Usage:  .\tests\test-compaction-plugin.ps1 [-PluginPath <js>] [-ScriptPath <test-tasks.ps1>] [-PinnedOpencode 1.19.5]
 param(
     [string]$PluginPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "opencode\plugins\compaction-continue.js"),
     [string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"),
-    [string]$PinnedOpencode = "1.18.34"
+    [string]$PinnedOpencode = "1.19.5"
 )
 
 $ErrorActionPreference = "Stop"

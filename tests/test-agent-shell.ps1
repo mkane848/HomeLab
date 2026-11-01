@@ -30,7 +30,7 @@
 #      stand-in opencode that records the OPENCODE_CONFIG_CONTENT it was run
 #      with: it saw {"shell": <that pwsh.exe>}, the run JSON records
 #      agentShell, and the variable is gone afterwards.
-#   5. Live, the real opencode (must be 1.18.34): `opencode debug config`
+#   5. Live, the real opencode (must be 1.19.5): `opencode debug config`
 #      resolves `shell` to that path inside the run environment only.
 # Exit 1 on any failure.
 #
@@ -104,13 +104,13 @@ try {
     @'
 @echo off
 echo %*>>"%FX_SH_LOG%"
-if "%~1"=="--version" (echo 1.18.34& exit /b 0)
+if "%~1"=="--version" (echo 1.19.5& exit /b 0)
 echo [{"entry":{"path":"probe.txt"},"line":1,"text":"x %~4 y"}]
 exit /b 0
 '@ | Set-Content -LiteralPath (Join-Path $bin "opencode.cmd") -Encoding ascii
     $env:PATH = "$bin;$savedPath"
     $env:FX_SH_LOG = Join-Path $tmp "calls.txt"
-    $r = Test-AgentTools -Version "1.18.34"
+    $r = Test-AgentTools -Version "1.19.5"
     Check "ok: checked and ok"                                   ("{0}|{1}" -f $r.checked, $r.ok) "True|True"
     Check "...the shell is recorded"                             $r.shell $want
     Check "...as PowerShell 7 (Core)"                            ([bool]($r.shellVersion -match '^Core 7\.\d+\.\d+')) "True"
@@ -119,14 +119,14 @@ exit /b 0
     $before = @(Get-Content -LiteralPath $env:FX_SH_LOG -ErrorAction SilentlyContinue).Count
     $missing = Join-Path $tmp "no\pwsh.exe"
     function Get-AgentShellPath { $missing }
-    $r = Test-AgentTools -Version "1.18.34"
+    $r = Test-AgentTools -Version "1.19.5"
     Check "a shell that does not exist: not ok"                  ("{0}|{1}" -f $r.checked, $r.ok) "True|False"
     Check "...and the detail says so"                            ([bool]($r.detail -match "not PowerShell 7: .* does not exist")) "True"
     Check "...and opencode is never asked"                       (@(Get-Content -LiteralPath $env:FX_SH_LOG -ErrorAction SilentlyContinue).Count) $before
     $winps = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
     if ($IsWindows -and (Test-Path -LiteralPath $winps)) {
         function Get-AgentShellPath { $winps }
-        $r = Test-AgentTools -Version "1.18.34"
+        $r = Test-AgentTools -Version "1.19.5"
         Check "Windows PowerShell 5.1 as the shell: not ok"     ("{0}|{1}" -f $r.checked, $r.ok) "True|False"
         Check "...and the detail names the edition"            ([bool]($r.detail -match "reports 'Desktop 5\.1")) "True"
     } else {
@@ -159,7 +159,7 @@ exit /b 0
     # run records the OPENCODE_CONFIG_CONTENT it inherited, then edits src.txt.
     @'
 $a = @($args)
-if ($a[0] -eq '--version') { '1.18.34'; exit 0 }
+if ($a[0] -eq '--version') { '1.19.5'; exit 0 }
 if ($a[0] -eq 'debug' -and $a[1] -eq 'rg') { '[{"entry":{"path":"probe.txt"},"line":1,"text":"x ' + $a[3] + ' y"}]'; exit 0 }
 if ($a[0] -eq 'debug') { '{}'; exit 0 }
 if ($a[0] -eq 'run') {
@@ -196,8 +196,8 @@ exit 2
     Check "the variable is gone after the harness"               (Test-Path Env:OPENCODE_CONFIG_CONTENT) "False"
 
     Write-Host "-- live: the real opencode"
-    if ($realVersion -ne "1.18.34") {
-        Check "installed opencode is 1.18.34 (else re-read packages/core/src/shell.ts and config.ts)" $realVersion "1.18.34"
+    if ($realVersion -ne "1.19.5") {
+        Check "installed opencode is 1.19.5 (else re-read packages/core/src/shell.ts and config.ts)" $realVersion "1.19.5"
     } else {
         $s = Start-AgentRunEnv -Plugins @()
         try { $cfg = (opencode debug config 2>$null | Out-String) | ConvertFrom-Json } finally { $null = Stop-AgentRunEnv -State $s }

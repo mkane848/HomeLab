@@ -371,8 +371,9 @@ function Stop-AgentRunEnv {
 
 # The opencode version Test-AgentTools was written against: `opencode debug rg`
 # and the ripgrep lookup behind it (packages/core/src/ripgrep/binary.ts at
-# v1.18.34). On another version re-read that file, then move this.
-$script:AgentToolsCheckedVersion = "1.18.34"
+# v1.18.34; re-checked at v1.19.5 (2026-10-31): those files unchanged, and shell.ts with it).
+# On another version re-read that file, then move this.
+$script:AgentToolsCheckedVersion = "1.19.5"
 
 function Test-AgentTools {
     # Do the agent's search tools work on this machine? opencode's grep and glob
