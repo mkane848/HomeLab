@@ -26,7 +26,8 @@
 // plugin off (no clamp, no hint). HOMELAB_READ_BUDGET_LOG=<file> appends one
 // JSON line per clamp (the harness sets it per run and counts them).
 //
-// Hooks, read at opencode v1.18.34 (aec0b9a6d8898f68f923aaf08b7306d931fd9d76,
+// Hooks, read at opencode v1.18.34 (re-checked at v1.19.5 (2026-10-31): those files unchanged;
+// aec0b9a6d8898f68f923aaf08b7306d931fd9d76,
 // packages/opencode/src):
 //   - session/tools.ts L106-110 triggers tool.execute.before with
 //     `{ args }` as the output, and L111 calls item.execute(args, ctx) with that

@@ -29,7 +29,7 @@
 //
 // Hooks used are EXPERIMENTAL in opencode (experimental.chat.messages.transform,
 // experimental.session.compacting) and the continue message's marker is "not a
-// stable plugin contract" (session/compaction.ts). Pinned to what 1.18.34 does;
+// stable plugin contract" (session/compaction.ts). Pinned to what 1.18.34 does (re-checked at v1.19.5 (2026-10-31): those files unchanged);
 // tests/test-compaction-plugin.ps1 checks the behaviour, and any opencode
 // upgrade must re-run it.
 

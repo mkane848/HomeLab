@@ -26,7 +26,7 @@
   // THIS checkout's file:/// URL, so the template names no machine.
   // Never copy the template to ~/.config/opencode by hand, the token would
   // stay in. It rests on
-  // EXPERIMENTAL opencode hooks read at 1.18.34: after `opencode upgrade`, run
+  // EXPERIMENTAL opencode hooks read at 1.18.34 (re-checked at v1.19.5 (2026-10-31): those files unchanged): after `opencode upgrade`, run
   // tests/test-compaction-plugin.ps1 before trusting it. To take it out, delete
   // this entry and re-run sync-opencode.ps1 -Template. The path is the
   // staged checkout's; if that path is missing, the plugin fails to load

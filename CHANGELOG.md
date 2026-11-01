@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the harness moves to opencode 1.19.5 (2026-10-31).** The desktop and node3 are both on 1.19.5. Every
+  opencode source file the adapter and both plugins were read against is byte-identical between v1.18.34 and v1.19.5
+  (`session/compaction.ts`, `session/prompt.ts`, `session/tools.ts`, `session/processor.ts`, `session/status.ts`,
+  `tool/read.ts`, `tool/grep.ts`, `tool/glob.ts`, `core/src/ripgrep/binary.ts`, `core/src/shell.ts`,
+  `provider/error.ts`, `plugin/shared.ts`, `core/src/config/tool-output.ts`, `cli/cmd/debug/ripgrep.ts`); of the
+  files that differ, `session/overflow.ts` and `config/config.ts` only lost unused imports, `message-v2.ts` filters
+  images for xAI, `provider/transform.ts` changes a type, and `cli/upgrade.ts` no longer installs anything on its own
+  ("Checking never installs anything"), so the version can no longer change under a batch. The pins move to 1.19.5:
+  `$script:AgentToolsCheckedVersion`, both plugin guards' `-PinnedOpencode`, the agent-tools and agent-shell guards'
+  live checks and stand-ins, and CI. Rows from 1.19.5 are a new era by the repo's rule (`opencodeVersion` in every
+  run JSON), even with the code paths unchanged.
 - **tests: experiment 3's planner runs in a container (2026-10-31).** `desktop/docker/planner/` is a squid proxy on an
   internal Docker network whose only answers are `api.anthropic.com` and `registry.npmjs.org`, and a planner image
   (Claude Code on `dev-base:1`, non-root, no secrets baked in). `desktop/scripts/run-planner.ps1` starts one throwaway

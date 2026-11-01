@@ -1,4 +1,4 @@
-# protects: opencode/plugins/read-budget.js (fails on any opencode other than 1.18.34)
+# protects: opencode/plugins/read-budget.js (fails on any opencode other than 1.19.5)
 # run-after: The plugin, any opencode upgrade, Start/Stop-AgentRunEnv
 # test-read-budget.ps1 - regression guard for opencode/plugins/read-budget.js
 #
@@ -40,11 +40,11 @@
 #     session/tools.ts, read.ts and compaction.ts and moves the pin.
 # Exit 1 on any failure.
 #
-# Usage:  .\tests\test-read-budget.ps1 [-PluginPath <js>] [-ScriptPath <test-tasks.ps1>] [-PinnedOpencode 1.18.34]
+# Usage:  .\tests\test-read-budget.ps1 [-PluginPath <js>] [-ScriptPath <test-tasks.ps1>] [-PinnedOpencode 1.19.5]
 param(
     [string]$PluginPath = (Join-Path (Split-Path -Parent $PSScriptRoot) "opencode\plugins\read-budget.js"),
     [string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"),
-    [string]$PinnedOpencode = "1.18.34"
+    [string]$PinnedOpencode = "1.19.5"
 )
 
 $ErrorActionPreference = "Stop"
