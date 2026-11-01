@@ -44,3 +44,4 @@ qwen3.8-max	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-0
 kimi-k2.7-code	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
 glm-5.2	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
 deepseek-v4-pro	opencode-go	opencode-go	hosted (OpenCode Go); smoke-tested 2026-10-06 (opencode run --auto wrote a file), not probed
+qwen3:8b	llamacpp	node3	measured PASS through llama-server on node3 (build b11562, 2026-10-31, node3/README.md); reachable only from node3 until its LAN firewall rule
