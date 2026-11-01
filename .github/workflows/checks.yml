@@ -112,9 +112,9 @@ jobs:
 
       # test-compaction-plugin.ps1 runs the plugin inside a real `opencode serve` and
       # FAILs on any opencode but the one its hooks were read at (AGENTS.md).
-      - name: Install opencode 1.18.34 (pinned)
+      - name: Install opencode 1.19.5 (pinned)
         run: |
-          npm install -g opencode-ai@1.18.34
+          npm install -g opencode-ai@1.19.5
           opencode --version
 
       - name: Git identity (as on a signed-in desktop)

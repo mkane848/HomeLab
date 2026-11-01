@@ -25,7 +25,7 @@
 #      Test-AgentTools says broken, not checked or ok: broken is exit 1 with
 #      nothing run (no agent call, no run JSON); not checked is a WARN and the
 #      run is graded; the run JSON records `agentTools`; -DryRun never checks.
-#   3. Live, the real opencode (which must be 1.18.34): the search works, and
+#   3. Live, the real opencode (which must be 1.19.5): the search works, and
 #      with ripgrep unreachable (not on PATH, an empty cache, downloads through
 #      a dead proxy) it does not.
 # Exit 1 on any failure.
@@ -69,7 +69,7 @@ try {
     @'
 @echo off
 echo %CD%^|%*>>"%FX_RG_LOG%"
-if "%~1"=="--version" (echo 1.18.34& exit /b 0)
+if "%~1"=="--version" (echo 1.19.5& exit /b 0)
 if "%FX_RG_MODE%"=="ok" (echo [{"entry":{"path":"probe.txt"},"line":1,"text":"x %~4 y"}]& exit /b 0)
 if "%FX_RG_MODE%"=="fail" (echo Error: Unexpected error& echo ripgrep execution failed& exit /b 1)
 if "%FX_RG_MODE%"=="nomatch" (echo {}& exit /b 0)
@@ -80,7 +80,7 @@ exit /b 9
     $env:FX_RG_LOG = Join-Path $tmp "rg-calls.txt"
 
     $env:FX_RG_MODE = "ok"
-    $r = Test-AgentTools -Version "1.18.34"
+    $r = Test-AgentTools -Version "1.19.5"
     Check "a search that finds the probe: checked and ok" ("{0}|{1}" -f $r.checked, $r.ok) "True|True"
     $call = @(Get-Content -LiteralPath $env:FX_RG_LOG)[-1]
     Check "...asked 'opencode debug rg search <nonce>'"([bool]($call -match '\|debug rg search toolprobe[0-9a-f]{16}$')) "True"
@@ -90,17 +90,17 @@ exit /b 9
     Check "...and the seconds it took are recorded" ($null -ne $r.seconds) "True"
 
     $env:FX_RG_MODE = "fail"
-    $r = Test-AgentTools -Version "1.18.34"
+    $r = Test-AgentTools -Version "1.19.5"
     Check "node3's failure (exit 1): checked, not ok" ("{0}|{1}" -f $r.checked, $r.ok) "True|False"
     Check "...and the detail carries the exit and opencode's error" ([bool]($r.detail -match 'exit 1' -and $r.detail -match 'ripgrep execution failed')) "True"
 
     $env:FX_RG_MODE = "nomatch"
-    $r = Test-AgentTools -Version "1.18.34"
+    $r = Test-AgentTools -Version "1.19.5"
     Check "exit 0 without the probe file: not ok" ("{0}|{1}" -f $r.ok, [bool]($r.detail -match 'was not found')) "False|True"
 
     $env:FX_RG_MODE = "hang"
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $r = Test-AgentTools -Version "1.18.34" -TimeoutSec 3
+    $r = Test-AgentTools -Version "1.19.5" -TimeoutSec 3
     Check "a hang: not ok, timed out" ("{0}|{1}" -f $r.ok, [bool]($r.detail -match 'timed out after 3 s')) "False|True"
     Check "...and ended within the limit" ([bool]($sw.Elapsed.TotalSeconds -lt 30)) "True"
     $left = @(Get-CimInstance Win32_Process -Filter "Name = 'PING.EXE'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match '-n 60 127\.0\.0\.1' })
@@ -109,10 +109,10 @@ exit /b 9
     $env:FX_RG_MODE = "ok"
     $before = @(Get-Content -LiteralPath $env:FX_RG_LOG).Count
     $r = Test-AgentTools -Version "1.18.35"
-    Check "another opencode version: not checked" ("{0}|{1}" -f $r.checked, [bool]($r.detail -match '1\.18\.35 is not 1\.18\.34')) "False|True"
+    Check "another opencode version: not checked" ("{0}|{1}" -f $r.checked, [bool]($r.detail -match '1\.18\.35 is not 1\.19\.5')) "False|True"
     Check "...and opencode is not asked" (@(Get-Content -LiteralPath $env:FX_RG_LOG).Count) $before
     $r = Test-AgentTools
-    Check "the version defaults to Get-AgentVersion (the stand-in says 1.18.34)" ("{0}|{1}" -f $r.checked, $r.ok) "True|True"
+    Check "the version defaults to Get-AgentVersion (the stand-in says 1.19.5)" ("{0}|{1}" -f $r.checked, $r.ok) "True|True"
     $env:PATH = $savedPath
     Remove-Item Env:FX_RG_MODE, Env:FX_RG_LOG -ErrorAction SilentlyContinue
 
