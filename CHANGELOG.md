@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: experiment 3's first run (2026-11-01).** `docs/planner-tests-experiment.md` gains "Results (first run)": the
+  planner's tests let wrong code through on 3 of 28 accepted attempts (11%, 95% CI 4% to 27%), all on `real-02`, each
+  a missed completeness check; no false negatives in 7; planner-shown 25 of 35 hidden passes against 13 of 18 hidden and
+  17 of 18 oracle. The roadmap's item 10 and `docs/README.md` (which still said "Not yet run") point at it.
 - **docs: markdown cleanup (2026-10-31).** Typos, broken relative links and markdown formatting across the docs; no content changes.
 - **node3: llama-server beside Ollama ("Replacing Ollama" Phase 5, model-host half; 2026-10-31).** `node3/` holds the
   router preset (one seat, `qwen3:8b`, the same blob and sampling as the server's seat), a start script that registers
