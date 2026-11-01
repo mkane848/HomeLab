@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: experiment 3's completeness review (desk, 2026-11-01).** The three false positives are two different gaps:
+  set 2 did not check the newer modules (coverage), and set 1, which did, did not check that existing sections
+  survive (an attempt dropped `## Project`). Both sets were also too strict, so the drafted review step asks three
+  questions (missing, must survive, too strict), not one. The twelve `real-02` attempts rebuild from their run logs
+  (the hidden checks agree 12 of 12), an offline bench for scoring a reviewed set with no executor runs.
+  `docs/planner-tests-experiment.md` → "Completeness review"; the prompt is private (`tasks/planner/REVIEW.md`).
 - **server: llama.cpp is the engine that starts at boot ("Replacing Ollama" Phase 3, server side; 2026-11-01).** The
   llama.cpp stack is `restart: unless-stopped`; the Ollama container is `restart: "no"` and stopped, not removed, for the
   soak (owner's decision), and `tests/test-llamacpp-stack.ps1` checks that only one of the two starts at boot. Before
