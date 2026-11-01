@@ -194,7 +194,7 @@ before milestone 5. The interval (4% to 27%) spans the line, so the screen does 
 on. What it does show is where the risk sits: a vague documentation request, whose acceptance is about completeness,
 and not the work packages, whose prompts name files and behaviour.
 
-**Next, in order:**
+**Next, in order** (step 1 done at the desk; see "Completeness review" below):
 1. A review step on the planner's tests for completeness ("what would a correct answer have to include that no test
    checks?"), the first of the design's redesign candidates. `real-02` is the case to try it on, and the planner's own
    notes already name the missing checks.
@@ -202,3 +202,39 @@ and not the work packages, whose prompts name files and behaviour.
    anything about the class.
 3. A power-sized run once the selector changes, sized on the planner arm's accepted attempts (about 40 for 80% power
    to tell 10% from 25%).
+
+## Completeness review (desk, 2026-11-01)
+
+Next step 1, done from the first run's logs with no new runs. Private: `tasks/planner/REVIEW.md` (the draft prompt),
+`tasks/planner/meta/rebuild_real02.py` and `meta/real-02-rebuilt/`.
+
+**The three false positives are two different gaps, one per set:**
+
+| Attempt | Set | What the set checked | What the attempt got wrong |
+|---|---|---|---|
+| 2026-10-31 20:56 | 1 | env vars, `npm audit`, health endpoint, alerting, audit log, customId helpers | rewrote the whole file and dropped the `## Project` heading (its text kept) |
+| 2026-10-31 21:10 | 2 | env vars, `npm audit`, audit log, every `src/` directory | documented 3 of the 5 newer modules |
+| 2026-11-01 01:57 | 2 | (as above) | documented 3 of the 5 newer modules |
+
+- **Set 2 missed coverage:** nothing about the health server, alerts, custom IDs or batch operations, which the code
+  at the base already had. It is the case "what would a complete answer have to include?" asks about.
+- **Set 1 covered four of the five modules and still let one through:** no test checked that what the file already
+  had survives. "Clean" does not license dropping a section. Nothing in the design's candidates named this; it is a
+  second question for the review step, "what must a correct answer keep?"
+- **Both sets were also too strict** (validation: they fail on the real fix, for CI's `npm audit` gate, every `src/`
+  directory and no unused environment variables). So the planner was mis-aimed, not just lenient: strict about things
+  the request does not ask for, loose about the ones it does. A review step that only adds tests would make the
+  first worse. The draft asks three questions: **missing**, **must survive**, **too strict**.
+
+**An offline bench for `real-02`.** Each attempt changed only `AGENTS.md`, and its run log holds every edit. Applying
+them to the base rebuilds all twelve `real-02` attempts across the three arms (every edit applies), and a port of the
+hidden checks agrees with the recorded verdict on 12 of 12. A reviewed set can be scored on those twelve (six hidden
+PASS, six hidden FAIL, the three false positives among them) plus the base and the fix, in seconds, with no executor
+runs. The prompt was written after seeing these failures, so passing that bench is necessary, not sufficient; the
+test that counts is the next run's new vague tasks.
+
+**Next, revised:**
+1. Run the review prompt on both `real-02` sets (two planner sessions, about $1.50) and score them on the bench.
+2. If both reject the three false positives and pass the fix, write three to five new vague real-use tasks (the
+   owner's own wording, like `real-02`), with hidden tests, before any power-sized run.
+3. Then the power-sized run with the review step in the planner arm (about 40 accepted attempts).
