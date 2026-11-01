@@ -1,39 +1,53 @@
 #!/usr/bin/env bash
-# startup.sh — Bring server-side services online
-# Auto-detects systemd unit vs docker compose
+# startup.sh - Start the server's model engine.
+#
+# Since Phase 3 of "Replacing Ollama" (2026-11-01, docs/roadmap.md) the engine is llama.cpp
+# (docker-compose.llamacpp.yml, restart: unless-stopped); the Ollama stack is stopped, not removed, for the soak.
+#
+#   ./server/scripts/startup.sh                    # llama.cpp (the default)
+#   ./server/scripts/startup.sh --engine ollama    # roll back to Ollama (stop the llama.cpp stack first: the card
+#                                                  # cannot hold both engines' seats)
+#   SERVER_ENGINE=ollama ./server/scripts/startup.sh
+#
+# A systemd unit for the engine (llamacpp-server.service / ollama-server.service, templates in server/systemd/) is
+# used when installed; otherwise docker compose directly. Exit 1 when the container is not healthy within the wait.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOCKER_DIR="$SCRIPT_DIR/../docker"
+ENGINE="${SERVER_ENGINE:-llamacpp}"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --engine) ENGINE="${2:-}"; shift 2 ;;
+        *) echo "usage: startup.sh [--engine llamacpp|ollama]" >&2; exit 2 ;;
+    esac
+done
+case "$ENGINE" in
+    llamacpp) COMPOSE="$DOCKER_DIR/docker-compose.llamacpp.yml"; SERVICE_NAME="llamacpp-server"; SYSTEMD_UNIT="llamacpp-server.service"; WAIT=300 ;;
+    ollama)   COMPOSE="$DOCKER_DIR/docker-compose.yml";          SERVICE_NAME="ollama-server";   SYSTEMD_UNIT="ollama-server.service";   WAIT=60 ;;
+    *) echo "[startup] unknown engine '$ENGINE' (llamacpp or ollama)" >&2; exit 2 ;;
+esac
 
-SYSTEMD_UNIT="ollama-server.service"
-SERVICE_NAME="ollama-server"
-
-# Load profile if available
+# Check if server tier is enabled by profile
 if [[ -n "${DEV_TIERS_SERVER:-}" && "$DEV_TIERS_SERVER" != "true" ]]; then
     echo "[startup] Server tier disabled by profile, skipping."
     exit 0
 fi
 
-echo "[startup] Starting server services..."
+echo "[startup] Starting the server's engine: $ENGINE"
 
-# Method 1: systemd (if unit is installed)
-if systemctl list-unit-files "$SYSTEMD_UNIT" &>/dev/null; then
+if systemctl list-unit-files "$SYSTEMD_UNIT" 2>/dev/null | grep -q "^$SYSTEMD_UNIT"; then
     echo "[startup] Using systemd unit: $SYSTEMD_UNIT"
     sudo systemctl start "$SYSTEMD_UNIT"
-    echo "[startup] Started. Checking status..."
-    systemctl status "$SYSTEMD_UNIT" --no-pager
-    exit 0
+    systemctl status "$SYSTEMD_UNIT" --no-pager || true
+else
+    echo "[startup] No $SYSTEMD_UNIT installed, using docker compose ($COMPOSE)..."
+    docker compose -f "$COMPOSE" up -d
 fi
 
-# Method 2: docker compose
-echo "[startup] Systemd unit not found, using docker compose..."
-docker compose -f "$DOCKER_DIR/docker-compose.yml" up -d
-
-echo "[startup] Waiting for container to become healthy..."
-for i in $(seq 1 30); do
+echo "[startup] Waiting up to ${WAIT}s for $SERVICE_NAME to become healthy..."
+for _ in $(seq 1 $(( WAIT / 2 ))); do
     if docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null | grep -qx "healthy"; then
         echo "[startup] $SERVICE_NAME is healthy."
         exit 0
@@ -41,6 +55,6 @@ for i in $(seq 1 30); do
     sleep 2
 done
 
-echo "[startup] Warning: Container started but health check didn't pass in 60s."
+echo "[startup] Warning: $SERVICE_NAME started but its health check didn't pass in ${WAIT}s."
 echo "[startup] Run 'docker logs $SERVICE_NAME' to check."
 exit 1

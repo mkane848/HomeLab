@@ -3187,8 +3187,14 @@ across engines as if nothing changed); `ollama-*` provider ids are never renamed
   stopped, not removed, for a soak. `status.sh` reads `/health`, `/props`, `/models` and the GPU check;
   `llamacpp-check.sh` replaces `bake-models.sh`; `startup.sh`, `stop.sh` and the systemd unit gain an engine switch. A
   `dev-workflow-server-llamacpp` twin first; flip the default only after a round that matches the Ollama baseline.
-  **The default flipped 2026-10-22** (owner): four llama.cpp reps scored 54 of 60 against Ollama's 47; the server-side
-  items above are still to do.
+  **The default flipped 2026-10-22** (owner): four llama.cpp reps scored 54 of 60 against Ollama's 47.
+  **The server-side items, 2026-11-01** (owner: stop Ollama, keep it): the llama.cpp stack is `restart: unless-stopped`
+  and the Ollama container `restart: "no"` and stopped, not removed (`tests/test-llamacpp-stack.ps1` checks that only one
+  of them starts at boot); `startup.sh` and `stop.sh` take `--engine llamacpp|ollama` (llama.cpp the default) and use a
+  systemd unit when one is installed; `status.sh` reports both engines; `server/systemd/llamacpp-server.service` is the
+  unit template, whose install (`sudo`) is the owner's; `llamacpp-window.sh up` adopts a stack that is already up and
+  leaves it up when the window closes. `llamacpp-check.sh` replacing `bake-models.sh` is still to do. The soak runs from
+  here; Phase 6 (retire Ollama) is decided after it.
   Repeat the `daemon-reload` drill after any Docker, driver or toolkit upgrade.
 - **Phase 4, desktop (RX 6800 XT, Vulkan, native).** First the missing baseline: `bench-speed.ps1` on the desktop under
   Ollama at the same three depths. Then a pinned `llama-bNNNN-bin-win-vulkan-x64.zip` in a versioned folder (no

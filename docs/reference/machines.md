@@ -5,7 +5,7 @@ Roles come from [`machines.tsv`](../../machines.tsv); the table below is generat
 <!-- BEGIN GENERATED: machines -->
 | Machine | Roles | Note |
 |---|---|---|
-| `server` | `model-host` | Model host only (Ollama + llama-server). OpenCode runs on the desktop; the server has no OpenCode client. |
+| `server` | `model-host` | Model host only: llama-server is the primary engine since 2026-11-01 (Phase 3; the Ollama container stopped, kept). OpenCode runs on the desktop; the server has no OpenCode client. |
 | `desktop` | `model-host`, `opencode-client`, `tool-run-host` | The daily OpenCode client and the harness run host. |
 | `node3` | `model-host`, `opencode-client`, `tool-run-host` | The harness run host (5950X), since 2026-10-21; its OpenCode config is staged on node3 from its own checkout (C:\HomeLab\repos\HomeLab). llama-server (b11562) beside Ollama since 2026-10-31, on 127.0.0.1:8090 until the LAN firewall rule (node3/README.md). |
 <!-- END GENERATED: machines -->
