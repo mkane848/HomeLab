@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: the window's report and task selection; node3's git (2026-11-02).** Three faults in `tests/run-window.ps1`
+  found in window 20261101-2213's report. The "no summary line from the loop" line was the `else` of "did the falsifier
+  trip" instead of "is there a summary", so every window whose falsifier held also said its summary was missing; the
+  milestone 4 phase selected checklist-rated tasks (`stretch-v06`, `large-f1`, `large-f2`), which have no tests to show
+  and spent 3 refused attempts each, and now leaves them out by name (`Resolve-WindowTasks -NoChecklist`); the report's
+  "In the morning" section still said to take the server down and `scp` the folder, and now says to check the server
+  and commit the folder from node3. `tests/test-run-window.ps1` covers all three (9 FAIL on the old script). node3's
+  `HomeLab-private` now pulls and pushes over a deploy key scoped to that repo, its `pushurl` block lifted by the owner;
+  `node3/README.md` → "Git on node3". Cleanup on node3: seven finished one-shot `HomeLab-*` tasks and two stale
+  worktrees (345,000 files of sealed checkouts) removed.
 - **tests: the owner's bar, version 2: Gate / Ideal tiers, standing hard blocks, the Ideal metric (2026-11-01).** The
   owner's answers split "accept" from "ideal": merge small gaps, track the ideal, never merge lost content, wrong
   claims, failing checks or out-of-scope changes. A new `integrity` gate (`tests/checks/doc-integrity.ps1`) fails any

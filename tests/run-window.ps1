@@ -86,10 +86,14 @@ function Split-List([string[]]$Value) { @($Value | ForEach-Object { $_ -split ",
 # The live tasks of a manifest (not `retired`), optionally narrowed. -Names are ids or the unique prefix of one
 # ("kane-08" for "kane-08-aristocrats-false-positives"), "all" is every live task; -Match is a regex on the id and wins
 # over -Names; ids in -Last move to the end in the order given. Missing = names that matched no (or several) tasks.
+# -NoChecklist leaves out tasks graded `checklist` (the owner rates them; they have no tests to show), into Skipped:
+# the window's retries always show the task's tests, and the harness refuses such a task before the model runs
+# (window 20261101-2213: stretch-v06, large-f1 and large-f2 spent 3 "infrastructure" attempts each that way).
 function Resolve-WindowTasks {
-    param([string]$Manifest, [string[]]$Names = @("all"), [string]$Match = "", [string[]]$Last = @())
+    param([string]$Manifest, [string[]]$Names = @("all"), [string]$Match = "", [string[]]$Last = @(), [switch]$NoChecklist)
     $m = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
     $live = @($m.tasks | Where-Object { -not $_.retired } | ForEach-Object { [string]$_.id })
+    $checklist = @($m.tasks | Where-Object { -not $_.retired -and $_.PSObject.Properties['grading'] -and $_.grading -eq "checklist" } | ForEach-Object { [string]$_.id })
     $names = Split-List $Names
     $missing = @()
     if ($Match) {
@@ -108,7 +112,12 @@ function Resolve-WindowTasks {
         $hit = @($ids | Where-Object { $_ -eq $l -or $_ -like "$l-*" })
         if ($hit.Count -eq 1) { $ids = @($ids | Where-Object { $_ -ne $hit[0] }) + $hit[0] }
     }
-    [pscustomobject]@{ Ids = @($ids); Missing = @($missing) }
+    $skipped = @()
+    if ($NoChecklist) {
+        $skipped = @($ids | Where-Object { $_ -in $checklist })
+        $ids = @($ids | Where-Object { $_ -notin $checklist })
+    }
+    [pscustomobject]@{ Ids = @($ids); Missing = @($missing); Skipped = @($skipped) }
 }
 
 # 'single-quoted PowerShell literal' for the generated phase scripts.
@@ -375,13 +384,14 @@ function Invoke-Gate {
     if ("smoke" -in $Run -or "m4" -in $Run) {
         if (Test-Path -LiteralPath $privateManifest) {
             try {
-                $a = Resolve-WindowTasks -Manifest $privateManifest -Names $M4Tasks -Last $Last
-                $b = Resolve-WindowTasks -Manifest $privateManifest -Names $SmokeTasks
+                $a = Resolve-WindowTasks -Manifest $privateManifest -Names $M4Tasks -Last $Last -NoChecklist
+                $b = Resolve-WindowTasks -Manifest $privateManifest -Names $SmokeTasks -NoChecklist
                 $script:m4Ids = $a.Ids; $script:smokeIds = $b.Ids
                 if ($b.Missing.Count) { Add-Gate "smoke tasks" "FAIL" "not in the private manifest: $($b.Missing -join ', ')" } else { Add-Gate "smoke tasks" "PASS" ($b.Ids -join ", ") }
                 if ($a.Ids.Count -eq 0) { Add-Gate "m4 tasks" "FAIL" "no live task in $privateManifest" }
                 elseif ($a.Missing.Count) { Add-Gate "m4 tasks" "FAIL" "not in the private manifest: $($a.Missing -join ', ')" }
-                else { Add-Gate "m4 tasks" "PASS" ("{0} live task(s), last: {1}" -f $a.Ids.Count, (($a.Ids | Select-Object -Last ((Split-List $Last).Count)) -join ", ")) }
+                else { Add-Gate "m4 tasks" "PASS" ("{0} live task(s), last: {1}{2}" -f $a.Ids.Count, (($a.Ids | Select-Object -Last ((Split-List $Last).Count)) -join ", "), $(if ($a.Skipped.Count) { "; left out, checklist-rated with no tests to show: " + ($a.Skipped -join ", ") } else { "" })) }
+                if ($b.Skipped.Count) { Add-Gate "smoke tasks (checklist)" "WARN" ("left out, checklist-rated with no tests to show: " + ($b.Skipped -join ", ")) }
             } catch { Add-Gate "private manifest" "FAIL" "cannot read $privateManifest ($($_.Exception.Message))" }
         } else {
             Add-Gate "private manifest" "FAIL" "$privateManifest does not exist (-PrivateRoot)"
@@ -485,10 +495,13 @@ function Invoke-M4 {
     $detail = "{0} of {1} task(s) reached, {2} accepted, {3} attempt(s); exit {4}{5}" -f $rows.Count, $script:m4Ids.Count, $accepted, $attempts, $res.Exit, $(if ($res.Reason) { "; ended: $($res.Reason)" } else { "" })
     $table = $rows | ForEach-Object { "    {0,-8} {1} attempt(s)  {2}  [{3}]" -f $_.task, $_.attempts, $(if ($_.accepted -eq "True") { "ACCEPTED" } else { "not accepted" }), $_.reasons }
     Add-Detail "m4" ($detail + "`n" + ($table -join "`n"))
-    if ($summaryLines) { Add-Detail "m4" ("the loop's own summary:`n" + (($summaryLines | ForEach-Object { "    $_" }) -join "`n")) }
-    $tripped = @($summaryLines | Where-Object { $_ -match '^falsifier: FALSIFIED' })
-    if ($tripped.Count) { Add-Attention "m4: the loop's falsifier tripped ($($tripped[0] -replace '^falsifier: FALSIFIED - ', '')). real-02 and wp-5b alone are 2 of 15 tasks at the cap (13%), so read which tasks hit it before reading the verdict." }
-    else { Add-Detail "m4" ("no summary line from the loop (it was cut or died). Partial: mean {0:N2} attempt(s) per reached task, cap reached on {1}: {2}." -f $(if ($rows.Count) { $attempts / $rows.Count } else { 0 }), $capHits.Count, (($capHits | ForEach-Object task) -join ", ")) }
+    # The "no summary" line is the else of "is there a summary". It was the else of "did the falsifier trip", so every
+    # window whose falsifier held also said its summary was missing, right under it (window 20261101-2213).
+    if ($summaryLines) {
+        Add-Detail "m4" ("the loop's own summary:`n" + (($summaryLines | ForEach-Object { "    $_" }) -join "`n"))
+        $tripped = @($summaryLines | Where-Object { $_ -match '^falsifier: FALSIFIED' })
+        if ($tripped.Count) { Add-Attention "m4: the loop's falsifier tripped ($($tripped[0] -replace '^falsifier: FALSIFIED - ', '')). real-02 and wp-5b alone are 2 of 15 tasks at the cap (13%), so read which tasks hit it before reading the verdict." }
+    } else { Add-Detail "m4" ("no summary line from the loop (it was cut or died). Partial: mean {0:N2} attempt(s) per reached task, cap reached on {1}: {2}." -f $(if ($rows.Count) { $attempts / $rows.Count } else { 0 }), $capHits.Count, (($capHits | ForEach-Object task) -join ", ")) }
     if ($notReached.Count) { Add-Detail "m4" "not reached: $($notReached -join ', ')"; Add-Attention "m4 did not reach: $($notReached -join ', ')" }
     $failed = ($res.Reason -in "time", "stop", "server") -or ($res.Exit -ne 0) -or ($rows.Count -eq 0)
     Set-Phase "m4" $(if ($res.Reason -eq "time") { "cut" } elseif ($failed) { "failed" } else { "ok" }) $detail
@@ -565,11 +578,16 @@ function Write-Report {
         [void]$b.AppendLine("## In the morning")
         [void]$b.AppendLine("")
         [void]$b.AppendLine('```')
-        [void]$b.AppendLine("# the server: is it still holding the GPU?  close it before using Ollama")
+        [void]$b.AppendLine("# the server: the window closes itself at its deadline. llama.cpp is the primary engine since Phase 3, so a")
+        [void]$b.AppendLine("# window that adopted the running stack leaves it up; 'status' says which it was.")
         [void]$b.AppendLine("bash server/scripts/llamacpp-window.sh status")
-        [void]$b.AppendLine("bash server/scripts/llamacpp-window.sh down")
-        [void]$b.AppendLine("# bring this folder to the desktop")
-        [void]$b.AppendLine("scp -r node3:'$($OutDir -replace '\\', '/')' .")
+        [void]$b.AppendLine("# this folder: commit and push it from the run host (node3's HomeLab-private pushes over its deploy key,")
+        [void]$b.AppendLine("# node3/README.md)")
+        $privRoot = Split-Path -Parent (Split-Path -Parent $OutDir)
+        $rel = "results/" + (Split-Path -Leaf $OutDir)
+        [void]$b.AppendLine("git -C '$privRoot' add -- '$rel'")
+        [void]$b.AppendLine("git -C '$privRoot' commit -m 'results: window $(Split-Path -Leaf $OutDir)'")
+        [void]$b.AppendLine("git -C '$privRoot' push")
         [void]$b.AppendLine('```')
         [void]$b.AppendLine("")
         [void]$b.AppendLine("Every row of this window is its own era (llama.cpp, sealed checkouts, node3's shell); do not pool it with older rounds.")

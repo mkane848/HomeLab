@@ -108,7 +108,7 @@ it running when it closes (deadline, `STOP`, give-up or `down`); only a stack th
 `<PrivateRoot>\results\window-<name>\REPORT.md` (private: it carries the real task ids): the phase table, a "Needs your
 eyes" list (every NO-GO, every phase that ended early and why, tasks a cut did not reach, warnings), the server's
 outages as the runner saw them, the gate, each phase's detail, `summarize-rounds.ps1`'s output for milestone 4 and the
-baseline, and the commands to close the server and copy the folder. Also in that folder: `window.log` (everything, with
+baseline, and the commands to check the server and commit the folder from node3. Also in that folder: `window.log` (everything, with
 times), `status.txt` (the last heartbeat), `commands\*.ps1` (the exact command each phase ran, so any phase can be
 re-run by hand), and one results folder and log per phase.
 
@@ -116,8 +116,14 @@ Then:
 
 ```bash
 bash server/scripts/llamacpp-window.sh status     # closed by its deadline already? ~/llamacpp-window/GAVE-UP present?
-bash server/scripts/llamacpp-window.sh down       # close it now, and give the GPU back to Ollama
+bash server/scripts/llamacpp-window.sh down       # close it early; a window that adopted the running stack leaves it up
 ```
+
+Since Phase 3 (2026-11-01) llama.cpp is the server's primary engine, so a window usually adopts the running stack and
+leaves it up when it closes; there is no GPU to give back. The results folder is committed and pushed from node3 itself
+(its `HomeLab-private` has a deploy key since 2026-11-02, `node3/README.md` → "Git on node3"); the report's last section
+prints the three commands. Remove the window's one-shot scheduled task afterwards (`Unregister-ScheduledTask -TaskName
+HomeLab-window-<name> -Confirm:$false`); it never runs again, and seven of them had piled up by 2026-11-02.
 
 Read the milestone 4 numbers the way [the roadmap](roadmap.md) says to: the loop's falsifier trips at more than 1.5
 attempts a task or the cap reached on more than 15% of tasks, and `real-02` and `wp-5b` alone make that 2 of 15 (13%)

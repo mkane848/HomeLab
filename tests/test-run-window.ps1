@@ -50,7 +50,8 @@ $server = $null; $helpers = @()
 try {
     # --- fixtures ----------------------------------------------------------------------------------------
     $realIds = "real-01", "real-02", "real-03", "wp-0a", "wp-1a", "wp-2b", "wp-3a", "wp-3b", "wp-4a", "wp-5a", "wp-5b", "wp-6a", "wp-6f", "wp-7a", "wp-9a"
-    $manifest = @{ tasks = @($realIds | ForEach-Object { @{ id = $_ } }) + @(@{ id = "wp-old"; retired = $true }) }
+    # large-f1: a checklist-rated task, which the window must leave out (it has no tests to show).
+    $manifest = @{ tasks = @($realIds | ForEach-Object { @{ id = $_ } }) + @(@{ id = "wp-old"; retired = $true }, @{ id = "large-f1"; grading = "checklist" }) }
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $priv "tasks/manifest.json")
 
     $fxRetries = Join-Path $tmp "fx-run-retries.ps1"
@@ -198,6 +199,12 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
         Check "a retired task cannot be named" ((Resolve-WindowTasks -Manifest $m -Names "b-02").Missing -join ",") "b-02"
         Check "-Match narrows by regex" ((Resolve-WindowTasks -Manifest $m -Match '^b-').Ids -join ",") "b-01-third"
         Check "-Last moves tasks to the end, in the order given" ((Resolve-WindowTasks -Manifest $m -Last "a-01", "b-01").Ids -join ",") "a-02-second,c,a-01-first,b-01-third"
+        $mc = Join-Path $tmp "fn-manifest-checklist.json"
+        @{ tasks = @(@{ id = "a-01-first" }, @{ id = "k-01-rated"; grading = "checklist" }, @{ id = "k-02-tested"; grading = "acceptance" }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $mc
+        Check "-NoChecklist leaves a checklist-rated task out" ((Resolve-WindowTasks -Manifest $mc -NoChecklist).Ids -join ",") "a-01-first,k-02-tested"
+        Check "...and lists it as skipped" ((Resolve-WindowTasks -Manifest $mc -NoChecklist).Skipped -join ",") "k-01-rated"
+        Check "...even when it is named" ((Resolve-WindowTasks -Manifest $mc -Names "k-01" -NoChecklist).Skipped -join ",") "k-01-rated"
+        Check "without -NoChecklist it is selected as before" ((Resolve-WindowTasks -Manifest $mc).Ids -join ",") "a-01-first,k-01-rated,k-02-tested"
         Check "a -Last name that is not there changes nothing" ((Resolve-WindowTasks -Manifest $m -Last "zzz").Ids -join ",") "a-01-first,a-02-second,b-01-third,c"
         $pub = Resolve-WindowTasks -Manifest (Join-Path $repo "tests/tasks/manifest.json") -Match '^(kane-(0[7-9]|1[0-4])|lfc-0[457]|asohav-0[3-9])-'
         Check "the default baseline pattern selects the 16 live mined tasks of the real manifest" $pub.Ids.Count 16
@@ -239,6 +246,10 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Has "...and the summariser's output for m4 and the baseline" $r.Report '(?s)SUMMARY of m4.*SUMMARY of baseline'
     Has "...and the server's build" $r.Report 'llama\.cpp build b11561-stand-in'
     Has "...and nothing flagged" $r.Report '(?m)^- Nothing flagged'
+    Check "...and no 'no summary line' under a summary that is there" ($r.Report -match 'no summary line from the loop') "False"
+    Has "...the gate names the checklist task it left out" $r.Report 'left out, checklist-rated with no tests to show: large-f1'
+    Has "...the morning section says to push from the run host" $r.Report '(?s)## In the morning.*git -C .* push'
+    Check "...and no longer says to take the server down" ($r.Report -match 'llamacpp-window\.sh down') "False"
     Check "the exact commands are kept" (@(Get-ChildItem (Join-Path $r.Out "commands") -Filter "*.ps1").Count) 4
     Has "status.txt says the window is done" (Get-Content -Raw (Join-Path $r.Out "status.txt")) 'phase done'
     Check "the lock is released" (Test-Path $lock) "False"
