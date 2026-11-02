@@ -85,6 +85,7 @@ try {
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $e2e "tests") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $e2e "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $e2e "tests") -Recurse -Force
     $frepo = Join-Path $e2e "repo"
     git -C $frepo init -q
     git -C $frepo config user.email "t@example.invalid"

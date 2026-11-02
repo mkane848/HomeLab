@@ -132,7 +132,12 @@ try {
         }
         $tests = @($files | Where-Object { $_.Name -notin "NOTES.md", "DONE.md" })
         if ($tests.Count -eq 0) { $failed++; Write-Host ("  no test files written ({0:N0} s)" -f $sw.Elapsed.TotalSeconds) -ForegroundColor Red }
-        else { Write-Host ("  {0} test file(s) + notes in {1:N0} s" -f $tests.Count, $sw.Elapsed.TotalSeconds) -ForegroundColor Green }
+        else {
+            # Version 2's tests phase writes the Ideal tier's tests beside the Gate set, in <run>-ideal\ (never a gate).
+            $idealDir = Join-Path $work "planner\$id\$Run-ideal"
+            $ideal = if ($Phase -eq "tests" -and (Test-Path $idealDir)) { @(Get-ChildItem $idealDir -Recurse -File).Count } else { 0 }
+            Write-Host ("  {0} test file(s) + notes in {1:N0} s{2}" -f $tests.Count, $sw.Elapsed.TotalSeconds, $(if ($ideal) { "; $ideal ideal test file(s) in $Run-ideal" } else { "" })) -ForegroundColor Green
+        }
     }
     exit $(if ($failed) { 1 } else { 0 })
 }

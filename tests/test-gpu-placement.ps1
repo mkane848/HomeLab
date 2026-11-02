@@ -158,6 +158,7 @@ try {
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $h "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $h "tests") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $h "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $h "tests") -Recurse -Force
     '{"tasks":[]}' | Set-Content -LiteralPath (Join-Path $h "tests/tasks/manifest.json")
     Set-Content -LiteralPath (Join-Path $priv "hidden/fx/hidden.txt") -Value "hidden test"
     git -C $repo init -q
@@ -334,6 +335,7 @@ exit $LASTEXITCODE
     Copy-Item -LiteralPath $BatchPath -Destination "$tree\tests\run-tasks-batch.ps1"
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination "$tree\tests" -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination "$tree\tests" -Recurse -Force
     Write-Fixture "$tree\tests\run-tasks-models.tsv" ("# fixture registry`ntag`tengine`thosts`tdesc`nqwen3:8b`tollama`tdesktop server`tlocal seat`n")
     Write-Fixture "$tree\costs\go-rates.tsv" "model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource`n"
     Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"

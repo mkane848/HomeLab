@@ -399,6 +399,7 @@ exit $LASTEXITCODE
         Write-Fixture "$tree\tests\run-tasks-batch.ps1" $BatchText
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination "$tree\tests" -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination "$tree\tests" -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination "$tree\tests" -Recurse -Force
         Write-Fixture "$tree\tests\test-tasks.ps1" $stubTasks
         Write-Fixture "$tree\tests\test-toolcalls.ps1" $stubProbe
         Write-Fixture "$tree\costs\go-rates.tsv" $ratesText
