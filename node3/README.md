@@ -50,6 +50,24 @@ then `pwsh -File node3\scripts\start-llama-server.ps1 -Lan`. `profiles/dev-node3
 Rows: `tests/results/toolcalls-summary-llamacpp.tsv`, `tests/results/overflow-probe.tsv`,
 `tests/results/bench-speed.tsv`.
 
+## Git on node3 (2026-11-02)
+
+- **`C:\HomeLab\repos\HomeLab`** (public): pulls over https with no credentials. node3 never pushes it.
+- **`C:\HomeLab\repos\HomeLab-private`**: `origin` is `git@github-homelab-private:mkane848/HomeLab-private.git`, an
+  alias in `~/.ssh/config` for `github.com` with `~/.ssh/id_ed25519_homelab_private` only (`IdentitiesOnly yes`). That
+  key is a **deploy key on `HomeLab-private` with write access**, nothing else; node3's own `id_ed25519` is untouched.
+  The key has no passphrase, so unattended windows can push. Commits are authored `mikek` (set in this repository only).
+- **Why not https:** Git Credential Manager stores its login in the Windows credential vault, which an ssh session can
+  neither read nor prompt for, and every unattended run reaches node3 over ssh.
+- **What changed:** node3's repos were imported from git bundles on 2026-10-13 with no GitHub credentials and pushing
+  disabled (`remote.origin.pushurl = https://push-disabled.invalid/`, `docs/roadmap.md`). The owner lifted that for
+  `HomeLab-private` only, so a window's results are committed where they are made. Test runs still cannot push: the
+  harness rewrites every push inside a run (`Set-NoPushEnv` in `tests/test-tasks.ps1`).
+- **Over ssh, use `ssh -o BatchMode=yes`** for anything that might prompt (`GIT_SSH_COMMAND`), and do not chain
+  commands with `;`: node3's ssh shell is `cmd`, which passed `-Apply;` to a script as one argument (2026-11-02). A
+  script copied over with `scp` and run with `pwsh -File` reports its errors; one piped into `pwsh -Command -` can fail
+  silently.
+
 ## Known gaps
 
 - **The harness's GPU-placement check does not work against node3's llama-server.** `Get-EngineGpuPlacement` in

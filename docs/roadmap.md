@@ -363,6 +363,8 @@ engine research stays on file (below, "Alternatives to OpenCode" and "Replacing 
      byte-identical to the desktop's (`gh` was skipped; task runs do not need it). Still missing there: the task repos
      are there since 2026-10-13: `C:\HomeLab\repos\` holds `LFCbot`, `ASoHaV`, `KaneEnabler`, `HomeLab` and `HomeLab-private`,
      imported from git bundles sent over SSH (no GitHub credentials typed on that PC; `origin` is the real URL with pushing disabled;
+     **changed for `HomeLab-private` on 2026-11-02** (owner): it pulls and pushes over a deploy key scoped to that repo,
+     so a window's results are committed where they are made; `node3/README.md` → "Git on node3";
      every commit the two manifests pin is present: 16, 36 and 12 for the three task repos). **Since 2026-10-21 it runs the
      harness:** the per-host repo-root map (`tests/repo-roots.tsv`), the `opencode-client` and `tool-run-host` roles in
      `machines.tsv`, an OpenCode config staged on node3 from its own checkout (`C:\HomeLab\repos\HomeLab`, updated from git
