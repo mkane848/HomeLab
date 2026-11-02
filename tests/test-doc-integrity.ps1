@@ -48,7 +48,11 @@ try {
     [IO.File]::WriteAllText((Join-Path $tmp "NOTES.md"), "# Notes`n", $utf8)
     [IO.File]::WriteAllText((Join-Path $tmp "src/app.ts"), "export {}`n", $utf8)
     [IO.File]::WriteAllText((Join-Path $tmp "scripts/backup.sh"), "true`n", $utf8)
-    & git -C $tmp init -q; & git -C $tmp -c user.email=g@x -c user.name=guard add -A; & git -C $tmp -c user.email=g@x -c user.name=guard commit -q -m base
+    & git -C $tmp init -q
+    # This repo's own setting, over any global one: with core.autocrlf=true (CI's runners) the checkout between
+    # scenarios rewrote README.md with CRLF and "# Project`n" no longer matched (PR #188, 2026-11-02).
+    & git -C $tmp config core.autocrlf false
+    & git -C $tmp -c user.email=g@x -c user.name=guard add -A; & git -C $tmp -c user.email=g@x -c user.name=guard commit -q -m base
     $base = (& git -C $tmp rev-parse HEAD)
     function Scenario([string]$name, [scriptblock]$change, [string]$expect, [string]$detailLike = "") {
         & git -C $tmp checkout -q -- . ; & git -C $tmp clean -qfd
@@ -66,6 +70,8 @@ try {
     Scenario "a heading removed: FAIL"                            { & $edit "README.md" "# Project`n" "" } "FAIL" "# Project"
     Scenario "a heading reworded: FAIL"                           { & $edit "README.md" "## Testing" "## Tests" } "FAIL" "## Testing"
     Scenario "an em-dash heading untouched: PASS (encoding)"      { & $edit "README.md" "Intro." "Intro!" } "PASS"
+    Scenario "only the line endings changed (CRLF): PASS"         { $p = Join-Path $tmp "README.md"; [IO.File]::WriteAllText($p, (([IO.File]::ReadAllText($p)) -replace "`n", "`r`n"), $utf8) } "PASS"
+    Scenario "CRLF and a heading removed: FAIL"                   { $p = Join-Path $tmp "README.md"; [IO.File]::WriteAllText($p, ((([IO.File]::ReadAllText($p)).Replace("## Testing`n", "")) -replace "`n", "`r`n"), $utf8) } "FAIL" "## Testing"
     Scenario "a Markdown file deleted: FAIL"                      { Remove-Item (Join-Path $tmp "NOTES.md") } "FAIL" "deleted"
     Scenario "an added path that exists: PASS"                    { & $edit "README.md" "Intro." "See ``src/app.ts``." } "PASS"
     Scenario "an added bare file name that exists: PASS"          { & $edit "README.md" "Intro." "See ``backup.sh``." } "PASS"
