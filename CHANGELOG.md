@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: experiment 3's confirmation checkpoint (2026-11-01).** The owner's choice after the review step: for a
+  plain-language request the planner writes `DONE.md` (its reading of "done", as a checklist) and the owner keeps,
+  strikes or rewords each line before any test is written. `run-planner.ps1 -Phase done|tests` (`plan`, the default,
+  is the first run's step unchanged); `desktop/scripts/planner_done.py` shows, ticks and confirms a list, the
+  confirmation hashing every item so a later edit voids it; `make-planner-packs.py --confirmed` and `-Phase tests`
+  refuse a list that is not confirmed or changed since, before touching Docker; `--prompts` copies the prompts into the
+  pack. On the `real-02` bench, the reviewed sets struck to the owner's bar are the first selectors to pass the fix and
+  reject all six wrong answers. Also found: the planner validated its tests on Linux and the harness runs them on
+  Windows (a path check split on `/`); the tests prompt now says so. New guard `tests/test-planner-done.ps1`;
+  `tests/test_planner_done.py` (20 tests) also runs in CI's Linux job.
 - **docs: experiment 3's review step, version 1, on the `real-02` bench (2026-11-01).** Two Opus sessions ($1.29)
   reviewed both `real-02` sets; scored on the twelve rebuilt attempts, the reviewed sets have 0 false positives (from
   1 and 2) but reject every correct answer, the owner's fix included, for things a strict reading of "up to date"

@@ -8,10 +8,19 @@ branch). The planner container mounts the result read-only (desktop/scripts/run-
   python -I desktop/scripts/make-planner-packs.py --manifest <HomeLab-private>/tasks/manifest.json --out <folder> \
       --tasks real-01,real-02,real-03,wp-1a,wp-5b,wp-6f
 
+Two options for the confirmation checkpoint (run-planner.ps1 -Phase done|tests):
+  --prompts DIR     copy PROMPT.md, DONE-PROMPT.md and TESTS-PROMPT.md from DIR (the private planner folder) into the
+                    pack, whichever exist.
+  --confirmed DIR   copy each DIR/<task>/<run>/DONE.md into the pack's planner/<task>/<run>/, for the tests phase.
+                    Refuses a list the owner has not confirmed, or has changed since (planner_done.py verify).
+
 The bundle is made from a short-lived ref (refs/homelab-planner/<id>) that is deleted again, and re-made from a throwaway
 repository so its HEAD is a branch (`base`) a clone can check out.
 """
 import argparse, json, os, shutil, subprocess, sys, tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import planner_done  # noqa: E402
 
 
 def git(*args, cwd=None):
@@ -23,6 +32,8 @@ def main():
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--tasks", required=True)
+    ap.add_argument("--prompts")
+    ap.add_argument("--confirmed")
     a = ap.parse_args()
     manifest = json.load(open(a.manifest, encoding="utf-8"))
     by_id = {t["id"]: t for t in manifest["tasks"]}
@@ -52,6 +63,36 @@ def main():
         with open(os.path.join(d, "TASK.md"), "w", encoding="utf-8", newline="\n") as f:
             f.write(t["prompt"].rstrip() + "\n")
         print(tid, base[:10], git("-C", repo, "rev-list", "--count", base), "commits")
+        if a.confirmed:
+            copy_confirmed(a.confirmed, a.out, tid)
+    if a.prompts:
+        for name in ("PROMPT.md", "DONE-PROMPT.md", "TESTS-PROMPT.md"):
+            src = os.path.join(a.prompts, name)
+            if os.path.isfile(src):
+                shutil.copyfile(src, os.path.join(a.out, name))
+                print("prompt", name)
+
+
+def copy_confirmed(src_root, out, tid):
+    """Each <src_root>/<tid>/<run>/DONE.md into <out>/planner/<tid>/<run>/, only if it is confirmed and unchanged."""
+    task_dir = os.path.join(src_root, tid)
+    runs = sorted(r for r in (os.listdir(task_dir) if os.path.isdir(task_dir) else [])
+                  if os.path.isfile(os.path.join(task_dir, r, "DONE.md")))
+    if not runs:
+        sys.exit(f"--confirmed: no {tid}/<run>/DONE.md under {src_root}")
+    for run in runs:
+        src = os.path.join(task_dir, run, "DONE.md")
+        text = planner_done.read(src)
+        try:
+            ok, msg, _ = planner_done.verify(text)
+        except planner_done.Malformed as e:
+            sys.exit(f"--confirmed: {src}: {e}")
+        if not ok:
+            sys.exit(f"--confirmed: {src}: {msg}")
+        dst = os.path.join(out, "planner", tid, run)
+        os.makedirs(dst, exist_ok=True)
+        shutil.copyfile(src, os.path.join(dst, "DONE.md"))
+        print(" ", tid, "run", run, "DONE.md", msg)
 
 
 if __name__ == "__main__":

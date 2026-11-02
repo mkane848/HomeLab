@@ -276,8 +276,75 @@ to the confirmed list. That costs the owner a minute a task and changes the unat
 "unattended after one confirmation". Whether that is acceptable is the owner's call.
 
 **Next, after this:**
-1. Owner's call: the confirmation checkpoint for vague requests, or keep vague requests out of the unattended path.
+1. ~~Owner's call: the confirmation checkpoint for vague requests, or keep vague requests out of the unattended path.~~
+   The checkpoint (owner, 2026-11-01: "if my prompts get turned into requirements or specs that I don't agree with
+   I'll want to be able to refine them like I do in a session like this"). See "Confirmation checkpoint" below.
 2. With a checkpoint, a bench test that needs no runs: strike the reviewed sets' items the owner's fix does not
    cover, and score the result on the twelve attempts.
 3. The new vague tasks and the power-sized run as before, with whichever selector survives.
 
+
+## Confirmation checkpoint (2026-11-01)
+
+The owner's choice after the review step: for a plain-language request the planner's reading of "done" is shown to
+the owner, who keeps, strikes or rewords each line before any test is written. Milestone 5's claim becomes
+"unattended after one confirmation".
+
+**A bench test first, with no runs.** Each reviewed set's tests were struck where they checked something the owner's
+own fix chose not to do (CI's `npm audit` gate, the GitHub Pages workflow, Dependabot, `auto-update.sh`, every npm
+script, every `src/` directory, the stale "command tests" line it kept): six tests a set, struck by requirement, not
+by result. Scored on the twelve attempts (`tasks/planner/real-02/review-v1/bench-scores-confirmed.txt`):
+
+| Set | Passes the fix | False positives (of 6 hidden FAIL) | False negatives (of 6 hidden PASS) |
+|---|---|---|---|
+| set 1, reviewed, struck | **yes** | **0** | 2 |
+| set 2, reviewed, struck | no: one Windows bug (below) | 0 | 6 |
+| set 2, reviewed, struck, the bug's test also skipped | **yes** | **0** | 2 |
+
+- **The first selector to pass the fix and reject all six wrong answers.** The struck set 1's two "false negatives"
+  are an attempt that dropped the release workflow's description and one that documented four of the five newer
+  modules; the hidden tests let both through (they check neither the release section nor all five). Each is a
+  judgement the owner's list would settle.
+- **This is the owner's bar applied by hand, with the fix in view.** It shows the selector is right once the bar is
+  known, not that a planner's list makes the bar easy to apply. That is the end-to-end test below.
+- **A separate bug: the planner's tests ran on Linux, the harness on Windows.** Set 2's reviewed path check built paths
+  with `path.join` and split them on `/`, so on Windows every bare file name (`backup.sh`, `schema.ts`) counted as
+  missing and the check failed every attempt. The planner validated its tests in the Linux container; the harness
+  runs them on the desktop. No confirmation can catch this; the tests prompt now says the tests run on Windows too.
+
+**How it runs.**
+
+1. `desktop/scripts/run-planner.ps1 -Phase done` (prompt `DONE-PROMPT.md`): the planner writes `DONE.md` and nothing
+   else, a checklist in three parts: **Must do** and **Must keep** (ticked), **Could do (not clearly asked)** (unticked,
+   where a vague request's generous end goes).
+2. The owner reviews it, in a chat with the main seat like any plan: keep, strike, reword. `desktop/scripts/
+   planner_done.py` shows it (`show`), applies ticks (`set D3=off C1=on`) and records the confirmation (`confirm --by
+   owner`): one comment line with the sha256 of every item line, so any later tick or edit voids it.
+3. `make-planner-packs.py --confirmed <dir>` copies only confirmed, unchanged lists into the pack, and
+   `run-planner.ps1 -Phase tests` (prompt `TESTS-PROMPT.md`) checks each one again (`planner_done.py verify`) before
+   it touches Docker. The planner writes tests for the ticked lines only, each named by its id, and none that
+   requires an unticked line.
+
+`-Phase plan` (the default) is the first run's single step, unchanged, so that run can be repeated. The prompts are
+private (`tasks/planner/DONE-PROMPT.md`, `TESTS-PROMPT.md`). Guard: `tests/test-planner-done.ps1` (the parser and
+confirmation, the pack builder's refusal, and `run-planner.ps1 -Phase tests` refusing a missing, unconfirmed or
+edited list before Docker, on a token file that does not exist so no session can start; each refusal was disabled
+once to check that the guard goes red).
+
+**End to end on `real-02` (2026-11-01).** Done phase: 65 s, $0.40, a 32-line `DONE.md` (14 must do, 9 must keep, 9
+could do). The owner's answer: "All fine", confirmed as written (23 kept, 9 struck). Tests phase: 311 s, $0.62, one
+file with 23 tests, one per kept id and none for a struck one. On the bench
+(`tasks/planner/real-02/checkpoint-v1/bench-scores.txt`): **0 false positives of 6**, but every hidden-PASS attempt
+and the owner's fix rejected.
+
+- **One of those six "correct" attempts is not.** It demoted every section heading from `##` to `###`. The hidden
+  test's `toContain('## Project')` matches `### Project` as a substring, so it passed; the planner's must-keep tests
+  failed it on six items. A hidden-test bug, found by the planner's tests.
+- **The fix fails only must-do items, never a must-keep one:** six it does not do (`npm audit`, the Pages workflow
+  twice, the stale "command tests" line, "`tests/` mirrors `src`", the dash style) and five where it names the
+  concept but not the specifics the line named (`listing-expiry` and `digest-state`, customIds "rather than
+  hand-written formats", `/admin history`, the Docker healthcheck).
+- **So the checkpoint works mechanically and the review is the weak step.** Thirty-two detailed lines were confirmed
+  in one reply, including specifics the owner's own fix does not meet. A list that is easy to say "all fine" to
+  needs to be short and say goals, with examples marked as examples. That is the done prompt's next version; whether
+  the owner's bar is the confirmed list or the fix is the owner's to say.
