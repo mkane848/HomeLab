@@ -60,7 +60,7 @@ if (-not $python) {
     try { $py = & $python.Source -I (Join-Path $PSScriptRoot "test_planner_done.py") 2>&1 | Out-String; $pyExit = $LASTEXITCODE } finally { $ErrorActionPreference = $prev }
     Check "test_planner_done.py passes"   $pyExit 0
     if ($pyExit -ne 0) { Write-Host $py }
-    Has   "...and ran its 20 tests"       $py 'Ran 20 tests'
+    Has   "...and ran its 28 tests"       $py 'Ran 28 tests'
 
     Write-Host "-- run-planner.ps1 -Phase tests on a fake pack"
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ("planner-done-" + [guid]::NewGuid().ToString("N").Substring(0, 12))

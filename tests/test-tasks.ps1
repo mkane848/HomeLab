@@ -260,6 +260,8 @@ if (-not (Test-Path -LiteralPath $agentAdapter)) {
     exit 1
 }
 . $agentAdapter
+# The owner's standing hard blocks for Markdown (nothing lost, nothing wrong): the `integrity` gate below.
+. (Join-Path $PSScriptRoot "checks\doc-integrity.ps1")
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot   = Split-Path -Parent $scriptDir
@@ -2427,6 +2429,8 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 1: diff scope -------------------------------------------------
+    # Reset per task: the record below reads $integrity, and a stale one would carry the previous task's verdict.
+    $integrity = [pscustomobject]@{ Status = "SKIP"; Lost = @(); Wrong = @(); Files = @(); Detail = "not checked" }
     $changed = Get-TreeChanges $wt.Wt
     $allowed = @($tk.allowFiles)
     $bad = @($changed | Where-Object { $_ -and ($allowed -notcontains $_) })
@@ -2461,6 +2465,16 @@ foreach ($tk in $tasksToRun) {
         $overallPass = $false
     } else {
         Write-Result $tk.id "scope" "PASS" "diff limited to: $($changed -join ', ')"
+    }
+
+    # --- grade 1b: integrity (the owner's standing hard blocks, 2026-11-01) -----
+    # Never merged, whatever the task's own tests say: a Markdown heading the base had is gone or changed level, a
+    # Markdown file is deleted, or the change adds a path to a Markdown file that is not in the repository. Every task,
+    # every mode: the owner's bar, not the task's. SKIP when no Markdown file changed.
+    $integrity = Test-DocIntegrity -Worktree $wt.Wt -Base $wt.Head
+    if ($integrity.Status -ne "SKIP") {
+        Write-Result $tk.id "integrity (nothing lost, nothing wrong)" $integrity.Status $integrity.Detail
+        if ($integrity.Status -eq "FAIL") { $overallPass = $false }
     }
 
     # --- grade 2: suite green on the model's change ---------------------------
@@ -2664,6 +2678,7 @@ foreach ($tk in $tasksToRun) {
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })
         failsOnOld = $(if ($failsOnOldSkipped) { "SKIP" } elseif ($failsOnOldOk) { "PASS" } else { "FAIL" })
+        integrity = $integrity.Status
     }
     # One stamp shared by the JSON result and its .jsonl transcript, so the two
     # files that describe the same run are trivially pairable by filename.
@@ -2721,6 +2736,7 @@ foreach ($tk in $tasksToRun) {
         stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $StopClassifier; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
+        integrityDetail = [pscustomobject]@{ files = @($integrity.Files); lost = @($integrity.Lost); wrong = @($integrity.Wrong) }
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
         # Experiment 3: the verdict of the tests the model was shown, run on its source (null on a

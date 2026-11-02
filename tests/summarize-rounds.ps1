@@ -83,13 +83,14 @@ function Get-WilsonInterval {
 function Get-SelectorConfusion {
     # Planner-shown runs only (selector.source "planner"): the verdict of the tests the model was shown against
     # the hidden tests' (`acceptance`). "Accepted" is what a dispatcher would keep: selector, scope and suite PASS,
-    # nothing tampered. $null when no run has a planner selector.
+    # nothing tampered, integrity not FAIL (run-retries.ps1's rule; rows before 2026-11-01 have no integrity gate).
+    # $null when no run has a planner selector.
     param([object[]]$Runs)
     $pl = @($Runs | Where-Object { $_.PSObject.Properties['selector'] -and $_.selector -and $_.selector.source -eq "planner" })
     if ($pl.Count -eq 0) { return $null }
     $selPass = @($pl | Where-Object { $_.selector.status -eq "PASS" })
     $selFail = @($pl | Where-Object { $_.selector.status -eq "FAIL" })
-    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 })
+    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 -and -not ($_.gates.PSObject.Properties['integrity'] -and $_.gates.integrity -eq "FAIL") })
     [pscustomobject]@{
         runs = $pl.Count
         selectorPass = $selPass.Count

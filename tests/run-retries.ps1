@@ -56,6 +56,9 @@ function Get-AttemptVerdict {
     if ($selector -ne "PASS") { return & $v $false $selReason }
     if ($Json.gates.suite -ne "PASS") { return & $v $false "suite" }
     if ($Json.gates.scope -ne "PASS") { return & $v $false "scope" }
+    # The owner's standing hard blocks (2026-11-01): lost or wrong Markdown is never kept. Rows before that date have
+    # no integrity gate; SKIP means no Markdown changed.
+    if ($Json.gates.PSObject.Properties['integrity'] -and $Json.gates.integrity -eq "FAIL") { return & $v $false "integrity" }
     return & $v $true "accepted"
 }
 
