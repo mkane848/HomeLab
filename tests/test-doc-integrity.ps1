@@ -38,6 +38,10 @@ Intro.
 ## not a heading, an example
 ``````
 "@
+# LF whatever the checkout: CI checks this file out with CRLF (core.autocrlf), which put "
+" into the here-string
+# above, and a scenario that removes "# Project`n" then changed nothing (2026-11-02, PR #188's first CI run).
+$readme = $readme -replace "`r`n", "`n"
 try {
     New-Item -ItemType Directory -Force (Join-Path $tmp "src"), (Join-Path $tmp "scripts"), (Join-Path $tmp "docs") | Out-Null
     [IO.File]::WriteAllText((Join-Path $tmp "README.md"), $readme + "`n", $utf8)
