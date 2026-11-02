@@ -86,6 +86,7 @@ try {
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $e2e "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $e2e "tests") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $e2e "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $e2e "tests") -Recurse -Force
     Copy-Item -LiteralPath $rates -Destination (Join-Path $e2e "costs/go-rates.tsv")
     $repo = Join-Path $e2e "repo"
     git -C $repo init -q

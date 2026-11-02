@@ -83,13 +83,14 @@ function Get-WilsonInterval {
 function Get-SelectorConfusion {
     # Planner-shown runs only (selector.source "planner"): the verdict of the tests the model was shown against
     # the hidden tests' (`acceptance`). "Accepted" is what a dispatcher would keep: selector, scope and suite PASS,
-    # nothing tampered. $null when no run has a planner selector.
+    # nothing tampered, integrity not FAIL (run-retries.ps1's rule; rows before 2026-11-01 have no integrity gate).
+    # $null when no run has a planner selector.
     param([object[]]$Runs)
     $pl = @($Runs | Where-Object { $_.PSObject.Properties['selector'] -and $_.selector -and $_.selector.source -eq "planner" })
     if ($pl.Count -eq 0) { return $null }
     $selPass = @($pl | Where-Object { $_.selector.status -eq "PASS" })
     $selFail = @($pl | Where-Object { $_.selector.status -eq "FAIL" })
-    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 })
+    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 -and -not ($_.gates.PSObject.Properties['integrity'] -and $_.gates.integrity -eq "FAIL") })
     [pscustomobject]@{
         runs = $pl.Count
         selectorPass = $selPass.Count
@@ -99,6 +100,29 @@ function Get-SelectorConfusion {
         selectorOther = $pl.Count - $selPass.Count - $selFail.Count
         accepted = $accepted.Count
         acceptedWrong = @($accepted | Where-Object { $_.acceptance.status -ne "PASS" }).Count
+    }
+}
+
+function Get-IdealSummary {
+    # The owner's Ideal tier (2026-11-01): over the runs that recorded one (`ideal.total` > 0), how much of the best
+    # answer the attempts did. Never a pass/fail input; the metric for comparing models and configurations. Also the
+    # integrity gate's failures (the standing hard blocks), so a round shows how often it blocked. $null when no run
+    # has either.
+    param([object[]]$Runs)
+    $withIdeal = @($Runs | Where-Object { $_.PSObject.Properties['ideal'] -and $_.ideal -and $_.ideal.total -gt 0 })
+    $withIntegrity = @($Runs | Where-Object { $_.gates -and $_.gates.PSObject.Properties['integrity'] -and $_.gates.integrity -in "PASS", "FAIL" })
+    if (-not $withIdeal.Count -and -not $withIntegrity.Count) { return $null }
+    $done = ($withIdeal | ForEach-Object { [int]$_.ideal.done } | Measure-Object -Sum).Sum
+    $total = ($withIdeal | ForEach-Object { [int]$_.ideal.total } | Measure-Object -Sum).Sum
+    [pscustomobject]@{
+        runs = $withIdeal.Count
+        itemsDone = [int]$done
+        itemsTotal = [int]$total
+        share = $(if ($total) { [math]::Round($done / $total, 3) } else { $null })
+        # Per run, then averaged: a task with many ideal items does not outweigh the rest.
+        meanPerRun = $(if ($withIdeal.Count) { [math]::Round(($withIdeal | ForEach-Object { [double]$_.ideal.done / [double]$_.ideal.total } | Measure-Object -Average).Average, 3) } else { $null })
+        integrityChecked = $withIntegrity.Count
+        integrityFailed = @($withIntegrity | Where-Object { $_.gates.integrity -eq "FAIL" }).Count
     }
 }
 
@@ -135,7 +159,7 @@ function Get-RoundSummary {
             if ($vals.Count -gt 1) { $eras[$name] = $vals }
         }
         $first = $mg.Group[0]
-        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group) }
+        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group) }
     }
     # One k for every model shown, so the means can be compared across models.
     $allN = @($groups | ForEach-Object { $_.tasks } | ForEach-Object { $_.n })
@@ -152,7 +176,7 @@ function Get-RoundSummary {
         $passCount = ($tasks | Measure-Object c -Sum).Sum
         $out += [pscustomobject]@{
             model = $grp.model; arm = $grp.arm; k = $k; tasks = $tasks
-            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector
+            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal
             runs = [int]$runCount; passes = [int]$passCount
             perRun = $(if ($runCount) { [math]::Round($passCount / $runCount, 3) } else { $null })
             passAtK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passAtK -Average).Average, 3) } else { $null })
@@ -213,6 +237,11 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
             Write-Host ("    false negatives (selector FAIL, hidden tests PASS): {0}" -f (& $fmt $c.falseNegatives $c.selectorFail))
             Write-Host ("    kept by a dispatcher (selector, scope and suite PASS, nothing tampered) but wrong by the hidden tests: {0}" -f (& $fmt $c.acceptedWrong $c.accepted))
             if ($c.selectorOther) { Write-Host ("    {0} run(s) whose selector neither passed nor failed (could not run)" -f $c.selectorOther) -ForegroundColor Yellow }
+        }
+        if ($s.ideal) {
+            $i = $s.ideal
+            if ($i.runs) { Write-Host ("  ideal tier (measured, never a gate): {0} of {1} item(s) done over {2} run(s) ({3:P0}; mean per run {4:P0})" -f $i.itemsDone, $i.itemsTotal, $i.runs, $i.share, $i.meanPerRun) }
+            if ($i.integrityChecked) { Write-Host ("  integrity gate (nothing lost, nothing wrong): {0} of {1} run(s) that changed Markdown blocked" -f $i.integrityFailed, $i.integrityChecked) }
         }
         $s.tasks | ForEach-Object { [pscustomobject]@{ task = $_.task; runs = $_.n; passed = $_.c; "pass@$($s.k)" = $(if ($null -ne $_.passAtK) { [math]::Round($_.passAtK, 3) } else { "-" }); "pass^$($s.k)" = $(if ($null -ne $_.passHatK) { [math]::Round($_.passHatK, 3) } else { "-" }) } } | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
     }

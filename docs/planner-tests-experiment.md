@@ -348,3 +348,47 @@ and the owner's fix rejected.
   in one reply, including specifics the owner's own fix does not meet. A list that is easy to say "all fine" to
   needs to be short and say goals, with examples marked as examples. That is the done prompt's next version; whether
   the owner's bar is the confirmed list or the fix is the owner's to say.
+
+## The owner's bar, version 2 (2026-11-01)
+
+After the end-to-end run the owner answered three questions, each split into what they would **accept** and what they
+would **ideally** want (owner: "the former is a lot more ambitious than the latter"):
+
+| Question | Accept | Ideal |
+|---|---|---|
+| The owner's own `real-02` fix, handed in by an agent | merge it as is | all nine extra items (npm audit, Pages, the stale lines, every module, Dependabot, `auto-update.sh` ...) |
+| Which error is worse | small gaps merged, tidied by later cleanup runs ("don't let perfect be the enemy of good"), with metrics to show improvement | never merged: lost content, wrong claims, failing existing checks, changes outside the request |
+| Review time | scales with the task; a complicated plan waits for undivided attention | a summary first with the detail under it, like work items with sub-items on a board |
+
+So one list was doing two jobs. Version 2 separates them, and adds the never-merge rules as standing checks.
+
+**DONE.md version 2** (`DONE-PROMPT.md` v2, `desktop/scripts/planner_done.py`):
+- **Gate**: what the owner would accept. Its tests decide merge or retry; a few goals, not every name.
+- **Ideal**: what the best answer would also do. Its tests run on every attempt and never block one.
+- **Out of scope**: noted, never tested, never ticked.
+- Items have sub-items (`G1`, `G1.1`); striking a parent strikes everything under it. A `Size:` line says how long
+  the review takes. The confirmation hash covers each item's tier too, so moving a line between sections voids it.
+- The done prompt no longer lists the standing checks; the tests prompt (v2) writes the Gate set to `<run>/` and the
+  Ideal set to `<run>-ideal/`, so the harness cannot mix them up.
+
+First lists, for `real-01` to `real-03` (17 to 42 s, $0.67 for the three; private `tasks/planner/<task>/checkpoint-v2/`):
+1- and 2-minute reads of 4 to 5 Gate goals each, against version 1's 32 lines for `real-02` alone. They wait for the
+owner's confirmation.
+
+**Standing hard blocks** (`tests/checks/doc-integrity.ps1`, the `integrity` gate in `test-tasks.ps1`): on every
+attempt, whatever the task's own tests say, a Markdown heading the base had that is gone or at another level, a deleted
+Markdown file, or a path the change adds that is not in the repository fails the run, and `run-retries.ps1` and
+`summarize-rounds.ps1` never keep it. Existing checks failing and changes outside the request were already blocks (the
+suite and scope gates, the tamper check). On the `real-02` bench the gate fails exactly the two attempts that lost
+content (the dropped `## Project`, one of the first run's three false positives; the demoted headings, which the hidden
+tests passed) and passes the owner's fix and the other nine.
+
+**The Ideal metric** (`test-tasks.ps1 -IdealDir`, recorded as `ideal`: done of total and which ids): scored per item from
+the test names, never read by a gate, the dispatcher or the summary's "accepted"; `summarize-rounds.ps1` reports the
+share done per model and arm, and how often the integrity gate blocked. The ideal tests are not shown to the model:
+this measures what a model does beyond the gate unprompted. Showing them would be its own arm.
+
+Guards: `tests/test-doc-integrity.ps1` (19 scenarios in a throwaway repo, the dispatcher's verdict, the harness wiring),
+`tests/test-ideal-tier.ps1` (the scoring on vitest's output shapes, the summary, and that nothing gates on it),
+`tests/test-planner-done.ps1` (now 28 unit tests). Each rule was disabled once and its guard went red; two of the
+guards needed a sharper case before they did.

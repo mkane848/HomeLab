@@ -72,6 +72,7 @@ try {
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $tmp "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $tmp "tests") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $tmp "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $tmp "tests") -Recurse -Force
     '{"tasks":[]}' | Set-Content -LiteralPath (Join-Path $tmp "tests/tasks/manifest.json")
     $repo = Join-Path $tmp "repo"
     git -C $repo init -q

@@ -143,6 +143,7 @@ exit /b 0
     New-Item -ItemType Directory -Path (Join-Path $e2e "tests/agents") -Force | Out-Null
     Copy-Item -LiteralPath $AdapterPath -Destination (Join-Path $e2e "tests/agents/opencode.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $e2e "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $e2e "tests") -Recurse -Force
     $repo = Join-Path $e2e "repo"
     git -C $repo init -q
     git -C $repo config user.email "t@example.invalid"

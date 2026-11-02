@@ -139,6 +139,7 @@ try {
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $h "tests/test-tasks.ps1")
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $h "tests") -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $h "tests") -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $h "tests") -Recurse -Force
     # A public manifest, so the tests/results/ refusal is reached (a missing
     # manifest exits 1 earlier, for another reason).
     '{"tasks":[]}' | Set-Content -LiteralPath (Join-Path $h "tests/tasks/manifest.json")

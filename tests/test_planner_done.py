@@ -1,4 +1,5 @@
-"""Unit tests for desktop/scripts/planner_done.py, experiment 3's confirmation checkpoint.
+"""Unit tests for desktop/scripts/planner_done.py, experiment 3's confirmation checkpoint (DONE.md version 2:
+Gate / Ideal / Out of scope, items with sub-items, a Size line).
 
 Run:  python3 -I tests/test_planner_done.py   (standard library only; also run by tests/test-planner-done.ps1)
 """
@@ -10,30 +11,80 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "desktop", "scripts"))
 import planner_done as pd  # noqa: E402
 
-LIST = """# Done list: real-02, planner run 1
+LIST = """# Done: real-02
 
-## Must add
-- [x] D1: documents HEALTH_PORT and DISCORD_ALERT_WEBHOOK_URL
-- [x] D2: documents the health server, alerts, audit log, custom IDs and batch operations
+Size: 1-minute read
 
-## Not asked
-- [ ] N1: mentions Dependabot
+## Gate
+- [x] G1: AGENTS.md documents what was added since it was last updated
+  - [x] G1.1: HEALTH_PORT and DISCORD_ALERT_WEBHOOK_URL in Environment
+  - [x] G1.2: the health server, alerts, audit log, custom IDs and batch operations
+- [x] G2: nothing that was there is lost
+
+## Ideal
+- [x] I1: the CI description mentions npm audit
+- [ ] I2: mentions Dependabot
+
+## Out of scope
+- [ ] O1: a CLAUDE.md pointer file
+"""
+
+V1 = """# Done: real-02
+
+## Must do
+- [x] D1: documents HEALTH_PORT
+## Must keep
+- [x] K1: keeps the sections
+## Could do (not clearly asked)
+- [ ] C1: mentions Dependabot
 """
 
 
+def ids(items, **where):
+    return [it.id for it in items if all(getattr(it, k) == v for k, v in where.items())]
+
+
 class Parse(unittest.TestCase):
-    def test_items_and_states(self):
-        items, confs = pd.parse(LIST)
-        self.assertEqual([(k, i) for k, i, _ in items], [(True, "D1"), (True, "D2"), (False, "N1")])
-        self.assertEqual(confs, [])
+    def test_tiers_size_and_parents(self):
+        d = pd.parse(LIST)
+        self.assertEqual(d.size, "1-minute read")
+        self.assertEqual(ids(d.items, tier="gate"), ["G1", "G1.1", "G1.2", "G2"])
+        self.assertEqual(ids(d.items, tier="ideal"), ["I1", "I2"])
+        self.assertEqual(ids(d.items, tier="out"), ["O1"])
+        self.assertEqual(ids(d.items, kept=True), ["G1", "G1.1", "G1.2", "G2", "I1"])
+
+    def test_version_1_sections_map_onto_tiers(self):
+        d = pd.parse(V1)
+        self.assertEqual([(it.id, it.tier) for it in d.items], [("D1", "gate"), ("K1", "gate"), ("C1", "out")])
+
+    def test_a_struck_parent_strikes_its_sub_items(self):
+        d = pd.parse(pd.cmd_set(LIST, ["G1=off"]))
+        self.assertEqual(ids(d.items, kept=True), ["G2", "I1"])
+        g11 = [it for it in d.items if it.id == "G1.1"][0]
+        self.assertTrue(g11.ticked)   # its own tick is left alone ...
+        self.assertFalse(g11.kept)    # ... but it is not kept
+
+    def test_a_sub_item_without_its_parent_is_malformed(self):
+        with self.assertRaises(pd.Malformed):
+            pd.parse("## Gate\n- [x] G3.1: orphan\n")
+
+    def test_a_sub_item_in_another_section_than_its_parent_is_malformed(self):
+        with self.assertRaises(pd.Malformed):
+            pd.parse("## Gate\n- [x] G1: a\n## Ideal\n- [x] G1.1: b\n")
+
+    def test_a_tick_under_out_of_scope_is_malformed(self):
+        with self.assertRaises(pd.Malformed):
+            pd.parse(LIST.replace("- [ ] O1:", "- [x] O1:"))
+        with self.assertRaises(pd.Malformed):
+            pd.cmd_set(LIST, ["O1=on"])
 
     def test_duplicate_id_is_malformed(self):
         with self.assertRaises(pd.Malformed):
-            pd.parse(LIST + "- [x] D1: again\n")
+            pd.parse(LIST + "- [ ] I1: again\n")
 
     def test_a_checklist_line_in_another_shape_is_malformed(self):
         # Not silently ignored: an item the parser skipped would be neither kept nor struck.
-        for bad in ("- [x] documents it, no id\n", "* [x] D3: star bullet\n", "- [v] D3: odd mark\n"):
+        for bad in ("- [x] documents it, no id\n", "* [x] G3: star bullet\n", "- [v] G3: odd mark\n", "- [x] g3: lower case\n"):
             with self.assertRaises(pd.Malformed, msg=bad):
                 pd.parse(LIST + bad)
 
@@ -48,57 +99,72 @@ class Verify(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("not confirmed", msg)
 
-    def test_confirmed_passes_and_lists_the_kept_ids(self):
+    def test_confirmed_passes_and_lists_the_kept_ids_by_tier(self):
         ok, msg, kept = pd.verify(pd.cmd_confirm(LIST, "owner", now="2026-11-01T12:00:00-04:00"))
         self.assertTrue(ok, msg)
-        self.assertEqual(kept, ["D1", "D2"])
-        self.assertIn("2 kept, 1 struck", msg)
+        self.assertEqual(kept, {"gate": ["G1", "G1.1", "G1.2", "G2"], "ideal": ["I1"]})
+        self.assertIn("gate 4, ideal 1 kept, 1 struck", msg)
 
     def test_a_tick_after_confirming_invalidates_it(self):
-        text = pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["N1=on"])
-        ok, msg, _ = pd.verify(text)
+        ok, msg, _ = pd.verify(pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["I2=on"]))
         self.assertFalse(ok)
         self.assertIn("changed since", msg)
 
     def test_a_reworded_item_after_confirming_invalidates_it(self):
-        text = pd.cmd_confirm(LIST, "owner").replace("batch operations", "batch jobs")
-        self.assertFalse(pd.verify(text)[0])
+        self.assertFalse(pd.verify(pd.cmd_confirm(LIST, "owner").replace("batch operations", "batch jobs"))[0])
+
+    def test_moving_an_item_between_sections_after_confirming_invalidates_it(self):
+        text = pd.cmd_confirm(LIST, "owner")
+        moved = text.replace("- [x] I1: the CI description mentions npm audit\n", "").replace(
+            "- [x] G2: nothing that was there is lost\n", "- [x] G2: nothing that was there is lost\n- [x] I1: the CI description mentions npm audit\n")
+        self.assertEqual(pd.parse(moved).items[4].tier, "gate")
+        self.assertFalse(pd.verify(moved)[0])
 
     def test_reconfirming_after_an_edit_passes(self):
-        text = pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["D2=off"])
+        text = pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["G1.2=off"])
         ok, _, kept = pd.verify(pd.cmd_confirm(text, "owner"))
         self.assertTrue(ok)
-        self.assertEqual(kept, ["D1"])
+        self.assertEqual(kept["gate"], ["G1", "G1.1", "G2"])
 
-    def test_everything_struck_fails(self):
-        text = pd.cmd_confirm(pd.cmd_set(LIST, ["D1=off", "D2=off"]), "owner")
+    def test_no_gate_item_kept_fails(self):
+        text = pd.cmd_confirm(pd.cmd_set(LIST, ["G1=off", "G2=off"]), "owner")
         ok, msg, _ = pd.verify(text)
         self.assertFalse(ok)
-        self.assertIn("nothing to test", msg)
+        self.assertIn("no Gate item", msg)
 
     def test_text_outside_the_items_may_change(self):
-        text = pd.cmd_confirm(LIST, "owner").replace("## Not asked", "## Not asked (the planner's reading)")
+        text = pd.cmd_confirm(LIST, "owner").replace("# Done: real-02", "# Done: real-02 (owner reviewed)")
         self.assertTrue(pd.verify(text)[0])
 
 
 class Set(unittest.TestCase):
     def test_toggles_only_the_named_items(self):
-        out = pd.cmd_set(LIST, ["D1=off", "N1=on"])
-        items, _ = pd.parse(out)
-        self.assertEqual([k for k, _, _ in items], [False, True, True])
+        d = pd.parse(pd.cmd_set(LIST, ["G2=off", "I2=on"]))
+        self.assertEqual([it.ticked for it in d.items], [True, True, True, False, True, True, False])
 
     def test_unknown_id_and_bad_state(self):
         with self.assertRaises(pd.Malformed):
             pd.cmd_set(LIST, ["Z9=on"])
         with self.assertRaises(pd.Malformed):
-            pd.cmd_set(LIST, ["D1=yes"])
+            pd.cmd_set(LIST, ["G1=yes"])
+
+    def test_sub_item_indentation_survives(self):
+        self.assertIn("  - [ ] G1.1:", pd.cmd_set(LIST, ["G1.1=off"]))
 
     def test_crlf_survives(self):
         crlf = LIST.replace("\n", "\r\n")
-        out = pd.cmd_confirm(pd.cmd_set(crlf, ["N1=on"]), "owner")
+        out = pd.cmd_confirm(pd.cmd_set(crlf, ["I2=on"]), "owner")
         self.assertNotIn("\r\r", out)
         self.assertEqual(out.count("\n"), out.count("\r\n"))
         self.assertTrue(pd.verify(out)[0])
+
+
+class Show(unittest.TestCase):
+    def test_groups_by_tier_and_marks_a_ticked_child_of_a_struck_parent(self):
+        out = pd.show(pd.cmd_set(LIST, ["G1=off"]))
+        self.assertIn("Size: 1-minute read", out)
+        self.assertLess(out.index("Gate"), out.index("Ideal"))
+        self.assertIn("[-] G1.1", out)
 
 
 class CommandLine(unittest.TestCase):
@@ -117,7 +183,7 @@ class CommandLine(unittest.TestCase):
             p = os.path.join(d, "DONE.md")
             pd.write(p, LIST)
             self.assertEqual(pd.main(["confirm", p, "--by", "a b <!--"]), 2)
-            self.assertFalse(pd.parse(pd.read(p))[1])
+            self.assertFalse(pd.parse(pd.read(p)).confirmations)
 
 
 class PackBuilder(unittest.TestCase):
@@ -155,7 +221,7 @@ class PackBuilder(unittest.TestCase):
         self.assertFalse(self.copied())
 
     def test_a_list_changed_after_confirming_is_refused(self):
-        self.put(pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["N1=on"]))
+        self.put(pd.cmd_set(pd.cmd_confirm(LIST, "owner"), ["I2=on"]))
         with self.assertRaises(SystemExit):
             self.mpp.copy_confirmed(self.src, self.out, "t-1")
         self.assertFalse(self.copied())

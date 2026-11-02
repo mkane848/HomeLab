@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the owner's bar, version 2: Gate / Ideal tiers, standing hard blocks, the Ideal metric (2026-11-01).** The
+  owner's answers split "accept" from "ideal": merge small gaps, track the ideal, never merge lost content, wrong
+  claims, failing checks or out-of-scope changes. A new `integrity` gate (`tests/checks/doc-integrity.ps1`) fails any
+  attempt that loses a Markdown heading or file or adds a path that does not exist, and `run-retries.ps1` and
+  `summarize-rounds.ps1` never keep it; on the `real-02` bench it blocks exactly the two attempts that lost content.
+  `DONE.md` v2 (`planner_done.py`): Gate, Ideal and Out of scope sections, sub-items whose parent's strike cascades, a
+  `Size:` line, a hash over tiers. `test-tasks.ps1 -IdealDir` scores the Ideal tier per item id on every attempt, never
+  as a gate; `summarize-rounds.ps1` reports it per model. New guards `test-doc-integrity.ps1` and `test-ideal-tier.ps1`.
 - **tests: experiment 3's confirmation checkpoint (2026-11-01).** The owner's choice after the review step: for a
   plain-language request the planner writes `DONE.md` (its reading of "done", as a checklist) and the owner keeps,
   strikes or rewords each line before any test is written. `run-planner.ps1 -Phase done|tests` (`plan`, the default,

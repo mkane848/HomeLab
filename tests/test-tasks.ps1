@@ -237,6 +237,12 @@ param(
     # the set instead: it must FAIL on the untouched base and PASS on acceptance.solution
     # (planner-sets.tsv in the results folder keeps the answer).
     [string]$AcceptanceDir = "",
+    # Experiment 3, the owner's Ideal tier (2026-11-01): a folder of tests for what the best answer would ALSO do,
+    # written from the confirmed DONE.md's Ideal lines (test names start with the item id, `I2: ...`). Run on the
+    # model's source after everything else and recorded as `ideal` (which ids passed, done of total). Never a gate:
+    # it does not change PASS/FAIL or what a dispatcher keeps; it is the metric that shows a better model or
+    # configuration doing more than the minimum. Not shown to the model. Resolved like -AcceptanceDir.
+    [string]$IdealDir = "",
     # After each run that exited 0 against an Ollama provider, ask that host's
     # /api/ps where -Model sits (Get-EngineGpuPlacement). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
@@ -260,6 +266,8 @@ if (-not (Test-Path -LiteralPath $agentAdapter)) {
     exit 1
 }
 . $agentAdapter
+# The owner's standing hard blocks for Markdown (nothing lost, nothing wrong): the `integrity` gate below.
+. (Join-Path $PSScriptRoot "checks\doc-integrity.ps1")
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot   = Split-Path -Parent $scriptDir
@@ -473,7 +481,7 @@ $lines = [System.Collections.Generic.List[string]]::new()
 function Write-Result {
     param([string]$Task, [string]$Check, [string]$Status, [string]$Detail = "")
     $statusCounts[$Status]++
-    $color = switch ($Status) { "PASS" { "Green" } "FAIL" { "Red" } "WARN" { "Yellow" } "SKIP" { "Gray" } }
+    $color = switch ($Status) { "PASS" { "Green" } "FAIL" { "Red" } "WARN" { "Yellow" } "SKIP" { "Gray" } default { "Cyan" } }
     Write-Host ("  [{0,-4}] {1}" -f $Status, $Check) -ForegroundColor $color -NoNewline
     if ($Detail) { Write-Host ("  -> {0}" -f $Detail) -ForegroundColor Gray }
     else { Write-Host "" }
@@ -1242,6 +1250,38 @@ function Resolve-PlannerFolder {
     return (Join-Path $manifestDir $AcceptanceDir)
 }
 
+function Resolve-IdealFolder {
+    if (-not $IdealDir) { return "" }
+    if ([System.IO.Path]::IsPathRooted($IdealDir)) { return $IdealDir }
+    return (Join-Path $manifestDir $IdealDir)
+}
+
+# The Ideal tier's score from one run of its tests: the item ids the set's files name (`it('I2: ...')`, `test("I2.1:`)
+# and which of them failed in the runner's output. An id whose tests all passed is done. Pure, so the guard can feed it.
+function Get-IdealScore {
+    param([string[]]$FileTexts, [string[]]$Output, [string]$Status)
+    $idRe = '(?<![A-Za-z0-9])(I[0-9]+(?:\.[0-9]+)*):'
+    $all = New-Object System.Collections.Generic.List[string]
+    foreach ($t in $FileTexts) {
+        foreach ($m in [regex]::Matches($t, "(?:\bit|\btest)(?:\.\w+)?\(\s*['""``]$idRe")) {
+            if (-not $all.Contains($m.Groups[1].Value)) { $all.Add($m.Groups[1].Value) }
+        }
+    }
+    if ($Status -eq "ERROR" -or -not $all.Count) { return $null }
+    $failed = New-Object System.Collections.Generic.List[string]
+    if ($Status -ne "PASS") {
+        foreach ($line in $Output) {
+            $plain = ($line -replace "`e\[[0-9;]*m", '')
+            if ($plain -notmatch '(×|✗|✕|\bFAIL\b)') { continue }
+            foreach ($m in [regex]::Matches($plain, $idRe)) { if ($all.Contains($m.Groups[1].Value) -and -not $failed.Contains($m.Groups[1].Value)) { $failed.Add($m.Groups[1].Value) } }
+        }
+        # A failing run whose output names no id (a file that did not load): nothing can be counted done.
+        if (-not $failed.Count) { foreach ($i in $all) { $failed.Add($i) } }
+    }
+    $done = @($all | Where-Object { -not $failed.Contains($_) })
+    return [pscustomobject]@{ total = $all.Count; done = $done.Count; doneIds = @($done); missedIds = @($failed) }
+}
+
 # -ShowAcceptance: put the task's acceptance.dir files into the checkout before
 # the model's run. Returns what Remove-ShownAcceptance needs: each file's
 # relative path and bytes, whether the base already had a file there, and the
@@ -1385,6 +1425,9 @@ function Invoke-Acceptance {
         } else {
             $result = & $mk "FAIL" "$summaryText - $(Get-FailureDetail -Output $t.Output -ExitCode $t.ExitCode)"
         }
+        # The raw output, for a caller that scores per test (the Ideal tier); not written to the run JSON.
+        $result | Add-Member -NotePropertyName Output -NotePropertyValue @($t.Output) -Force
+        $result | Add-Member -NotePropertyName FileTexts -NotePropertyValue @($(if ($dirFiles) { $dirFiles | ForEach-Object { [Text.Encoding]::UTF8.GetString($_.Bytes) } })) -Force
     }
 
     # Restore: unstage (checkout <sha> -- stages the files), then put the saved
@@ -2427,6 +2470,8 @@ foreach ($tk in $tasksToRun) {
     }
 
     # --- grade 1: diff scope -------------------------------------------------
+    # Reset per task: the record below reads $integrity, and a stale one would carry the previous task's verdict.
+    $integrity = [pscustomobject]@{ Status = "SKIP"; Lost = @(); Wrong = @(); Files = @(); Detail = "not checked" }
     $changed = Get-TreeChanges $wt.Wt
     $allowed = @($tk.allowFiles)
     $bad = @($changed | Where-Object { $_ -and ($allowed -notcontains $_) })
@@ -2461,6 +2506,16 @@ foreach ($tk in $tasksToRun) {
         $overallPass = $false
     } else {
         Write-Result $tk.id "scope" "PASS" "diff limited to: $($changed -join ', ')"
+    }
+
+    # --- grade 1b: integrity (the owner's standing hard blocks, 2026-11-01) -----
+    # Never merged, whatever the task's own tests say: a Markdown heading the base had is gone or changed level, a
+    # Markdown file is deleted, or the change adds a path to a Markdown file that is not in the repository. Every task,
+    # every mode: the owner's bar, not the task's. SKIP when no Markdown file changed.
+    $integrity = Test-DocIntegrity -Worktree $wt.Wt -Base $wt.Head
+    if ($integrity.Status -ne "SKIP") {
+        Write-Result $tk.id "integrity (nothing lost, nothing wrong)" $integrity.Status $integrity.Detail
+        if ($integrity.Status -eq "FAIL") { $overallPass = $false }
     }
 
     # --- grade 2: suite green on the model's change ---------------------------
@@ -2654,6 +2709,21 @@ foreach ($tk in $tasksToRun) {
         $selectorRecord = [pscustomobject]@{ status = $acceptanceRecord.status; source = "hidden"; set = $null; hash = $acceptanceRecord.hash; detail = "the shown tests are the hidden tests: the selector is the acceptance verdict" }
     }
 
+    # --- the Ideal tier: measured, never a gate ----------------------------------
+    $idealRecord = $null
+    $idealFolder = Resolve-IdealFolder
+    if ($idealFolder) {
+        $swPhase.Restart()
+        $idl = Invoke-Acceptance $tk $wt.Wt -Folder $idealFolder
+        $phaseSec["ideal"] = [math]::Round($swPhase.Elapsed.TotalSeconds, 1)
+        $score = Get-IdealScore -FileTexts @($idl.FileTexts) -Output @($idl.Output) -Status $idl.Status
+        $idealRecord = [pscustomobject]@{ status = $idl.Status; set = $IdealDir; hash = $idl.Hash; detail = $idl.Detail
+            total = $(if ($score) { $score.total } else { $null }); done = $(if ($score) { $score.done } else { $null })
+            doneIds = $(if ($score) { @($score.doneIds) } else { @() }); missedIds = $(if ($score) { @($score.missedIds) } else { @() }) }
+        $idealLine = if ($score) { "{0} of {1} ideal item(s) done{2}" -f $score.done, $score.total, $(if ($score.missedIds.Count) { "; missed " + ($score.missedIds -join ", ") } else { "" }) } else { "$($idl.Status): $($idl.Detail)" }
+        Write-Result $tk.id "ideal (measured, not a gate)" "INFO" $idealLine
+    }
+
     # --- record ----------------------------------------------------------------
     $scopeOk = if ($guardrail) { $guardrail.Ok } else {
         ($changed.Count -gt 0 -and $bad.Count -eq 0 -and @($changed | Where-Object { $_ -and ($tk.srcRevertFiles -contains $_) }).Count -gt 0)
@@ -2664,6 +2734,7 @@ foreach ($tk in $tasksToRun) {
         scope = $(if ($scopeOk) { "PASS" } else { "FAIL" })
         suite = $(if ($suiteOk) { "PASS" } else { "FAIL" })
         failsOnOld = $(if ($failsOnOldSkipped) { "SKIP" } elseif ($failsOnOldOk) { "PASS" } else { "FAIL" })
+        integrity = $integrity.Status
     }
     # One stamp shared by the JSON result and its .jsonl transcript, so the two
     # files that describe the same run are trivially pairable by filename.
@@ -2721,6 +2792,9 @@ foreach ($tk in $tasksToRun) {
         stopNudges      = $(if ($NudgeOnStop) { [pscustomobject]@{ sent = $stopNudgeKinds.Count; max = $MaxStopNudges; kinds = $stopNudgeKinds.ToArray(); classifier = $StopClassifier; stopTextSha256 = $stopNudgeSha; lostTaskTextSha256 = $lostTaskNudgeSha } } else { $null })
         gates           = $gateSummary
         scopeDetail     = $scopeDetail
+        integrityDetail = [pscustomobject]@{ files = @($integrity.Files); lost = @($integrity.Lost); wrong = @($integrity.Wrong) }
+        # The Ideal tier (-IdealDir), measured and never gating; null without one.
+        ideal           = $idealRecord
         typecheck       = $typecheckStatus
         acceptance      = $acceptanceRecord
         # Experiment 3: the verdict of the tests the model was shown, run on its source (null on a

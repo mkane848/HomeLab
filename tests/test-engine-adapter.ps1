@@ -374,6 +374,7 @@ exit 0
         Copy-Item -LiteralPath $harnessPath -Destination (Join-Path $root "tests/test-tasks.ps1")
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $root "tests") -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $root "tests") -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $root "tests") -Recurse -Force
         $repo = Join-Path $root "repo"
         git -C $repo init -q
         git -C $repo config user.email "t@example.invalid"

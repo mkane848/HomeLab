@@ -105,6 +105,7 @@ try {
         Copy-Item -LiteralPath $batchPs1 -Destination (Join-Path $root "tests/run-tasks-batch.ps1")
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $root "tests") -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $root "tests") -Recurse -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $root "tests") -Recurse -Force
     }
     $repo = Join-Path $tmp "checkouts/fixture-repo"
     New-Item -ItemType Directory -Path $repo -Force | Out-Null
