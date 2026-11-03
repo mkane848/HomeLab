@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: real work, from request to a branch (Step 2, 2026-11-02).** `tests/new-real-task.ps1` takes one real task
+  through add (a separate real-work manifest; base = HEAD; checklist grading, the confirmed `DONE.md` as its checklist),
+  done, tests, run and deliver. `test-tasks.ps1` keeps every attempt's change as a `.patch` (`patchFile`, written by
+  git so CRLF and binary survive). `tests/deliver-attempt.ps1` turns the accepted attempt, or the best near miss that
+  broke no hard block, into `fleet/<task>` in a temporary worktree, never touching `main` or the working copy and
+  never pushing; `tests/record-verdict.ps1` records the owner's merged / fixed / rejected. New guards
+  `test-deliver-attempt.ps1` and `test-new-real-task.ps1`. Also recorded: the checkpoint's first live round, where all
+  six attempts on `real-01`..`03` passed the planner's Gate and the hidden tests.
 - **fix: the integrity gate blocked branch names as missing paths (2026-11-02).** On the first live checkpoint round,
   `real-01`'s first attempt passed the planner's Gate, the hidden tests and 4 of 4 Ideal items, and the integrity gate
   failed it for naming `` `fix/digest-retry` `` and `` `feat/have-multi` `` as example branches. A slash-separated name
