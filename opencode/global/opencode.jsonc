@@ -598,6 +598,13 @@
         // Text only: the vision projector (mmproj) is not loaded, so these do not
         // list image input even where the Ollama copy does. No "npm" field: OpenCode
         // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
+        "north-mini-code": {
+          "name": "Cohere North Mini Code 1.0 30B-A3B (Server, candidate, llama.cpp)",
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "limit": { "context": 65536, "output": 8192 }
+        },
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Server, main seat, llama.cpp)",
           "attachment": false,
