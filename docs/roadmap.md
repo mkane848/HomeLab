@@ -595,6 +595,22 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          16,384 (compaction then starts at 49,152 instead of 57,344), six reps each, against these rows (9 of 18
          passed). A thinking budget (`reasoning-budget` in the preset) is the other lever if the longer cap only
          lengthens loops.
+       - **Run (window out16k-20261103, owner's go, 2026-11-03): mixed, and three times slower.** The 3-hour window
+         fitted 9 of the 18 runs (the runs took longer): 6 passed, 2 failed and 1 timed out at 45 minutes, so 6 of 9
+         (67%, 95% interval 35% to 88%) against 9 of 18 (50%, 29% to 71%). Not a measurable change at this size
+         ([methodology.md](methodology.md#how-many-runs-a-question-needs)); what the transcripts show is clearer:
+         - `kane-08` used the room: 2 passes and the timeout against 1 of 6, with 7 steps between 8,192 and 16,384
+           tokens across its three runs, steps the old cap would have cut.
+         - `lfc-07` did not: both failures spent 16,384 tokens of thinking within three steps and made no edit, exactly
+           as they did at 8,192 (1 of 3 against 3 of 6). The cap only moved.
+         - `asohav-03` passed all 3 (5 of 6 before) and never needed more than 8,192.
+         - Time per run rose from about 5 minutes to about 15 (mean of the 9, timeout included); `kane-08` from 7 to 34,
+           18 and 45 (cut).
+         - 4 of the 9 runs still hit the new cap at least once (`summarize-rounds.ps1`: 3 of 8 graded, both failures).
+         **Read:** more room helps when the thinking leads somewhere (`kane-08`) and only buys a longer stall when it
+         does not (`lfc-07`). `limit.output` stays 8,192 in `main` (the window raised it on node3 only and it was put
+         back). The next lever is a budget on thinking rather than on output, once the server's llama.cpp build is
+         checked for a token budget it can enforce; results are private `results/window-out16k-20261103`.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in
