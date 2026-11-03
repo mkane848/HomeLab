@@ -63,3 +63,68 @@ The long reference that used to live here moved to `docs/reference/` on 2026-10-
   claims when editing a doc that carries them** — leaderboard ranks, "best
   model", and version facts move weekly; if you cannot re-verify, keep the
   claim but date-stamp it. Convention + catalog: `docs/references.md`.
+
+## Norms and known mistakes
+
+Each of these was a real, repeated mistake (most from 2026-10-30 to 11-02). Follow them without being asked.
+
+**Done means verified.**
+- A fix is done when **CI is green on the PR's current head**, not when it passes locally. Wait for the run
+  (`gh run watch <id> --exit-status`) before saying "fixed". PR #188's first "fix" passed locally and failed CI twice.
+- Reproduce CI's environment, not yours. The runners set `core.autocrlf=true`: run a guard under
+  `GIT_CONFIG_GLOBAL=<file with autocrlf = true>`, and with the guard file itself converted to CRLF.
+- **The owner merges whenever a PR is green.** Before pushing more commits to a PR, check
+  `gh pr view <n> --json state`. If it is merged, cherry-pick onto a new branch from `main` and open a new PR: #190
+  was merged one commit early and the second fix needed #191.
+
+**A guard that cannot fail protects nothing.**
+- Mutation-check every new check: disable the rule (or run the guard against `main`'s version of the script) and
+  confirm the guard goes red, then restore and confirm the file is byte-identical (`cmp`). Twice a new guard stayed
+  green with its rule removed. In one, the check matched text that appears either way. In the other, a later step's
+  exit 1 hid the missing refusal.
+- Assert **where** a script stopped (its own message, and no later step's), not just its exit code.
+- A throwaway git repo in a guard pins `git config core.autocrlf false`, and here-string fixtures are normalised to LF.
+- Test the false-positive side as hard as the true one. The integrity gate blocked a perfect attempt for example
+  branch names (`` `fix/digest-retry` ``) and for `` `.github/` `` (a `TrimStart('.')` ate the dot). Good work blocked
+  breaks the owner's bar as surely as bad work kept.
+
+**Editing files.**
+- Python edits: `open(..., newline='')` to keep line endings; use raw strings (`r'''...'''`) for anything containing
+  Windows paths or PowerShell (`"\run-planner"` became a carriage return); assert the old text occurs exactly once
+  before replacing it.
+- Let tools write their own output files when bytes matter (`git diff --binary --output=<file>`). Native output
+  through PowerShell loses CRLF and binary content.
+- Commit with explicit paths, never `git commit -a`.
+
+**PowerShell pitfalls** (pwsh 7):
+- `"$LASTEXITCODE: x"` is a parse error: use `"${LASTEXITCODE}: x"`.
+- A comma after `-replace` joins its operands: write `(($x) -replace 'a', 'b'), $next`.
+- Variable names are case-insensitive: `$m4Tasks` overwrote the parameter `$M4Tasks` (PR #174).
+- A literal `'""'` passed to a native exe arrives as two quote characters: `ssh-keygen -N '""'` set a passphrase.
+
+**node3 (Windows) over ssh.**
+- Its ssh shell is **cmd**. `;` does not separate commands (it reached a script as `-Apply;`), and nested quoting
+  breaks. Copy a script with `scp` and run it with `pwsh -NoProfile -File <script>`. A script piped into
+  `pwsh -Command -` can fail without a word.
+- Use `ssh -o BatchMode=yes` (also as `GIT_SSH_COMMAND`) for anything that could prompt; give the command
+  `< /dev/null`.
+- A one-shot scheduled task (S4U) has none of the user's session environment. Set every variable the run needs:
+  `LLAMACPP_SERVER_BASE_URL` (OpenCode's provider reads its `baseURL` from it). Without it all of `real-01`'s attempts
+  were "infrastructure". Launch the **running** pwsh (`(Get-Process -Id $PID).Path`, as `run-window.ps1 -Detach`
+  does): a Store update can stage a newer build that a task cannot start yet (`0x80070005`).
+- Remove a one-shot task, and any worktree a session made, when its run is over; seven had piled up by 2026-11-02.
+- Git there is described in `node3/README.md` → "Git on node3".
+
+**Long runs and cleanup.**
+- Start long work in the background and wait for its notification; do not poll with `sleep`. Check the first
+  attempt's result early: a run that only reaches "infrastructure" is wasted hours.
+- Before deleting anything: dry run, then move it aside, verify (hash-compare against the copy that stays), then
+  delete.
+- Searches skip `tests/.worktrees/`: it holds the sealed task checkouts, with their `node_modules` (over 300,000 files).
+
+**Access and secrets.**
+- Never grant access yourself: deploy keys, tokens and repo settings are the owner's step. Prepare everything and
+  hand over the one action.
+- Never print or read a secret. The planner's token travels only through the process environment.
+- A safeguard someone set on purpose (e.g. node3's old `pushurl` block) is changed only on the owner's explicit
+  say-so, and the change is recorded where the safeguard was documented.

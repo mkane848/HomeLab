@@ -15,12 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   never pushing; `tests/record-verdict.ps1` records the owner's merged / fixed / rejected. New guards
   `test-deliver-attempt.ps1` and `test-new-real-task.ps1`. Also recorded: the checkpoint's first live round, where all
   six attempts on `real-01`..`03` passed the planner's Gate and the hidden tests.
+- **docs: `AGENTS.md` → "Norms and known mistakes" (2026-11-02, owner's request).** The mistakes that kept recurring,
+  each with the rule that avoids it: done means CI green on the PR's head (and reproducing CI's `autocrlf`); check a
+  PR is still open before pushing to it; mutation-check every new guard and assert where a script stopped; test the
+  false-positive side; Python and PowerShell editing pitfalls; node3 over ssh (cmd shell, `scp` + `pwsh -File`,
+  `BatchMode`, S4U tasks need their environment and the running pwsh); long runs, cleanup and verified deletes;
+  access and secrets are the owner's step. One file serves every client: Claude Code, OpenCode and Codex all read
+  `AGENTS.md`, so there is no separate `CLAUDE.md`.
 - **fix: the integrity gate blocked branch names as missing paths (2026-11-02).** On the first live checkpoint round,
   `real-01`'s first attempt passed the planner's Gate, the hidden tests and 4 of 4 Ideal items, and the integrity gate
   failed it for naming `` `fix/digest-retry` `` and `` `feat/have-multi` `` as example branches. A slash-separated name
   with no file extension now counts as a path only when its first part is a top-level entry of the repository; names
-  with an extension are checked as before. Three new scenarios in `tests/test-doc-integrity.ps1`; the `real-02` bench
-  verdicts are unchanged (the same two content-losing attempts blocked, the fix and nine others passed).
+  with an extension are checked as before. A second false block from the same round: three `real-02` attempts that
+  passed every test were failed for `` `.github/` ``, because stripping a leading `./` with `TrimStart('.')` also ate
+  the dot of a dot-folder; only `./` is dropped now. Six new scenarios in `tests/test-doc-integrity.ps1`; the `real-02`
+  bench verdicts are unchanged (the same two content-losing attempts blocked, the fix and nine others passed).
 - **fix: the window's report and task selection; node3's git (2026-11-02).** Three faults in `tests/run-window.ps1`
   found in window 20261101-2213's report. The "no summary line from the loop" line was the `else` of "did the falsifier
   trip" instead of "is there a summary", so every window whose falsifier held also said its summary was missing; the
