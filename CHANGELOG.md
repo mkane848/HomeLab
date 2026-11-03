@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: `AGENTS.md` → "Norms and known mistakes" (2026-11-02, owner's request).** The mistakes that kept recurring,
+  each with the rule that avoids it: done means CI green on the PR's head (and reproducing CI's `autocrlf`); check a
+  PR is still open before pushing to it; mutation-check every new guard and assert where a script stopped; test the
+  false-positive side; Python and PowerShell editing pitfalls; node3 over ssh (cmd shell, `scp` + `pwsh -File`,
+  `BatchMode`, S4U tasks need their environment and the running pwsh); long runs, cleanup and verified deletes;
+  access and secrets are the owner's step. One file serves every client: Claude Code, OpenCode and Codex all read
+  `AGENTS.md`, so there is no separate `CLAUDE.md`.
 - **fix: the integrity gate blocked branch names as missing paths (2026-11-02).** On the first live checkpoint round,
   `real-01`'s first attempt passed the planner's Gate, the hidden tests and 4 of 4 Ideal items, and the integrity gate
   failed it for naming `` `fix/digest-retry` `` and `` `feat/have-multi` `` as example branches. A slash-separated name
