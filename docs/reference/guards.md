@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-52 guards.
+54 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -21,6 +21,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-compaction-plugin.ps1` | opencode/plugins/compaction-continue.js (fails on any opencode other than 1.19.5) | The plugin, any opencode upgrade, Start/Stop-AgentRunEnv |
 | `tests/test-context-events.ps1` | Context audit: compactions, front-drops, askedForTask, thresholds | How the harness reads a transcript |
 | `tests/test-context-exceeded.ps1` | contextExceeded outcome (exit -6, _CTXEXCEEDED_) | How a run's exit is classified |
+| `tests/test-deliver-attempt.ps1` | fleet delivery: the best allowed attempt becomes a fleet/<task> branch; main, the working copy and remotes untouched | tests/deliver-attempt.ps1, tests/record-verdict.ps1, or the patch saving / Get-AttemptVerdict they read |
 | `tests/test-doc-integrity.ps1` | the owner's standing hard blocks for Markdown (integrity gate: nothing lost, nothing wrong) | tests/checks/doc-integrity.ps1, or the integrity gate in test-tasks.ps1 / run-retries.ps1 |
 | `tests/test-engine-adapter.ps1` | Engine adapter boundary (tests/engines/ollama.ps1, llamacpp.ps1) | Either adapter or an engine call in test-tasks.ps1 |
 | `tests/test-fails-on-old.ps1` | When failsOnOld is measured (PASS, FAIL, SKIP) | How the gates are graded |
@@ -32,6 +33,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-ideal-tier.ps1` | experiment 3's Ideal tier: scored per item id, never a gate (test-tasks.ps1 -IdealDir) | Get-IdealScore or the ideal block in test-tasks.ps1, run-retries.ps1 or summarize-rounds.ps1 |
 | `tests/test-llamacpp-stack.ps1` | llama.cpp compose file, models.ini and llamacpp-check.sh invariants | The llama.cpp compose file, preset, templates or checker |
 | `tests/test-llamacpp-window.ps1` | server/scripts/llamacpp-window.sh (open, watchdog, deadline and close of an unattended llama.cpp window) | server/scripts/llamacpp-window.sh or the llama.cpp compose file it starts |
+| `tests/test-new-real-task.ps1` | real-work intake: a task in the real-work manifest at the repo's HEAD; nothing runs on an unconfirmed list | tests/new-real-task.ps1 |
 | `tests/test-no-push.ps1` | Set-NoPushEnv: a model cannot push or open a PR from a task checkout | How a run is launched |
 | `tests/test-opencode-profiles.ps1` | Launcher routing and env restore for opencode <profile> | desktop/scripts/opencode.ps1 or opencode-profiles.ps1 |
 | `tests/test-opencode-run.ps1` | Invoke-AgentRun: normal run, non-zero exit, timeout, job dying | How a run is launched, waited for or collected |

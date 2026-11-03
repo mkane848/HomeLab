@@ -392,3 +392,61 @@ Guards: `tests/test-doc-integrity.ps1` (19 scenarios in a throwaway repo, the di
 `tests/test-ideal-tier.ps1` (the scoring on vitest's output shapes, the summary, and that nothing gates on it),
 `tests/test-planner-done.ps1` (now 28 unit tests). Each rule was disabled once and its guard went red; two of the
 guards needed a sharper case before they did.
+
+## The checkpoint, live (2026-11-02)
+
+The owner confirmed the three v2 done lists as written ("All good"), the planner wrote Gate and Ideal sets from them
+($1.74 for the three), and `run-retries.ps1` ran `real-01`, `real-02` and `real-03` from node3 against the server's
+`qwen3.6`, the Gate set as the selector, the Ideal set measured, the executor shown the Gate tests (private
+`results/exp3-checkpoint-v2-live`).
+
+| Task | Attempts | Planner's Gate | Hidden tests | Ideal done | Integrity |
+|---|---|---|---|---|---|
+| `real-01` | 2 | PASS, PASS | PASS, PASS | 4/4, 4/4 | attempt 1 a false block (branch names), attempt 2 PASS |
+| `real-02` | 3 | PASS ×3 | PASS ×3 | 5/5, 5/5, 4/5 | all three false blocks (`` `.github/` ``) |
+| `real-03` | 1 | PASS | PASS | 6/7 | PASS |
+
+- **All six attempts passed the planner's Gate and the hidden tests.** The only rejections were two integrity false
+  blocks, fixed the same day (#190, #191); under the fixed rule every task is accepted on its first attempt, with no
+  false positive and no false negative, and 4 to 7 Ideal items done.
+- **Why this differs from the bench:** on the bench the same strict `real-02` Gate rejected every saved attempt,
+  including the owner's fix, because none of those executors had seen it. Shown the confirmed tests, the executor
+  met them, the stricter lines included, and still passed the owner's hidden tests. The owner's review is what keeps a
+  strict Gate honest; delivery of near misses (below) is the release valve.
+- The bench result for the v2 `real-02` set itself (`checkpoint-v2/bench-scores.txt`): 0 of 6 wrong attempts kept, 6 of
+  6 right ones rejected. Two of its tests are stricter than their lines (G2.1 treats an "e.g." list as exhaustive; G1.1
+  requires prose around `HEALTH_PORT`), despite the tests prompt saying "e.g." means examples.
+
+## Real work: intake, delivery and the owner's verdict (2026-11-02)
+
+One task from the owner, from request to a branch to review, with `tests/new-real-task.ps1`:
+
+```powershell
+pwsh -File tests\new-real-task.ps1 -Step add -Id lfc-w01 -Repo M:\Projects\LFCbot -Title "..." -Prompt "<the request>"
+pwsh -File tests\new-real-task.ps1 -Step done  -Id lfc-w01     # the planner's done list, shown for review
+python -I desktop\scripts\planner_done.py confirm <HomeLab-private>\tasks\real-work\lfc-w01\1\DONE.md --by owner
+pwsh -File tests\new-real-task.ps1 -Step tests -Id lfc-w01     # Gate and Ideal tests from the confirmed list
+pwsh -File tests\new-real-task.ps1 -Step run   -Id lfc-w01     # attempts against the server, up to 3
+pwsh -File tests\new-real-task.ps1 -Step deliver -Id lfc-w01   # the branch fleet/lfc-w01
+pwsh -File tests\record-verdict.ps1 -ResultsDir <...>\results\real-work\lfc-w01 -Task lfc-w01 -Verdict merged
+```
+
+- **Its own manifest:** `HomeLab-private/tasks/real-work/manifest.json`, not the benchmark's (`build_manifest.py`
+  regenerates that one). Base = the repository's HEAD; `grading: "checklist"` (there are no hidden tests; the harness
+  records the hidden-test verdict as MANUAL); its checklist is the confirmed `DONE.md`; the test command is copied from
+  a benchmark task of the same repository.
+- **Every attempt's change is kept** as a `.patch` beside its run JSON (`patchFile`), written by git itself so CRLF and
+  binary content survive; before this an attempt's change died with its sealed checkout.
+- **Delivery** (`tests/deliver-attempt.ps1`): the latest accepted attempt (the dispatcher's own rule, read from
+  `run-retries.ps1`); if none, the near miss with the fewest failed Gate tests among attempts that broke **no** hard
+  block (integrity, suite, scope, tampering), labelled `NEAR MISS` with its failing count; if only hard-block failures,
+  nothing. The branch is made in a temporary worktree at the base: the owner's working copy, current branch and `main`
+  are never touched, and nothing is pushed. The commit message carries every gate's verdict and the Ideal score.
+- **The owner's verdict** (`tests/record-verdict.ps1`): merged, fixed (merged after changes) or rejected, with a note.
+  For real work this is the truth the gate is measured against: an accepted delivery rejected is a false positive, a
+  near miss merged as is a false negative.
+- Guards: `tests/test-deliver-attempt.ps1` (33 checks: the choice of attempt, hard blocks never delivered, `main`, the
+  working copy and the remote untouched, CRLF byte for byte, the branch suffix, the verdicts), `tests/test-new-real-task.ps1`
+  (the manifest entry, its refusals, and `run` stopping before anything runs on an unconfirmed list). Writing the first
+  guard caught a real bug: the hard-block test read the dispatcher's first rejection reason, which names the selector
+  before the hard blocks, so an integrity-blocked attempt that also failed a planner test was delivered as a near miss.

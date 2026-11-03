@@ -2742,6 +2742,17 @@ foreach ($tk in $tasksToRun) {
     $runBaseName = "tasks-{0}-{1}_{2}" -f $tk.id, ($ModelLabel -replace '[^a-zA-Z0-9._-]', '_'), $runStamp
     $runFile = Join-Path $resultsDir ($runBaseName + ".json")
     $transcriptDest = Join-Path $resultsDir ($runBaseName + ".jsonl")
+    # The attempt's change, kept beside its row so it can be delivered as a branch (tests/deliver-attempt.ps1) after the
+    # worktree is reset for the next attempt. Taken here, after every test the harness placed (shown, selector, ideal,
+    # hidden) was removed again, so it holds the model's change only. Intent-to-add makes new files part of the diff.
+    # git writes the file itself (--output): through PowerShell the patch would lose CRLF line endings and binary bytes.
+    $patchField = $null
+    $patchPath = Join-Path $resultsDir ($runBaseName + ".patch")
+    $null = Run-Native "git" @("-C", $wt.Wt, "add", "-A", "-N")
+    $patch = Run-Native "git" @("-C", $wt.Wt, "diff", "--binary", "--output=$patchPath", $wt.Head)
+    $null = Run-Native "git" @("-C", $wt.Wt, "reset", "-q")
+    if ($patch.ExitCode -eq 0 -and (Test-Path -LiteralPath $patchPath) -and (Get-Item -LiteralPath $patchPath).Length -gt 0) { $patchField = Split-Path -Leaf $patchPath }
+    else { Remove-Item -LiteralPath $patchPath -Force -ErrorAction SilentlyContinue }
     if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
         if (Move-Transcript -Source $run.TranscriptPath -Destination $transcriptDest) {
             $transcriptFileField = Split-Path -Leaf $transcriptDest
@@ -2825,6 +2836,8 @@ foreach ($tk in $tasksToRun) {
         # The checkout graded, on this run host, and the manifest's path when
         # tests/repo-roots.tsv mapped it (null: the manifest's path was used as is).
         repoPath        = $tk.repo
+        # The attempt's change as a patch against baseCommit, beside this file (null when it changed nothing).
+        patchFile       = $patchField
         repoManifestPath = $(if ($tk.PSObject.Properties['manifestRepo']) { $tk.manifestRepo } else { $null })
         phaseSeconds    = $phaseSec
         # The checkout the model worked in (Initialize-SealedCheckout): kind
