@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: the integrity gate blocked branch names as missing paths (2026-11-02).** On the first live checkpoint round,
+  `real-01`'s first attempt passed the planner's Gate, the hidden tests and 4 of 4 Ideal items, and the integrity gate
+  failed it for naming `` `fix/digest-retry` `` and `` `feat/have-multi` `` as example branches. A slash-separated name
+  with no file extension now counts as a path only when its first part is a top-level entry of the repository; names
+  with an extension are checked as before. Three new scenarios in `tests/test-doc-integrity.ps1`; the `real-02` bench
+  verdicts are unchanged (the same two content-losing attempts blocked, the fix and nine others passed).
 - **fix: the window's report and task selection; node3's git (2026-11-02).** Three faults in `tests/run-window.ps1`
   found in window 20261101-2213's report. The "no summary line from the loop" line was the `else` of "did the falsifier
   trip" instead of "is there a summary", so every window whose falsifier held also said its summary was missing; the

@@ -9,7 +9,9 @@
 #     to `###` and passed the hidden tests, whose `toContain('## Project')` matched `### Project`.)
 #   * Nothing wrong: a file path the change ADDS to a Markdown file, in backticks, exists in the repository (as
 #     written from the root, or as the name of a file somewhere in it). A stale reference the base already had is
-#     not the attempt's doing and does not block.
+#     not the attempt's doing and does not block. A name with a slash and no file extension is a path only when its
+#     first part is a top-level entry of the repository (`src/services/`): `fix/digest-retry` is a branch name, not a
+#     claim about a file (2026-11-02, real-01: a perfect attempt blocked for its example branch names).
 # Headings and paths inside fenced code blocks are ignored: they are examples, not structure or claims.
 #
 # Test-DocIntegrity -Worktree <path> -Base <commit>   ->  @{ Status = PASS|FAIL|SKIP; Lost = @(); Wrong = @(); Files = @(); Detail }
@@ -82,6 +84,8 @@ function Test-DocIntegrityCore {
         for ($i = 1; $i -lt $parts.Count; $i++) { [void]$dirs.Add(($parts[0..($i - 1)] -join '/')) }
     }
     $trackedSet = New-Object 'System.Collections.Generic.HashSet[string]' ([string[]]$tracked, [StringComparer]::Ordinal)
+    $topLevel = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    foreach ($f in $tracked) { [void]$topLevel.Add(($f -split '/')[0]) }
 
     $lost = @(); $wrong = @()
     foreach ($f in $md) {
@@ -103,6 +107,9 @@ function Test-DocIntegrityCore {
         foreach ($r in (Get-MarkdownPathRefs $new)) {
             if ($before -ccontains $r) { continue }
             $clean = $r.TrimStart('.', '/').TrimEnd('/')
+            # No extension and a first part that is not a top-level entry: a branch, a package scope, a route, not a file.
+            $hasExt = $clean -match '\.(md|ts|js|mjs|cjs|tsx|jsx|json|ya?ml|sh|ps1|py|sql|toml|ini|html|css|txt)$'
+            if (-not $hasExt -and $clean -match '/' -and -not $topLevel.Contains(($clean -split '/')[0])) { continue }
             if ($trackedSet.Contains($clean) -or $dirs.Contains($clean) -or ($clean -notmatch '/' -and $names.Contains($clean))) { continue }
             $wrong += "$($f.Path): names ``$r``, which is not in the repository"
         }
