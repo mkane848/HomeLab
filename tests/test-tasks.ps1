@@ -1520,6 +1520,21 @@ function Test-OutputCapHit {
     return ($Ending.FinishReason -eq "length" -and -not $Ending.LastStepHadContent -and [int]$Ending.OutputTokens -ge [int]$Limit)
 }
 
+function Get-CappedSteps {
+    # How many steps of the whole run (every turn) ended on the output cap: finish reason "length" with output
+    # tokens at limit.output. Test-OutputCapHit asks only about the last step; a run can lose a step to the cap,
+    # carry on and still fail (window 20261101-2213: 11 of qwen3.6's 15 failures had a capped step, four of them
+    # not the last). Recorded as `cappedSteps`; summarize-rounds.ps1 counts runs with one. $null when the limit is
+    # unknown (a cap cannot then be told from a context stop).
+    param([string]$Path, $Limit)
+    if ($null -eq $Limit) { return $null }
+    $n = 0
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -eq "step-end" -and $e.Finish -eq "length" -and $null -ne $e.Output -and [int]$e.Output -ge [int]$Limit) { $n++ }
+    }
+    return $n
+}
+
 function Get-OverflowRecovery {
     # An engine that refuses an over-long request instead of cutting it (llama-server:
     # HTTP 400, "exceeds the available context size") gives opencode 1.18.34 a
@@ -2792,6 +2807,7 @@ foreach ($tk in $tasksToRun) {
         lastStepOutput  = $run.Ending.OutputTokens
         outputLimit     = $outputLimit
         outputCapHit    = $capHit
+        cappedSteps     = $(if ($run.TranscriptPath) { Get-CappedSteps -Path $run.TranscriptPath -Limit $outputLimit } else { $null })
         grading         = $(if ($gradeByChecklist) { "checklist" } elseif ($gradeByAcceptance) { "acceptance" } else { "gates" })
         checklist       = $(if ($gradeByChecklist) { $tk.checklist } else { $null })
         pushGuard       = "on (Set-NoPushEnv: git network pushes rewritten to $($script:NoPushHost); gh token invalid)"

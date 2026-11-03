@@ -15,6 +15,7 @@ this hardware, and the docs say when.
 - **[docs/README.md](docs/README.md)**: the index of every doc, grouped by theme.
 - **[docs/hardware.md](docs/hardware.md)**: measured VRAM and speed per model.
 - **[docs/roadmap.md](docs/roadmap.md)**: what has landed and what is next.
+- **[docs/methodology.md](docs/methodology.md)**: how models are tested, and how much confidence each headline number carries.
 - **[docs/vscode.md](docs/vscode.md)**: the same fleet, driven from VS Code.
 
 ## Machines
@@ -97,6 +98,7 @@ Secrets and `.env` files are git-ignored. API keys live in
 
 | Caveat | Detail |
 |---|---|
+| How we measure | [Methodology](docs/methodology.md): what a run is, how it is graded, the 95% intervals on today's numbers, and how many runs a question needs |
 | Numbers are dated | Each names a date, a model and an engine version; they do not carry over to other versions |
 | Single runs are noisy | [Adversarial review](docs/adversarial-review-2026-09-29.md): what the harness does and does not measure |
 | Research thread | [Review-gate](docs/review-gate/README.md): can a local model gate code review? 2026-09-19: no |

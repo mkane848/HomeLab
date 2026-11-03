@@ -32,7 +32,7 @@ if ($errs.Count) { $errs; exit 2 }
 $fns = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true))
 # Format-ContextOverflowWarning: the writes-gate block run below ends on the
 # context WARN, which calls it.
-foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit", "Format-ContextOverflowWarning") {
+foreach ($name in "Get-TranscriptEnding", "Test-OutputCapHit", "Get-CappedSteps", "Format-ContextOverflowWarning") {
     $fn = $fns | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if (-not $fn) { Write-Host "FAIL: $name not found in $ScriptPath"; exit 2 }
     Invoke-Expression $fn.Extent.Text
@@ -97,6 +97,19 @@ try {
         if (-not (Test-Path -LiteralPath $p)) { Write-Host "FAIL $($c.n)"; Write-Host "     fixture missing: $p"; $script:fail++; continue }
         Check $c.n (CapHit $p $c.lim) $c.cap
     }
+
+    Write-Host '-- Get-CappedSteps: capped steps anywhere in the run (the run JSON''s cappedSteps)'
+    CheckValue "two capped steps, the last one normal"   (Get-CappedSteps -Path (New-Transcript @((Ev-Start), (Ev-Fin "length" 8192), (Ev-Start), (Ev-Tool), (Ev-Fin "tool-calls" 90), (Ev-Start), (Ev-Fin "length" 8192), (Ev-Start), (Ev-Text), (Ev-Fin "stop" 50))) -Limit 8192) 2
+    CheckValue "a length stop below the limit is not one" (Get-CappedSteps -Path (New-Transcript @((Ev-Start), (Ev-Fin "length" 4096))) -Limit 8192) 0
+    CheckValue "a capped step with text still counts"    (Get-CappedSteps -Path (New-Transcript @((Ev-Start), (Ev-Text), (Ev-Fin "length" 8192))) -Limit 8192) 1
+    CheckValue "limit unknown: no count"                 ($null -eq (Get-CappedSteps -Path (New-Transcript @((Ev-Start), (Ev-Fin "length" 8192))) -Limit $null)) $true
+    CheckValue "transcript missing: 0"                   (Get-CappedSteps -Path (Join-Path $tmpRoot "no-such.jsonl") -Limit 8192) 0
+    $recovered = Join-Path $ResultsDir "tasks-asohav-02-changelog-uuid-id-ollama-desktop_nemotron-3.5-lightning_20260927-092355.jsonl"
+    CheckValue "real: nemotron's mid-run cap that recovered is counted" ((Get-CappedSteps -Path $recovered -Limit 4096) -ge 1) $true
+    $liar = Join-Path $ResultsDir "tasks-asohav-01-library-write-reporting-ollama-node3_lfm2.5_8b_20260923-071539.jsonl"
+    CheckValue "real: liar mode has none"                (Get-CappedSteps -Path $liar -Limit 4096) 0
+    $tt = Get-Content -Raw -LiteralPath $ScriptPath
+    CheckValue "wired: the run JSON records cappedSteps from the run's transcript" ($tt -match 'cappedSteps\s+=\s+\$\(if \(\$run\.TranscriptPath\) \{ Get-CappedSteps -Path \$run\.TranscriptPath -Limit \$outputLimit \}') $true
 
     Write-Host '-- Get-ModelOutputLimit against a stand-in for opencode debug config'
     function opencode { '{"provider":{"p":{"models":{"m:1":{"limit":{"context":32768,"output":8192}},"nolimit":{}}}}}' }

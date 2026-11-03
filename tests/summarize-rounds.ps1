@@ -126,6 +126,43 @@ function Get-IdealSummary {
     }
 }
 
+function Get-CapSummary {
+    # The output cap (limit.output): over the graded runs whose capped steps are known (`capSteps`, set when the run
+    # JSONs are read: the run's `cappedSteps`, else counted from its transcript against its `outputLimit`), how many
+    # lost a step to the cap, how many of those still passed, and how many of all failures had one. The 2026-11-03
+    # desk review found 11 of qwen3.6's 15 failures there by hand; this keeps that count in every round. $null when
+    # no run's count is known.
+    param([object[]]$Runs)
+    $known = @($Runs | Where-Object { $_.PSObject.Properties['capSteps'] -and $null -ne $_.capSteps -and (Get-RunVerdict $_) -ne "MANUAL" })
+    if ($known.Count -eq 0) { return $null }
+    $capped = @($known | Where-Object { [int]$_.capSteps -gt 0 })
+    $failed = @($known | Where-Object { (Get-RunVerdict $_) -eq "FAIL" })
+    [pscustomobject]@{
+        runs = $known.Count
+        withCap = $capped.Count
+        withCapPassed = @($capped | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
+        failures = $failed.Count
+        failuresWithCap = @($failed | Where-Object { [int]$_.capSteps -gt 0 }).Count
+    }
+}
+
+function Get-RunCapSteps {
+    # A run's capped-step count: the run JSON's `cappedSteps` when it has one (2026-11-03 on), else counted from the
+    # transcript beside it (same name, .jsonl) against its `outputLimit`, so older rounds are summarized the same way.
+    # $null when neither is available. Needs Read-AgentEvents (the agent adapter, dot-sourced by the caller).
+    param($Run, [string]$JsonPath)
+    if ($Run.PSObject.Properties['cappedSteps']) { return $Run.cappedSteps }
+    $lim = if ($Run.PSObject.Properties['outputLimit']) { $Run.outputLimit } else { $null }
+    if ($null -eq $lim -or "$lim" -notmatch '^\d+$') { return $null }
+    $tp = [IO.Path]::ChangeExtension($JsonPath, ".jsonl")
+    if (-not (Test-Path -LiteralPath $tp)) { return $null }
+    $n = 0
+    foreach ($e in (Read-AgentEvents -Path $tp)) {
+        if ($e.Kind -eq "step-end" -and $e.Finish -eq "length" -and $null -ne $e.Output -and [int]$e.Output -ge [int]$lim) { $n++ }
+    }
+    return $n
+}
+
 function Get-RoundSummary {
     # One summary per model over the run objects given.
     param([object[]]$Runs, [int]$K = 0)
@@ -159,7 +196,7 @@ function Get-RoundSummary {
             if ($vals.Count -gt 1) { $eras[$name] = $vals }
         }
         $first = $mg.Group[0]
-        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group) }
+        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group); cap = (Get-CapSummary $mg.Group) }
     }
     # One k for every model shown, so the means can be compared across models.
     $allN = @($groups | ForEach-Object { $_.tasks } | ForEach-Object { $_.n })
@@ -176,7 +213,7 @@ function Get-RoundSummary {
         $passCount = ($tasks | Measure-Object c -Sum).Sum
         $out += [pscustomobject]@{
             model = $grp.model; arm = $grp.arm; k = $k; tasks = $tasks
-            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal
+            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal; cap = $grp.cap
             runs = [int]$runCount; passes = [int]$passCount
             perRun = $(if ($runCount) { [math]::Round($passCount / $runCount, 3) } else { $null })
             passAtK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passAtK -Average).Average, 3) } else { $null })
@@ -194,6 +231,8 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
     $runs = @()
     $skippedExit = 0
     $markerNames = @("ASSISTED", "ACCEPTANCE-SHOWN", "ACCEPTANCE-READONLY", "ACCEPTANCE-PLANNER")
+    # Read-AgentEvents, for counting capped steps in transcripts older than the run JSON's `cappedSteps`.
+    . (Join-Path (Join-Path $PSScriptRoot "agents") "opencode.ps1")
     foreach ($d in $ResultsDir) {
         if (-not (Test-Path -LiteralPath $d)) { Write-Host "ERROR: no folder $d" -ForegroundColor Red; exit 1 }
         $root = (Resolve-Path -LiteralPath $d).Path.TrimEnd('\', '/')
@@ -213,6 +252,7 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
                 $dir = Split-Path -Parent $dir
             }
             $j | Add-Member -NotePropertyName arm -NotePropertyValue (($arm | Sort-Object) -join "+") -Force
+            $j | Add-Member -NotePropertyName capSteps -NotePropertyValue (Get-RunCapSteps $j $f.FullName) -Force
             $runs += $j
         }
     }
@@ -242,6 +282,10 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
             $i = $s.ideal
             if ($i.runs) { Write-Host ("  ideal tier (measured, never a gate): {0} of {1} item(s) done over {2} run(s) ({3:P0}; mean per run {4:P0})" -f $i.itemsDone, $i.itemsTotal, $i.runs, $i.share, $i.meanPerRun) }
             if ($i.integrityChecked) { Write-Host ("  integrity gate (nothing lost, nothing wrong): {0} of {1} run(s) that changed Markdown blocked" -f $i.integrityFailed, $i.integrityChecked) }
+        }
+        if ($s.cap) {
+            $cp = $s.cap
+            Write-Host ("  output cap (limit.output): {0} of {1} run(s) lost a step to it, {2} of those passed; {3} of {4} failure(s) had one" -f $cp.withCap, $cp.runs, $cp.withCapPassed, $cp.failuresWithCap, $cp.failures)
         }
         $s.tasks | ForEach-Object { [pscustomobject]@{ task = $_.task; runs = $_.n; passed = $_.c; "pass@$($s.k)" = $(if ($null -ne $_.passAtK) { [math]::Round($_.passAtK, 3) } else { "-" }); "pass^$($s.k)" = $(if ($null -ne $_.passHatK) { [math]::Round($_.passHatK, 3) } else { "-" }) } } | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
     }

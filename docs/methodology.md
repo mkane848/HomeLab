@@ -1,0 +1,105 @@
+# How we measure, and how sure we are
+
+The one page on how this repo tests models and harnesses, and on how much each headline number can carry. Written
+2026-11-03; the numbers in "How sure we are" are dated and move as rounds land. Terms: [glossary](glossary.md). The
+limits that still apply are kept short in [methodology-caveats.md](methodology-caveats.md).
+
+## What one measurement is
+
+- **A task** is a real change from one of the owner's repositories, replayed at the commit before it: `kane-*`
+  (KaneEnabler), `lfc-*` (LFCbot), `asohav-*` (ASoHaV). Its prompt says what to change. Its hidden tests come from the
+  real fix and are never shown to the model unless the arm says so. Public tasks are in `tests/tasks/manifest.json`.
+  The private ones (the `real-*` requests in the owner's own words, the `wp-*` work packages) are in HomeLab-private.
+- **A run** is one non-interactive OpenCode session on one task, in a fresh sealed checkout at the task's pinned base,
+  with a 45-minute limit (`tests/test-tasks.ps1`, driven by `tests/run-tasks-batch.ps1`, or `tests/run-window.ps1`
+  for a night with no one there: [unattended-window.md](unattended-window.md)).
+- **A run is graded by gates, not by reading it.** It passes when it stayed in scope, the repository's own suite
+  passes, and the change is proven: a public task's hidden tests fail on the old code and pass on the new
+  (`failsOnOld`); a real task's hidden tests pass. Further gates catch a model that described a change without making
+  it (writes), edited the tests it was shown (tampering), or lost or broke documentation (integrity). The exact rule is
+  in [tests/results/README.md → "What counts as a pass"](../tests/results/README.md#what-counts-as-a-pass).
+- **An infrastructure failure is not a measurement.** A run that never reached the model (host down, agent crashed)
+  is filed as `_INFRA_`, not graded, and counted separately. A run that hit the time limit is filed as `_TIMEOUT_` and
+  not graded either; where a headline counts timeouts as failures (North's 21 of 30), it says so.
+- **Conditions are kept apart.** Runs that showed the model tests (the task's own, or a planner's) are separate arms,
+  marked by a file in their results folder, and never pooled with unassisted runs. Runs before and after a change to the
+  engine, the agent, the plugins or a classifier are different eras: they are pooled only with a warning
+  ([tests/results/README.md → "Era confound"](../tests/results/README.md#era-confound--read-this-before-comparing-seats)).
+
+## What we report
+
+`tests/summarize-rounds.ps1 -ResultsDir <folder>` prints all of these for any set of results:
+
+| Number | What it answers |
+|---|---|
+| **Per-run pass rate**, with a 95% interval | How often one run of this model passes. The interval is the [Wilson score interval](https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval) (E. B. Wilson, 1927), which behaves at the small counts and near-0% or near-100% rates we have, where the textbook normal interval does not |
+| **pass@k** and **pass^k**, means over tasks | Whether a task passes at least once in k runs, and whether it passes every time ([Anthropic, "Demystifying evals for AI agents"](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)). Work that runs unattended needs pass^k: a retry loop can recover from an occasional failure, but only if the failures are visible |
+| **The gate against the truth** (planner arms) | How often the tests the fleet would accept work on (a planner's) passed work the hidden tests fail: **false positives**, the rate that decides whether unattended work can be trusted. Also false negatives (good work rejected), each with its interval |
+| **Ideal share** | How much of the owner's "ideal" list the attempts did. Measured, never a gate (the owner's bar: [planner-tests-experiment.md → "The owner's bar, version 2"](planner-tests-experiment.md#the-owners-bar-version-2-2026-11-01)) |
+| **Integrity blocks** | How often the documentation check stopped a run, so its false blocks stay visible |
+| **Output cap** | How many runs lost a step to `limit.output` and how many failures had one (2026-11-03; the desk review that found 11 of 15 failures there had to count them by hand) |
+
+For real work (a task from the owner, delivered as a branch) there are no hidden tests. The truth is **the owner's
+verdict** on the delivered branch (merged, fixed, or rejected: `tests/record-verdict.ps1`), and a rejected accepted
+delivery is a false positive.
+
+## How sure we are (2026-11-03)
+
+Intervals are 95% Wilson. "Enough to" says what the data can and cannot decide.
+
+| Claim | Data | 95% interval | Enough to |
+|---|---|---|---|
+| `qwen3.6` on the server passes small real tasks unassisted | 81 of 96 runs, 16 tasks × 6 (window 20261101-2213) | 76% to 90% | Call it a solid main seat. Not to rank tasks finely: one task's 5 of 6 is 44% to 97% |
+| ...and passes them every time | 10 of 16 tasks passed all 6 runs; pass^6 0.625 | | Know which tasks are safe to hand off: 6 of 16 are not yet |
+| North Mini Code is not an upgrade | 21 of 30 runs | 52% to 83% | **Not** to say it is worse at passing: telling 70% from 84% needs about 141 runs a model. The verdict rests on speed (about 3× slower per task) |
+| A planner's tests can gate unattended work | 3 false positives in 28 accepted (screen, 2026-10-31) | 4% to 27% | Find where the risk is (all three on one vague documentation request). Not to show the rate is under 10% |
+| The confirmation checkpoint works | 6 of 6 attempts passed the planner's Gate and the hidden tests (2026-11-02) | 61% to 100% | Show it works end to end. Not how often it fails |
+| Tests shown to the model help | own tests 17 of 18; a planner's 25 of 35; none 13 of 18 | 74%–99%; 55%–84%; 49%–88% | Say the task's own tests help a lot. Not that a planner's help at all |
+| The output cap costs `qwen3.6` passes | 12 of 96 runs lost a step to it; 11 of the 15 failures | | Point at the cause. The test of the fix (limit 16,384) compares against 9 of 18 on the three worst tasks (29% to 71%) |
+
+## How many runs a question needs
+
+Size the runs to the question before running them, not by habit (owner, 2026-10-25). Runs a model (or an arm) for an
+80% chance of detecting the difference at the 5% level:
+
+| Question | Runs per arm |
+|---|---|
+| 50% against 84% (a big fix, such as the output cap on the worst tasks) | about 29 |
+| 50% against 75% | about 58 |
+| 84% against 95% (a good seat against a better one) | about 121 |
+| 70% against 84% (North against `qwen3.6`) | about 141 |
+| A false-positive rate is under 10%, if none is wrong | 35 accepted attempts (the "rule of three" gives 30) |
+
+What follows from the table:
+- **Small differences between models are not worth buying with runs.** 141 runs a model is more than a night's
+  window for `qwen3.6` alone, and about four nights for a model as slow as North (30 runs filled one). A model has to win by a lot, or on speed or cost, to be decided here.
+- **Large effects are cheap.** A change that should move a task from failing half the time to rarely failing shows in
+  a few hours, so fixes are tested on the tasks they target.
+- **The gate's false-positive rate comes from real work**, not from more benchmark runs: each piloted task delivered
+  and judged by the owner is one accepted attempt with a true verdict, and about 35 of them settle the 10% question.
+
+## What the numbers do not cover
+
+- **The tasks are small and come from three repositories.** Large features (`large-f1`, `large-f2`) have never been
+  rated. A pass rate here is a pass rate on this kind of task.
+- **Runs of one task are not independent.** The per-run interval treats them as if they were, so it is narrower than it
+  should be; pass^k per task is the more honest view for unattended use.
+- **Small gaps are noise.** Infrastructure alone moved a public agent benchmark by 6 points, and Anthropic advises
+  skepticism of gaps under 3 points ([Anthropic, "Quantifying infrastructure noise in agentic coding
+  evals"](https://www.anthropic.com/engineering/infrastructure-noise)).
+- **No contamination check.** The tasks are public commits; a model could have seen the fix in training.
+- **Reviews are model-on-model.** The adversarial reviews were written by Claude about work Claude helped build. The
+  owner's verdicts on real work are the first independent check.
+- **Everything is dated.** A number holds for its model, engine version, agent version and settings; a change starts a
+  new era.
+
+## Re-deriving a number
+
+```powershell
+pwsh -File tests\summarize-rounds.ps1 -ResultsDir <HomeLab-private>\results\window-20261101-2213\baseline
+pwsh -File tests\summarize-rounds.ps1 -ResultsDir <folder> -AsJson      # the same, as data
+```
+
+Every run leaves a run JSON (all gates and their details) and the raw transcript beside it; the summaries are
+computed from those, never typed in. Where each round's folder is, and what it found, is in
+[roadmap.md](roadmap.md) and [planner-tests-experiment.md](planner-tests-experiment.md).
