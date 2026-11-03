@@ -106,7 +106,9 @@ function Test-DocIntegrityCore {
         $before = if ($inBase) { Get-MarkdownPathRefs $old } else { @() }
         foreach ($r in (Get-MarkdownPathRefs $new)) {
             if ($before -ccontains $r) { continue }
-            $clean = $r.TrimStart('.', '/').TrimEnd('/')
+            # Drop a leading "./" only. TrimStart('.') also ate the dot of `.github/` and read it as a missing `github`
+            # (2026-11-02, real-02: three attempts that passed every test blocked for it).
+            $clean = ($r -replace '^(\./)+', '').TrimStart('/').TrimEnd('/')
             # No extension and a first part that is not a top-level entry: a branch, a package scope, a route, not a file.
             $hasExt = $clean -match '\.(md|ts|js|mjs|cjs|tsx|jsx|json|ya?ml|sh|ps1|py|sql|toml|ini|html|css|txt)$'
             if (-not $hasExt -and $clean -match '/' -and -not $topLevel.Contains(($clean -split '/')[0])) { continue }

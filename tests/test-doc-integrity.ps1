@@ -43,7 +43,8 @@ Intro.
 # above, and a scenario that removes "# Project`n" then changed nothing (2026-11-02, PR #188's first CI run).
 $readme = $readme -replace "`r`n", "`n"
 try {
-    New-Item -ItemType Directory -Force (Join-Path $tmp "src"), (Join-Path $tmp "scripts"), (Join-Path $tmp "docs") | Out-Null
+    New-Item -ItemType Directory -Force (Join-Path $tmp "src"), (Join-Path $tmp "scripts"), (Join-Path $tmp "docs"), (Join-Path $tmp ".github/workflows") | Out-Null
+    [IO.File]::WriteAllText((Join-Path $tmp ".github/workflows/ci.yml"), "on: push`n", $utf8)
     [IO.File]::WriteAllText((Join-Path $tmp "README.md"), $readme + "`n", $utf8)
     [IO.File]::WriteAllText((Join-Path $tmp "NOTES.md"), "# Notes`n", $utf8)
     [IO.File]::WriteAllText((Join-Path $tmp "src/app.ts"), "export {}`n", $utf8)
@@ -81,6 +82,9 @@ try {
     Scenario "example branch names (fix/x, feat/y-z): PASS, not paths" { & $edit "README.md" "Intro." "Branches like ``fix/digest-retry`` or ``feat/have-multi``." } "PASS"
     Scenario "a missing folder under a real top-level one: FAIL"  { & $edit "README.md" "Intro." "See ``src/nope/``." } "FAIL" "src/nope"
     Scenario "a missing file whose first part is not a folder: FAIL" { & $edit "README.md" "Intro." "See ``fix/thing.ts``." } "FAIL" "fix/thing.ts"
+    Scenario "a dot-folder that exists (.github/): PASS"         { & $edit "README.md" "Intro." "See ``.github/`` and ``.github/workflows/ci.yml``." } "PASS"
+    Scenario "a ./-relative path that exists: PASS"             { & $edit "README.md" "Intro." "See ``./src/app.ts``." } "PASS"
+    Scenario "a missing file in a dot-folder: FAIL"             { & $edit "README.md" "Intro." "See ``.github/workflows/nope.yml``." } "FAIL" ".github/workflows/nope.yml"
     Scenario "a stale path the base already had: PASS"            { & $edit "README.md" "Intro." "Intro (edited)." } "PASS"
     Scenario "a path in a new file, made in the same change: PASS" { [IO.File]::WriteAllText((Join-Path $tmp "src/new.ts"), "export {}`n", $utf8); & $edit "README.md" "Intro." "See ``src/new.ts``." } "PASS"
     Scenario "a fenced example removed: PASS (not structure)"     { & $edit "README.md" "## not a heading, an example" "an example" } "PASS"
