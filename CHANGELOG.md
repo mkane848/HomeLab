@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: Cohere North Mini Code as a candidate llama.cpp seat (2026-11-02).** unsloth's UD-Q4_K_XL GGUF in
+  `~/models` on the server (sha256 verified against the hub's), mounted read-only at `/models`
+  (`docker-compose.llamacpp.yml`); a `north-mini-code` preset section with the model card's sampling; a seat-table
+  row, an OpenCode entry and a config-drift allowlist row (server-only, like `gpt-oss:20b`). `llamacpp_check.py` pins
+  a GGUF under `/models` by the seat table's sha256 when the seat is an `import` (a pulled seat pointed at some other
+  file still warns), and `--weights-container --hash` checks its bytes; `test-llamacpp-stack.ps1` allows such a path
+  and requires the mount read-only. Probes: tool call PASS, explicit overflow error, prefill faster and decode slower
+  than qwen3.6. Its earlier record (1 of 9 under Ollama, 3 of 7 on the desktop) is in `docs/roadmap.md` with why it
+  was tested again; the overnight baseline decides.
 - **docs: `AGENTS.md` → "Norms and known mistakes" (2026-11-02, owner's request).** The mistakes that kept recurring,
   each with the rule that avoids it: done means CI green on the PR's head (and reproducing CI's `autocrlf`); check a
   PR is still open before pushing to it; mutation-check every new guard and assert where a script stopped; test the
