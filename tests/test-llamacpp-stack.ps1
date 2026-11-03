@@ -78,8 +78,11 @@ Has   "chat templates mounted read-only from server/llamacpp/templates" $code '(
 $tplRefs = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*chat-template-file\s*=' } | ForEach-Object { ($_ -split '=', 2)[1].Trim() })
 $tplMissing = @($tplRefs | Where-Object { -not ($_ -match '^/config/templates/([^/]+)$' -and (Test-Path -LiteralPath (Join-Path $repo "server/llamacpp/templates/$($Matches[1])"))) })
 Check "every chat-template-file in the preset is a file in server/llamacpp/templates" "$($tplRefs.Count) referenced, $($tplMissing.Count) missing" "$($tplRefs.Count) referenced, 0 missing"
-$badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*model\s*=' -and $_ -notmatch '=\s*/ollama/models/blobs/sha256-[0-9a-f]{64}\s*$' })
-Check "every model path in the preset is an Ollama blob under the /ollama mount" $badPaths.Count 0
+# An Ollama blob, or (2026-11-02, North Mini Code) a GGUF file directly under the read-only /models mount, pinned by its
+# sha256 in the seat table (llamacpp-check.sh --weights-container hashes it against that).
+$badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*model\s*=' -and $_ -notmatch '=\s*(/ollama/models/blobs/sha256-[0-9a-f]{64}|/models/[\w.-]+\.gguf)\s*$' })
+Check "every model path in the preset is an Ollama blob under /ollama or a GGUF under /models" $badPaths.Count 0
+Has   "/models is mounted read-only" $code '(?m)^\s*-\s*\$\{HOME\}/models:/models:ro\s*$' 
 
 # --- the checker, the real thing -----------------------------------------------
 # A bash that can read the checker by its Windows path. On Windows the first `bash` on PATH can be

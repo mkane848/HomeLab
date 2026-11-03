@@ -29,3 +29,4 @@ unregistered	ollama-server/devstral-small-2:24b	desktop seat; the server has not
 unregistered	ollama-server/north-mini-code-1.0	desktop seat; the server has not probed it
 unregistered	ollama-server/laguna-xs-2.1	desktop seat; the server has not probed it
 unregistered	ollama-server/nemotron-3.5-lightning	desktop seat; the server has not probed it
+seat-not-on-desktop	north-mini-code	llama.cpp seat only (a GGUF in ~/models on the server, models/server-seats.tsv note); the desktop has no copy

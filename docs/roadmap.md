@@ -560,6 +560,16 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
           not see a reset that opencode retries through, so a run JSON records nothing of it.
         - **What would change this:** a full round on the server's llama.cpp for `qwen3-coder:30b` (the registry build
           passed its probe there), which removes the desktop's speed from the timeouts. Not scheduled.
+     - **North Mini Code again, on the server's llama.cpp (2026-11-02, owner's go).** Its earlier record here is poor:
+       1 of 9 under Ollama in September (it invented a `/workspace` root and printed tool calls as text: DP10, "drop
+       north-mini as an executor") and 3 of 7 on the desktop's Ollama above, a weak screen. What changed: unsloth's
+       UD-Q4_K_XL GGUF ([model files](https://huggingface.co/unsloth/North-Mini-Code-1.0-GGUF), 19.25 GB, sha256
+       `86ba9cf3...` verified against the hub's), served by llama.cpp with the GGUF's own chat template (tool calls as
+       text is a template symptom), from a read-only `/models` mount. Probes: tool call PASS (3.3 s); an over-long request
+       is an explicit HTTP 400 that OpenCode classifies; 14.9 of 16.4 GB VRAM at `n-cpu-moe 16`. Speed against qwen3.6
+       at its seat's settings (with MTP drafting): prefill 866 to 1,010 tok/s against 721 to 754 (faster), decode 41 to
+       51 against 68 to 86 (slower). The test that decides it: the 16-task baseline × 6 that qwen3.6 passed 81 of 96
+       (window 20261101-2213), run overnight from node3.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in

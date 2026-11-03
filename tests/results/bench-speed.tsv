@@ -93,3 +93,10 @@ timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS
 2026-10-31T21:54:11	node3	ollama	0.40.4	qwen3:8b		3000	3021	0	4238.2	99.4	128	7.65	7.65	1	rep 2
 2026-10-31T21:54:17	node3	ollama	0.40.4	qwen3:8b		16000	16161	0	3382.9	72.9	128	7.65	7.65	1	rep 2
 2026-10-31T21:54:31	node3	ollama	0.40.4	qwen3:8b		30000	30027	0	2767	57.1	128	7.65	7.65	1	rep 2
+2026-11-02T21:28:04	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	0	694	0			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server
+2026-11-02T21:28:09	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	3000	2701	0.1	865.7	51.2	128				rep 1
+2026-11-02T21:28:41	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	30000	28944	0.2	1001.9	45.9	128				rep 1
+2026-11-02T21:29:47	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	60000	59929	0.5	969.5	41.7	128				rep 1
+2026-11-02T21:29:53	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	3000	3120	0.6	908.4	50	128				rep 2
+2026-11-02T21:30:25	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	30000	29209	0.2	1009.8	45.1	128				rep 2
+2026-11-02T21:31:31	server	llamacpp	b11561-e937b17a2	north-mini-code	65536	60000	59877	0.5	966.8	41.1	128				rep 2

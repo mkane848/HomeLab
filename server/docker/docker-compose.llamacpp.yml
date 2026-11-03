@@ -58,6 +58,10 @@ services:
       - ../llamacpp/models.ini:/config/models.ini:ro
       # Chat templates for seats whose weights carry none (server/llamacpp/templates/README.md).
       - ../llamacpp/templates:/config/templates:ro
+      # GGUF files that are not Ollama blobs (a candidate seat downloaded directly, e.g. North Mini Code,
+      # 2026-11-02). Read-only, like the Ollama volume; ~/models on the server, its sha256 pinned in
+      # models/server-seats.tsv.
+      - ${HOME}/models:/models:ro
     deploy:
       resources:
         reservations:

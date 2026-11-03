@@ -142,7 +142,11 @@ def static_checks(ini, seats):
             continue
         path = sec.get("model", "")
         m = re.search(r"/blobs/sha256-([0-9a-f]{64})$", path)
-        if not m:
+        if not m and GGUF_FILE_RE.search(path) and seat.get("source") == "import" and re.fullmatch(r"sha256:[0-9a-f]{64}", seat.get("weights", "")):
+            # A GGUF file under the /models mount (not an Ollama blob): pinned by the seat table's sha256 instead of
+            # its name, which --weights-container --hash checks against the bytes (2026-11-02, North Mini Code).
+            say("OK", tag, "weights are a GGUF file pinned by server-seats.tsv (%s...)" % seat["weights"][7:19])
+        elif not m:
             say("WARN", tag, "weights are not an Ollama blob (%s): unpinned, so this is a different era" % (path or "no model key"))
         elif "sha256:" + m.group(1) == seat["weights"]:
             say("OK", tag, "weights are the pinned blob (%s...)" % m.group(1)[:12])
@@ -238,6 +242,7 @@ def sampling_checks(ini, ollama_url):
 
 GGUF_MAGIC = b"GGUF"
 BLOB_RE = re.compile(r"/blobs/(sha256-[0-9a-f]{64})$")
+GGUF_FILE_RE = re.compile(r"^/models/([\w.-]+\.gguf)$")
 
 
 class LocalBlobs:
@@ -300,10 +305,18 @@ def how_to_get(tag, seat):
 
 def weights_checks(ini, seats, blobs, rehash=False):
     for tag in [s for s in ini if s not in ("*", "__global__")]:
-        m = BLOB_RE.search(ini[tag].get("model", ""))
-        if not m:
+        path = ini[tag].get("model", "")
+        m = BLOB_RE.search(path)
+        g = GGUF_FILE_RE.search(path)
+        pinned = (seats.get(tag) or {}).get("weights", "")
+        if m:
+            name, want = m.group(1), m.group(1)[7:]
+        elif g and (seats.get(tag) or {}).get("source") == "import" and re.fullmatch(r"sha256:[0-9a-f]{64}", pinned):
+            name, want = g.group(1), pinned[7:]   # a GGUF under /models: the seat table pins its bytes
+        else:
             continue  # static_checks already WARNs that it is unpinned
-        name = m.group(1)
+        if isinstance(blobs, LocalBlobs) and g:
+            name = g.group(1)
         if isinstance(blobs, ContainerBlobs):
             blobs.paths[name] = ini[tag]["model"]
         try:
@@ -326,10 +339,10 @@ def weights_checks(ini, seats, blobs, rehash=False):
         except Exception as e:  # noqa: BLE001
             say("FAIL", tag, "could not hash the weights: %s" % e)
             continue
-        if got == name[7:]:
-            say("OK", tag, "weights present (%.1f GB) and their sha256 matches the name" % (size / 1e9))
+        if got == want:
+            say("OK", tag, "weights present (%.1f GB) and their sha256 matches the pin" % (size / 1e9))
         else:
-            say("FAIL", tag, "blob %s... hashes to %s...: the bytes are not the pinned weights; re-pull it" % (name[7:19], got[:12]))
+            say("FAIL", tag, "%s hashes to %s...: the bytes are not the pinned weights (%s...); fetch it again" % (name[:19], got[:12], want[:12]))
 
 
 def live_checks(ini, url):
