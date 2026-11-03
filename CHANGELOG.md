@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the output-limit test's result (2026-11-03).** `qwen3.6` with `limit.output` 16,384 on `kane-08`, `lfc-07`
+  and `asohav-03` (window out16k-20261103, node3 against the server): 6 of 9 against 9 of 18 at 8,192, not measurable at
+  this size, at three times the time per run. `kane-08` used the extra room; `lfc-07` filled 16,384 tokens of thinking
+  without an edit exactly as it filled 8,192. `limit.output` stays 8,192; a thinking budget is the next lever.
+  `docs/roadmap.md` → "Why qwen3.6 fails where it does".
+
 - **tests: capped steps counted in every run and round; docs: the methodology page (2026-11-03).** The run JSON's
   `outputCapHit` only asked whether the *last* step ran out of `limit.output`, so finding that 11 of `qwen3.6`'s 15
   baseline failures had lost a step to the cap took a desk review by hand. `test-tasks.ps1` now records `cappedSteps`
