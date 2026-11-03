@@ -162,6 +162,17 @@ Where used: all six → [methodology-research.md](methodology-research.md) → "
 and [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) (all three re-read 2026-10-23). OpenAI's "Unrolling the Codex agent
 loop" and "Harness engineering" (openai.com) answered 403 to the fetch tool on 2026-10-21 and are not catalogued until read.
 
+## Statistics
+
+| ID | Source | URL |
+|---|---|---|
+| wilson-interval | "Binomial proportion confidence interval", Wikipedia, section "Wilson score interval" (read 2026-11-03) — developed by E. B. Wilson (1927); asymmetric, no overshoot or zero-width intervals, safe with small samples and proportions near 0 or 1; the "rule of three" (0, 3/n) when none of n is observed | <https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval> |
+
+Where used: [methodology.md](methodology.md) ("What we report", "How many runs a question needs"); `tests/summarize-rounds.ps1`
+computes it (`Get-WilsonInterval`). Wilson's 1927 paper (doi 10.1080/01621459.1927.10502953) answered 403 to the fetch
+tool on 2026-11-03 and is not catalogued until read. `anthropic-evals` and `anthropic-infra-noise` (above) are also cited
+there.
+
 ## Model landscape (2026-10-22)
 
 Vendor and aggregator pages: they move weekly, so re-read before acting on them.

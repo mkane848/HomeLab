@@ -580,8 +580,9 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
        a run-window fault, fixed in the same change as this note.
      - **Why qwen3.6 fails where it does (desk review of window 20261101-2213's baseline, 2026-11-03).** Its 15
        failures in 96 runs have three causes, and the largest is not the model's ability:
-       - **The output cap, 11 of the 15.** 11 runs ended a step on exactly 8,192 output tokens (`limit.output`), and
-         all 11 failed: `kane-08`'s five, `lfc-07`'s three, `asohav-03`'s, `kane-07`'s and one of `kane-14`'s. Seven
+       - **The output cap, 11 of the 15.** 11 of the failures ended a step on exactly 8,192 output tokens
+         (`limit.output`; `summarize-rounds.ps1` now counts this: 12 of the 96 runs had such a step and one of them still
+         passed): `kane-08`'s five, `lfc-07`'s three, `asohav-03`'s, `kane-07`'s and one of `kane-14`'s. Seven
          of them never wrote a file; the other four stopped mid-change (a broken suite or failing hidden tests). The capped step holds no text, no tool call and 0
          reasoning tokens in the transcript, so the 8,192 tokens are almost certainly the model's thinking, which
          llama.cpp returns apart from the answer and OpenCode does not keep: it read files, then thought until the cap

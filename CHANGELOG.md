@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: capped steps counted in every run and round; docs: the methodology page (2026-11-03).** The run JSON's
+  `outputCapHit` only asked whether the *last* step ran out of `limit.output`, so finding that 11 of `qwen3.6`'s 15
+  baseline failures had lost a step to the cap took a desk review by hand. `test-tasks.ps1` now records `cappedSteps`
+  (steps anywhere in the run, every turn, that ended "length" at the limit), and `summarize-rounds.ps1` prints
+  "output cap: N of M run(s) lost a step to it, P of those passed; F of the failures had one", counting older rounds
+  from their transcripts against the run JSON's `outputLimit`. On window 20261101-2213's baseline it reproduces the
+  hand count (11 of 15) and corrects one detail: 12 runs had a capped step, and one of them passed (`docs/roadmap.md`
+  fixed). Guards: `test-cap-hit.ps1` (+9 checks: steps across turns, below the limit, unknown limit, two real
+  transcripts, the run-JSON wiring) and `test-summarize-rounds.ps1` (+8, including the real window when present); both
+  mutation-checked (a `-gt` for `-ge`, a zeroed count: red). New `docs/methodology.md`, linked from the README: what a
+  run is and how it is graded, what each reported number answers, today's headline numbers with 95% Wilson intervals
+  and what each can and cannot decide, the runs a question needs at 80% power (29 for 50% against 84%, 141 for 70%
+  against 84%, 35 accepted attempts to put a false-positive rate under 10%), and what the numbers do not cover.
+  `methodology-caveats.md`'s two stale rows updated; a Statistics section in `docs/references.md`.
+
 - **fix: a slow retries smoke no longer starves the baseline; North Mini Code's verdict (2026-11-03).** The two smoke
   phases of `tests/run-window.ps1` shared one `-SmokeMinutes` budget, so when North Mini Code's retries smoke used 36
   of its 40 minutes the batch smoke was skipped "for time", and the baseline it gates never ran (window

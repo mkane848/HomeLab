@@ -125,6 +125,25 @@ $gs = Get-RoundSummary -Runs $pruns
 Check "the summary carries it, and the group's pass rule is still the hidden tests (scope, suite, acceptance): 6 of 10" ("{0}|{1}|{2}" -f $gs[0].selector.falsePositives, $gs[0].passes, $gs[0].runs) "2|6|10"
 Check "a summary of runs with no planner selector has none" ($null -eq (Get-RoundSummary -Runs @((Run a t acceptance PASS)))[0].selector) "True"
 
+Write-Host "-- the output cap (capped steps per run)"
+function CR([string]$Acc, $Cap) { $r = Run m t acceptance $Acc; $r | Add-Member -NotePropertyName capSteps -NotePropertyValue $Cap; $r }
+$cs = Get-CapSummary @((CR PASS 0), (CR PASS 1), (CR FAIL 2), (CR FAIL 0), (CR FAIL $null), (Run m t checklist ""))
+Check "known runs, with a cap, of those passed, failures with one / failures (unknown and checklist runs left out)" ("{0}|{1}|{2}|{3}/{4}" -f $cs.runs, $cs.withCap, $cs.withCapPassed, $cs.failuresWithCap, $cs.failures) "4|2|1|1/2"
+Check "no run with a known count: null" ($null -eq (Get-CapSummary @((Run m t acceptance PASS)))) "True"
+Check "the summary carries it" ((Get-RoundSummary -Runs @((CR FAIL 1), (CR PASS 0)))[0].cap.failuresWithCap) 1
+. (Join-Path (Join-Path $PSScriptRoot "agents") "opencode.ps1")
+$ct = Join-Path ([IO.Path]::GetTempPath()) ("cap-steps-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+New-Item -ItemType Directory -Path $ct -Force | Out-Null
+try {
+    $fin = { param($r, $o) '{"type":"step_finish","part":{"type":"step-finish","reason":"' + $r + '","tokens":{"output":' + $o + '}}}' }
+    [IO.File]::WriteAllText((Join-Path $ct "tasks-a.jsonl"), ((@((& $fin "length" 8192), (& $fin "tool-calls" 40), (& $fin "length" 8192), (& $fin "length" 100)) -join "`n") + "`n"))
+    $old = [pscustomobject]@{ model = "m"; taskId = "t"; outputLimit = 8192 }
+    Check "an older run JSON: counted from its transcript against its outputLimit" (Get-RunCapSteps $old (Join-Path $ct "tasks-a.json")) 2
+    Check "a run JSON's own cappedSteps wins over the transcript" (Get-RunCapSteps ([pscustomobject]@{ cappedSteps = 0; outputLimit = 8192 }) (Join-Path $ct "tasks-a.json")) 0
+    Check "no outputLimit: unknown" ($null -eq (Get-RunCapSteps ([pscustomobject]@{ taskId = "t" }) (Join-Path $ct "tasks-a.json"))) "True"
+    Check "no transcript: unknown" ($null -eq (Get-RunCapSteps $old (Join-Path $ct "tasks-none.json"))) "True"
+} finally { Remove-Item -Recurse -Force $ct -ErrorAction SilentlyContinue }
+
 Write-Host "-- the script end to end"
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("summarize-rounds-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
 New-Item -ItemType Directory -Path (Join-Path $tmp "r\sub") -Force | Out-Null
@@ -177,6 +196,13 @@ try {
         Check "the desktop's four plugin-on reps: 47 of 60, 9 of 15 every time, pass^4 0.6, pass@4 0.867" ("{0}/{1}|{2}|{3}|{4}" -f $j.passes, $j.runs, $j.tasksAlwaysPassed, $j.passHatK, $j.passAtK) "47/60|9|0.6|0.867"
     } else {
         Write-Host "SKIP the private results are not on this machine ($PrivateResults)"
+    }
+    $win = Join-Path $PrivateResults "window-20261101-2213\baseline"
+    if (Test-Path -LiteralPath $win) {
+        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win 2>&1 | Out-String
+        Check "window 20261101-2213's baseline: 11 of its 15 failures lost a step to the cap (the 2026-11-03 desk review)" ([bool]($out -match 'output cap \(limit\.output\): 12 of 96 run\(s\) lost a step to it, 1 of those passed; 11 of 15 failure\(s\) had one')) "True"
+    } else {
+        Write-Host "SKIP window 20261101-2213 is not on this machine ($win)"
     }
 } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
