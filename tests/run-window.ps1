@@ -460,7 +460,10 @@ function Invoke-Smoke {
         Set-Phase "smoke-retries" "skipped" "no private manifest"; $script:go.retries = $false
     }
     if (-not $script:go.window) { return }
-    # batch
+    # batch: its own -SmokeMinutes from now, not what the retries smoke left. They shared one budget, and a slow model's
+    # retries smoke used it all (window 20261102-2132: North Mini Code, 36 of 40 min), so the batch smoke was skipped for
+    # time and the baseline it gates never ran.
+    $limit = (@((Get-Date).AddMinutes($SmokeMinutes), $harnessEnd) | Sort-Object)[0]
     $dir = Join-Path $OutDir "smoke-batch"
     $res = Invoke-Phase -Id "smoke-batch" -ScriptText (New-BatchScript -Script $ScriptBatch -Tasks $script:smokeBatchTasks -Model $Model -Reps 1 -RunTimeout $RunTimeout -ResultsDir $dir) -Limit $limit
     if ($res) {

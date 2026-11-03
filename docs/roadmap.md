@@ -570,6 +570,30 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
        at its seat's settings (with MTP drafting): prefill 866 to 1,010 tok/s against 721 to 754 (faster), decode 41 to
        51 against 68 to 86 (slower). The test that decides it: the 16-task baseline × 6 that qwen3.6 passed 81 of 96
        (window 20261101-2213), run overnight from node3.
+       **Result (window 20261102-2225): not an upgrade; keep qwen3.6.** Only 30 of the 96 runs fit in 7.2 hours: a graded
+       run took 547 s on average against qwen3.6's 178 s, and four hit the 45-minute cap (`kane-07` and `kane-08`, twice
+       each). 21 of the 30 passed (70%, timeouts counted as failures); qwen3.6's per-task rates predict about 25 of the
+       same 30 (84%). Level on the easy tasks (10 of 14 graded passed every time), behind on the harder ones (`kane-13`
+       1 of 2 against 6 of 6, `asohav-09` 0 of 1 against 5 of 6). Not powered to separate 70% from 84% (about 140 runs
+       a model would be), but at three times the time per task it would not be the seat either way. The seat stays in
+       the preset (#194) for a later re-test; the first start of that night (window 20261102-2132) lost its baseline to
+       a run-window fault, fixed in the same change as this note.
+     - **Why qwen3.6 fails where it does (desk review of window 20261101-2213's baseline, 2026-11-03).** Its 15
+       failures in 96 runs have three causes, and the largest is not the model's ability:
+       - **The output cap, 11 of the 15.** 11 runs ended a step on exactly 8,192 output tokens (`limit.output`), and
+         all 11 failed: `kane-08`'s five, `lfc-07`'s three, `asohav-03`'s, `kane-07`'s and one of `kane-14`'s. Seven
+         of them never wrote a file; the other four stopped mid-change (a broken suite or failing hidden tests). The capped step holds no text, no tool call and 0
+         reasoning tokens in the transcript, so the 8,192 tokens are almost certainly the model's thinking, which
+         llama.cpp returns apart from the answer and OpenCode does not keep: it read files, then thought until the cap
+         cut it off. Whether that thinking was going somewhere or looping is not in the logs.
+       - **The model's own test, the other 4.** Three `kane-14` runs and one `asohav-09` run failed only the
+         fails-on-old gate: the code was right (`kane-14`'s hidden tests passed in all six runs) but the model's new
+         test did not catch the bug.
+       - **No failure in the 96 is wrong code outside a capped step.**
+       - **The next measurement (not run; owner's go):** `kane-08`, `lfc-07` and `asohav-03` again with `limit.output`
+         16,384 (compaction then starts at 49,152 instead of 57,344), six reps each, against these rows (9 of 18
+         passed). A thinking budget (`reasoning-budget` in the preset) is the other lever if the longer cap only
+         lengthens loops.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in

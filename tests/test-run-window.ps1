@@ -333,6 +333,13 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "...the phase did not run to its 120 s" ($r.Seconds -lt 60) "True"
     Has "...the report says why" $r.Report 'STOP file ended the window'
 
+    Write-Host "-- a slow retries smoke"
+    # A retries smoke that uses its whole budget must not starve the batch smoke and, through it, the baseline
+    # (window 20261102-2132: the shared budget skipped the batch smoke "for time" and the night's baseline never ran).
+    $r = Invoke-Window @{ Run = @("smoke", "baseline"); SmokeMinutes = 0.05 } -Plan '{"smoke-retries":{"sleep":5}}'
+    Check "a retries smoke that ran out its budget: the batch smoke still ran" ($r.Report -match '\| smoke-batch \| ok') "True"
+    Check "...and so did the baseline" (@($r.Calls | Where-Object { $_ -like "batch|baseline*" }).Count) 1
+
     Write-Host "-- the server goes away"
     $helpers += Start-AfterPhase "smoke-retries" 2 { param($s) $s.Up = $false } $server
     $r = Invoke-Window @{ Run = @("smoke"); ServerDownMinutes = 0.05; RecoverMinutes = 0.05 } -Plan '{"smoke-retries":{"sleep":120}}'

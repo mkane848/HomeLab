@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: a slow retries smoke no longer starves the baseline; North Mini Code's verdict (2026-11-03).** The two smoke
+  phases of `tests/run-window.ps1` shared one `-SmokeMinutes` budget, so when North Mini Code's retries smoke used 36
+  of its 40 minutes the batch smoke was skipped "for time", and the baseline it gates never ran (window
+  20261102-2132). The batch smoke now gets its own budget from its start, capped by the window's end; a new case in
+  `tests/test-run-window.ps1` (fails 2 checks on the old script). North's overnight baseline is recorded in
+  `docs/roadmap.md`: 21 of 30 runs in 7.2 hours against qwen3.6's 81 of 96 in 5.3, about three times slower a task;
+  qwen3.6 stays the seat. Also a desk review of qwen3.6's 15 baseline failures: 11 are runs whose step ended on the
+  8,192-token output cap (its thinking, which OpenCode does not record), and all 11 capped runs failed; the other 4
+  are the model's own test missing the bug while its code was right. The next measurement is in the roadmap.
 - **server: Cohere North Mini Code as a candidate llama.cpp seat (2026-11-02).** unsloth's UD-Q4_K_XL GGUF in
   `~/models` on the server (sha256 verified against the hub's), mounted read-only at `/models`
   (`docker-compose.llamacpp.yml`); a `north-mini-code` preset section with the model card's sampling; a seat-table
