@@ -6,7 +6,7 @@ running beside it until Phase 6.
 
 | File | What |
 |---|---|
-| [`llamacpp/models.ini`](llamacpp/models.ini) | the router preset: one seat, `qwen3:8b`, same weights and sampling as node3's Ollama copy and the server's seat |
+| [`llamacpp/models.ini`](llamacpp/models.ini) | the router preset: `qwen3:8b` (same weights and sampling as node3's Ollama copy and the server's seat) and, since 2026-11-03, `qwen3.6:35b-a3b-coding` as a second agent seat loaded on demand (below) |
 | [`scripts/start-llama-server.ps1`](scripts/start-llama-server.ps1) | registers the scheduled task `HomeLab-llamacpp` (starts at boot) and starts it; `-Lan` to listen on the LAN, `-Stop` to remove it |
 
 ## Install
@@ -26,6 +26,20 @@ Then, from this checkout on node3: `pwsh -File node3\scripts\start-llama-server.
 The preset's `model` path is node3's own Ollama blob (`C:\Users\danaj\.ollama\models\blobs\sha256-a3de86…`): the same
 bytes as the server's `qwen3:8b` seat (`models/server-seats.tsv`), so a difference in results is the engine, not the
 weights.
+
+## `qwen3.6` as a second seat, on demand (2026-11-03)
+
+The server's main seat also runs here, on the 3080: same weights, sampling and thinking budget, with `n-cpu-moe 32`
+and a 4,096 batch, measured best (987 to 1,227 tok/s prefill, 64 to 68 decode; `docs/roadmap.md`). The GGUF is the
+server's Ollama blob copied to `C:\HomeLab\models\qwen3.6-35b-a3b-coding.gguf` (21.7 GB; sha256 `d372de8e…`, checked
+at both ends), because node3's Ollama has no `qwen3.6`.
+
+Nothing holds the card between uses: the router loads the seat at a window's first request (about 7 s) and the
+window unloads it when it ends. node3 is also the family's gaming PC, and their use wins: a window started with
+`-YieldToGames` will not start while a game runs and ends itself when one starts
+([`docs/unattended-window.md`](../docs/unattended-window.md) → "A window on node3's own GPU"). After a change to
+`models.ini`, restart the service so the router reads it: `Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
+HomeLab-llamacpp`.
 
 ## On the LAN (the owner's step)
 

@@ -69,6 +69,17 @@ param(
     [double]$ReportMinutes = 5,
     [double]$MinPhaseMinutes = 10,
     [string[]]$SkipChecks = @(),
+    # node3 is also the family's gaming PC (owner, 2026-11-03: their use wins). -YieldToGames: a game running at the
+    # gate is a FAIL (nothing starts), and a game that starts during a phase ends the window at the next poll, like a
+    # STOP file ("game"). A game is a Steam app running (RunningAppID under -SteamKey) or a process named in
+    # -GameProcesses (Guild Wars 2 does not run through Steam).
+    [switch]$YieldToGames,
+    [string[]]$GameProcesses = @("Gw2-64", "Gw2"),
+    [string]$SteamKey = "HKCU:\Software\Valve\Steam",
+    # -UnloadAtEnd: when the window ends (for any reason), ask the router to unload the seat, so a model served from the
+    # run host's own GPU (node3's llama-server) frees its VRAM. Loading again takes seconds (2026-11-03: 6.6 to 7.7 s
+    # on node3, 5.5 s on the server). Leave it off against the server: its main seat should stay loaded.
+    [switch]$UnloadAtEnd,
     [switch]$Plan,
     [switch]$Detach,
     [string]$ScriptRetries = (Join-Path $PSScriptRoot "run-retries.ps1"),
@@ -170,6 +181,30 @@ function Resolve-ServerUrl([string]$Given) {
     return ""
 }
 
+# A game running on this machine, by name, or $null: a Steam app (RunningAppID > 0 under $SteamKey), else the first
+# running process named in $Names.
+function Get-RunningGame {
+    param([string[]]$Names = @(), [string]$SteamKey = "")
+    if ($SteamKey) {
+        $id = try { (Get-ItemProperty -LiteralPath $SteamKey -Name RunningAppID -ErrorAction Stop).RunningAppID } catch { $null }
+        if ($null -ne $id -and "$id" -match '^\d+$' -and [int64]$id -gt 0) { return "Steam app $id" }
+    }
+    foreach ($n in (Split-List $Names)) {
+        $p = Get-Process -Name $n -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($p) { return $p.ProcessName }
+    }
+    return $null
+}
+
+# Ask a llama-server router to unload one model. Returns a short note for the log.
+function Invoke-SeatUnload {
+    param([string]$Root, [string]$ModelId)
+    try {
+        $null = Invoke-RestMethod -Method Post -Uri ($Root.TrimEnd('/') + "/models/unload") -ContentType "application/json" -Body (@{ model = $ModelId } | ConvertTo-Json -Compress) -TimeoutSec 30
+        return "unloaded $ModelId from $Root"
+    } catch { return "could not unload $ModelId from $Root ($($_.Exception.Message))" }
+}
+
 # --- everything below runs only when the script is run, not when a guard dot-sources it for the functions ---
 if ($MyInvocation.InvocationName -eq '.') { return }
 
@@ -253,6 +288,7 @@ $script:go = @{ retries = $true; batch = $true; window = $true }
 $script:exitCode = 0
 $script:m4Ids = @(); $script:baselineTasks = @()
 $script:child = $null
+$script:gameSeen = $null             # the game that ended the window (-YieldToGames)
 
 function Test-Server {
     $up = [bool](Test-EngineAlive -Root $serverRoot -TimeoutSec 10)
@@ -279,7 +315,7 @@ function Write-Status([string]$Phase, [string]$Extra = "") {
 }
 
 # One child process (a generated phase script) with the server watch, the deadline and the STOP file around it.
-# Returns @{ Exit; Reason } where Reason is "" (it ended by itself), "time", "stop", or "server".
+# Returns @{ Exit; Reason } where Reason is "" (it ended by itself), "time", "stop", "game" (-YieldToGames), or "server".
 function Invoke-PhaseProcess {
     param([string]$Id, [string]$ScriptText, [datetime]$Limit)
     $scriptPath = Join-Path $OutDir "commands\$Id.ps1"
@@ -302,6 +338,7 @@ function Invoke-PhaseProcess {
         }
         Write-Status $Id ("(running {0:N0} min)" -f ($now - $script:phases[$Id].Started).TotalMinutes)
         if (-not $reason -and (Test-Path -LiteralPath $stopPath)) { $reason = "stop" }
+        if (-not $reason -and $YieldToGames) { $g = Get-RunningGame -Names $GameProcesses -SteamKey $SteamKey; if ($g) { $reason = "game"; $script:gameSeen = $g } }
         if (-not $reason -and $now -ge $Limit) { $reason = "time" }
         if ($reason) {
             Write-Log "[$Id] ending the phase: $reason"
@@ -345,6 +382,7 @@ function Invoke-Phase {
         }
     }
     if ($res.Reason -eq "stop") { $script:go.window = $false; Add-Attention "a STOP file ended the window" }
+    if ($res.Reason -eq "game") { $script:go.window = $false; Add-Attention "a game started ($($script:gameSeen)); the window yielded to it and ended" }
     return $res
 }
 
@@ -359,6 +397,11 @@ function Invoke-Gate {
     if ($PSVersionTable.PSVersion.Major -ge 7) { Add-Gate "pwsh" "PASS" "PowerShell $($PSVersionTable.PSVersion)" } else { Add-Gate "pwsh" "FAIL" "PowerShell 7 is the only supported version (this is $($PSVersionTable.PSVersion))" }
     foreach ($t in $RequiredTools) {
         if (Get-Command $t -ErrorAction SilentlyContinue) { Add-Gate "tool $t" "PASS" "found" } else { Add-Gate "tool $t" "FAIL" "not on PATH" }
+    }
+    if ($YieldToGames) {
+        $g = Get-RunningGame -Names $GameProcesses -SteamKey $SteamKey
+        if ($g) { Add-Gate "no game running" "FAIL" "$g is running; the window yields to it (start it again later)" }
+        else { Add-Gate "no game running" "PASS" ("none (Steam, and processes {0})" -f ((Split-List $GameProcesses) -join ", ")) }
     }
     if (-not $ServerUrl) {
         Add-Gate "server url" "FAIL" "no -ServerUrl, no LLAMACPP_SERVER_BASE_URL, and no SERVER_IP in $(Join-Path $repoRoot '.env')"
@@ -506,8 +549,8 @@ function Invoke-M4 {
         if ($tripped.Count) { Add-Attention "m4: the loop's falsifier tripped ($($tripped[0] -replace '^falsifier: FALSIFIED - ', '')). real-02 and wp-5b alone are 2 of 15 tasks at the cap (13%), so read which tasks hit it before reading the verdict." }
     } else { Add-Detail "m4" ("no summary line from the loop (it was cut or died). Partial: mean {0:N2} attempt(s) per reached task, cap reached on {1}: {2}." -f $(if ($rows.Count) { $attempts / $rows.Count } else { 0 }), $capHits.Count, (($capHits | ForEach-Object task) -join ", ")) }
     if ($notReached.Count) { Add-Detail "m4" "not reached: $($notReached -join ', ')"; Add-Attention "m4 did not reach: $($notReached -join ', ')" }
-    $failed = ($res.Reason -in "time", "stop", "server") -or ($res.Exit -ne 0) -or ($rows.Count -eq 0)
-    Set-Phase "m4" $(if ($res.Reason -eq "time") { "cut" } elseif ($failed) { "failed" } else { "ok" }) $detail
+    $failed = ($res.Reason -in "time", "stop", "server", "game") -or ($res.Exit -ne 0) -or ($rows.Count -eq 0)
+    Set-Phase "m4" $(if ($res.Reason -in "time", "game") { "cut" } elseif ($failed) { "failed" } else { "ok" }) $detail
 }
 
 function Invoke-Baseline {
@@ -520,7 +563,7 @@ function Invoke-Baseline {
     $detail = "exit {0}, {1} graded row(s) of {2} planned ({3} task(s) x {4} rep(s)){5}" -f $res.Exit, $graded, ($script:baselineTasks.Count * $BaselineReps), $script:baselineTasks.Count, $BaselineReps, $(if ($res.Reason) { "; ended: $($res.Reason)" } else { "" })
     Add-Detail "baseline" $detail
     $failed = ($res.Reason -in "stop", "server") -or ($res.Exit -ne 0 -and -not $res.Reason) -or ($graded -eq 0)
-    Set-Phase "baseline" $(if ($res.Reason -eq "time") { "cut" } elseif ($failed) { "failed" } else { "ok" }) $detail
+    Set-Phase "baseline" $(if ($res.Reason -in "time", "game") { "cut" } elseif ($failed) { "failed" } else { "ok" }) $detail
 }
 
 # --- the report -----------------------------------------------------------------------------------------
@@ -640,6 +683,7 @@ try {
     if ($script:child -and -not $script:child.HasExited) {
         if ($IsWindows) { & taskkill.exe /PID $script:child.Id /T /F 2>&1 | Out-Null } else { Stop-Process -Id $script:child.Id -Force -ErrorAction SilentlyContinue }
     }
+    if ($UnloadAtEnd -and $serverRoot -and $seatTag) { Write-Log (Invoke-SeatUnload -Root $serverRoot -ModelId $seatTag) }
     Write-Status "done"
     Write-Report
     Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue

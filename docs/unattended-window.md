@@ -61,6 +61,23 @@ ssh server "cd ~/HomeLab && git pull --ff-only && bash server/scripts/llamacpp-w
 ssh node3 pwsh -NoProfile -File C:\HomeLab\repos\HomeLab\tests\run-window.ps1 -Detach -ServerUrl http://<SERVER_IP>:8090/v1
 ```
 
+### A window on node3's own GPU (2026-11-03)
+
+node3's llama-server (`node3/llamacpp/models.ini`) serves `qwen3.6:35b-a3b-coding` as a second seat, loaded on demand.
+node3 is also the family's gaming PC, so a window against it gives way:
+
+```powershell
+pwsh -File tests\run-window.ps1 -Detach -Model llamacpp-node3/qwen3.6:35b-a3b-coding -ServerUrl http://127.0.0.1:8090/v1 -YieldToGames -UnloadAtEnd
+```
+
+- `-YieldToGames`: a game running at the gate stops the window before anything runs (exit 2), and a game that starts
+  later ends it at the next poll, about 15 s, like a STOP file. A game is a Steam app (`RunningAppID` in the registry)
+  or a process named in `-GameProcesses` (default `Gw2-64`, `Gw2`: Guild Wars 2 does not run through Steam). The run in
+  progress is lost; the finished ones stay.
+- `-UnloadAtEnd`: when the window ends, for any reason, the seat is unloaded and the 3080's memory is free again (about
+  2 s; loading took 6.6 to 7.7 s when the file was in Windows' cache, longer from a cold disk after a reboot).
+- Do not pass `-UnloadAtEnd` against the server: its main seat should stay loaded for interactive use.
+
 ## What runs
 
 | Phase | Budget | What | Ends the window if it fails? |

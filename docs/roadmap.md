@@ -636,7 +636,9 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          alone did not. What is left is a different failure mix (a stray file, a weak own test, `kane-08`'s length
          against the 45-minute limit). Adopting it for the main seat (`reasoning-budget = 8192` in the preset,
          `limit.output` 16,384) is the owner's decision; the temporary preset was removed from the server afterwards and
-         the seat is unchanged. Private `results/window-think8k-20261103`.
+         the seat is unchanged. Private `results/window-think8k-20261103`. **Adopted (owner, 2026-11-03):** the main
+         seat's preset and its OpenCode entry carry both settings from the change after this one; rows from then on
+         are a new era for `qwen3.6` (compare them with window think8k-20261103, not with earlier baselines).
        - **node3's 3080 can serve `qwen3.6` at about the server's speed (2026-11-03).** The GGUF was copied from the
          server (sha256 `d372de8e...` matched at both ends) to `C:\HomeLab\models\` and served by a second
          llama-server on port 8091 (node3's own service untouched), the server preset's settings with only

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: the main seat thinks at most 8,192 tokens per response (2026-11-03, owner's go).** `qwen3.6`'s preset in
+  `server/llamacpp/models.ini` gains `reasoning-budget = 8192` and the message the test used; its `llamacpp-server`
+  entry in `opencode/global/opencode.jsonc` goes from `limit.output` 8,192 to 16,384, leaving room for the tool call
+  after a forced stop. Measured in window think8k-20261103 (14 of 18 against 9 of 18, no run cut by the limit, about
+  twice the time per pass). A new era for `qwen3.6`'s rows. Deploy: pull on the server and restart `llamacpp-server`;
+  re-stage OpenCode's config on each client (`desktop/scripts/sync-opencode.ps1`).
+- **node3: `qwen3.6` as a second seat, loaded on demand, yielding to games (2026-11-03, owner's go).** A
+  `[qwen3.6:35b-a3b-coding]` section in `node3/llamacpp/models.ini` (the server's weights, copied to
+  `C:\HomeLab\models`; `n-cpu-moe 32`, batch 4,096, the same thinking budget); its `llamacpp-node3` OpenCode entry at
+  `limit.output` 16,384. `tests/run-window.ps1` gains `-YieldToGames` (a game at the gate is a FAIL; a game that starts
+  mid-phase ends the window at the next poll, phase "cut"; a Steam app by `RunningAppID`, or a process in
+  `-GameProcesses`, default Guild Wars 2) and `-UnloadAtEnd` (the router unloads the seat when the window ends, for
+  any reason). Measured: a load takes 6.6 to 7.7 s on node3 and 5.5 s on the server, an unload 2.0 and 0.7 s.
+  `tests/test-run-window.ps1` +14 checks with a stand-in game process and a throwaway Steam key; runbook in
+  `docs/unattended-window.md`, seat in `node3/README.md`.
+
 - **tests+docs: a thinking budget for qwen3.6, node3's 3080 as a second seat, and two more round measures
   (2026-11-03).** `summarize-rounds.ps1` now prints the pass rate of runs with and without a capped step, with
   `-StepTokens N` the same split for steps of N+ output tokens (a thinking budget reached; OpenCode records no

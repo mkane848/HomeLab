@@ -1,4 +1,4 @@
-# protects: run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, report)
+# protects: run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, report)
 # run-after: run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter
 # test-run-window.ps1 - regression guard for tests/run-window.ps1, the unattended testing window.
 #
@@ -117,7 +117,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     # with Connection: close, so it needs no URL reservation on Windows.
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0); $listener.Start()
     $port = $listener.LocalEndpoint.Port
-    $server = [hashtable]::Synchronized(@{ Up = $true; Models = @("qwen3.6:35b-a3b-coding"); Stop = $false })
+    $server = [hashtable]::Synchronized(@{ Up = $true; Models = @("qwen3.6:35b-a3b-coding"); Stop = $false; Unloads = 0 })
     $serverJob = Start-ThreadJob -ArgumentList $listener, $server -ScriptBlock {
         param($tcp, $st)
         try {
@@ -134,6 +134,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
                         "/health" { if ($st.Up) { $body = '{"status":"ok"}' } else { $code = 503; $body = '{"error":{"message":"down"}}' } }
                         "/models" { $body = (@{ data = @($st.Models | ForEach-Object { @{ id = $_; aliases = @(); status = @{ value = "loaded" } } }) } | ConvertTo-Json -Depth 6 -Compress) }
                         "/props" { $body = '{"build_info":"b11561-stand-in"}' }
+                        "/models/unload" { $st.Unloads++; $body = '{"success":true}' }
                         default { $code = 404 }
                     }
                     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
@@ -333,6 +334,62 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "...the phase did not run to its 120 s" ($r.Seconds -lt 60) "True"
     Has "...the report says why" $r.Report 'STOP file ended the window'
 
+    Write-Host "-- games (-YieldToGames) and -UnloadAtEnd"
+    # A stand-in game: a copy of a harmless long-running program under a name no real process has. -SteamKey is
+    # pointed at nothing (or at a throwaway key), so the machine's own Steam never decides a case.
+    $gameName = "hlfakegame" + [guid]::NewGuid().ToString("N").Substring(0, 6)
+    $gameExe = Join-Path $tmp $(if ($IsWindows) { "$gameName.exe" } else { $gameName })
+    if ($IsWindows) { Copy-Item (Join-Path $env:SystemRoot "System32\PING.EXE") $gameExe; $gameArgs = @("-n", "300", "127.0.0.1") }
+    else { Copy-Item (Get-Command sleep).Source $gameExe; & chmod +x $gameExe; $gameArgs = @("300") }
+    $games = [hashtable]::Synchronized(@{ Exe = $gameExe; Args = $gameArgs; Pids = [Collections.ArrayList]::Synchronized([Collections.ArrayList]::new()) })
+    function Start-Game { $p = Start-Process -FilePath $games.Exe -ArgumentList $games.Args -PassThru -WindowStyle Hidden -ErrorAction Stop; [void]$games.Pids.Add($p.Id); $p }
+    function Stop-Games { foreach ($id in @($games.Pids)) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $games.Pids.Clear() }
+    $noSteam = Join-Path $tmp "no-such-steam-key"
+    & {
+        . $runner
+        Check "Get-RunningGame: nothing running" ($null -eq (Get-RunningGame -Names @($gameName) -SteamKey $noSteam)) "True"
+        $null = Start-Game; Start-Sleep -Milliseconds 500
+        Check "...a listed process running is named" (Get-RunningGame -Names @("not-this-one,$gameName") -SteamKey $noSteam) $gameName
+        Stop-Games; Start-Sleep -Milliseconds 300
+        if ($IsWindows) {
+            $key = "HKCU:\Software\HomeLabTest-" + [guid]::NewGuid().ToString("N").Substring(0, 8)
+            New-Item -Path $key -Force | Out-Null
+            try {
+                New-ItemProperty -Path $key -Name RunningAppID -Value 0 -PropertyType DWord | Out-Null
+                Check "...Steam's RunningAppID 0 is no game" ($null -eq (Get-RunningGame -Names @() -SteamKey $key)) "True"
+                Set-ItemProperty -Path $key -Name RunningAppID -Value 1245620
+                Check "...RunningAppID > 0 is a game" (Get-RunningGame -Names @() -SteamKey $key) "Steam app 1245620"
+            } finally { Remove-Item -Path $key -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+    }
+    $gameArgsWin = @{ YieldToGames = $true; GameProcesses = @($gameName); SteamKey = $noSteam }
+    $null = Start-Game; Start-Sleep -Milliseconds 500
+    $r = Invoke-Window (@{ Run = @("baseline") } + $gameArgsWin)
+    Stop-Games
+    Check "a game running at the gate: exit 2" $r.Exit 2
+    Check "...nothing ran" $r.Calls.Count 0
+    Has "...the report names the game" $r.Report "no game running.*$gameName is running"
+    $helpers += Start-AfterPhase "baseline" 2 { param($g) $p = Start-Process -FilePath $g.Exe -ArgumentList $g.Args -PassThru -WindowStyle Hidden; [void]$g.Pids.Add($p.Id) } $games
+    $r = Invoke-Window (@{ Run = @("baseline") } + $gameArgsWin) -Plan '{"baseline":{"sleep":120}}'
+    Stop-Games
+    Check "a game that starts mid-phase ends the window: exit 0, well before the stand-in's 120 s" ("{0}|{1}" -f $r.Exit, ($r.Seconds -lt 60)) "0|True"
+    Check "...the phase is cut, not failed" (Phase-Row $r "baseline") "cut"
+    Has "...and the report says it yielded to the game" $r.Report "a game started \($gameName\); the window yielded"
+    $null = Start-Game; Start-Sleep -Milliseconds 500
+    $r = Invoke-Window @{ Run = @("baseline"); GameProcesses = @($gameName); SteamKey = $noSteam }
+    Stop-Games
+    Check "without -YieldToGames a running game changes nothing" ("{0}|{1}" -f $r.Exit, (Phase-Row $r "baseline")) "0|ok"
+    $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "without -UnloadAtEnd the seat is left loaded" ($server.Unloads - $before) 0
+    $r = Invoke-Window @{ Run = @("baseline"); UnloadAtEnd = $true }
+    Check "-UnloadAtEnd: one unload request when the window ends" ($server.Unloads - $before) 1
+    Has "...and the log says so" $r.Text "unloaded qwen3\.6:35b-a3b-coding from"
+    $null = Start-Game; Start-Sleep -Milliseconds 500
+    $r = Invoke-Window (@{ Run = @("baseline"); UnloadAtEnd = $true } + $gameArgsWin)
+    Stop-Games
+    Check "...also when the gate said no (a game was running)" ("{0}|{1}" -f $r.Exit, ($server.Unloads - $before)) "2|2"
+
     Write-Host "-- a slow retries smoke"
     # A retries smoke that uses its whole budget must not starve the batch smoke and, through it, the baseline
     # (window 20261102-2132: the shared budget skipped the batch smoke "for time" and the night's baseline never ran).
@@ -376,6 +433,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "-Hours 0: exit 3" (Invoke-Window @{ Hours = 0 }).Exit 3
     if (-not $IsWindows) { Check "-Detach off Windows: exit 3, nothing registered" (Invoke-Window @{ Detach = $true }).Exit 3 }
 } finally {
+    if ($games) { foreach ($id in @($games.Pids)) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } }
     if ($server) { $server.Stop = $true }
     foreach ($j in @($serverJob) + $helpers) { if ($j) { try { Wait-Job $j -Timeout 5 | Out-Null; Remove-Job $j -Force -ErrorAction SilentlyContinue } catch { } } }
     Remove-Item Env:FX_DIR, Env:FX_PLAN, Env:OPENCODE_DISABLE_AUTOUPDATE, Env:LLAMACPP_SERVER_BASE_URL -ErrorAction SilentlyContinue
