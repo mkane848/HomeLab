@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: the main seat reads prompts about three times faster (2026-11-04, owner's go).** `qwen3.6`'s preset in
+  `server/llamacpp/models.ini` gains `batch-size`/`ubatch-size` 4,096 and moves from `n-cpu-moe` 16 to 20 (the larger
+  batch does not fit at 16): prefill 2,092 to 2,394 tok/s against 744 to 776, decode 68 to 73 against 71 to 81, 14.7
+  GB of VRAM against 14.9. Batch size and layer placement change speed, not what the model computes, so rows keep
+  their era; run times are not comparable across the change. Deploy: pull on the server and restart
+  `llamacpp-server`.
+
 - **tests: run-window slices (`-FillTo` / `-FillFrom`, 2026-11-04, owner: split a night's test into short slices).**
   A window leaves out the baseline tasks that already have N attempts in earlier slices' results folders (graded rows
   and timeouts count; infrastructure failures do not), and skips the baseline when nothing is missing. Runbook in
