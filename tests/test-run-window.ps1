@@ -1,4 +1,4 @@
-# protects: run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, report)
+# protects: run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, slices, report)
 # run-after: run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter
 # test-run-window.ps1 - regression guard for tests/run-window.ps1, the unattended testing window.
 #
@@ -389,6 +389,29 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $r = Invoke-Window (@{ Run = @("baseline"); UnloadAtEnd = $true } + $gameArgsWin)
     Stop-Games
     Check "...also when the gate said no (a game was running)" ("{0}|{1}" -f $r.Exit, ($server.Unloads - $before)) "2|2"
+
+    Write-Host "-- slices (-FillTo / -FillFrom)"
+    # Earlier slices' results: two folders, one per seat, nested like a window's output.
+    $fill = Join-Path $tmp "fill"; New-Item -ItemType Directory -Force -Path (Join-Path $fill "s1-server\baseline"), (Join-Path $fill "s1-node3\baseline") | Out-Null
+    $pubIds = @(& { . $runner; (Resolve-WindowTasks -Manifest (Join-Path $repo "tests/tasks/manifest.json") -Match '^(kane-(0[7-9]|1[0-4])|lfc-0[457]|asohav-0[3-9])-').Ids })
+    @("timestamp`ttaskId`tmodel", "t`t$($pubIds[0])`tllamacpp-server/m", "t`t$($pubIds[1])`tllamacpp-server/m") | Set-Content -LiteralPath (Join-Path $fill "s1-server\baseline\tasks-summary.tsv")
+    @("timestamp`ttaskId`tmodel", "t`t$($pubIds[2])`tllamacpp-node3/m") | Set-Content -LiteralPath (Join-Path $fill "s1-node3\baseline\tasks-summary.tsv")
+    # a timeout counts as an attempt; an infrastructure failure does not
+    Set-Content -LiteralPath (Join-Path $fill "s1-node3\baseline\tasks-$($pubIds[3])-llamacpp-node3_m_TIMEOUT_20261104-000000.jsonl") -Value ""
+    Set-Content -LiteralPath (Join-Path $fill "s1-node3\baseline\tasks-$($pubIds[4])-llamacpp-node3_m_INFRA_20261104-000000.jsonl") -Value ""
+    & {
+        . $runner
+        $n = Get-TaskAttempts -Dirs @("$fill,$(Join-Path $tmp 'no-such-folder')") -TaskIds $pubIds
+        Check "Get-TaskAttempts: graded rows across both seats' folders, a timeout counts, infrastructure does not" (($pubIds[0..4] | ForEach-Object { $n[$_] }) -join ",") "1,1,1,1,0"
+        Check "...a task with nothing anywhere is 0" $n[$pubIds[-1]] 0
+    }
+    $r = Invoke-Window @{ Run = @("baseline"); FillTo = 1; FillFrom = @($fill) }
+    $ran = @(((Calls-Like $r '^batch\|baseline') -split '\|' | Where-Object { $_ -like "tasks=*" }) -replace '^tasks=', '' -split ',')
+    Check "-FillTo 1: the four tasks with an attempt are left out, the other twelve run" ("{0}|{1}" -f $ran.Count, (@($pubIds[0..3] | Where-Object { $_ -in $ran }).Count)) "12|0"
+    Has "...the gate says how many were short" $r.Report 'fill to 1.*12 of 16 task\(s\) still short'
+    $r = Invoke-Window @{ Run = @("baseline"); FillTo = 1; FillFrom = @($fill); BaselineMatch = ('^(' + (($pubIds[0..1] | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')$') }
+    Check "...nothing short: the baseline is skipped, nothing runs, exit 0" ("{0}|{1}|{2}" -f $r.Exit, (Phase-Row $r "baseline"), (Calls-Like $r '^batch\|').Count) "0|skipped|0"
+    Check "-FillTo without -FillFrom: exit 3" (Invoke-Window @{ Run = @("baseline"); FillTo = 1 }).Exit 3
 
     Write-Host "-- a seat on another host"
     Remove-Item Env:LLAMACPP_NODE3_BASE_URL -ErrorAction SilentlyContinue
