@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the setup checked against Microsoft Agent Framework's Harness (2026-11-04).** `docs/methodology-research.md`
+  gains a section mapping its parts (bounded looping, completion evaluators, feedback between passes, compaction,
+  todos and modes, approval, observability) onto ours. Nothing contradicts the current setup; two candidate
+  experiments come out of it: feed attempt 2 the Gate tests attempt 1 failed, and OpenCode's `compaction.prune`.
+  Five sources in `docs/references.md` under "Agent harness design (vendor docs)".
+
 - **fix: a window against another host's seat sets that host's base URL (2026-11-04).** OpenCode's llama.cpp
   providers read `LLAMACPP_<HOST>_BASE_URL`; `tests/run-window.ps1` set only the server's, so a detached window with
   `-Model llamacpp-node3/...` would have met only infrastructure failures (the S4U lesson in AGENTS.md). It now sets
