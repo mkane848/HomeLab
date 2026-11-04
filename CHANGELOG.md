@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: a window against another host's seat sets that host's base URL (2026-11-04).** OpenCode's llama.cpp
+  providers read `LLAMACPP_<HOST>_BASE_URL`; `tests/run-window.ps1` set only the server's, so a detached window with
+  `-Model llamacpp-node3/...` would have met only infrastructure failures (the S4U lesson in AGENTS.md). It now sets
+  the variable named by the model's provider to `-ServerUrl`. `test-run-window.ps1` +1 check, mutation-checked.
 - **results: node3's deployed `qwen3.6` preset (2026-11-04).** Through node3's router with the merged preset: 1,436 to
   1,933 tok/s prefill and 60 to 66 decode, faster than the bench settings it came from; unloading frees the card
   (9.8 GB to 0.45 GB). Server deployed too: `llamacpp-check.sh` 22 OK, the seat runs with `--reasoning-budget 8192`.

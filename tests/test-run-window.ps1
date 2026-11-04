@@ -390,6 +390,12 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Stop-Games
     Check "...also when the gate said no (a game was running)" ("{0}|{1}" -f $r.Exit, ($server.Unloads - $before)) "2|2"
 
+    Write-Host "-- a seat on another host"
+    Remove-Item Env:LLAMACPP_NODE3_BASE_URL -ErrorAction SilentlyContinue
+    $r = Invoke-Window @{ Run = @("baseline"); Model = "llamacpp-node3/qwen3.6:35b-a3b-coding" }
+    Check "a llamacpp-node3 seat: the window sets LLAMACPP_NODE3_BASE_URL to -ServerUrl for its children" ("{0}|{1}" -f $r.Exit, $env:LLAMACPP_NODE3_BASE_URL) "0|$url"
+    Remove-Item Env:LLAMACPP_NODE3_BASE_URL -ErrorAction SilentlyContinue
+
     Write-Host "-- a slow retries smoke"
     # A retries smoke that uses its whole budget must not starve the batch smoke and, through it, the baseline
     # (window 20261102-2132: the shared budget skipped the batch smoke "for time" and the night's baseline never ran).
