@@ -188,6 +188,19 @@ Where used: [roadmap.md](roadmap.md) ("Why qwen3.6 fails where it does": the thi
 `mia-amini-overthink` also → [methodology.md](methodology.md) ("What we report") and `tests/summarize-rounds.ps1`
 (the cap split and the cost line).
 
+## Agent harness design (vendor docs)
+
+| ID | Source | URL |
+|---|---|---|
+| ms-af-harness | Microsoft Learn, Agent Framework, "Agent Harness" (C# pivot), updated 2026-11-01, marked AI-assisted (read 2026-11-04) — a harness composes a chat client, a tool-calling pipeline with per-call history and optional compaction, todos and plan/execute modes, file memory, tool approval, OpenTelemetry and optional bounded looping; an example pairs a 128k context with `MaxOutputTokens = 16_384`; default instruction "Use tools deliberately and report verified results." | <https://learn.microsoft.com/en-us/agent-framework/concepts/harness?pivots=programming-language-csharp> |
+| ms-af-looping | Microsoft Learn, Agent Framework, "Agent Looping", updated 2026-10-28 (read 2026-11-04; experimental feature) — "Always bound autonomous loops. A completion condition can fail, a model can stall, and an evaluator can be probabilistic."; default 10 iterations; evaluators (marker, todos, background tasks, AI judge, delegate); the first evaluator to continue supplies feedback; `FreshContextPerIteration` restarts from the request plus a feedback log; a pending approval escapes the loop | <https://learn.microsoft.com/en-us/agent-framework/agents/looping?pivots=programming-language-csharp> |
+| ms-af-compaction | Microsoft Learn, Agent Framework, "Compaction", updated 2026-11-01 (read 2026-11-04; experimental) — system messages always preserved; a tool call and its results removed as one group; trigger vs target; strategies gentlest first (tool-result collapse, summarization, sliding window, truncation backstop); harness compaction off unless the context and output limits are set | <https://learn.microsoft.com/en-us/agent-framework/agents/conversations/compaction?pivots=programming-language-csharp> |
+| ms-af-tool-approval | Microsoft Learn, Agent Framework, "Using function tools with human in the loop approvals", updated 2026-11-01 (read 2026-11-04) — approval-required tools return a request instead of running; responses bind to the pending request in the same session; standing approvals persist in the session and should be reviewed when tools change; keep write approval unless the storage boundary is trusted | <https://learn.microsoft.com/en-us/agent-framework/agents/tools/tool-approval?pivots=programming-language-csharp> |
+| opencode-config-compaction | OpenCode docs, "Config", `compaction` (read 2026-11-04) — `auto` (default true), `prune` ("Removes old tool outputs to save tokens", default false), `reserved` (a token buffer for compaction) | <https://opencode.ai/docs/config/> |
+
+Where used: [methodology-research.md](methodology-research.md) → "Vetted against Microsoft Agent Framework's Harness
+(2026-11-04)". Product docs, rendered pages with no version pin: re-read before acting on them.
+
 ## Model landscape (2026-10-22)
 
 Vendor and aggregator pages: they move weekly, so re-read before acting on them.
