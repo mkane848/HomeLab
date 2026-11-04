@@ -80,6 +80,13 @@ param(
     # run host's own GPU (node3's llama-server) frees its VRAM. Loading again takes seconds (2026-11-03: 6.6 to 7.7 s
     # on node3, 5.5 s on the server). Leave it off against the server: its main seat should stay loaded.
     [switch]$UnloadAtEnd,
+    # -FillTo N -FillFrom <folders>: a slice of a larger run (2026-11-04, owner: split a night's test into short
+    # slices). Baseline tasks that already have N attempts in the -FillFrom results folders are left out, so each slice
+    # runs only what is missing. An attempt is a graded row (tasks-summary.tsv / real-tasks-summary.tsv) or a timed-out
+    # transcript (a timeout is a result, counted as a failure); an infrastructure failure is not. Folders are searched
+    # recursively and counted across models, because one run's slices may be split across seats.
+    [int]$FillTo = 0,
+    [string[]]$FillFrom = @(),
     [switch]$Plan,
     [switch]$Detach,
     [string]$ScriptRetries = (Join-Path $PSScriptRoot "run-retries.ps1"),
@@ -196,6 +203,28 @@ function Get-RunningGame {
     return $null
 }
 
+# Attempts per task id in results folders (recursive): graded rows of tasks-summary.tsv and real-tasks-summary.tsv,
+# plus timed-out transcripts (tasks-<id>-<label>_TIMEOUT_<stamp>.jsonl). $TaskIds names the ids to look for, so a
+# transcript's task is matched by prefix, not parsed out of a label that can contain dashes.
+function Get-TaskAttempts {
+    param([string[]]$Dirs, [string[]]$TaskIds)
+    $n = @{}
+    foreach ($id in $TaskIds) { $n[$id] = 0 }
+    foreach ($d in (Split-List $Dirs)) {
+        if (-not (Test-Path -LiteralPath $d)) { continue }
+        foreach ($f in (Get-ChildItem -LiteralPath $d -Recurse -File -Include "tasks-summary.tsv", "real-tasks-summary.tsv" -ErrorAction SilentlyContinue)) {
+            foreach ($row in @(Import-Csv -Delimiter "`t" -LiteralPath $f.FullName)) {
+                if ($row.taskId -and $n.ContainsKey($row.taskId)) { $n[$row.taskId]++ }
+            }
+        }
+        foreach ($f in (Get-ChildItem -LiteralPath $d -Recurse -File -Filter "tasks-*_TIMEOUT_*.jsonl" -ErrorAction SilentlyContinue)) {
+            $hit = @($TaskIds | Where-Object { $f.Name.StartsWith("tasks-$_-") } | Sort-Object Length -Descending)
+            if ($hit.Count) { $n[$hit[0]]++ }
+        }
+    }
+    return $n
+}
+
 # Ask a llama-server router to unload one model. Returns a short note for the log.
 function Invoke-SeatUnload {
     param([string]$Root, [string]$ModelId)
@@ -212,6 +241,7 @@ $Run = Split-List $Run
 if ($Plan) { $WaitServerMinutes = 0 }
 foreach ($r in $Run) { if ($r -notin "smoke", "m4", "baseline") { Write-Host "ERROR: -Run takes smoke, m4, baseline (got '$r')" -ForegroundColor Red; exit 3 } }
 if ($Hours -le 0) { Write-Host "ERROR: -Hours must be > 0" -ForegroundColor Red; exit 3 }
+if ($FillTo -lt 0 -or ($FillTo -gt 0 -and -not (Split-List $FillFrom).Count)) { Write-Host "ERROR: -FillTo needs -FillFrom <results folder(s)> (and must be >= 0)" -ForegroundColor Red; exit 3 }
 if (-not $PrivateRoot) { $PrivateRoot = Join-Path (Split-Path $repoRoot) "HomeLab-private" }
 if (-not $OutDir) { $OutDir = Join-Path $PrivateRoot ("results\window-" + $Name) }
 $OutDir = [IO.Path]::GetFullPath($OutDir)
@@ -452,6 +482,13 @@ function Invoke-Gate {
         if ($c.Ids.Count -eq 0) { Add-Gate "baseline tasks" "FAIL" "-BaselineMatch selects no live task" }
         elseif ($c.Ids.Count -ne 16) { Add-Gate "baseline tasks" "WARN" "$($c.Ids.Count) live task(s) selected; the plan was written for 16" }
         else { Add-Gate "baseline tasks" "PASS" "16 live mined tasks" }
+        if ($FillTo -gt 0 -and $c.Ids.Count) {
+            $have = Get-TaskAttempts -Dirs $FillFrom -TaskIds $c.Ids
+            $short = @($c.Ids | Where-Object { $have[$_] -lt $FillTo })
+            $full = @($c.Ids | Where-Object { $have[$_] -ge $FillTo })
+            $script:baselineTasks = $short
+            Add-Gate "fill to $FillTo" "PASS" ("{0} of {1} task(s) still short of {2} attempt(s) in {3}{4}" -f $short.Count, $c.Ids.Count, $FillTo, ((Split-List $FillFrom) -join ", "), $(if ($full.Count) { "; already there: " + ($full -join ", ") } else { "" }))
+        }
     }
     if ("disk" -notin $skip) {
         try {
@@ -560,6 +597,7 @@ function Invoke-M4 {
 function Invoke-Baseline {
     if (-not $script:go.window) { Set-Phase "baseline" "skipped" "the window was stopped"; return }
     if (-not $script:go.batch) { Set-Phase "baseline" "skipped" "the batch smoke was not GO"; return }
+    if ($script:baselineTasks.Count -eq 0) { Set-Phase "baseline" "skipped" "every selected task already has $FillTo attempt(s) (-FillTo)"; return }
     $dir = Join-Path $OutDir "baseline"
     $res = Invoke-Phase -Id "baseline" -ScriptText (New-BatchScript -Script $ScriptBatch -Tasks $script:baselineTasks -Model $Model -Reps $BaselineReps -RunTimeout $RunTimeout -ResultsDir $dir) -Limit $harnessEnd
     if (-not $res) { return }

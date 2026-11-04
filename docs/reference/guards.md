@@ -49,7 +49,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-retry-loop.ps1` | run-retries.ps1 dispatcher loop, verdict (selector, truth) and falsifier | run-retries.ps1 |
 | `tests/test-revert-source.ps1` | failsOnOld source revert (Save/Restore-SourceFiles, multi-file, two worktrees) | How test-tasks.ps1 reverts source or builds native argument lists |
 | `tests/test-run-cost.ps1` | Run usage and cost estimates (Get-TranscriptUsage, Get-RunCostEstimate) | How a transcript is read or a cost is computed |
-| `tests/test-run-window.ps1` | run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, report) | run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter |
+| `tests/test-run-window.ps1` | run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, slices, report) | run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter |
 | `tests/test-sealed-checkout.ps1` | Sealed task checkout (no future commits, refs, stashes or remotes) | How a task's checkout is made, reset or graded |
 | `tests/test-show-acceptance.ps1` | -ShowAcceptance / -ReadOnlyAcceptance / -ShownPrompt / -AcceptanceDir (planner's tests) modes | How acceptance tests are placed, a run is prompted or scope is graded |
 | `tests/test-stop-nudge.ps1` | -NudgeOnStop and Get-StopKind classifiers 2 and 3 | The nudge, Get-StopKind or where results are written |

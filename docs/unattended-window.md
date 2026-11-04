@@ -78,6 +78,23 @@ pwsh -File tests\run-window.ps1 -Detach -Model llamacpp-node3/qwen3.6:35b-a3b-co
   2 s; loading took 6.6 to 7.7 s when the file was in Windows' cache, longer from a cold disk after a reboot).
 - Do not pass `-UnloadAtEnd` against the server: its main seat should stay loaded for interactive use.
 
+### A long run in slices (2026-11-04)
+
+A night's test can run as short slices on different days, one rep at a time, split across both seats: each slice is
+two windows started together on node3, one against the server and one against node3's GPU, each from its own
+checkout with its own `-LockPath`. A later slice runs only what is missing:
+
+```powershell
+pwsh -File tests\run-window.ps1 -Detach -Run baseline -BaselineReps 1 -FillTo 2 -FillFrom <private>\results\window-regr-s1-server-20261104,<private>\results\window-regr-s1-node3-20261104 ...
+```
+
+- `-FillTo N` leaves out every baseline task that already has N attempts in the `-FillFrom` folders (searched
+  recursively, counted across seats). An attempt is a graded row or a timeout; an infrastructure failure is not, so
+  it is run again. With nothing missing, the baseline phase is skipped.
+- Pin every slice to one commit (each checkout `git worktree add --detach <commit>`) so the slices are one era;
+  `summarize-rounds.ps1 -ResultsDir <all the slice folders>` pools them and warns if the eras differ.
+- A game on node3 ends only that half (`-YieldToGames`); the next slice fills in what it lost.
+
 ## What runs
 
 | Phase | Budget | What | Ends the window if it fails? |
