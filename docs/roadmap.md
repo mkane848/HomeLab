@@ -685,6 +685,20 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          - Not adopted: changing the main seat is the owner's decision (the preset was put back and the seat reloaded).
          - Mistake on the way: the router does not unload one model to start another, so the first try loaded each
            variant beside the seat and ran out of memory; the bench now unloads first.
+       - **Regression check of the adopted settings on all 16 tasks (2026-11-04): none found.** The thinking budget
+         was adopted on the three tasks that failed; this ran the full 16-task baseline under it, 3 reps, as three
+         one-hour slices (`run-window.ps1 -FillTo/-FillFrom`, #204), each split across both seats at once and the halves
+         swapped between slices so every task ran on both. Private `results/window-regr-s{1,2,3}-{server,node3}-20261104`.
+         - **45 of 48 (94%, 95% interval 83% to 98%), against 81 of 96 (84%) on 2026-11-01 before the change**
+           (Fisher's exact p = 0.18). Slices 1 and 2: 32 of 32. The server's 25 graded runs all passed; node3's 22: 20.
+         - The three misses, all in slice 3 on node3: `kane-08` timed out at 45 minutes (it passed its other two runs);
+           `kane-14` failed fails-on-old only (its own test missed the bug, the kind seen before the change);
+           `asohav-09` ended after one step of 164 output tokens with no text and no tool call (an empty reply, nowhere
+           near the budget; one in 48, to watch).
+         - No run lost a step to the output limit (12 of 96 did on 2026-11-01).
+         - Cost: 4.7 to 5.1 minutes per graded pass, 5.9 counting the timeout, against 3.5 before. Slower per pass,
+           as on the three hard tasks, for fewer failures.
+         - Both seats ran together without trouble: node3 drove both halves and served its own half from its GPU.
        - **How to tune it (sources: `docs/references.md` → "Thinking budgets and over-reasoning"; the reading is ours).**
          - The budget applies to each response, so each step of a session gets its own: it stops one runaway step
            (`lfc-07`'s) without limiting a long task's total work (`kane-08`'s many steps).

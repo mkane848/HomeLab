@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **results: the server's seat with a 4,096 batch (2026-11-04).** At `n-cpu-moe` 20 it reads prompts at 2,092 to 2,394
   tok/s against 744 to 776 today, decodes at 68 to 73 against 71 to 81, and uses 14.7 GB against 14.9. Not adopted
   yet (the owner's call). Rows in `tests/results/bench-speed.tsv`; `docs/roadmap.md`.
+- **results: no regression from the thinking budget on all 16 tasks (2026-11-04).** 45 of 48 (94%) against 81 of 96
+  (84%) before the change, run as three one-hour slices split across both seats with the halves swapped; no run cut by
+  the output limit; about 5 minutes per pass against 3.5. `docs/roadmap.md`.
 
 - **tests: run-window slices (`-FillTo` / `-FillFrom`, 2026-11-04, owner: split a night's test into short slices).**
   A window leaves out the baseline tasks that already have N attempts in earlier slices' results folders (graded rows
