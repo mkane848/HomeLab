@@ -660,6 +660,15 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
            measured faster still through the router: 1,436 to 1,680 tok/s prefill at 3k, 1,919 to 1,933 at 30k, decode
            60 to 66 (host `node3-3080-preset`); 9.8 GB loaded, 0.45 GB after the unload. Open: whether the server's
            preset gains from a 4,096 batch too.
+         - **First unattended window on node3's own GPU (window node3gpu-20261104, 2026-11-04): 15 of 16 (94%, 95%
+           interval 72% to 99%), against the server's 14 of 18 (78%) with the same settings the night before**
+           (Fisher's exact p = 0.34: as good, not shown better). All 15 graded runs passed (`kane-08` 4 of 5 with one
+           45-minute timeout, `lfc-07` 6 of 6, `asohav-03` 5 of 5); the window was cut by its 5-hour limit after 16 of
+           18 runs. No run lost a step to the output limit; 5 reached 8,192 tokens in a step and all 5 passed. 15
+           minutes per graded pass, 18 counting the timeout (the server: 12.9 and 19.3). The model was loaded at the
+           first request and unloaded at the end (`-UnloadAtEnd`; the card back to 0.46 GB); the gate checked for
+           games. It needed #201 first: a detached window set only the server's base URL, so OpenCode's
+           `llamacpp-node3` provider would have had none. node3 can carry unattended work as a second seat.
        - **How to tune it (sources: `docs/references.md` → "Thinking budgets and over-reasoning"; the reading is ours).**
          - The budget applies to each response, so each step of a session gets its own: it stops one runaway step
            (`lfc-07`'s) without limiting a long task's total work (`kane-08`'s many steps).

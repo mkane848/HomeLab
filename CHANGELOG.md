@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the first unattended window on node3's own GPU (2026-11-04).** `qwen3.6` on the 3080 with the server's
+  settings and thinking budget: 15 of 16 on `kane-08`, `lfc-07` and `asohav-03` (one timeout), against the server's
+  14 of 18; about the same time per pass. Loaded on demand and unloaded at the end. `docs/roadmap.md`.
+
 - **fix: a window against another host's seat sets that host's base URL (2026-11-04).** OpenCode's llama.cpp
   providers read `LLAMACPP_<HOST>_BASE_URL`; `tests/run-window.ps1` set only the server's, so a detached window with
   `-Model llamacpp-node3/...` would have met only infrastructure failures (the S4U lesson in AGENTS.md). It now sets
