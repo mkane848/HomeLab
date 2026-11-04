@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: node3's deployed `qwen3.6` preset (2026-11-04).** Through node3's router with the merged preset: 1,436 to
+  1,933 tok/s prefill and 60 to 66 decode, faster than the bench settings it came from; unloading frees the card
+  (9.8 GB to 0.45 GB). Server deployed too: `llamacpp-check.sh` 22 OK, the seat runs with `--reasoning-budget 8192`.
+
 - **server: the main seat thinks at most 8,192 tokens per response (2026-11-03, owner's go).** `qwen3.6`'s preset in
   `server/llamacpp/models.ini` gains `reasoning-budget = 8192` and the message the test used; its `llamacpp-server`
   entry in `opencode/global/opencode.jsonc` goes from `limit.output` 8,192 to 16,384, leaving room for the tool call
