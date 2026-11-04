@@ -122,3 +122,8 @@ timestamp	host	engine	engineVersion	model	numCtx	targetTokens	promptTokens	loadS
 2026-11-03T19:21:50	node3-3080-ncmoe36-ub512	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	30000	30093	0.1	476.8	56.7	128				rep 1
 2026-11-03T19:21:58	node3-3080-ncmoe36-ub512	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	3000	3042	0.2	492.5	63.7	128				rep 2
 2026-11-03T19:23:04	node3-3080-ncmoe36-ub512	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	30000	30172	0.1	474.1	60.9	128				rep 2
+2026-11-04T03:45:08	node3-3080-preset	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	0	911	0			1				warm-up (load, chars-per-token calibration); loadS approximate; placement not reported by llama-server
+2026-11-04T03:45:13	node3-3080-preset	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	3000	3119	0.1	1435.6	62.5	128				rep 1
+2026-11-04T03:45:31	node3-3080-preset	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	30000	30124	0.1	1919.2	59.5	128				rep 1
+2026-11-04T03:45:35	node3-3080-preset	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	3000	3055	0.2	1679.7	65.8	128				rep 2
+2026-11-04T03:45:52	node3-3080-preset	llamacpp	b11562-b2f036c0f	qwen3.6:35b-a3b-coding	65536	30000	30132	0.1	1933	60.5	128				rep 2

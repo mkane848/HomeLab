@@ -655,8 +655,11 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          - A 4,096 batch then doubles prefill, past the server's 721–754 at its default 512; decode stays near the
            server's 68–86. The sweep before this (batch 2,048 at `n-cpu-moe` 26: 187 / 159 prefill) is in its console
            log only: the next script cleared the results file before it was appended (a mistake, not repeated).
-         - Next, owner's call: how node3 shares the 3080 between gaming and a resident model (on demand for windows,
-           unload when idle, or a gaming switch), and whether the server's own preset gains from a 4,096 batch too.
+         - Decided (owner, 2026-11-03): on demand, yielding to games (#199). Deployed 2026-11-04; node3's own preset
+           (8-bit KV cache and flash attention from its `[*]` section, where the bench above ran a 16-bit cache)
+           measured faster still through the router: 1,436 to 1,680 tok/s prefill at 3k, 1,919 to 1,933 at 30k, decode
+           60 to 66 (host `node3-3080-preset`); 9.8 GB loaded, 0.45 GB after the unload. Open: whether the server's
+           preset gains from a 4,096 batch too.
        - **How to tune it (sources: `docs/references.md` → "Thinking budgets and over-reasoning"; the reading is ours).**
          - The budget applies to each response, so each step of a session gets its own: it stops one runaway step
            (`lfc-07`'s) without limiting a long task's total work (`kane-08`'s many steps).
