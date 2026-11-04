@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests+docs: a thinking budget for qwen3.6, node3's 3080 as a second seat, and two more round measures
+  (2026-11-03).** `summarize-rounds.ps1` now prints the pass rate of runs with and without a capped step, with
+  `-StepTokens N` the same split for steps of N+ output tokens (a thinking budget reached; OpenCode records no
+  thinking tokens), a cost line (passes per 100k output tokens, minutes per pass), and how many runs timed out, after
+  Mia and Amini, "Don't Overthink, Don't Underthink" (arXiv 2608.26442). `test-summarize-rounds.ps1` +14 checks
+  (real window 20261101-2213 included), four mutations caught. Results in `docs/roadmap.md`: `qwen3.6` with
+  `--reasoning-budget 8192` and `limit.output` 16,384 passed 14 of 18 on `kane-08`, `lfc-07` and `asohav-03`
+  against 9 of 18 at 8,192 (p = 0.16), with no run losing a step to the limit (10 of 18 before), at twice the time
+  per pass; adopting it is the owner's call and the server is unchanged. node3's 3080 serves `qwen3.6` at 987 to
+  1,227 tok/s prefill and 64 to 68 decode with `n-cpu-moe` 32 and a 4,096 batch (the first setting tried overfilled
+  the card and ran at a fifth of that); rows in `tests/results/bench-speed.tsv`. New sources in `docs/references.md`
+  ("Thinking budgets and over-reasoning"), with how to tune the budget in the roadmap; `docs/methodology.md` explains
+  the new measures.
+
 - **docs: the output-limit test's result (2026-11-03).** `qwen3.6` with `limit.output` 16,384 on `kane-08`, `lfc-07`
   and `asohav-03` (window out16k-20261103, node3 against the server): 6 of 9 against 9 of 18 at 8,192, not measurable at
   this size, at three times the time per run. `kane-08` used the extra room; `lfc-07` filled 16,384 tokens of thinking

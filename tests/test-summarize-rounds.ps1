@@ -1,4 +1,4 @@
-# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule and the planner arm's selector counts
+# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, the planner arm's selector counts, the cap / long-step splits and the cost line
 # run-after: summarize-rounds.ps1
 # test-summarize-rounds.ps1 - regression guard for tests/summarize-rounds.ps1 (pass@k and pass^k).
 #
@@ -129,7 +129,18 @@ Write-Host "-- the output cap (capped steps per run)"
 function CR([string]$Acc, $Cap) { $r = Run m t acceptance $Acc; $r | Add-Member -NotePropertyName capSteps -NotePropertyValue $Cap; $r }
 $cs = Get-CapSummary @((CR PASS 0), (CR PASS 1), (CR FAIL 2), (CR FAIL 0), (CR FAIL $null), (Run m t checklist ""))
 Check "known runs, with a cap, of those passed, failures with one / failures (unknown and checklist runs left out)" ("{0}|{1}|{2}|{3}/{4}" -f $cs.runs, $cs.withCap, $cs.withCapPassed, $cs.failuresWithCap, $cs.failures) "4|2|1|1/2"
+Check "...and the other side of the split: runs without a capped step, passed / all" ("{0}/{1}" -f $cs.withoutCapPassed, $cs.withoutCap) "1/2"
 Check "no run with a known count: null" ($null -eq (Get-CapSummary @((Run m t acceptance PASS)))) "True"
+function LR([string]$Acc, $Long) { $r = Run m t acceptance $Acc; $r | Add-Member -NotePropertyName longSteps -NotePropertyValue $Long; $r }
+$lsum = Get-LongStepSummary @((LR PASS 2), (LR FAIL 1), (LR FAIL 1), (LR PASS 0), (LR FAIL 0), (LR PASS $null)) 8192
+Check "-StepTokens split: with a long step passed/all, without passed/all (unknown left out)" ("{0}/{1}|{2}/{3}|{4}" -f $lsum.withLongPassed, $lsum.withLong, $lsum.withoutLongPassed, $lsum.withoutLong, $lsum.runs) "1/3|1/2|5"
+Check "...off without -StepTokens" ($null -eq (Get-LongStepSummary @((LR PASS 1)) 0)) "True"
+function CR2([string]$Acc, $Out, $Sec) { $r = Run m t acceptance $Acc; $r | Add-Member -NotePropertyName usage -NotePropertyValue ([pscustomobject]@{ output = $Out }); $r | Add-Member -NotePropertyName elapsedSec -NotePropertyValue $Sec; $r }
+$co = Get-CostSummary @((CR2 PASS 30000 600), (CR2 FAIL 50000 1200), (CR2 PASS 20000 300), (Run m t acceptance PASS))
+Check "cost: runs, passes, tokens, minutes (a run without usage left out)" ("{0}|{1}|{2}|{3}" -f $co.runs, $co.passes, $co.outputTokens, $co.minutes) "3|2|100000|35"
+Check "...passes per 100k output tokens, minutes per pass, per run" ("{0}|{1}|{2}|{3}" -f $co.passesPer100kOutput, $co.minutesPerPass, $co.outputPerRun, $co.minutesPerRun) "2|17.5|33333|11.7"
+Check "...no pass: minutes per pass is null, not a division by zero" ($null -eq (Get-CostSummary @((CR2 FAIL 100 60))).minutesPerPass) "True"
+Check "...no run with usage: null" ($null -eq (Get-CostSummary @((Run m t acceptance PASS)))) "True"
 Check "the summary carries it" ((Get-RoundSummary -Runs @((CR FAIL 1), (CR PASS 0)))[0].cap.failuresWithCap) 1
 . (Join-Path (Join-Path $PSScriptRoot "agents") "opencode.ps1")
 $ct = Join-Path ([IO.Path]::GetTempPath()) ("cap-steps-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -142,6 +153,8 @@ try {
     Check "a run JSON's own cappedSteps wins over the transcript" (Get-RunCapSteps ([pscustomobject]@{ cappedSteps = 0; outputLimit = 8192 }) (Join-Path $ct "tasks-a.json")) 0
     Check "no outputLimit: unknown" ($null -eq (Get-RunCapSteps ([pscustomobject]@{ taskId = "t" }) (Join-Path $ct "tasks-a.json"))) "True"
     Check "no transcript: unknown" ($null -eq (Get-RunCapSteps $old (Join-Path $ct "tasks-none.json"))) "True"
+    Check "long steps at or over 8192, any finish reason: 2 (the 'tool-calls' one under it is not)" (Get-TranscriptLongSteps -Path (Join-Path $ct "tasks-a.jsonl") -Min 8192) 2
+    Check "...at or over 100: 3 (the length stop at 100 counts, the 40 does not)" (Get-TranscriptLongSteps -Path (Join-Path $ct "tasks-a.jsonl") -Min 100) 3
 } finally { Remove-Item -Recurse -Force $ct -ErrorAction SilentlyContinue }
 
 Write-Host "-- the script end to end"
@@ -168,6 +181,9 @@ try {
     $infra | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $arms "tasks-t1-infra.json")
     $aj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -AsJson 2>&1 | Out-String | ConvertFrom-Json
     Check "a marker in a parent folder splits the arm; an exit-1 run JSON is skipped" (($aj | ForEach-Object { "$($_.arm)=$($_.runs)" } | Sort-Object) -join ",") "=1,ASSISTED=1"
+    Set-Content -LiteralPath (Join-Path $arms "nudged/tasks-t1-m_TIMEOUT_20261103-000000.jsonl") -Value ""
+    $tout = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms 2>&1 | Out-String
+    Check "timed-out transcripts (in subfolders too) are counted and named as left out" ([bool]($tout -match '1 run\(s\) timed out: not graded, and not in the numbers below')) "True"
     $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") -Model a -AsJson 2>&1 | Out-String
     $j = $out | ConvertFrom-Json
     Check "-AsJson, -Model a, subfolders read, other JSON skipped" ("{0}|{1}|{2}|{3}" -f $j.model, $j.runs, $j.passes, $j.k) "a|10|4|3"
@@ -200,7 +216,9 @@ try {
     $win = Join-Path $PrivateResults "window-20261101-2213\baseline"
     if (Test-Path -LiteralPath $win) {
         $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win 2>&1 | Out-String
-        Check "window 20261101-2213's baseline: 11 of its 15 failures lost a step to the cap (the 2026-11-03 desk review)" ([bool]($out -match 'output cap \(limit\.output\): 12 of 96 run\(s\) lost a step to it, 1 of those passed; 11 of 15 failure\(s\) had one')) "True"
+        Check "window 20261101-2213's baseline: 11 of its 15 failures lost a step to the cap (the 2026-11-03 desk review)" ([bool]($out -match 'output cap \(limit\.output\): 12 of 96 run\(s\) lost a step to it, 1 of those passed; 11 of 15 failure\(s\) had one; runs without one: 80 of 84 passed')) "True"
+        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win -StepTokens 8192 2>&1 | Out-String
+        Check "...-StepTokens 8192 on it: 12 runs with such a step, 1 passed; and the cost line" ([bool]($out -match 'steps of 8192\+ output tokens .*: 12 of 96 run\(s\) had one, 1 of those passed; runs without one: 80 of 84 passed' -and $out -match 'cost: 557,847 output tokens and 284\.8 min over 96 graded run\(s\); 14\.52 pass')) "True"
     } else {
         Write-Host "SKIP window 20261101-2213 is not on this machine ($win)"
     }
