@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: a window against another host's seat sets that host's base URL (2026-11-04).** OpenCode's llama.cpp
+  providers read `LLAMACPP_<HOST>_BASE_URL`; `tests/run-window.ps1` set only the server's, so a detached window with
+  `-Model llamacpp-node3/...` would have met only infrastructure failures (the S4U lesson in AGENTS.md). It now sets
+  the variable named by the model's provider to `-ServerUrl`. `test-run-window.ps1` +1 check, mutation-checked.
+
 - **server: the main seat thinks at most 8,192 tokens per response (2026-11-03, owner's go).** `qwen3.6`'s preset in
   `server/llamacpp/models.ini` gains `reasoning-budget = 8192` and the message the test used; its `llamacpp-server`
   entry in `opencode/global/opencode.jsonc` goes from `limit.output` 8,192 to 16,384, leaving room for the tool call

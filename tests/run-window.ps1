@@ -407,6 +407,10 @@ function Invoke-Gate {
         Add-Gate "server url" "FAIL" "no -ServerUrl, no LLAMACPP_SERVER_BASE_URL, and no SERVER_IP in $(Join-Path $repoRoot '.env')"
     } else {
         $env:LLAMACPP_SERVER_BASE_URL = $ServerUrl
+        # OpenCode's llama.cpp providers read their baseURL from LLAMACPP_<HOST>_BASE_URL (opencode.jsonc). A seat on
+        # another host (llamacpp-node3/...) needs its own variable, and a scheduled task has none of the session's.
+        $provider = ($Model -split "/", 2)[0]
+        if ($provider -match '^llamacpp-([A-Za-z0-9]+)$') { Set-Item -Path ("Env:LLAMACPP_{0}_BASE_URL" -f $Matches[1].ToUpper()) -Value $ServerUrl }
         if (Wait-Server $WaitServerMinutes) {
             Add-Gate "server /health" "PASS" "$serverRoot answers"
             $served = Get-EngineServedModels -Root $serverRoot
