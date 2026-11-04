@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - **results: the server's seat with a 4,096 batch (2026-11-04).** At `n-cpu-moe` 20 it reads prompts at 2,092 to 2,394
-  tok/s against 744 to 776 today, decodes at 68 to 73 against 71 to 81, and uses 14.7 GB against 14.9. Not adopted
-  yet (the owner's call). Rows in `tests/results/bench-speed.tsv`; `docs/roadmap.md`.
+  tok/s against 744 to 776 today, decodes at 68 to 73 against 71 to 81, and uses 14.7 GB against 14.9. Adopted
+  in #207. Rows in `tests/results/bench-speed.tsv`; `docs/roadmap.md`.
 - **server: the main seat reads prompts about three times faster (2026-11-04, owner's go).** `qwen3.6`'s preset in
   `server/llamacpp/models.ini` gains `batch-size`/`ubatch-size` 4,096 and moves from `n-cpu-moe` 16 to 20 (the larger
   batch does not fit at 16): prefill 2,092 to 2,394 tok/s against 744 to 776, decode 68 to 73 against 71 to 81, 14.7

@@ -682,7 +682,7 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          - Agentic runs re-read long contexts every step, so prefill is most of their time: three times faster
            prefill should shorten runs far more than the 3 to 6% lower decode costs. `n-cpu-moe 20` keeps more
            headroom than 18 for nearly the same speed.
-         - Not adopted: changing the main seat is the owner's decision (the preset was put back and the seat reloaded).
+         - Adopted (owner, 2026-11-04): batch 4,096 at `n-cpu-moe` 20 is the main seat's preset from #207.
          - Mistake on the way: the router does not unload one model to start another, so the first try loaded each
            variant beside the seat and ran out of memory; the bench now unloads first.
        - **Regression check of the adopted settings on all 16 tasks (2026-11-04): none found.** The thinking budget
