@@ -53,7 +53,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-sealed-checkout.ps1` | Sealed task checkout (no future commits, refs, stashes or remotes) | How a task's checkout is made, reset or graded |
 | `tests/test-show-acceptance.ps1` | -ShowAcceptance / -ReadOnlyAcceptance / -ShownPrompt / -AcceptanceDir (planner's tests) modes | How acceptance tests are placed, a run is prompted or scope is graded |
 | `tests/test-stop-nudge.ps1` | -NudgeOnStop and Get-StopKind classifiers 2 and 3 | The nudge, Get-StopKind or where results are written |
-| `tests/test-summarize-rounds.ps1` | summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule and the planner arm's selector counts | summarize-rounds.ps1 |
+| `tests/test-summarize-rounds.ps1` | summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, the planner arm's selector counts, the cap / long-step splits and the cost line | summarize-rounds.ps1 |
 | `tests/test-sync-opencode.ps1` | sync-opencode.ps1: local staging, backups, -Push role gate, secrets | Either script, the template's plugin paths or machines.tsv |
 | `tests/test-task-env.ps1` | A task's pinned testEnv for the test command and the model's shell | How the harness runs a command or launches opencode |
 | `tests/test-task-pins.ps1` | Task bases: full-SHA pins, summary rows ran from the pin, Resolve-TaskBase | The manifest or how a worktree's base is chosen |

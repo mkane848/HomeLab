@@ -611,6 +611,65 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          does not (`lfc-07`). `limit.output` stays 8,192 in `main` (the window raised it on node3 only and it was put
          back). The next lever is a budget on thinking rather than on output, once the server's llama.cpp build is
          checked for a token budget it can enforce; results are private `results/window-out16k-20261103`.
+       - **A thinking budget (window think8k-20261103, owner's go, 2026-11-03).** b11561 has `--reasoning-budget N`
+         (thinking stops at N tokens; `--reasoning-budget-message` is injected before the end-of-thinking tag). A
+         temporary server preset `qwen3.6:think` (the main seat's section plus `reasoning-budget = 8192` and the message
+         "Enough thinking. Act now on what you have: make the change with your tools.") was probed first: a long-thinking
+         question stopped thinking at about 8,190 tokens, the message appeared, and the answer followed (finish "stop",
+         72.6 tok/s). The window ran the same 18 runs at `limit.output` 16,384, so the budget is the only difference from
+         window out16k-20261103. **Result: 14 of 18 (78%, 95% interval 55% to 91%; 16 graded, 2 timeouts counted as
+         failures), against 9 of 18 at 8,192 (50%) and 6 of 9 at 16,384 alone (67%).** Fisher's exact test against
+         last night's rows gives p = 0.16, so the rate alone is not proven at this size; what changed in the
+         transcripts is clear:
+         - **No run lost a step to the output limit** (`summarize-rounds.ps1`: 0 of 16, against 10 of 18 at 8,192 and
+           3 of 8 at 16,384). The stall the budget targets is gone.
+         - `lfc-07` 5 of 6 (3 of 6 at 8,192; 1 of 3 at 16,384). The one failure is scope only: the run left a scratch
+           file (`check-length.ts`) in the repository; its suite and hidden tests passed. That run took 38 minutes,
+           partly while the owner was gaming on node3.
+         - `asohav-03` 6 of 6 (5 of 6).
+         - `kane-08` 3 of 6 (1 of 6): 3 passes, 1 failure of the model's own test (fails-on-old; suite and scope
+           passed), 2 timeouts at 45 minutes, both still working (the first: 94 steps, 9 edits).
+         - Runs that reached 8,192 output tokens in a step: 6 of 8 passed (at 8,192 without a budget: 1 of 10).
+         - Cost: 12.9 minutes per graded pass, 19.3 counting the timeouts' 90 minutes, against 10.2 at 8,192;
+           2.9 passes per 100k output tokens against 4.0. Twice the time per pass, for half the failures.
+         **Read:** the budget removes the output-limit stall without starving the long task, which the bigger limit
+         alone did not. What is left is a different failure mix (a stray file, a weak own test, `kane-08`'s length
+         against the 45-minute limit). Adopting it for the main seat (`reasoning-budget = 8192` in the preset,
+         `limit.output` 16,384) is the owner's decision; the temporary preset was removed from the server afterwards and
+         the seat is unchanged. Private `results/window-think8k-20261103`.
+       - **node3's 3080 can serve `qwen3.6` at about the server's speed (2026-11-03).** The GGUF was copied from the
+         server (sha256 `d372de8e...` matched at both ends) to `C:\HomeLab\models\` and served by a second
+         llama-server on port 8091 (node3's own service untouched), the server preset's settings with only
+         `n-cpu-moe` and the batch size varied; `tests/bench-speed.ps1 -Engine llamacpp`, rows in
+         `tests/results/bench-speed.tsv` (host `node3-3080-ncmoe<N>[-ub<B>]`):
+         | Setting | VRAM | Prefill 3k / 30k (tok/s) | Decode (tok/s) |
+         |---|---|---|---|
+         | `n-cpu-moe` 26, batch 512 | 9.6–9.7 of 10 GB | 130–143 / 119–123 | 21–34 |
+         | 32, batch 512 | 8.6 GB | 515 / 523 | 56–68 |
+         | **32, batch 4,096** | 9.7 GB | **987 / 1,209–1,227** | **64–68** |
+         | 36, batch 512 | 6.7 GB | 493 / 474–477 | 57–64 |
+         - The first setting (the most experts that loaded) was the slow one: at 9.7 of 10 GB the card spilled into
+           system memory, and both prefill and decode collapsed. Fewer experts on the GPU was four times faster.
+         - A 4,096 batch then doubles prefill, past the server's 721–754 at its default 512; decode stays near the
+           server's 68–86. The sweep before this (batch 2,048 at `n-cpu-moe` 26: 187 / 159 prefill) is in its console
+           log only: the next script cleared the results file before it was appended (a mistake, not repeated).
+         - Next, owner's call: how node3 shares the 3080 between gaming and a resident model (on demand for windows,
+           unload when idle, or a gaming switch), and whether the server's own preset gains from a 4,096 batch too.
+       - **How to tune it (sources: `docs/references.md` → "Thinking budgets and over-reasoning"; the reading is ours).**
+         - The budget applies to each response, so each step of a session gets its own: it stops one runaway step
+           (`lfc-07`'s) without limiting a long task's total work (`kane-08`'s many steps).
+         - Keep `limit.output` well above the budget: after the forced stop the model still needs room for its tool
+           call, and a file write can be long (8,192 within 16,384 leaves 8,192).
+         - Lower it when runs that reach it rarely pass (over-reasoning: the thinking was going nowhere); raise it when
+           they make wrong edits or the model's own tests start missing the bug (under-reasoning, which [Mia and
+           Amini](https://arxiv.org/abs/2608.26442) found always went with a wrong or incomplete answer). Measure with
+           `summarize-rounds.ps1 -StepTokens <budget>` (runs that reached it, and their pass rate against the rest) and
+           the cost line (passes per 100k output tokens, minutes per pass). Qwen's guidance keeps it above 1,024.
+         - One change at a time, on the tasks that show the problem: 8,192 against 4,096 is likely a small difference
+           and needs tens of runs a side ([methodology.md](methodology.md#how-many-runs-a-question-needs)).
+         - Re-probe after every llama.cpp upgrade: the budget broke silently from b9020 until May 2026 (issue #22717),
+           the message replaced by junk and the model looping past it. A softer stop (`--reasoning-budget-conclusion`,
+           PR #21141, not merged) is worth trying if it lands: today's cut is hard, at exactly N tokens.
      3. Three more rounds only for a model within reach of qwen3.6, so pass^k means something.
      4. Hosted DeepSeek V4 through OpenCode Go only as a calibration arm, with a Go budget go.
    - **Other uses of the hardware** (video, VFX, 3D, home-lab services) are listed in

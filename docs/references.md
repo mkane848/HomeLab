@@ -173,6 +173,21 @@ computes it (`Get-WilsonInterval`). Wilson's 1927 paper (doi 10.1080/01621459.19
 tool on 2026-11-03 and is not catalogued until read. `anthropic-evals` and `anthropic-infra-noise` (above) are also cited
 there.
 
+## Thinking budgets and over-reasoning
+
+| ID | Source | URL |
+|---|---|---|
+| mia-amini-overthink | "Don't Overthink, Don't Underthink: Toward Adaptive Reasoning in Agentic AI", Md Jueal Mia and M. Hadi Amini, FIU, arXiv 2608.26442, 2026-08-26 (read in full 2026-11-03) — a LangGraph agent (Qwen3.5-4B, Llama-3.1-8B, Phi-4-reasoning; 4,096-token limit) on MATH-500 and GAIA; GPT-4.1 labels over-, under- and adequate reasoning; on GAIA exhausting the limit "does not substantially improve performance" (Phi-4-reasoning 164 of 165 hits, 11.59% hit accuracy); Qwen3.5-4B hit the limit on 38% of MATH-500 (hit accuracy 73.68% against 96.13%); every under-reasoning case incorrect or incomplete; argues for adaptive controllers over fixed budgets and for metrics such as accuracy per reasoning token. Preliminary: small models, no budget ablation, averages only, model-judged labels | <https://arxiv.org/abs/2608.26442> |
+| bai-agent-tokens | "How Do AI Agents Spend Your Money? Analyzing and Predicting Token Consumption in Agentic Coding Tasks", Bai, Huang, Wang, Sun, Mihalcea, Brynjolfsson, Pentland and Pei, arXiv 2604.22750, 2026-04-24, v3 2026-10-02 (abstract read 2026-11-03) — "higher token usage does not translate into higher accuracy"; "accuracy often peaks at intermediate cost and saturates at higher costs"; runs of one task differ by up to 30× in tokens | <https://arxiv.org/abs/2604.22750> |
+| qwen-quickstart | Qwen docs, "Quickstart", thinking budget (read 2026-11-03) — end thinking at the budget with an early-stopping prompt, then let the model answer; tune the budget to acceptable latency and keep it "higher than 1024 for meaningful improvements across tasks"; examples use 32,768 output tokens | <https://qwen.readthedocs.io/en/stable/getting_started/quickstart.html> |
+| s1-budget-forcing | "s1: Simple test-time scaling", Niklas Muennighoff et al., arXiv 2501.19393, 2025-01-31 (abstract read 2026-11-03) — budget forcing: "forcefully terminating the model's thinking process", or extending it by appending "Wait" | <https://arxiv.org/abs/2501.19393> |
+| llamacpp-budget-bug | llama.cpp issue #22717 (read 2026-11-03) — from b9020 the budget message was replaced by junk, so models ran past the budget and looped (qwen3.6-35b-a3b among those affected); fixed by PR #22740, closed 2026-05-08 | <https://github.com/ggml-org/llama.cpp/issues/22717> |
+| llamacpp-budget-conclusion | llama.cpp PR #21141, "common: add two-phase graceful reasoning budget termination" (read 2026-11-03, open) — `--reasoning-budget-conclusion N` would give the model N tokens to close its thinking after the message, instead of the hard cut at the budget | <https://github.com/ggml-org/llama.cpp/pull/21141> |
+
+Where used: [roadmap.md](roadmap.md) ("Why qwen3.6 fails where it does": the thinking-budget test and how to tune it);
+`mia-amini-overthink` also → [methodology.md](methodology.md) ("What we report") and `tests/summarize-rounds.ps1`
+(the cap split and the cost line).
+
 ## Model landscape (2026-10-22)
 
 Vendor and aggregator pages: they move weekly, so re-read before acting on them.

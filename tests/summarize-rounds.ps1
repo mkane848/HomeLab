@@ -28,10 +28,18 @@
 # group that differ in numCtx, engine, plugins or agent version are pooled but
 # listed under "eras" so the mix is visible.
 #
-# Usage:  .\tests\summarize-rounds.ps1 -ResultsDir <folder>[,<folder>...] [-K n] [-Model <id>] [-AsJson]
+# Per group it also prints (2026-11-03) the output cap (runs that lost a step to limit.output, with the pass rate
+# of runs with and without one), with -StepTokens N the same split for steps of N+ output tokens (a thinking
+# budget reached), and the cost of the passes (passes per 100k output tokens, minutes per pass), after Mia and
+# Amini, "Don't Overthink, Don't Underthink" (arXiv 2608.26442): hit against no-hit accuracy, accuracy per token.
+# Timed-out runs leave no run JSON; their number is printed so the cost line is not read as complete.
+#
+# Usage:  .\tests\summarize-rounds.ps1 -ResultsDir <folder>[,<folder>...] [-K n] [-StepTokens n] [-Model <id>] [-AsJson]
 param(
     [string[]]$ResultsDir,
     [int]$K = 0,
+    # Split runs by whether any step reached this many output tokens (a thinking budget); 0 = off.
+    [int]$StepTokens = 0,
     [string]$Model = "",
     [switch]$AsJson
 )
@@ -136,14 +144,78 @@ function Get-CapSummary {
     $known = @($Runs | Where-Object { $_.PSObject.Properties['capSteps'] -and $null -ne $_.capSteps -and (Get-RunVerdict $_) -ne "MANUAL" })
     if ($known.Count -eq 0) { return $null }
     $capped = @($known | Where-Object { [int]$_.capSteps -gt 0 })
+    $uncapped = @($known | Where-Object { [int]$_.capSteps -eq 0 })
     $failed = @($known | Where-Object { (Get-RunVerdict $_) -eq "FAIL" })
     [pscustomobject]@{
         runs = $known.Count
         withCap = $capped.Count
         withCapPassed = @($capped | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
+        # The other side of the split ("hit" against "no-hit" accuracy, Mia and Amini 2026): if runs that hit the cap
+        # pass about as often as the rest, the cap costs nothing; if they rarely pass, the extra room was not used.
+        withoutCap = $uncapped.Count
+        withoutCapPassed = @($uncapped | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
         failures = $failed.Count
         failuresWithCap = @($failed | Where-Object { [int]$_.capSteps -gt 0 }).Count
     }
+}
+
+function Get-LongStepSummary {
+    # -StepTokens N: the same split for runs with a step of N or more output tokens (`longSteps`, counted from the
+    # transcripts). Meant for a thinking budget (llama-server's --reasoning-budget): OpenCode does not record thinking
+    # tokens, so a step at or over the budget is the visible sign the budget was reached. Approximate: a step's output
+    # also holds its text and tool call, so a step just under the budget plus a long write counts too. $null without
+    # -StepTokens or when no run's count is known.
+    param([object[]]$Runs, [int]$Threshold)
+    if ($Threshold -le 0) { return $null }
+    $known = @($Runs | Where-Object { $_.PSObject.Properties['longSteps'] -and $null -ne $_.longSteps -and (Get-RunVerdict $_) -ne "MANUAL" })
+    if ($known.Count -eq 0) { return $null }
+    $hit = @($known | Where-Object { [int]$_.longSteps -gt 0 })
+    $miss = @($known | Where-Object { [int]$_.longSteps -eq 0 })
+    [pscustomobject]@{
+        threshold = $Threshold
+        runs = $known.Count
+        withLong = $hit.Count
+        withLongPassed = @($hit | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
+        withoutLong = $miss.Count
+        withoutLongPassed = @($miss | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
+    }
+}
+
+function Get-CostSummary {
+    # What the passes cost (Mia and Amini 2026 propose "accuracy per reasoning token"; OpenCode records no thinking
+    # tokens, so output tokens, which include them, stand in): over graded runs that recorded `usage.output` and
+    # `elapsedSec`, passes per 100,000 output tokens, minutes per pass, and the mean per run. Timeouts leave no run
+    # JSON, so their time is not here; the script prints how many there were. $null when no run has both.
+    param([object[]]$Runs)
+    $known = @($Runs | Where-Object { $_.PSObject.Properties['usage'] -and $_.usage -and $null -ne $_.usage.output -and $_.PSObject.Properties['elapsedSec'] -and $null -ne $_.elapsedSec -and (Get-RunVerdict $_) -ne "MANUAL" })
+    if ($known.Count -eq 0) { return $null }
+    $passes = @($known | Where-Object { (Get-RunVerdict $_) -eq "PASS" }).Count
+    $out = [double](($known | ForEach-Object { [double]$_.usage.output } | Measure-Object -Sum).Sum)
+    $min = [double](($known | ForEach-Object { [double]$_.elapsedSec } | Measure-Object -Sum).Sum) / 60
+    [pscustomobject]@{
+        runs = $known.Count
+        passes = $passes
+        outputTokens = [int64]$out
+        minutes = [math]::Round($min, 1)
+        passesPer100kOutput = $(if ($out -gt 0) { [math]::Round($passes * 100000 / $out, 2) } else { $null })
+        minutesPerPass = $(if ($passes) { [math]::Round($min / $passes, 1) } else { $null })
+        outputPerRun = [math]::Round($out / $known.Count)
+        minutesPerRun = [math]::Round($min / $known.Count, 1)
+    }
+}
+
+function Get-TranscriptLongSteps {
+    # Steps in a transcript whose output tokens are at least $Min (and, with -LengthOnly, that ended "length").
+    # Needs Read-AgentEvents. $null when the transcript is missing.
+    param([string]$Path, [int]$Min, [switch]$LengthOnly)
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    $n = 0
+    foreach ($e in (Read-AgentEvents -Path $Path)) {
+        if ($e.Kind -ne "step-end" -or $null -eq $e.Output -or [int]$e.Output -lt $Min) { continue }
+        if ($LengthOnly -and $e.Finish -ne "length") { continue }
+        $n++
+    }
+    return $n
 }
 
 function Get-RunCapSteps {
@@ -154,18 +226,12 @@ function Get-RunCapSteps {
     if ($Run.PSObject.Properties['cappedSteps']) { return $Run.cappedSteps }
     $lim = if ($Run.PSObject.Properties['outputLimit']) { $Run.outputLimit } else { $null }
     if ($null -eq $lim -or "$lim" -notmatch '^\d+$') { return $null }
-    $tp = [IO.Path]::ChangeExtension($JsonPath, ".jsonl")
-    if (-not (Test-Path -LiteralPath $tp)) { return $null }
-    $n = 0
-    foreach ($e in (Read-AgentEvents -Path $tp)) {
-        if ($e.Kind -eq "step-end" -and $e.Finish -eq "length" -and $null -ne $e.Output -and [int]$e.Output -ge [int]$lim) { $n++ }
-    }
-    return $n
+    return (Get-TranscriptLongSteps -Path ([IO.Path]::ChangeExtension($JsonPath, ".jsonl")) -Min ([int]$lim) -LengthOnly)
 }
 
 function Get-RoundSummary {
     # One summary per model over the run objects given.
-    param([object[]]$Runs, [int]$K = 0)
+    param([object[]]$Runs, [int]$K = 0, [int]$StepTokens = 0)
     $out = @()
     $groups = @()
     foreach ($mg in ($Runs | Group-Object { "$($_.model)|$(if ($_.PSObject.Properties['arm']) { $_.arm })" } | Sort-Object Name)) {
@@ -196,7 +262,7 @@ function Get-RoundSummary {
             if ($vals.Count -gt 1) { $eras[$name] = $vals }
         }
         $first = $mg.Group[0]
-        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group); cap = (Get-CapSummary $mg.Group) }
+        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group); cap = (Get-CapSummary $mg.Group); longSteps = (Get-LongStepSummary $mg.Group $StepTokens); cost = (Get-CostSummary $mg.Group) }
     }
     # One k for every model shown, so the means can be compared across models.
     $allN = @($groups | ForEach-Object { $_.tasks } | ForEach-Object { $_.n })
@@ -213,7 +279,7 @@ function Get-RoundSummary {
         $passCount = ($tasks | Measure-Object c -Sum).Sum
         $out += [pscustomobject]@{
             model = $grp.model; arm = $grp.arm; k = $k; tasks = $tasks
-            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal; cap = $grp.cap
+            eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal; cap = $grp.cap; longSteps = $grp.longSteps; cost = $grp.cost
             runs = [int]$runCount; passes = [int]$passCount
             perRun = $(if ($runCount) { [math]::Round($passCount / $runCount, 3) } else { $null })
             passAtK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passAtK -Average).Average, 3) } else { $null })
@@ -253,12 +319,15 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
             }
             $j | Add-Member -NotePropertyName arm -NotePropertyValue (($arm | Sort-Object) -join "+") -Force
             $j | Add-Member -NotePropertyName capSteps -NotePropertyValue (Get-RunCapSteps $j $f.FullName) -Force
+            if ($StepTokens -gt 0) { $j | Add-Member -NotePropertyName longSteps -NotePropertyValue (Get-TranscriptLongSteps -Path ([IO.Path]::ChangeExtension($f.FullName, ".jsonl")) -Min $StepTokens) -Force }
             $runs += $j
         }
     }
     if ($runs.Count -eq 0) { Write-Host "ERROR: no run JSONs under $($ResultsDir -join ', ')" -ForegroundColor Red; exit 1 }
-    $summary = Get-RoundSummary -Runs $runs -K $K
+    $summary = Get-RoundSummary -Runs $runs -K $K -StepTokens $StepTokens
     if ($AsJson) { $summary | ConvertTo-Json -Depth 6; exit 0 }
+    $timeouts = @($ResultsDir | ForEach-Object { Get-ChildItem -LiteralPath $_ -Recurse -Filter "tasks-*_TIMEOUT_*.jsonl" -ErrorAction SilentlyContinue }).Count
+    if ($timeouts) { Write-Host ("{0} run(s) timed out: not graded, and not in the numbers below (their time is not in the cost line either)" -f $timeouts) -ForegroundColor Yellow }
     if ($skippedExit) { Write-Host ("{0} run JSON(s) with a non-zero agent exit skipped (infrastructure: no measurement)" -f $skippedExit) -ForegroundColor Yellow }
     foreach ($s in $summary) {
         Write-Host ""
@@ -285,7 +354,15 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
         }
         if ($s.cap) {
             $cp = $s.cap
-            Write-Host ("  output cap (limit.output): {0} of {1} run(s) lost a step to it, {2} of those passed; {3} of {4} failure(s) had one" -f $cp.withCap, $cp.runs, $cp.withCapPassed, $cp.failuresWithCap, $cp.failures)
+            Write-Host ("  output cap (limit.output): {0} of {1} run(s) lost a step to it, {2} of those passed; {3} of {4} failure(s) had one; runs without one: {5} of {6} passed" -f $cp.withCap, $cp.runs, $cp.withCapPassed, $cp.failuresWithCap, $cp.failures, $cp.withoutCapPassed, $cp.withoutCap)
+        }
+        if ($s.longSteps) {
+            $ls = $s.longSteps
+            Write-Host ("  steps of {0}+ output tokens (a thinking budget reached, approximately): {1} of {2} run(s) had one, {3} of those passed; runs without one: {4} of {5} passed" -f $ls.threshold, $ls.withLong, $ls.runs, $ls.withLongPassed, $ls.withoutLongPassed, $ls.withoutLong)
+        }
+        if ($s.cost) {
+            $co = $s.cost
+            Write-Host ("  cost: {0:N0} output tokens and {1} min over {2} graded run(s); {3} pass(es) per 100k output tokens, {4} min per pass ({5:N0} tokens, {6} min per run)" -f $co.outputTokens, $co.minutes, $co.runs, $co.passesPer100kOutput, $(if ($null -ne $co.minutesPerPass) { $co.minutesPerPass } else { "-" }), $co.outputPerRun, $co.minutesPerRun)
         }
         $s.tasks | ForEach-Object { [pscustomobject]@{ task = $_.task; runs = $_.n; passed = $_.c; "pass@$($s.k)" = $(if ($null -ne $_.passAtK) { [math]::Round($_.passAtK, 3) } else { "-" }); "pass^$($s.k)" = $(if ($null -ne $_.passHatK) { [math]::Round($_.passHatK, 3) } else { "-" }) } } | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
     }
