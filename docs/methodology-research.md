@@ -234,6 +234,35 @@ unattended after a plan is approved ([target-setup.md](target-setup.md)) needs t
 **Not verified.** OpenAI's "Unrolling the Codex agent loop" (2026-01-23) and "Harness engineering" (2026-02-11) answer
 403 to the fetch tool, so only search summaries were read, and neither is cited here as evidence.
 
+## Vetted against Microsoft Agent Framework's Harness (2026-11-04)
+
+The owner asked for [Microsoft's "Agent Harness" page](https://learn.microsoft.com/en-us/agent-framework/concepts/harness?pivots=programming-language-csharp)
+(updated 2026-11-01) to be checked against this repo. It describes a production harness as composed parts: a chat
+client, a tool-calling pipeline with history and optional compaction, todos and plan/execute modes, file memory, tool
+approval, OpenTelemetry, and optional bounded looping. Read with it: its pages on
+[looping](https://learn.microsoft.com/en-us/agent-framework/agents/looping?pivots=programming-language-csharp),
+[compaction](https://learn.microsoft.com/en-us/agent-framework/agents/conversations/compaction?pivots=programming-language-csharp)
+and [tool approval](https://learn.microsoft.com/en-us/agent-framework/agents/tools/tool-approval?pivots=programming-language-csharp).
+They are product docs (marked AI-assisted), with design guidance and code but no measurements, so they check the
+design, not the numbers.
+
+| Their part, and their guidance | Ours | Read |
+|---|---|---|
+| **Bounded looping.** "Always bound autonomous loops. A completion condition can fail, a model can stall, and an evaluator can be probabilistic." Default 10 iterations; set your own. | `run-retries.ps1`: at most 3 attempts; a 45-minute limit per run; windows with a hard deadline. | Same rule. |
+| **Completion evaluators**: a marker, todos done, background tasks done, an AI judge, or your own check. Several run in order; the first that wants another pass supplies its feedback. | Deterministic gates (scope, suite, fails-on-old or hidden tests, integrity, tampering) plus the planner's Gate tests as the selector. No model judge. | Theirs is the general form of ours. We chose deterministic checks because a local model judge failed ([review-gate](review-gate/README.md), 2026-09-19); their docs call evaluators "probabilistic" too. |
+| **Feedback into the next pass.** The loop sends the winning evaluator's feedback as the next input; `FreshContextPerIteration` instead restarts from the original request plus an accumulated feedback log. | Each attempt is a fresh sealed checkout and a fresh session. Nothing from a failed attempt reaches the next. | **A real difference.** Independent attempts keep pass@k honest; feeding attempt 2 the names of the Gate tests attempt 1 failed (their fresh-context mode) could raise the pass rate. A candidate experiment, measured as its own arm. |
+| **A pending approval escapes the loop** instead of being hidden behind another autonomous pass. | The nudges tell the model to stop and ask only for the owner's decisions; such stops are counted, not retried away. | Same intent. |
+| **Compaction**: off unless both the context window and the output limit are set; the default derives its thresholds from those two. System messages are always preserved; a tool call and its results are removed together. Layer strategies gentlest first: collapse old tool results, then summarize, then a sliding window, then truncate as a backstop. | OpenCode compacts by summarizing when the context minus `limit.output` fills (49,152 tokens for `qwen3.6` since 2026-11-03), plus our read-budget plugin and the compaction nudge. OpenCode's `compaction.prune` (removes old tool outputs; off by default, [OpenCode config](https://opencode.ai/docs/config/)) is not enabled. | "System always preserved" is the rule Ollama broke (it cut the front of over-long prompts silently, system prompt included), and why llama.cpp's explicit refusal was the right move. **Candidate experiment:** `compaction.prune` on, their gentle first step, on the tasks that compact. |
+| **Todos and plan/execute modes** on by default; a todo-completion evaluator. | `/plan` writes `docs/implementation-tasks.md`; the Plan/Build toggle; unattended work runs against a confirmed `DONE.md` whose Gate items have tests. | Same shape; our Gate tests are a stricter todo evaluator. |
+| **Output limit**: the examples pair a 128,000-token context with `MaxOutputTokens = 16_384`. | 65,536 context, 16,384 output since 2026-11-03. | Consistent (theirs is an example, not a recommendation). |
+| **Harness instructions**: "Use tools deliberately and report verified results." | The stop nudge: "use your tools to make the change and check it". | Same instruction. |
+| **Safety**: an approval binds to the pending request in the same session; standing approvals live in the session and should be reviewed when the tool set changes; keep write approval on unless the storage boundary is trusted. Line edits carry the expected line text so a stale line number cannot edit the wrong line. | Sealed checkouts, git pushes rewritten to a dead host, the owner merges; OpenCode's `edit` matches the old text. | Our boundary is the checkout. Fine for a home lab. |
+| **Observability**: OpenTelemetry on by default. | A JSON transcript and a run JSON per run; `summarize-rounds.ps1`. | Enough for offline analysis; no live traces. |
+
+**What it changes:** two candidate experiments, each a separate arm against the current settings and sized by
+power ([methodology.md](methodology.md#how-many-runs-a-question-needs)): (1) attempt 2 sees the Gate tests attempt 1
+failed; (2) `compaction.prune` on. Nothing in the pages contradicts the current setup.
+
 ## References
 
 Every source for the claims above is catalogued with URL, author/lab, and date
