@@ -669,6 +669,22 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
            first request and unloaded at the end (`-UnloadAtEnd`; the card back to 0.46 GB); the gate checked for
            games. It needed #201 first: a detached window set only the server's base URL, so OpenCode's
            `llamacpp-node3` provider would have had none. node3 can carry unattended work as a second seat.
+       - **The server's seat with a 4,096 batch (2026-11-04): prompt reading about three times faster.** Temporary
+         presets (the main seat's section plus `batch-size`/`ubatch-size` 4,096) at `n-cpu-moe` 16, 18 and 20, measured
+         with `tests/bench-speed.ps1 -Engine llamacpp`, 2 reps at 3k and 30k tokens, against the seat as it is (default
+         batch 512, `n-cpu-moe` 16); rows in `tests/results/bench-speed.tsv` (hosts `server-qwen3.6-*`):
+         | Setting | VRAM of 16 GB | Prefill 3k / 30k (tok/s) | Decode (tok/s) |
+         |---|---|---|---|
+         | today: batch 512, `n-cpu-moe` 16 | 14.9 GB | 772 to 776 / 744 to 749 | 71 to 81 |
+         | batch 4,096, 16 | does not load (13 GB weights buffer plus the larger compute buffer) | - | - |
+         | batch 4,096, 18 | 15.6 GB | 2,234 to 2,238 / 2,516 to 2,527 | 67 to 76 |
+         | **batch 4,096, 20** | **14.7 GB** | **2,092 to 2,112 / 2,387 to 2,394** | **68 to 73** |
+         - Agentic runs re-read long contexts every step, so prefill is most of their time: three times faster
+           prefill should shorten runs far more than the 3 to 6% lower decode costs. `n-cpu-moe 20` keeps more
+           headroom than 18 for nearly the same speed.
+         - Not adopted: changing the main seat is the owner's decision (the preset was put back and the seat reloaded).
+         - Mistake on the way: the router does not unload one model to start another, so the first try loaded each
+           variant beside the seat and ran out of memory; the bench now unloads first.
        - **How to tune it (sources: `docs/references.md` → "Thinking budgets and over-reasoning"; the reading is ours).**
          - The budget applies to each response, so each step of a session gets its own: it stops one runaway step
            (`lfc-07`'s) without limiting a long task's total work (`kane-08`'s many steps).
