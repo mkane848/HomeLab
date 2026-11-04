@@ -612,7 +612,9 @@
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 65536, "output": 8192 }
+          // 16384 since 2026-11-03: the preset caps thinking at 8192 (reasoning-budget), which leaves 8192 for the
+          // step's text and tool call. Compaction now starts at 49152 instead of 57344.
+          "limit": { "context": 65536, "output": 16384 }
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Server, llama.cpp)",
@@ -700,13 +702,14 @@
         // list image input even where the Ollama copy does. No "npm" field: OpenCode
         // gives a config-defined provider @ai-sdk/openai-compatible (docs/llamacpp-trial.md, step 6).
         "qwen3.6:35b-a3b-coding": {
-          "name": "Qwen3.6 35B-A3B Coding (Node3, main seat, llama.cpp)",
+          "name": "Qwen3.6 35B-A3B Coding (Node3, second seat, on demand, llama.cpp)",
           "attachment": false,
           "reasoning": true,
           "tool_call": true,
           "modalities": { "input": ["text"], "output": ["text"] },
           "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
-          "limit": { "context": 65536, "output": 8192 }
+          // Same as the server seat since 2026-11-03: thinking capped at 8192 in node3/llamacpp/models.ini.
+          "limit": { "context": 65536, "output": 16384 }
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Node3, llama.cpp)",
