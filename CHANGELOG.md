@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: no regression from the thinking budget on all 16 tasks (2026-11-04).** 45 of 48 (94%) against 81 of 96
+  (84%) before the change, run as three one-hour slices split across both seats with the halves swapped; no run cut by
+  the output limit; about 5 minutes per pass against 3.5. `docs/roadmap.md`.
+
 - **tests: run-window slices (`-FillTo` / `-FillFrom`, 2026-11-04, owner: split a night's test into short slices).**
   A window leaves out the baseline tasks that already have N attempts in earlier slices' results folders (graded rows
   and timeouts count; infrastructure failures do not), and skips the baseline when nothing is missing. Runbook in
