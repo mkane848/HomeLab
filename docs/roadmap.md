@@ -706,6 +706,18 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          set measured: 0 false positives and 0 false negatives, 0 integrity blocks, Ideal 84% (27 of 32; the same two
          `real-03` items missed in both reps), 1.4 to 3.5 minutes an attempt. Details and the comparison with
          2026-11-02: `docs/planner-tests-experiment.md` → "The checkpoint, again under the new settings".
+       - **`compaction.prune` on `kane-08`, slice 1 (windows prune-kane08-s1-{server,node3}-20261105, 2026-11-05): no
+         effect to see; the `lfc-07` lean did not carry over.** 4 runs in the hour (3 on the server's seat, 1 on node3's;
+         node3's second run was cut by the window's end), against 8 control runs under the same settings without prune
+         (7 on node3's seat, 1 on the server's). Prune 3 of 4 passed (the miss was the model's own test, the familiar
+         fails-on-old failure), control 7 of 8. **Every run compacted in both arms** (4 of 4, 8 of 8; 2.5 compactions a
+         run pruned against 3.6). The raw times (14.8 minutes pruned against 25.3) mostly reflect the seat mix, not prune:
+         within a seat the server took about 11 minutes pruned and 12 in its one control run, node3 26 pruned against 27
+         across its seven. So on the task that compacts most, pruning old tool outputs did not stop compaction and did
+         not change the time or the pass rate that these few runs can show. With `lfc-07`'s lean (4 of 6 compacted against
+         9 of 9, 13.5 minutes against 16.3, p = 0.14) that is no case to adopt it: not adopted, parked. A decision either
+         way would need many more runs on a balanced seat mix. Private
+         `results/window-prune-kane08-s1-{server,node3}-20261105`.
        - **The server's seat with a 4,096 batch (2026-11-04): prompt reading about three times faster.** Temporary
          presets (the main seat's section plus `batch-size`/`ubatch-size` 4,096) at `n-cpu-moe` 16, 18 and 20, measured
          with `tests/bench-speed.ps1 -Engine llamacpp`, 2 reps at 3k and 30k tokens, against the seat as it is (default

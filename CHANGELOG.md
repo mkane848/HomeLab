@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: `compaction.prune` on `kane-08` shows no effect (2026-11-05).** One slice across both seats: 4 runs, 3 passed,
+  every run compacted (as did all 8 controls), and times within a seat matched control. With `lfc-07`'s lean (p = 0.14)
+  there is no case to adopt it; parked. `docs/roadmap.md`.
+
 - **results: the planner-gated retry loop under the new settings (2026-11-05).** `real-01` to `real-03`, two reps on the
   server's seat with the thinking budget and the 4,096 batch: 6 of 6 accepted on the first attempt, the planner's Gate
   agreed with the hidden tests in all 6 (0 false positives or negatives; 0 of 12 across both rounds), no integrity
