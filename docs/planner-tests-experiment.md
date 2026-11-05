@@ -417,6 +417,32 @@ The owner confirmed the three v2 done lists as written ("All good"), the planner
   6 right ones rejected. Two of its tests are stricter than their lines (G2.1 treats an "e.g." list as exhaustive; G1.1
   requires prose around `HEALTH_PORT`), despite the tests prompt saying "e.g." means examples.
 
+## The checkpoint, again under the new settings (2026-11-05)
+
+The live round of 2026-11-02, repeated on the server's seat with the thinking budget and the 4,096 batch (private
+`results/planner-gated-r{1,2}-20261105`): `real-01`, `real-02` and `real-03`, the confirmed v2 Gate set as the selector
+the model is shown, the Ideal set measured, the hidden tests as the judge, up to 3 attempts, two reps, driven from
+node3's CPU.
+
+| Measure | 2026-11-02 (old settings) | 2026-11-05, 2 reps |
+|---|---|---|
+| Accepted | 3 of 3 tasks (`real-02` only after the integrity fixes) | 6 of 6 runs, every one on its first attempt |
+| Planner's Gate against the hidden tests | 6 of 6 attempts agreed | 6 of 6 agreed: 0 false positives, 0 false negatives |
+| Integrity blocks | 5 false blocks (fixed the same day) | 0 of 6 |
+| Ideal items done | 28 of 30 over all attempts; 15 of 16 on first attempts | 27 of 32 (84%): 13 of 16 and 14 of 16 |
+| Time per attempt | `real-01` about 3.5 minutes | 1.4 to 3.5 minutes (`real-01` 1.4 to 1.6) |
+| Steps cut by the output limit | not recorded | 0 of 6; none reached 8,192 tokens in a step |
+
+- **The gate held.** Over both rounds, 12 attempts the dispatcher accepted and none wrong by the hidden tests: 0 of 12
+  (95% interval 0% to 24%). The 10% line needs about 30 to 35 such attempts, which only real work will supply.
+- **The Ideal score is a little lower, and it is the same two items both times.** `real-03` missed I5 (the Terms say
+  the bot does not process payments) and I6 (the README's privacy section points to the Privacy Policy) in both reps
+  (5 of 7 each; 6 of 7 on 2026-11-02), and `real-01` missed one item in rep 1. Ideal never gates, so these were
+  accepted as they should be: the lenient bar, with a later cleanup run for the rest. Six runs cannot say whether
+  the dip is the settings or the sample.
+- **Nothing here needed a retry,** so the feedback-between-attempts idea (attempt 2 sees attempt 1's failed Gate
+  tests) has nothing to improve on these tasks.
+
 ## Real work: intake, delivery and the owner's verdict (2026-11-02)
 
 One task from the owner, from request to a branch to review, with `tests/new-real-task.ps1`:

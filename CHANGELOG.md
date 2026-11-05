@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the planner-gated retry loop under the new settings (2026-11-05).** `real-01` to `real-03`, two reps on the
+  server's seat with the thinking budget and the 4,096 batch: 6 of 6 accepted on the first attempt, the planner's Gate
+  agreed with the hidden tests in all 6 (0 false positives or negatives; 0 of 12 across both rounds), no integrity
+  blocks, Ideal 84%. `docs/planner-tests-experiment.md`.
+
 - **results: a longer `compaction.prune` arm on `lfc-07`, and the `asohav-09` empty-reply check (2026-11-05).** Prune:
   6 of 6 passed, 4 of 6 runs compacted against 9 of 9 in control, 13.5 minutes a run against 16.3 (p = 0.14 on
   compaction): a lean, not a result. `asohav-09` ten times: no empty reply (1 in 58 overall), 8 of 10 passed.
