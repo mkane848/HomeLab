@@ -701,6 +701,11 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          one failed only fails-on-old (its own test missed the bug, the familiar failure). With the regression run's one
          empty reply that is 1 in 58 over both rounds; no fix is called for. Private
          `results/window-empty-asohav09-20261105`.
+       - **The planner-gated retry loop under the new settings (2026-11-05): 6 of 6 accepted on the first attempt, the
+         gate agreed with the hidden tests every time.** `real-01` to `real-03`, two reps, the v2 Gate set shown, the Ideal
+         set measured: 0 false positives and 0 false negatives, 0 integrity blocks, Ideal 84% (27 of 32; the same two
+         `real-03` items missed in both reps), 1.4 to 3.5 minutes an attempt. Details and the comparison with
+         2026-11-02: `docs/planner-tests-experiment.md` → "The checkpoint, again under the new settings".
        - **The server's seat with a 4,096 batch (2026-11-04): prompt reading about three times faster.** Temporary
          presets (the main seat's section plus `batch-size`/`ubatch-size` 4,096) at `n-cpu-moe` 16, 18 and 20, measured
          with `tests/bench-speed.ps1 -Engine llamacpp`, 2 reps at 3k and 30k tokens, against the seat as it is (default
