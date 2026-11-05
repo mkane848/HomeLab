@@ -413,6 +413,20 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "...nothing short: the baseline is skipped, nothing runs, exit 0" ("{0}|{1}|{2}" -f $r.Exit, (Phase-Row $r "baseline"), (Calls-Like $r '^batch\|').Count) "0|skipped|0"
     Check "-FillTo without -FillFrom: exit 3" (Invoke-Window @{ Run = @("baseline"); FillTo = 1 }).Exit 3
 
+    Write-Host "-- -OpencodeConfig (an experiment arm's config for this window only)"
+    Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
+    $ocfg = Join-Path $tmp "arm-prune.json"; '{"compaction":{"prune":true}}' | Set-Content -LiteralPath $ocfg
+    $r = Invoke-Window @{ Run = @("baseline"); OpencodeConfig = $ocfg }
+    Check "a valid file: the window runs and points its children at it (OPENCODE_CONFIG)" ("{0}|{1}" -f $r.Exit, $env:OPENCODE_CONFIG) "0|$([IO.Path]::GetFullPath($ocfg))"
+    Has "...and the report shows what it merges" $r.Report 'opencode config.*"prune":true'
+    Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
+    $r = Invoke-Window @{ Run = @("baseline"); OpencodeConfig = (Join-Path $tmp "no-such-config.json") }
+    Check "a missing file: no-go at the gate, nothing ran" ("{0}|{1}" -f $r.Exit, $r.Calls.Count) "2|0"
+    'not json {' | Set-Content -LiteralPath (Join-Path $tmp "bad.json")
+    Check "a file that is not JSON: no-go" (Invoke-Window @{ Run = @("baseline"); OpencodeConfig = (Join-Path $tmp "bad.json") }).Exit 2
+    Check "...and the variable was not set for it" ($null -eq $env:OPENCODE_CONFIG) "True"
+    Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
+
     Write-Host "-- a seat on another host"
     Remove-Item Env:LLAMACPP_NODE3_BASE_URL -ErrorAction SilentlyContinue
     $r = Invoke-Window @{ Run = @("baseline"); Model = "llamacpp-node3/qwen3.6:35b-a3b-coding" }

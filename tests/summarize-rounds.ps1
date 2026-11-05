@@ -256,6 +256,7 @@ function Get-RoundSummary {
             engine        = { param($r) if ($r.engine) { "$($r.engine.name) $($r.engine.version)".Trim() } }
             plugins       = { param($r) if ($r.PSObject.Properties['opencodePlugins']) { (@($r.opencodePlugins) | ForEach-Object { Split-Path -Leaf "$_" } | Sort-Object) -join "+" } }
             agentVersion  = { param($r) if ($r.agent) { $r.agent.version } }
+            compactionPrune = { param($r) if ($r.contextEvents -and $r.contextEvents.compactionConfig -and $r.contextEvents.compactionConfig.PSObject.Properties['prune'] -and $null -ne $r.contextEvents.compactionConfig.prune) { "prune=$($r.contextEvents.compactionConfig.prune)" } else { "prune=unset" } }
         }
         foreach ($name in ($probe.Keys | Sort-Object)) {
             $vals = @($mg.Group | ForEach-Object { & $probe[$name] $_ } | Where-Object { $null -ne $_ -and "$_" -ne "" } | ForEach-Object { "$_" } | Sort-Object -Unique)

@@ -193,6 +193,10 @@ try {
     CheckValue "limit.input, default reserved = min(20k, out)" (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } $null) -ModelId "ollama-desktop/m").threshold 57344
     CheckValue "limit.input with reserved 16000"              (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } 16000) -ModelId "ollama-desktop/m").threshold 45440
     CheckValue "unknown model: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/other")) $true
+    CheckValue "prune not set: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/m").prune) $true
+    $pc = @{ provider = @{ "ollama-desktop" = @{ models = @{ "m" = @{ limit = @{ context = 65536; output = 16384 } } } } }; compaction = @{ prune = $true } } | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    CheckValue "compaction.prune true is recorded"            (Get-CompactionThreshold -Config $pc -ModelId "ollama-desktop/m").prune $true
+    CheckValue "...and does not move the threshold"           (Get-CompactionThreshold -Config $pc -ModelId "ollama-desktop/m").threshold 49152
 
     Write-Host "-- Format-ContextOverflowWarning (the console WARN, worded per engine)"
     $drops = @([pscustomobject]@{ step = 1; estimatedRequest = 67195 }, [pscustomobject]@{ step = 3; estimatedRequest = 70463 })
