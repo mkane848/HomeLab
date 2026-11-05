@@ -3252,6 +3252,17 @@ or run. They measured each against what the adapter needs:
 - **Goose is the fallback** if Qwen Code's events or hooks disappoint.
 - **Hermes stays parked.**
 - The trial needs a global npm install, so it waits for the owner's go-ahead. It costs no Go budget.
+- **Refreshed and installed, not yet run (2026-11-05, owner's go for the install only).** Qwen Code is now v0.26.8
+  (the review above read 0.25.0). It is installed on node3 (`npm install -g @qwen-code/qwen-code@0.26.8` on Node 24;
+  npm held back one install script, for an audio-capture package, and it stays blocked) with its config in
+  `~/.qwen/settings.json`: auto-update and usage statistics off, the server's `qwen3.6` as an OpenAI-compatible
+  provider (65,536 context, 16,384 max tokens). What the docs re-read that day add: [headless][qwen-code-headless] has
+  no working-directory flag (run it from the project folder), exit codes 53, 55 and 130, and `--max-wall-time` and
+  `--max-tool-calls` budgets; the [Stop hook][qwen-code-hooks] runs in `-p`, can block and send a reason back, is
+  capped at 8 consecutive blocks by default and can run PowerShell (what a command hook's exit code 2 does on Stop is
+  not stated); the stream's per-step finish reason and token fields are still not documented; the
+  [providers page][qwen-code-providers] has no llama.cpp section. Next, owner's go: the probes (the fixed prompt's
+  size, tool calls against `qwen3.6`, the stream's real fields, a headless Stop-hook continue), about 1.5 hours.
 
 [qwen-code-repo]: https://github.com/QwenLM/qwen-code
 [qwen-code-headless]: https://qwenlm.github.io/qwen-code-docs/en/users/features/headless/
