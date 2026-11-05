@@ -87,6 +87,10 @@ param(
     # recursively and counted across models, because one run's slices may be split across seats.
     [int]$FillTo = 0,
     [string[]]$FillFrom = @(),
+    # -OpencodeConfig <file>: a config file OpenCode merges over its global one for this window's runs only
+    # (OPENCODE_CONFIG; OpenCode docs, "Config"). For an experiment arm, such as compaction.prune, without touching the
+    # machine's global config, which other windows share. The file must exist and parse as JSON (gate).
+    [string]$OpencodeConfig = "",
     [switch]$Plan,
     [switch]$Detach,
     [string]$ScriptRetries = (Join-Path $PSScriptRoot "run-retries.ps1"),
@@ -427,6 +431,15 @@ function Invoke-Gate {
     if ($PSVersionTable.PSVersion.Major -ge 7) { Add-Gate "pwsh" "PASS" "PowerShell $($PSVersionTable.PSVersion)" } else { Add-Gate "pwsh" "FAIL" "PowerShell 7 is the only supported version (this is $($PSVersionTable.PSVersion))" }
     foreach ($t in $RequiredTools) {
         if (Get-Command $t -ErrorAction SilentlyContinue) { Add-Gate "tool $t" "PASS" "found" } else { Add-Gate "tool $t" "FAIL" "not on PATH" }
+    }
+    if ($OpencodeConfig) {
+        $parsed = $null
+        if (Test-Path -LiteralPath $OpencodeConfig) { try { $parsed = Get-Content -Raw -LiteralPath $OpencodeConfig | ConvertFrom-Json -ErrorAction Stop } catch { } }
+        if ($null -eq $parsed) { Add-Gate "opencode config" "FAIL" "$OpencodeConfig is missing or not JSON" }
+        else {
+            $env:OPENCODE_CONFIG = [IO.Path]::GetFullPath($OpencodeConfig)
+            Add-Gate "opencode config" "PASS" ("OPENCODE_CONFIG = {0} ({1})" -f $env:OPENCODE_CONFIG, ($parsed | ConvertTo-Json -Compress -Depth 6))
+        }
     }
     if ($YieldToGames) {
         $g = Get-RunningGame -Names $GameProcesses -SteamKey $SteamKey
