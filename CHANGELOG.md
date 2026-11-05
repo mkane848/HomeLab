@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: Qwen Code v0.26.8 installed on node3, not yet run (2026-11-05, owner's go for the install).** Pinned global
+  npm install, config in `~/.qwen/settings.json` (auto-update and usage statistics off, the server's `qwen3.6` as the
+  provider), one npm install script (audio capture) left blocked. The docs were re-read for the trial's open questions;
+  the findings and the next step (probes) are in `docs/roadmap.md` under "Alternatives to OpenCode".
+
 - **results: `compaction.prune` on `kane-08` shows no effect (2026-11-05).** One slice across both seats: 4 runs, 3 passed,
   every run compacted (as did all 8 controls), and times within a seat matched control. With `lfc-07`'s lean (p = 0.14)
   there is no case to adopt it; parked. `docs/roadmap.md`.
