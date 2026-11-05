@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the retry loop under the new settings, and a first `compaction.prune` arm (2026-11-04).** Milestone 4's
+  loop accepted all 18 private tasks at a mean of 1.06 attempts, `real-02` and `wp-5b` included (not reached on
+  2026-11-01). The prune arm fitted only 5 graded runs: all passed, fewer compacted, `lfc-07` faster; too few to judge.
+  `docs/roadmap.md`.
 - **tests: an experiment arm's OpenCode config per window (`run-window.ps1 -OpencodeConfig`, 2026-11-04).** The window
   points its runs at a config file OpenCode merges over the global one (`OPENCODE_CONFIG`), so an arm such as
   `compaction.prune` runs without touching the machine's global config, which other windows share; a missing or
