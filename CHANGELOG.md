@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: an experiment arm's OpenCode config per window (`run-window.ps1 -OpencodeConfig`, 2026-11-04).** The window
+  points its runs at a config file OpenCode merges over the global one (`OPENCODE_CONFIG`), so an arm such as
+  `compaction.prune` runs without touching the machine's global config, which other windows share; a missing or
+  invalid file is a no-go at the gate. Each run now records `compaction.prune` with its compaction settings
+  (`contextEvents.compactionConfig.prune`), and `summarize-rounds.ps1` warns when runs with and without it are pooled.
+  Guards: `test-run-window.ps1` +5, `test-context-events.ps1` +3; mutation-checked.
+
 - **results: the server's seat with a 4,096 batch (2026-11-04).** At `n-cpu-moe` 20 it reads prompts at 2,092 to 2,394
   tok/s against 744 to 776 today, decodes at 68 to 73 against 71 to 81, and uses 14.7 GB against 14.9. Adopted
   in #207. Rows in `tests/results/bench-speed.tsv`; `docs/roadmap.md`.

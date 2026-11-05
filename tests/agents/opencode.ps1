@@ -228,6 +228,9 @@ function Get-CompactionThreshold {
         limitOutput  = $(if ($lim.output) { [int]$lim.output } else { $null })
         reserved     = $(if ($lim.input) { $reserved } else { $null })
         threshold    = $threshold
+        # compaction.prune (removes old tool outputs; off by default). Part of what a run measured (2026-11-04: the
+        # prune experiment runs with it on through OPENCODE_CONFIG); $null when the config does not set it.
+        prune        = $(if ($Config.PSObject.Properties["compaction"] -and $null -ne $Config.compaction.prune) { [bool]$Config.compaction.prune } else { $null })
     }
 }
 
