@@ -687,6 +687,20 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          minutes), `asohav-03` did not compact either (control 5 of 9), while `kane-07` took 20 minutes against 6.7. One or
          two runs a task: a candidate worth a longer arm on `lfc-07` and `kane-08`, not a result. Private
          `results/window-compact-{ctl,prune}-20261104`.
+       - **`compaction.prune` on `lfc-07`, a longer arm (window prune-lfc07-20261105, node3's seat, 2026-11-05): the
+         lean is real but not proven.** 5 more graded runs (the 6th was cut by the window's time), 6 with the first
+         arm's, against 9 control runs under the same settings without it. Both arms passed every run (6 of 6, 9 of 9).
+         Compaction: 4 of 6 runs compacted (6 compactions) against 9 of 9 (15) in control; two pruned runs never
+         compacted and took 6.7 and 7.4 minutes. Mean 13.5 minutes against 16.3, and 30,600 output tokens a run against
+         40,100. Fisher's exact test on "compacted" gives p = 0.14, and the time spread is wide (6.7 to 20.6 minutes
+         pruned). So: it may trim compaction and time on this task, it costs no passes here, and six runs cannot show
+         more. The next step would be `kane-08` (the other task that always compacts, and the slowest) with prune on, as
+         slices; adopting it needs more than `lfc-07`. Private `results/window-prune-lfc07-20261105`.
+       - **`asohav-09`'s empty reply did not recur (window empty-asohav09-20261105, server seat, 2026-11-05).** In 10
+         runs none ended with no edit (writes 1 to 22). 8 of 10 passed: one failed the scope gate (and so fails-on-old),
+         one failed only fails-on-old (its own test missed the bug, the familiar failure). With the regression run's one
+         empty reply that is 1 in 58 over both rounds; no fix is called for. Private
+         `results/window-empty-asohav09-20261105`.
        - **The server's seat with a 4,096 batch (2026-11-04): prompt reading about three times faster.** Temporary
          presets (the main seat's section plus `batch-size`/`ubatch-size` 4,096) at `n-cpu-moe` 16, 18 and 20, measured
          with `tests/bench-speed.ps1 -Engine llamacpp`, 2 reps at 3k and 30k tokens, against the seat as it is (default

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: a longer `compaction.prune` arm on `lfc-07`, and the `asohav-09` empty-reply check (2026-11-05).** Prune:
+  6 of 6 passed, 4 of 6 runs compacted against 9 of 9 in control, 13.5 minutes a run against 16.3 (p = 0.14 on
+  compaction): a lean, not a result. `asohav-09` ten times: no empty reply (1 in 58 overall), 8 of 10 passed.
+  `docs/roadmap.md`.
+
 - **results: the retry loop under the new settings, and a first `compaction.prune` arm (2026-11-04).** Milestone 4's
   loop accepted all 18 private tasks at a mean of 1.06 attempts, `real-02` and `wp-5b` included (not reached on
   2026-11-01). The prune arm fitted only 5 graded runs: all passed, fewer compacted, `lfc-07` faster; too few to judge.
