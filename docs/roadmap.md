@@ -669,6 +669,24 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
            first request and unloaded at the end (`-UnloadAtEnd`; the card back to 0.46 GB); the gate checked for
            games. It needed #201 first: a detached window set only the server's base URL, so OpenCode's
            `llamacpp-node3` provider would have had none. node3 can carry unattended work as a second seat.
+       - **The retry loop under the new settings (window m4-20261104, server seat, 2026-11-04): 18 of 18 private tasks
+         accepted, mean 1.06 attempts.** Milestone 4's loop (`run-retries.ps1`, the task's own tests shown, at most 3
+         attempts) with the thinking budget and the 4,096 batch, against window 20261101-2213 before both: there 16 of
+         16 reached tasks were accepted on the first attempt and `real-02` and `wp-5b` were not reached (the three
+         checklist tasks are left out of both). Today both were: `real-02` accepted on its first attempt (it never passed
+         a planner-free run before) and `wp-5b` on its second, after one attempt was rejected for editing the shown
+         tests (`tampered`, the gate working); `wp-5b` took 93 minutes over the two. Most first attempts were as fast or
+         faster than on 2026-11-01 (`real-01c` 100 s against 350, `wp-5a` 336 against 641). Falsifier holds. The shown
+         tests make this the best case; the planner-test arm is what real work uses.
+       - **`compaction.prune` on the five tasks that compact most (2026-11-04): too few runs to judge; a hint on
+         `lfc-07`.** The arm (`run-window.ps1 -OpencodeConfig`, #208; node3's seat) fitted 5 graded runs and a
+         `kane-08` timeout before its time ran out, against 33 control runs under the same settings without it
+         (the regression slices, a control slice and window node3gpu-20261104). Prune 5 of 5 passed, control 31 of 33.
+         Fewer runs compacted (3 of 5 against 26 of 33) and output per run fell (24,767 tokens against 31,094), but
+         per task the picture is mixed: `lfc-07` did not compact and took 7.4 minutes (control: 9 of 9 compacted, 16.3
+         minutes), `asohav-03` did not compact either (control 5 of 9), while `kane-07` took 20 minutes against 6.7. One or
+         two runs a task: a candidate worth a longer arm on `lfc-07` and `kane-08`, not a result. Private
+         `results/window-compact-{ctl,prune}-20261104`.
        - **The server's seat with a 4,096 batch (2026-11-04): prompt reading about three times faster.** Temporary
          presets (the main seat's section plus `batch-size`/`ubatch-size` 4,096) at `n-cpu-moe` 16, 18 and 20, measured
          with `tests/bench-speed.ps1 -Engine llamacpp`, 2 reps at 3k and 30k tokens, against the seat as it is (default

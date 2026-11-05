@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the retry loop under the new settings, and a first `compaction.prune` arm (2026-11-04).** Milestone 4's
+  loop accepted all 18 private tasks at a mean of 1.06 attempts, `real-02` and `wp-5b` included (not reached on
+  2026-11-01). The prune arm fitted only 5 graded runs: all passed, fewer compacted, `lfc-07` faster; too few to judge.
+  `docs/roadmap.md`.
+
 - **results: the server's seat with a 4,096 batch (2026-11-04).** At `n-cpu-moe` 20 it reads prompts at 2,092 to 2,394
   tok/s against 744 to 776 today, decodes at 68 to 73 against 71 to 81, and uses 14.7 GB against 14.9. Adopted
   in #207. Rows in `tests/results/bench-speed.tsv`; `docs/roadmap.md`.
