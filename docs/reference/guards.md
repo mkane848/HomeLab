@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-54 guards.
+55 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -40,6 +40,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-outside-writes.ps1` | Get-OutsideWrites (writes outside the worktree) | How a transcript is read or a run JSON is built |
 | `tests/test-overflow-recovery.ps1` | Get-OverflowRecovery: recovered llama.cpp context overflows | How a run's exit is classified |
 | `tests/test-planner-done.ps1` | experiment 3's confirmation checkpoint: no planner test is written for an unconfirmed DONE.md | desktop/scripts/planner_done.py, run-planner.ps1 or make-planner-packs.py |
+| `tests/test-planner-local.ps1` | run-planner-local.ps1 prompt path rewrite and the audit of tool calls outside the scratch folder | run-planner-local.ps1 |
 | `tests/test-probe-overflow.ps1` | probe-overflow.ps1 verdicts and OpenCode overflow patterns | probe-overflow.ps1 or an opencode upgrade |
 | `tests/test-profiles.ps1` | Primary harness: live profiles vs intent manifest, host liveness, round-trip, reliability | Any profile, the catalog or opencode.jsonc |
 | `tests/test-prompt-truncation.ps1` | Prompt-truncation check (Ollama silently cutting a long request) | How a run's outcome is classified |
