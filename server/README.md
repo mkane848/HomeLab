@@ -7,7 +7,8 @@ Scripts and configs for the Ubuntu development server — the primary Ollama nod
 - AMD Ryzen 7 3700X (8c/16t)
 - **RTX 4070 Ti Super (16 GB VRAM, Ada, CUDA)** — replaced a GTX 1070 in Sep 2026
 - **32 GB DDR4 (Corsair Vengeance LPX)** — up from 16 GB
-- More detail in [docs/hardware.md](../docs/hardware.md)
+- MSI MAG B550 TOMAHAWK MAX WIFI (MS-7C91), BIOS 2.B0 (2026-04-16); GPU on PCIe 4.0 x16; 2.5 GbE; NVMe root (read 2026-11-06)
+- More detail, the measured load profile and what would let it run the harness itself: [docs/hardware.md](../docs/hardware.md)
 
 ## What Runs Here
 
