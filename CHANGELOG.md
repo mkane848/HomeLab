@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as `selector.recheck`). `run-retries.ps1` rejects anything but a pass, with the reason `recheck`; `summarize-rounds.ps1`
   and `deliver-attempt.ps1` follow. Install and setup moved to `Install-TaskDependencies` so both checkouts are built
   the same way. `tests/test-clean-recheck.ps1`, mutation-checked (13 of 13 caught across its guards).
+  Live on the desktop's CPU: 3 of 3 honest sets kept (recheck 15 to 21 s); 3 sets that climb out all rejected, including one
+  attempt the hidden tests fail that the old Gate would have kept.
+
+- **docs: the machines' specs read from the machines, and what would make the server stand alone (2026-11-06).**
+  Boards, BIOS versions, RAM sticks and speeds, GPU drivers and storage for all three machines (`docs/hardware.md`). The
+  desktop's 3600-rated RAM runs at 2133 MT/s. The server's CPU, not its GPU, is the limit during decode (GPU 19 to 25%,
+  CPU about 46% busy; PCIe 4.0 x16). Ranked options: a 32 GB GPU, then a 12 or 16 core Ryzen 5000 chip, with what is
+  unverified marked. Nothing was changed on any machine.
 
 - **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
   checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
