@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without a frontier model at all: Opus wrote those lists. `kane-08` at 60 minutes: 2 of 4 passed, 2 timed out.
   `docs/planner-tests-experiment.md`.
 
+- **tests: a local planner runner (`desktop/scripts/run-planner-local.ps1`, 2026-11-05).** Experiment 3's planner prompts on
+  a local model through OpenCode, in the same layout as `run-planner.ps1`, to compare with the frontier planner. It has
+  no container, so each run's transcript is audited for tool calls outside its scratch folder and the findings are
+  recorded per task. `tests/test-planner-local.ps1`, mutation-checked.
+
 - **docs: Qwen Code v0.26.8 installed on node3, not yet run (2026-11-05, owner's go for the install).** Pinned global
   npm install, config in `~/.qwen/settings.json` (auto-update and usage statistics off, the server's `qwen3.6` as the
   provider), one npm install script (audio capture) left blocked. The docs were re-read for the trial's open questions;
