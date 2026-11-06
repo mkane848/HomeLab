@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
+  checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
+  hidden tests, but Ideal fell to 24% against 84%, and 2 of 8 Privacy Policies kept a false `/delete` claim. No run yet
+  without a frontier model at all: Opus wrote those lists. `kane-08` at 60 minutes: 2 of 4 passed, 2 timed out.
+  `docs/planner-tests-experiment.md`.
+
 - **tests: a local planner runner (`desktop/scripts/run-planner-local.ps1`, 2026-11-05).** Experiment 3's planner prompts on
   a local model through OpenCode, in the same layout as `run-planner.ps1`, to compare with the frontier planner. It has
   no container, so each run's transcript is audited for tool calls outside its scratch folder and the findings are
