@@ -43,7 +43,7 @@ function Get-OutsideReferences {
     foreach ($e in @($Events | Where-Object { $_.Kind -eq "tool" })) {
         $text = (@($e.Paths) + @($(if ($null -ne $e.Input) { $e.Input | ConvertTo-Json -Compress -Depth 6 } else { "" }))) -join " "
         $text = $text -replace '\\\\', '/' -replace '\\', '/'
-        foreach ($m in [regex]::Matches($text, '(?i)\b[a-z]:/[^\s"''`|<>;,)]*')) {
+        foreach ($m in [regex]::Matches($text, '(?i)(?<![\w/])[a-z]:/[^\s"''`|<>;,)]*')) {
             $n = $m.Value.TrimEnd('/', '.').ToLowerInvariant()
             if ($n -ne $rootN -and -not $n.StartsWith("$rootN/")) { [void]$found.Add($m.Value) }
         }

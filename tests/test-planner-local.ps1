@@ -44,6 +44,8 @@ Check "a read outside, in a shell command with forward slashes" (@(Get-OutsideRe
 Check "a sibling with the same prefix is outside" (@(Get-OutsideReferences -Events @((Tool @{ command = 'ls C:\s\run10\x' })) -Root $root) -join "|") "C:/s/run10/x"
 Check "the private repository named without a drive letter" (@(Get-OutsideReferences -Events @((Tool @{ command = 'cd ../../HomeLab-private/tasks' })) -Root $root) -join "|") "(names HomeLab-private)"
 Check "text events are not tool calls" (@(Get-OutsideReferences -Events @([pscustomobject]@{ Kind = "text"; Text = 'see M:\Projects\x' }) -Root $root).Count) 0
+Check "a findstr switch is not a drive" (@(Get-OutsideReferences -Events @((Tool @{ command = 'npm test | findstr /C:"FAIL" /C:"PASS"' })) -Root $root).Count) 0
+Check "a bare drive root is outside" (@(Get-OutsideReferences -Events @((Tool @{ command = 'ls C:/' })) -Root $root) -join "|") "C:/"
 Check "repeats count once" (@(Get-OutsideReferences -Events @((Tool @{ command = 'cat D:\a' }), (Tool @{ command = 'cat D:\a' })) -Root $root).Count) 1
 
 Write-Host "-- the script's refusals"
