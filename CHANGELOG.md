@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Live on the desktop's CPU: 3 of 3 honest sets kept (recheck 15 to 21 s); 3 sets that climb out all rejected, including one
   attempt the hidden tests fail that the old Gate would have kept.
 
+- **results: the stricter planner prompt on nine held-out tasks, and a review that found a hole in the Gate (2026-11-06).**
+  As handed in, 3 of 9 against 2 of 9. With misplaced files moved back, pooled 11 of 21 against 2 of 21 (p = 0.006). The
+  "copied tests" were mostly tests a contract commit already holds and the harness hides. A Gate set at the wrong depth reads
+  outside the checkout, and executors satisfied it with stray files or a junction: 10 of 24 kept runs used such a set. Hidden
+  tests are unaffected. Ranked fixes, none built. `docs/planner-tests-experiment.md`.
+
 - **docs: the machines' specs read from the machines, and what would make the server stand alone (2026-11-06).**
   Boards, BIOS versions, RAM sticks and speeds, GPU drivers and storage for all three machines (`docs/hardware.md`). The
   desktop's 3600-rated RAM runs at 2133 MT/s. The server's CPU, not its GPU, is the limit during decode (GPU 19 to 25%,
