@@ -505,7 +505,7 @@ the seats did not differ (15 of 64 and 16 of 64 Ideal).
 
 ### What this says
 
-- **The gate held, the work got thinner.** Every kept attempt passed the owner's hidden tests, but the executor did
+- **The hidden tests held, the work got thinner** (the Gate itself has a hole: see the review below). Every kept attempt passed the owner's hidden tests, but the executor did
   about a quarter of the Ideal list against 84% with Opus's Gate tests in front of it, and wrote less: about 3 lines
   against 6 to 7 on `real-01`, about 20 against 36 on `real-02`. **A demanding Gate is what makes the executor do more,**
   so the planner's real contribution is the bar it sets, which pass or fail against the hidden tests cannot show.
@@ -517,14 +517,10 @@ the seats did not differ (15 of 64 and 16 of 64 Ideal).
 - **"Valid" does not work as a score for Gate sets from a confirmed list.** Opus's own sets fail on the owner's real fix
   (0 of 3), because the confirmed lists ask for more than that fix did. It still works for the plan phase, where the
   bar is the request alone. Local Gate sets are not worse by this measure; it just cannot rank them.
-- **The local planner's first failure is following instructions.** In the plain plan phase, 5 of the 12 sets passed on
-  the base, for mechanical reasons. Both `wp-1a` sets were an existing test file copied untouched and handed in as new
-  work. Both `wp-6f` sets added tests to an existing file and then dropped its folder path, and so did one `wp-5b` set
-  with a new file, so the runner never found them. The other 7 failed on the real fix, mostly for over-strict wording (one `real-02` set did not load). The guided checks
-  only moved base-passing sets from 5 to 4, so the gain came from less strict tests (`real-01` valid both times, `real-03`
-  and `wp-1a` once each), for about 15% more time. They were written after seeing these failures and tested on the same
-  tasks, so 4 of 12 is optimistic. A dispatcher could run "fails on the base and the runner finds it" itself, without
-  knowing the solution.
+- **The local planner's first failure looked like following instructions; see the review below, which corrects this.** In
+  the plain plan phase, 5 of the 12 sets passed on the base. Both `wp-1a` sets were existing tests the harness hides, not
+  careless copies, and three others lost a folder path so the runner never found them. The other 7 failed on the real
+  fix, mostly for over-strict wording (one `real-02` set did not load). The stricter checks cost about 15% more time.
 - **Done lists are the frontier model's clearest lead.** All 12 local lists have the visible facts (missing variables,
   the two files, the README links). None of the 4 `real-03` lists has the `/delete` trap, none of the 4 `real-01` lists
   says the work stays off `main`, and one marks the Testing and Behavior Notes sections "already accurate" when the repo
@@ -558,19 +554,71 @@ Pooled with the first six tasks, plain is 2 of 21 (10%, 95% interval 3% to 29%) 
 55%): Fisher's exact test p = 0.13. Opus got 8 of 12 on the first six tasks only, so that comparison mixes task sets
 (Opus against stricter p = 0.08; against plain p = 0.001).
 
-- **The stricter prompt is not shown to help.** Its rate held (3 of 9 here, 4 of 12 before), so it was not flattered. The
-  gap closed because the plain prompt did better on these tasks (2 of 9 against 0 of 12), which says task choice moves
-  these numbers as much as the prompt does. Nine tasks per prompt cannot settle a difference this size.
-- **Most failures are about where the files went, not what they test.** Of the 9 sets that passed on the original code,
-  6 (2 plain, 4 stricter) put at least one test at a bare filename or without its package folder (`wp-4a-combat.test.ts`
-  at the repository root; `src/routes/party.overflow.test.ts` where the repository keeps `apps/server/src/routes/`),
-  which is not where the repository's tests live. The stricter prompt told the model to keep the whole path, and 4 of its
-  9 sets still lost it. I have not confirmed that the runner skipped these files; the test counts matching the existing
-  suite in several of them point that way. Three more plain sets use ordinary names of what look like existing test files
-  (`combat.test.ts`, `odds.test.ts`, `characters.test.ts`), the other failure from the first night. Not checked.
-- **A prompt is the wrong place to fix this.** The runner could collect the planner's new files from its clone itself
-  (`git status` on `/workspace/work/<id>`), so the model never copies anything and cannot drop a path or hand in an
-  existing file as new. Proposed, not built.
+- **As handed in, the stricter prompt's lead is not proven.** Its rate held (3 of 9 here, 4 of 12 before) and the plain
+  prompt did better on these tasks (2 of 9 against 0 of 12). The review below moves the misplaced files, and that changes
+  this conclusion.
+
+### Review of these results before changing anything (2026-11-06)
+
+Before building the runner change proposed above, every set was re-read against its transcript, and the misplaced sets
+were moved to where the model had worked on them and validated again, with nothing else changed (private
+`results/planner-review-20261106`; no model time). This corrects several things written above.
+
+**Why the 42 plan-phase sets failed:**
+
+| Cause | Plain (21) | Stricter (21) |
+|---|---|---|
+| Valid as handed in | 2 | 7 |
+| Valid once moved to where the model worked | 0 more | **4 more** (11 of 21) |
+| Lost its path, and still too strict or wrong once moved | 3 | 2 |
+| Written straight to the output folder, never in the clone; too strict or wrong once placed (the home is my guess) | 2 | 1 |
+| Handed in the repository's existing failing tests, which the harness hides | 4 | 0 |
+| Edited an existing test file the harness hides | 1 | 0 |
+| Handed in the document itself (`AGENTS.md`), no test | 0 | 1 |
+| Too strict or wrong where it stood, or did not load | 9 | 6 |
+
+Corrected conclusions:
+
+- **The stricter prompt does help.** With placement repaired it is 11 of 21 against 2 of 21 (p = 0.006, 95% intervals 32%
+  to 72% and 3% to 29%). This repair was chosen after seeing the data, so treat it as a strong hint. On the first six tasks it
+  is 6 of 12 against Opus's 8 of 12 (p = 0.68), where as handed in it was 4 of 12. The earlier "not shown to help" was
+  wrong: placement errors were hiding the gain. Note the plain prompt's own sets gain nothing from the repair.
+- **"Copied existing tests" was mostly a benchmark artifact.** 8 of these 15 tasks exclude test files by name, and the three I checked (`wp-1a`, `wp-7a`, `wp-9a`) start from a test-first
+  "contract" commit: failing tests for the feature are already in the repository, and the harness hides them. The planner found
+  them, ran them, saw them fail ("The tests already exist") and handed them in, which is what the prompt asks for apart from
+  "new files only". The harness then hid them, and the set scored as passing on the base. An ordinary repository would not
+  do this, so it should not drive a fix, though it does flatter the stricter prompt's lead (its "new files only" rule avoids it).
+- **Placement is a real cause but not the main one.** Tests too strict for the real fix are the larger limit: 14 of the
+  plain sets and 9 of the stricter ones once placed, on many of the same tasks where Opus also failed (`real-02`, `wp-5b`).
+
+**A hole in the gate, found on the way.** A Gate set moved to the wrong depth climbs out of the checkout: `../../AGENTS.md`
+from the checkout's top folder is `tests/AGENTS.md` in the harness's own repository. Executors met the failing test by
+creating that file there, so the Gate read a stray copy and not the delivered work. In one attempt the checkout had **no
+changes at all**, the Gate passed, and only the scope gate stopped it. On another set an executor made a Windows junction
+beside the checkout through the shell, which `outsideWrites` cannot see, since it reads only the edit and write tools and is
+never graded. These leftovers also survive between attempts.
+
+- **10 of the night's 24 kept runs used a set like this** (5 set and task pairs, each on two seats). Not all were traced.
+- **The hidden tests are unaffected:** they ran on the checkout, so 24 of 24 stands. What falls is any reading of those 10 Gate
+  passes as evidence, and the Gate's value as the only judge on real work with no hidden tests.
+- **Earlier Opus-gated rounds look clean:** `planner-gated-r1`, `r2` and `exp3-checkpoint-v2-live` recorded no outside writes
+  (shell writes would not show), and Opus's Gate sets have no such climb. So the 0 of 12 stands, on that evidence.
+- **The hole does not explain the thin work.** Ideal was no lower on runs whose Gate read outside.
+
+**What to change, in order:**
+
+1. **Close the hole first.** After a Gate passes, run it again on a clean copy of the base in a different folder, with only the
+   attempt's patch applied. Stray files, junctions and leftovers are simply not there, whichever tool made them. This matters
+   more than any planner change, because real work has no hidden tests behind the Gate.
+2. **Collect the planner's files from its clone** (the change proposed above). It fixes the placement failures in both phases,
+   including the climbing-out above when the cause is a moved file. A planner that wrote outside its clone then shows up as no
+   output, not as a set that looks fine.
+3. **Check each set before use, without knowing the solution:** it must load, the runner must find it, and it must fail on the
+   base. One retry with the error as feedback. This catches the sets with load errors, which are model bugs a collector cannot fix.
+4. **Adopt the stricter prompt's rules.** They cost about 15% more planner time.
+
+None of these touch the biggest gap: Ideal at 24% against 84%, and the traps missing from the local done lists. That needs
+the owner-edited local list test ("Not tested yet" above), which matters more to the budget question than any of the four.
 
 ### `kane-08` at a 60-minute limit (2026-11-05)
 
