@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: a passing Gate is checked again on a clean copy (2026-11-06, owner's go).** A planner's set at the wrong depth
+  climbs out of the checkout, and executors satisfied it with stray files or a junction beside the checkout, so the Gate
+  passed on something other than the delivered work. An attempt the gates would otherwise keep now has its set run again
+  on the base plus only its patch, in a new folder under empty ones (`Invoke-CleanRecheck` in `test-tasks.ps1`, recorded
+  as `selector.recheck`). `run-retries.ps1` rejects anything but a pass, with the reason `recheck`; `summarize-rounds.ps1`
+  and `deliver-attempt.ps1` follow. Install and setup moved to `Install-TaskDependencies` so both checkouts are built
+  the same way. `tests/test-clean-recheck.ps1`, mutation-checked (13 of 13 caught across its guards).
+
 - **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
   checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
   hidden tests, but Ideal fell to 24% against 84%, and 2 of 8 Privacy Policies kept a false `/delete` claim. No run yet

@@ -876,6 +876,55 @@ function Initialize-SealedCheckout {
     return [pscustomobject]@{ Ok = $true; Detail = $null; Commits = $count; Seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1); Fresh = $fresh }
 }
 
+# Install a task's dependencies and run its setup steps in $WtPath. Returns the seconds each took and, on a failure, the
+# step and the message (Error $null: all is well); the caller decides what a failure means. Used by the task's checkout and
+# by the clean copy of Invoke-CleanRecheck, so the two are built the same way.
+function Install-TaskDependencies {
+    param($Task, [string]$WtPath)
+    $out = [pscustomobject]@{ Step = $null; Error = $null; InstallSec = $null; SetupSec = $null }
+    # packageManager is optional per-task (manifest field); default "pnpm"
+    # keeps kane-01 (no such field) running exactly as before. npm uses
+    # `ci`, not `install`, as the lockfile-respecting equivalent of
+    # pnpm's --frozen-lockfile - `npm install <flags>` would NOT enforce
+    # the lockfile the way `ci` does.
+    $pm = if ($Task.packageManager) { $Task.packageManager } else { "pnpm" }
+    $pmVerb = if ($pm -eq "npm") { "ci" } else { "install" }
+    Write-Host "    $pm $pmVerb $($Task.installFlags -join ' ') (first run on this worktree)..." -ForegroundColor DarkGray
+    $installArgs = @($pmVerb) + @($Task.installFlags)
+    $swInstall = [Diagnostics.Stopwatch]::StartNew()
+    $r = Run-Native $pm $installArgs $WtPath
+    $out.InstallSec = [math]::Round($swInstall.Elapsed.TotalSeconds, 1)
+    if ($r.ExitCode -ne 0) {
+        $out.Step = "install"
+        $out.Error = "$pm $pmVerb failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts"
+        return $out
+    }
+    $swSetup = [Diagnostics.Stopwatch]::StartNew()
+    foreach ($step in @($Task.setup | Where-Object { $_ })) {
+        $stepDir = if ($step.cwd) { Join-Path $WtPath $step.cwd } else { $WtPath }
+        Write-Host "    setup: $($step.cmd -join ' ') (in $($step.cwd))" -ForegroundColor DarkGray
+        $r = Run-Native $step.cmd[0] @($step.cmd | Select-Object -Skip 1) $stepDir
+        if ($r.ExitCode -ne 0) {
+            $out.Step = "setup ($($step.cwd))"
+            $out.Error = "setup command failed: $($r.Output | Select-Object -Last 3)"
+            return $out
+        }
+        if ($step.copy) {
+            $src = Join-Path $stepDir $step.copy[0]
+            $dst = Join-Path $stepDir $step.copy[1]
+            if (Test-Path -LiteralPath $src) {
+                $dstParent = Split-Path -Parent $dst
+                if (-not (Test-Path -LiteralPath $dstParent)) { New-Item -ItemType Directory -Path $dstParent -Force | Out-Null }
+                Copy-Item -LiteralPath $src -Destination $dst -Force
+            } else {
+                Write-Result $Task.id "setup ($($step.cwd))" "WARN" "copy source missing: $src"
+            }
+        }
+    }
+    if (@($Task.setup | Where-Object { $_ }).Count -gt 0) { $out.SetupSec = [math]::Round($swSetup.Elapsed.TotalSeconds, 1) }
+    return $out
+}
+
 function Ensure-Worktree {
     param($Task, [string]$WtPath)
 
@@ -914,44 +963,13 @@ function Ensure-Worktree {
     $installSec = $null
     $setupSec = $null
     if ($installed -ne $head -and -not $SkipInstall) {
-        # packageManager is optional per-task (manifest field); default "pnpm"
-        # keeps kane-01 (no such field) running exactly as before. npm uses
-        # `ci`, not `install`, as the lockfile-respecting equivalent of
-        # pnpm's --frozen-lockfile - `npm install <flags>` would NOT enforce
-        # the lockfile the way `ci` does.
-        $pm = if ($Task.packageManager) { $Task.packageManager } else { "pnpm" }
-        $pmVerb = if ($pm -eq "npm") { "ci" } else { "install" }
-        Write-Host "    $pm $pmVerb $($Task.installFlags -join ' ') (first run on this worktree)..." -ForegroundColor DarkGray
-        $installArgs = @($pmVerb) + @($Task.installFlags)
-        $swInstall = [Diagnostics.Stopwatch]::StartNew()
-        $r = Run-Native $pm $installArgs $WtPath
-        $installSec = [math]::Round($swInstall.Elapsed.TotalSeconds, 1)
-        if ($r.ExitCode -ne 0) {
-            Write-Result $Task.id "install" "FAIL" "$pm $pmVerb failed: $($r.Output | Select-Object -Last 3) - see AGENTS.md re native deps; the task may need --ignore-scripts"
+        $inst = Install-TaskDependencies -Task $Task -WtPath $WtPath
+        $installSec = $inst.InstallSec
+        $setupSec = $inst.SetupSec
+        if ($inst.Error) {
+            Write-Result $Task.id $inst.Step "FAIL" $inst.Error
             return $null
         }
-        $swSetup = [Diagnostics.Stopwatch]::StartNew()
-        foreach ($step in @($Task.setup | Where-Object { $_ })) {
-            $stepDir = if ($step.cwd) { Join-Path $WtPath $step.cwd } else { $WtPath }
-            Write-Host "    setup: $($step.cmd -join ' ') (in $($step.cwd))" -ForegroundColor DarkGray
-            $r = Run-Native $step.cmd[0] @($step.cmd | Select-Object -Skip 1) $stepDir
-            if ($r.ExitCode -ne 0) {
-                Write-Result $Task.id "setup ($($step.cwd))" "FAIL" "setup command failed: $($r.Output | Select-Object -Last 3)"
-                return $null
-            }
-            if ($step.copy) {
-                $src = Join-Path $stepDir $step.copy[0]
-                $dst = Join-Path $stepDir $step.copy[1]
-                if (Test-Path -LiteralPath $src) {
-                    $dstParent = Split-Path -Parent $dst
-                    if (-not (Test-Path -LiteralPath $dstParent)) { New-Item -ItemType Directory -Path $dstParent -Force | Out-Null }
-                    Copy-Item -LiteralPath $src -Destination $dst -Force
-                } else {
-                    Write-Result $Task.id "setup ($($step.cwd))" "WARN" "copy source missing: $src"
-                }
-            }
-        }
-        if (@($Task.setup | Where-Object { $_ }).Count -gt 0) { $setupSec = [math]::Round($swSetup.Elapsed.TotalSeconds, 1) }
         Set-Content -LiteralPath $marker -Value $head -Encoding ascii
     }
     $checkout = if ($sealed) { [ordered]@{ kind = "sealed"; commits = $sealed.Commits; seconds = $sealed.Seconds } } else { [ordered]@{ kind = "kept (-NoReset)"; commits = $null; seconds = $null } }
@@ -1453,6 +1471,36 @@ function Invoke-Acceptance {
         $result.Detail = "worktree NOT restored after the acceptance run - inspect $WtPath before trusting it ($($result.Detail))"
     }
     return $result
+}
+
+# A planner's set passing in the model's checkout does not prove it read the model's work (2026-11-06,
+# docs/planner-tests-experiment.md, "Review"): a test at the wrong depth climbs out of the checkout, the model satisfies it
+# with a stray file or a junction beside the checkout, and the set passes on that. Leftovers also survive between attempts.
+# So run the set again on the base plus only this attempt's patch, in a new folder nested under empty ones: nothing outside the
+# checkout exists there, whichever tool made it, and a climbing test finds nothing. Status PASS, FAIL or ERROR (the copy could
+# not be built, which rejects too: an unverified Gate is not a pass). Always removes the copy.
+function Invoke-CleanRecheck {
+    param($Task, [string]$Head, [string]$PatchPath, [string]$Folder)
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("hl-rc-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
+    $dir = Join-Path $root "a\b\c\d\w"
+    $mk = { param($status, $detail) [pscustomobject]@{ status = $status; detail = $detail; seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1) } }
+    try {
+        $sealed = Initialize-SealedCheckout -Repo $Task.repo -WtPath $dir -Head $Head
+        if (-not $sealed.Ok) { return & $mk "ERROR" "the clean copy could not be made: $($sealed.Detail)" }
+        if ($PatchPath) {
+            $a = Run-Native "git" @("-C", $dir, "apply", "--binary", "--whitespace=nowarn", $PatchPath)
+            if ($a.ExitCode -ne 0) { return & $mk "ERROR" "the attempt's patch did not apply to the clean copy: $($a.Output -join ' ')" }
+        }
+        if (-not $SkipInstall) {
+            $inst = Install-TaskDependencies -Task $Task -WtPath $dir
+            if ($inst.Error) { return & $mk "ERROR" "the clean copy's $($inst.Step) failed: $($inst.Error)" }
+        }
+        $r = Invoke-Acceptance $Task $dir -Folder $Folder
+        return & $mk $r.Status $r.Detail
+    } finally {
+        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # --- reading a run: client-neutral ---------------------------------------------
@@ -2768,6 +2816,15 @@ foreach ($tk in $tasksToRun) {
     $null = Run-Native "git" @("-C", $wt.Wt, "reset", "-q")
     if ($patch.ExitCode -eq 0 -and (Test-Path -LiteralPath $patchPath) -and (Get-Item -LiteralPath $patchPath).Length -gt 0) { $patchField = Split-Path -Leaf $patchPath }
     else { Remove-Item -LiteralPath $patchPath -Force -ErrorAction SilentlyContinue }
+    # A planner's set is the only judge on real work, so a pass the attempt would otherwise be kept on is checked again on a clean
+    # copy (Invoke-CleanRecheck). `selector.recheck`; run-retries.ps1 rejects an attempt whose recheck did not pass. Rows before
+    # 2026-11-06 have none, and neither does an attempt another gate already turned away.
+    if ($selectorRecord -and $selectorRecord.source -eq "planner" -and $selectorRecord.status -eq "PASS" -and $scopeOk -and $suiteOk -and $integrity.Status -ne "FAIL") {
+        $rc = Invoke-CleanRecheck -Task $tk -Head $wt.Head -PatchPath $(if ($patchField) { $patchPath } else { "" }) -Folder $plannerFolder
+        $phaseSec["recheck"] = $rc.seconds
+        $selectorRecord | Add-Member -NotePropertyName recheck -NotePropertyValue $rc -Force
+        Write-Result $tk.id "selector, clean copy" $(if ($rc.status -eq "PASS") { "PASS" } else { "WARN" }) "$($rc.status) in $($rc.seconds) s: $($rc.detail)"
+    }
     if ($run.TranscriptPath -and (Test-Path -LiteralPath $run.TranscriptPath)) {
         if (Move-Transcript -Source $run.TranscriptPath -Destination $transcriptDest) {
             $transcriptFileField = Split-Path -Leaf $transcriptDest
