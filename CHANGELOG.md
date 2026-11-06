@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outside the checkout, and executors satisfied it with stray files or a junction: 10 of 24 kept runs used such a set. Hidden
   tests are unaffected. Ranked fixes, none built. `docs/planner-tests-experiment.md`.
 
+- **docs: the machines' specs read from the machines, and what would make the server stand alone (2026-11-06).**
+  Boards, BIOS versions, RAM sticks and speeds, GPU drivers and storage for all three machines (`docs/hardware.md`). The
+  desktop's 3600-rated RAM runs at 2133 MT/s. The server's CPU, not its GPU, is the limit during decode (GPU 19 to 25%,
+  CPU about 46% busy; PCIe 4.0 x16). Ranked options: a 32 GB GPU, then a 12 or 16 core Ryzen 5000 chip, with what is
+  unverified marked. Nothing was changed on any machine.
+
 - **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
   checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
   hidden tests, but Ideal fell to 24% against 84%, and 2 of 8 Privacy Policies kept a false `/delete` claim. No run yet

@@ -617,6 +617,22 @@ never graded. These leftovers also survive between attempts.
    base. One retry with the error as feedback. This catches the sets with load errors, which are model bugs a collector cannot fix.
 4. **Adopt the stricter prompt's rules.** They cost about 15% more planner time.
 
+**Fix 1, built and run live (#218, 2026-11-06).** On the desktop's CPU with the server's model (private
+`results/recheck-live-20261106`), up to 2 attempts each. The clean-copy run took 15 to 21 seconds.
+
+| Set | Attempts | Gate in the checkout | Clean copy | Hidden tests | Outcome |
+|---|---|---|---|---|---|
+| 3 honest sets (`guided-r1`, `real-01` to `real-03`) | 1 each | PASS | PASS | PASS | all 3 kept, first attempt |
+| `plain-n3r2`, `real-03`, attempt 1 | changed nothing in the checkout | PASS | not run | FAIL | scope gate rejects |
+| `plain-n3r2`, `real-03`, attempt 2 | | PASS | FAIL (22 tests) | PASS | rejected: good work, broken set |
+| `plain-srv2`, `real-02`, attempts 1 and 2 | | PASS | FAIL (did not load) | PASS | rejected: good work, broken set |
+| `guided-r2`, `real-02`, attempt 2 (attempt 1 timed out) | | PASS | FAIL (did not load) | **FAIL** | **rejected: the old Gate would have kept wrong work** |
+
+- No honest set was blocked, and the hole is closed: every set that climbs out was rejected.
+- **The cost is that a broken set now blocks good work:** 3 attempts the hidden tests pass were turned away, and the delivery
+  falls back to a labelled near miss for review. That is the right failure, since nothing could vouch for them, but it
+  raises the priority of fixes 2 and 3, which stop broken sets reaching an executor at all. Three sets is a small sample.
+
 None of these touch the biggest gap: Ideal at 24% against 84%, and the traps missing from the local done lists. That needs
 the owner-edited local list test ("Not tested yet" above), which matters more to the budget question than any of the four.
 
