@@ -476,3 +476,72 @@ pwsh -File tests\record-verdict.ps1 -ResultsDir <...>\results\real-work\lfc-w01 
   (the manifest entry, its refusals, and `run` stopping before anything runs on an unconfirmed list). Writing the first
   guard caught a real bug: the hard-block test read the dispatcher's first rejection reason, which names the selector
   before the hard blocks, so an integrity-blocked attempt that also failed a planner test was delivered as a near miss.
+
+## Local planner against Opus (2026-11-05/06)
+
+Experiment 3's planner prompts on the local `qwen3.6` instead of Opus, to see how much planning needs a frontier model
+(`desktop/scripts/run-planner-local.ps1`, PR #214; private `results/planner-local-20261105`). Same tasks, same pack,
+same prompts with only the mount points moved. A fourth arm, **guided**, adds a short list of general checks to the
+prompts (`guided-rules.md` there). No owner input was used overnight: the tests phase worked from the lists the owner
+had already confirmed on 2026-11-02, and those were written by Opus.
+
+### Results
+
+| Step | Local, plain prompt | Local, guided prompt | Opus |
+|---|---|---|---|
+| Plan phase, sets valid (fail on the base, pass on the real fix) | 0 of 12 | 4 of 12 | 8 of 12 |
+| Done lists a reader can use as they stand | thin, misses the traps (below) | not run | confirmed by the owner as written |
+| Gate sets from the confirmed lists, valid on the same check | 1 of 12 | 2 of 6 | 0 of 3 |
+| Executor shown those Gate sets: kept attempts passing the hidden tests | 12 of 12 | 12 of 12 | 6 of 6 |
+| Accepted on the first attempt | 9 of 12 | 11 of 12 | 6 of 6 |
+| Ideal items done, measured on the same Opus-written Ideal sets | 14 of 64 (22%) | 17 of 64 (27%) | 27 of 32 (84%) |
+| Planner cost for the three `real-*` tasks | about 20 minutes of GPU time | about 20 minutes of GPU time, using the plain list step | $2.41 |
+
+Plan phase, Fisher's exact test: plain against Opus p = 0.001, guided against Opus p = 0.22, guided against plain
+p = 0.09. Ideal, all local (31 of 128, 95% interval 18% to 32%) against Opus (68% to 93%): p < 0.001. Hidden tests: 0 of
+24 kept attempts wrong, 95% interval 0% to 14%. The 24 runs share 3 tasks and 4 sets, so those intervals are narrower than
+the evidence is. The Opus figures come from the 2026-11-05 round on the server's seat. Each local arm ran on both seats;
+the seats did not differ (15 of 64 and 16 of 64 Ideal).
+
+### What this says
+
+- **The gate held, the work got thinner.** Every kept attempt passed the owner's hidden tests, but the executor did
+  about a quarter of the Ideal list against 84% with Opus's Gate tests in front of it, and wrote less: about 3 lines
+  against 6 to 7 on `real-01`, about 20 against 36 on `real-02`. **A demanding Gate is what makes the executor do more,**
+  so the planner's real contribution is the bar it sets, which pass or fail against the hidden tests cannot show.
+- **The hidden tests are too lenient to see what was lost.** Of the 8 kept Privacy Policies on `real-03`, 2 say `/delete`
+  removes the listing from the database, which is the false claim confirmed item G3.2 exists to prevent; 3 are vague, 2
+  are right, 1 says nothing. One of the 2 false ones came from a set that scored valid, so its test did not hold the
+  line either. Two kept runs also added a `vitest.config.ts` nobody asked for, apparently because that Gate set failed
+  to load without `globals`; the scope gate allows a new config file. Both are things only review catches today.
+- **"Valid" does not work as a score for Gate sets from a confirmed list.** Opus's own sets fail on the owner's real fix
+  (0 of 3), because the confirmed lists ask for more than that fix did. It still works for the plan phase, where the
+  bar is the request alone. Local Gate sets are not worse by this measure; it just cannot rank them.
+- **The local planner's first failure is following instructions.** In the plain plan phase, 5 of the 12 sets passed on
+  the base, for mechanical reasons. Both `wp-1a` sets were an existing test file copied untouched and handed in as new
+  work. Both `wp-6f` sets added tests to an existing file and then dropped its folder path, and so did one `wp-5b` set
+  with a new file, so the runner never found them. The other 7 failed on the real fix, for over-strict wording. The guided checks
+  only moved base-passing sets from 5 to 4, so the gain came from less strict tests (`real-01` valid both times, `real-03`
+  and `wp-1a` once each), for about 15% more time. They were written after seeing these failures and tested on the same
+  tasks, so 4 of 12 is optimistic. A dispatcher could run "fails on the base and the runner finds it" itself, without
+  knowing the solution.
+- **Done lists are the frontier model's clearest lead.** All 12 local lists have the visible facts (missing variables,
+  the two files, the README links). None of the 4 `real-03` lists has the `/delete` trap, none of the 4 `real-01` lists
+  says the work stays off `main`, and one marks the Testing and Behavior Notes sections "already accurate" when the repo
+  contradicts them. Formats slip too: a Gate with every box unticked, an out-of-scope item ticked, one item that bars
+  "somewhere else appropriate", which the request allowed.
+- **Reading only.** The audit flagged 1 run of 54, a false alarm (`findstr /C:"FAIL"` read as a path, since fixed). There
+  is no container here: this detects a read outside the scratch folder, and does not prevent one.
+
+### Not tested yet
+
+**A pipeline with no frontier model at all.** Every Gate set above came from a list Opus wrote. A local list through to
+a local executor needs an owner to confirm the list, so it was left for the owner. The owner's 2-minute edit of a
+local list is the cheapest thing left to try: this data suggests the list is where the planner earns its money, and an
+owner adding the traps may be worth more than the rest of the planner.
+
+### `kane-08` at a 60-minute limit (2026-11-05)
+
+Four attempts on node3's seat (`results/window-limit60-kane08-20261105`, `-RunTimeout 3600`): 2 passed, at 55.6 and 15.2
+minutes, and 2 still timed out. One of the two passes would have been lost at 45 minutes, so the limit does hide some
+passes, but raising it does not fix the task: four attempts took 3.3 hours. Too few to change the default.

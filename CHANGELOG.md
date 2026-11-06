@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
+  checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
+  hidden tests, but Ideal fell to 24% against 84%, and 2 of 8 Privacy Policies kept a false `/delete` claim. No run yet
+  without a frontier model at all: Opus wrote those lists. `kane-08` at 60 minutes: 2 of 4 passed, 2 timed out.
+  `docs/planner-tests-experiment.md`.
+
 - **docs: Qwen Code v0.26.8 installed on node3, not yet run (2026-11-05, owner's go for the install).** Pinned global
   npm install, config in `~/.qwen/settings.json` (auto-update and usage statistics off, the server's `qwen3.6` as the
   provider), one npm install script (audio capture) left blocked. The docs were re-read for the trial's open questions;
