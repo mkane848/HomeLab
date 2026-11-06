@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **results: the stricter planner prompt on nine held-out tasks (2026-11-06).** Valid sets: 3 of 9 against 2 of 9 for
+  the plain prompt; pooled with the first six tasks 7 of 21 against 2 of 21 (p = 0.13), so no proven gain. Most failed
+  sets lost the folder path of a test file, which a prompt did not fix (4 of 9 stricter sets). Proposed: the runner collects
+  the planner's new files itself. `docs/planner-tests-experiment.md`.
+
 - **results: the local planner against Opus (2026-11-05/06).** Plan-phase sets valid: 0 of 12 plain, 4 of 12 with general
   checks added to the prompt, 8 of 12 for Opus. With Gate sets from the confirmed lists, 24 of 24 kept attempts passed the
   hidden tests, but Ideal fell to 24% against 84%, and 2 of 8 Privacy Policies kept a false `/delete` claim. No run yet

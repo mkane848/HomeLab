@@ -540,6 +540,38 @@ a local executor needs an owner to confirm the list, so it was left for the owne
 local list is the cheapest thing left to try: this data suggests the list is where the planner earns its money, and an
 owner adding the traps may be worth more than the rest of the planner.
 
+### A held-out check of the stricter prompt (2026-11-06)
+
+The stricter prompt was written after seeing the plain prompt fail on the six tasks above, so its 4 of 12 could have been
+flattering. This reran both prompts on nine benchmark tasks with hidden tests and a known-good fix that were not used last
+night (`wp-0a`, `wp-2b`, `wp-3a`, `wp-3b`, `wp-4a`, `wp-5a`, `wp-6a`, `wp-7a`, `wp-9a`), one run each per prompt, split across
+both seats (private `results/planner-heldout-20261106`). The same check as before: a set is valid if it fails on the
+original code and passes on the real fix. No audit flags in 18 runs.
+
+| | Plain prompt | Stricter prompt |
+|---|---|---|
+| Valid sets | 2 of 9 (`wp-0a`, `wp-2b`) | 3 of 9 (`wp-2b`, `wp-3a`, `wp-6a`) |
+| Passed on the original code | 5 | 4 |
+| Failed on the real fix | 2 (`wp-6a` one test; `wp-3a` did not load) | 2 (`wp-4a` six tests; `wp-9a` one test) |
+
+Pooled with the first six tasks, plain is 2 of 21 (10%, 95% interval 3% to 29%) and stricter is 7 of 21 (33%, 17% to
+55%): Fisher's exact test p = 0.13. Opus got 8 of 12 on the first six tasks only, so that comparison mixes task sets
+(Opus against stricter p = 0.08; against plain p = 0.001).
+
+- **The stricter prompt is not shown to help.** Its rate held (3 of 9 here, 4 of 12 before), so it was not flattered. The
+  gap closed because the plain prompt did better on these tasks (2 of 9 against 0 of 12), which says task choice moves
+  these numbers as much as the prompt does. Nine tasks per prompt cannot settle a difference this size.
+- **Most failures are about where the files went, not what they test.** Of the 9 sets that passed on the original code,
+  6 (2 plain, 4 stricter) put at least one test at a bare filename or without its package folder (`wp-4a-combat.test.ts`
+  at the repository root; `src/routes/party.overflow.test.ts` where the repository keeps `apps/server/src/routes/`),
+  which is not where the repository's tests live. The stricter prompt told the model to keep the whole path, and 4 of its
+  9 sets still lost it. I have not confirmed that the runner skipped these files; the test counts matching the existing
+  suite in several of them point that way. Three more plain sets use ordinary names of what look like existing test files
+  (`combat.test.ts`, `odds.test.ts`, `characters.test.ts`), the other failure from the first night. Not checked.
+- **A prompt is the wrong place to fix this.** The runner could collect the planner's new files from its clone itself
+  (`git status` on `/workspace/work/<id>`), so the model never copies anything and cannot drop a path or hand in an
+  existing file as new. Proposed, not built.
+
 ### `kane-08` at a 60-minute limit (2026-11-05)
 
 Four attempts on node3's seat (`results/window-limit60-kane08-20261105`, `-RunTimeout 3600`): 2 passed, at 55.6 and 15.2
