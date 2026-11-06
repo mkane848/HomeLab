@@ -520,7 +520,7 @@ the seats did not differ (15 of 64 and 16 of 64 Ideal).
 - **The local planner's first failure is following instructions.** In the plain plan phase, 5 of the 12 sets passed on
   the base, for mechanical reasons. Both `wp-1a` sets were an existing test file copied untouched and handed in as new
   work. Both `wp-6f` sets added tests to an existing file and then dropped its folder path, and so did one `wp-5b` set
-  with a new file, so the runner never found them. The other 7 failed on the real fix, for over-strict wording. The guided checks
+  with a new file, so the runner never found them. The other 7 failed on the real fix, mostly for over-strict wording (one `real-02` set did not load). The guided checks
   only moved base-passing sets from 5 to 4, so the gain came from less strict tests (`real-01` valid both times, `real-03`
   and `wp-1a` once each), for about 15% more time. They were written after seeing these failures and tested on the same
   tasks, so 4 of 12 is optimistic. A dispatcher could run "fails on the base and the runner finds it" itself, without
