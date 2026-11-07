@@ -640,7 +640,7 @@ with the stricter prompt, plus 6 tests-phase runs, on both seats (private `resul
 |---|---|---|---|---|
 | Plain prompt, as handed in | 2 | 10 | 9 | 0 |
 | Stricter prompt, as handed in | 7 | 8 | 6 | 0 |
-| Stricter prompt, files moved by hand afterwards | 11 | 4 | 6 | 0 |
+| Stricter prompt, files moved by hand afterwards | 11 | 2 | 8 | 0 |
 | **Stricter prompt, collected from the clone, live** | **8** | **0** | **9** | **4** |
 
 - **It did not reach the 11 the hand repair suggested.** 8 of 21 (95% interval 21% to 59%) is one more than as handed in (p = 1.0)
