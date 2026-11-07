@@ -45,7 +45,11 @@ if (-not (Test-Path -LiteralPath $ResultsDir)) { Write-Host "ERROR: no folder $R
 $runs = @(Get-ChildItem -LiteralPath $ResultsDir -Recurse -Filter "tasks-$Task-*.json" | Sort-Object Name | ForEach-Object {
         $j = Get-Content -Raw -LiteralPath $_.FullName | ConvertFrom-Json
         $patch = if ($j.PSObject.Properties['patchFile'] -and $j.patchFile) { Join-Path $_.DirectoryName $j.patchFile } else { $null }
-        $failed = if ($j.selector -and "$($j.selector.detail)" -match '(\d+)\s+failed') { [int]$Matches[1] } else { 0 }
+        # A Gate that failed its clean-copy recheck is judged by that run: the pass in the checkout proved nothing. With no count
+        # (the set did not load, or the copy could not be built) it sorts behind every attempt with one.
+        $rc = if ($j.selector -and $j.selector.PSObject.Properties['recheck'] -and $j.selector.recheck -and $j.selector.recheck.status -ne "PASS") { $j.selector.recheck } else { $null }
+        $failed = if ($rc) { if ("$($rc.detail)" -match '(\d+)\s+failed') { [int]$Matches[1] } else { 9999 } }
+                  elseif ($j.selector -and "$($j.selector.detail)" -match '(\d+)\s+failed') { [int]$Matches[1] } else { 0 }
         [pscustomobject]@{ File = $_; Json = $j; Verdict = (Get-AttemptVerdict $j); Patch = $patch; Failed = $failed }
     } | Where-Object { $_.Patch -and (Test-Path -LiteralPath $_.Patch) })
 if (-not $runs.Count) { Write-Host "nothing deliverable: no run of $Task in $ResultsDir has a patch" -ForegroundColor Yellow; exit 2 }
@@ -82,10 +86,11 @@ while ((Invoke-Git @("-C", $Repo, "rev-parse", "--verify", "--quiet", "refs/head
 
 $ideal = if ($j.PSObject.Properties['ideal'] -and $j.ideal -and $null -ne $j.ideal.total) { "{0} of {1} done{2}" -f $j.ideal.done, $j.ideal.total, $(if (@($j.ideal.missedIds).Count) { "; missed " + (@($j.ideal.missedIds) -join ", ") } else { "" }) } else { "not measured" }
 $integrity = if ($j.gates.PSObject.Properties['integrity']) { $j.gates.integrity } else { "not checked" }
-$subject = if ($kind -eq "accepted") { "fleet: $Task (accepted)" } else { "fleet: $Task (NEAR MISS, not accepted: $($pick.Failed) planner test(s) failed)" }
+$subject = if ($kind -eq "accepted") { "fleet: $Task (accepted)" } else { if ($pick.Failed -ge 9999) { "fleet: $Task (NEAR MISS, not accepted: the planner's tests did not pass on a clean copy)" } else { "fleet: $Task (NEAR MISS, not accepted: $($pick.Failed) planner test(s) failed)" } }
 $body = @(
     "Task: $Task - $($j.taskTitle)"
     "Planner's tests (the gate): $($j.selector.status) - $($j.selector.detail)"
+    $(if ($j.selector -and $j.selector.PSObject.Properties['recheck'] -and $j.selector.recheck) { "Same tests on a clean copy: $($j.selector.recheck.status) - $($j.selector.recheck.detail)" })
     "Integrity (nothing lost, nothing wrong): $integrity"
     "Suite: $($j.gates.suite); scope: $($j.gates.scope)"
     "Ideal tier: $ideal"

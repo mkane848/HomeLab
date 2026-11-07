@@ -53,7 +53,7 @@ try {
 
     # A patch from a real change at the base (what test-tasks.ps1 does: intent-to-add, then diff --binary --output).
     $n = 0
-    function New-Attempt([string]$task, [hashtable]$gates, [string]$selStatus, [string]$selDetail, [scriptblock]$change, [bool]$tampered = $false) {
+    function New-Attempt([string]$task, [hashtable]$gates, [string]$selStatus, [string]$selDetail, [scriptblock]$change, [bool]$tampered = $false, $recheck = $null) {
         $script:n++
         Remove-Item -Recurse -Force $scratch -ErrorAction SilentlyContinue
         G clone -q $bare $scratch | Out-Null; G -C $scratch config core.autocrlf false | Out-Null; G -C $scratch checkout -q $base | Out-Null
@@ -62,7 +62,7 @@ try {
         $stem = "tasks-$task-fx_m_20261102-0000{0:D2}" -f $script:n
         G -C $scratch diff --binary "--output=$(Join-Path $res "$stem.patch")" $base | Out-Null
         [pscustomobject]@{ taskId = $task; taskTitle = "fx"; model = "fx/m"; baseCommit = $base; repoPath = $repo; elapsedSec = 1
-            gates = [pscustomobject]$gates; selector = [pscustomobject]@{ status = $selStatus; source = "planner"; detail = $selDetail }
+            gates = [pscustomobject]$gates; selector = [pscustomobject]@{ status = $selStatus; source = "planner"; detail = $selDetail; recheck = $recheck }
             acceptance = [pscustomobject]@{ status = "PASS" }; acceptanceShown = [pscustomobject]@{ tampered = @($(if ($tampered) { "x.test.ts" })) }
             ideal = [pscustomobject]@{ total = 3; done = 2; missedIds = @("I2") }; patchFile = "$stem.patch" } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $res "$stem.json")
     }
@@ -100,6 +100,21 @@ try {
     Check "no accepted attempt: the near miss with the fewest failures" ((G -C $repo show fleet/t-near:best.md).Trim()) "fewest failures"
     Check "...labelled NEAR MISS" ((G -C $repo log -1 --format=%s fleet/t-near) -match 'NEAR MISS, not accepted: 1 planner test') "True"
     Check "...never the integrity-blocked one" ($r.Out -match 'blocked') "False"
+    # The Gate passed in the checkout but not on a clean copy: never "accepted", and its count is the clean copy's.
+    $cleanFail = [pscustomobject]@{ status = "FAIL"; detail = "Tests 2 failed | 6 passed (8)" }
+    $noCount = [pscustomobject]@{ status = "ERROR"; detail = "the clean copy could not be made" }
+    New-Attempt "t-rc" $ok "FAIL" "Tests 5 failed | 3 passed (8)" $edit
+    New-Attempt "t-rc" $ok "PASS" "Tests 8 passed (8)" { param($w) & $edit $w; [IO.File]::WriteAllText((Join-Path $w "rc.md"), "clean copy failed two`n", $utf8) } $false $cleanFail
+    $r = Run $deliver @("-ResultsDir", $res, "-Task", "t-rc")
+    Check "a Gate that failed its clean copy is a near miss, not accepted, counted by the clean copy (2, not 0)" ((G -C $repo log -1 --format=%s fleet/t-rc) -match 'NEAR MISS, not accepted: 2 planner test') "True"
+    Check "...the commit says what the clean copy found" ((G -C $repo log -1 --format=%B fleet/t-rc) -match 'Same tests on a clean copy: FAIL - Tests 2 failed') "True"
+    New-Attempt "t-rc2" $ok "PASS" "Tests 8 passed (8)" { param($w) & $edit $w; [IO.File]::WriteAllText((Join-Path $w "nocount.md"), "no count`n", $utf8) } $false $noCount
+    New-Attempt "t-rc2" $ok "FAIL" "Tests 4 failed | 4 passed (8)" { param($w) & $edit $w; [IO.File]::WriteAllText((Join-Path $w "counted.md"), "counted`n", $utf8) }
+    $r = Run $deliver @("-ResultsDir", $res, "-Task", "t-rc2")
+    Check "a clean copy with no count sorts behind an attempt with one" ((G -C $repo show fleet/t-rc2:counted.md).Trim()) "counted"
+    New-Attempt "t-rc3" $ok "PASS" "Tests 8 passed (8)" $edit $false $noCount
+    $r = Run $deliver @("-ResultsDir", $res, "-Task", "t-rc3")
+    Check "...and alone it is labelled for what it is, not 9999 failures" ((G -C $repo log -1 --format=%s fleet/t-rc3).Trim()) "fleet: t-rc3 (NEAR MISS, not accepted: the planner's tests did not pass on a clean copy)"
     New-Attempt "t-blocked" @{ suite = "FAIL"; scope = "PASS"; integrity = "PASS" } "PASS" "Tests 4 passed (4)" $edit
     New-Attempt "t-blocked" @{ suite = "PASS"; scope = "FAIL"; integrity = "PASS" } "FAIL" "Tests 1 failed (4)" $edit
     New-Attempt "t-blocked" $ok "PASS" "Tests 4 passed (4)" $edit $true
