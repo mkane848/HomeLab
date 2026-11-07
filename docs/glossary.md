@@ -14,6 +14,10 @@ Terms used across the docs, in the order you meet them.
 | **gate** | One mechanical check on a run: writes, scope, suite, `failsOnOld`, typecheck |
 | **`failsOnOld`** | Revert the source, keep the model's test: the suite must FAIL, proving the test exercises the fix |
 | **hidden tests** | Acceptance tests held outside the checkout while the model runs and used only to grade |
+| **Gate / Ideal** | The two tested tiers of a confirmed done list. Gate: what the owner would accept; its tests decide merge or retry. Ideal: what the best answer would also do; measured, never blocking |
+| **selector** | The tests a dispatcher decides on: a planner's Gate set, or the task's own tests when shown |
+| **clean-copy recheck** | A Gate that passed is run again on the base plus only the attempt's patch, in a new folder, because a test can read outside the checkout (`selector.recheck`) |
+| **valid set** | A planner's set that fails on the base and passes on the task's real fix. Covers only the tests the task's command reaches. It cannot rank sets from a confirmed list, which may ask for more than that fix did |
 | **shown / read-only** | Modes where the acceptance tests are given to the model (`-ShowAcceptance`, `-ReadOnlyAcceptance`); kept in marked result folders apart from hidden-test rows |
 | **assisted** | A run with a nudge (`-NudgeAfterCompaction`, `-NudgeOnStop`) or other help; kept in `ASSISTED`-marked folders, never mixed with unassisted rows |
 | **era** | A span in which the client, engine, plugins, prompt or checkout were unchanged. Rows from different eras are not comparable; the run JSON records what defines one |

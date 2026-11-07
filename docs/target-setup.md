@@ -9,6 +9,10 @@
 >   2026-10-12: four busy threads on the server cost `qwen3.6` about 60% of its decode (the routing rule under
 >   "Machine roles"). The harness runs where the tools run: the desktop or node3, both run hosts since
 >   2026-10-21 (roadmap → step 5, "node3's control round"). This amends the "server-centric" requirement below, which is kept as written.
+> - **Current state (2026-11-07):** the executor is `qwen3.6` on the server's llama.cpp, with node3 as a second seat on demand: 45 of 48 on
+>   the 16 real tasks with today's settings, and 18 of 18 private tasks accepted with their own tests shown (mean 1.06 attempts). Unattended
+>   work with planner-written tests runs end to end on benchmark tasks, using Opus-written lists; the pilot on real work is still to
+>   come. What is measured, and how sure: [methodology.md](methodology.md). The notes below are older and dated.
 > - **Milestones 3 and 4 are back on deck** after the llama.cpp trial (see "Milestones").
 > - **Milestone 3 is measured (2026-10-23):** with the acceptance tests shown, `qwen3.6` on the server's llama.cpp passed
 >   42 of 45 time-matched runs against 40 of 45 hidden, a difference not established (unreplicated, 15 tasks); the shown

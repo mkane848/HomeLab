@@ -77,6 +77,11 @@ Each of these was a real, repeated mistake (most from 2026-10-30 to 11-02). Foll
   `gh pr view <n> --json state`. If it is merged, cherry-pick onto a new branch from `main` and open a new PR: #190
   was merged one commit early and the second fix needed #191.
 
+**Numbers.**
+- Compare arms by task, paired, with an exact sign test; a test on pooled runs overstates the evidence (`docs/methodology.md` -> "How to
+  compare two arms"). 2026-11-07's audit found that in recent write-ups, though every count was right.
+- Before a headline goes in a report, recompute it from the raw results, and ask what the known-good answer scores on the same measure.
+
 **A guard that cannot fail protects nothing.**
 - Mutation-check every new check: disable the rule (or run the guard against `main`'s version of the script) and
   confirm the guard goes red, then restore and confirm the file is byte-identical (`cmp`). Twice a new guard stayed

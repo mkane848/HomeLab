@@ -706,6 +706,12 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          set measured: 0 false positives and 0 false negatives, 0 integrity blocks, Ideal 84% (27 of 32; the same two
          `real-03` items missed in both reps), 1.4 to 3.5 minutes an attempt. Details and the comparison with
          2026-11-02: `docs/planner-tests-experiment.md` → "The checkpoint, again under the new settings".
+       - **A local planner, a Gate hole and an audit (2026-11-05 to 11-07).** `qwen3.6` as the planner: the plain prompt writes valid sets
+         from the request alone on 2 of 21 runs, a stricter prompt on 7 to 8 of 21, Opus 8 of 12 on six of those tasks. On Opus's confirmed
+         lists, local Gate tests kept 24 of 24 attempts that passed the hidden tests. The Ideal list: local-gated 24%, Opus-gated 84%, the
+         owner's own fix 31%. Found on the way, and fixed: a Gate at the wrong depth read outside the checkout (#218), and hand-copied
+         sets lost folder paths (#219). Not yet run: any pipeline with no frontier model, which needs the owner's edit of a local list.
+         All of it: `docs/planner-tests-experiment.md` → "Local planner against Opus", with the audit's corrections.
        - **`compaction.prune` on `kane-08`, slice 1 (windows prune-kane08-s1-{server,node3}-20261105, 2026-11-05): no
          effect to see; the `lfc-07` lean did not carry over.** 4 runs in the hour (3 on the server's seat, 1 on node3's;
          node3's second run was cut by the window's end), against 8 control runs under the same settings without prune

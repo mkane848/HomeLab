@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: an audit of the recent numbers and method (2026-11-07, owner's request).** Every count, interval and sample size from 2026-11-01
+  on was recomputed from the raw results and held. What did not: Fisher's exact on pooled runs (now paired by task, in
+  `docs/methodology.md` -> "How to compare two arms"), "the work got thinner" (the owner's own fix scores 31% on the Ideal list, local-gated
+  24%, Opus-gated 84%), the `/delete` claim laid on the model alone (the owner's policy has it too), the stricter prompt's time cost
+  (none on balance), and line counts. `methodology.md`, the caveats, glossary, roadmap and target setup brought up to date.
+
+- **tests: the local planner's files are collected from its clone (2026-11-06, owner's go).** The review found the hand-copy
+  step losing folder paths, so tests never ran or climbed out of the checkout. `run-planner-local.ps1` now takes each set from
+  the clone (`Get-PlannerCollection`): the clone decides where a file belongs, what the model handed in decides its tier, and
+  new helpers go with the tests that import them. Files never written in the clone, the repository's own tests handed in, and
+  edits left out are recorded as `collect` in `<task>.json`, and the hand-copies are kept in `handed-in/`. Local planner only: the
+  frontier planner has not shown this failure. `tests/test-planner-local.ps1`, mutation-checked. `test-run-window.ps1` now prints
+  the window's output when its intermittent game case fails. Live, 21 runs: 8 valid (7 as handed in, 11 moved by hand), sets passing
+  on the original code down from 8 to 0, and 4 runs now visibly without a set. `docs/planner-tests-experiment.md`.
+
 - **fix: a passing Gate is checked again on a clean copy (2026-11-06, owner's go).** A planner's set at the wrong depth
   climbs out of the checkout, and executors satisfied it with stray files or a junction beside the checkout, so the Gate
   passed on something other than the delivered work. An attempt the gates would otherwise keep now has its set run again
@@ -18,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attempt the hidden tests fail that the old Gate would have kept.
 
 - **results: the stricter planner prompt on nine held-out tasks, and a review that found a hole in the Gate (2026-11-06).**
-  As handed in, 3 of 9 against 2 of 9. With misplaced files moved back, pooled 11 of 21 against 2 of 21 (p = 0.006). The
+  As handed in, 3 of 9 against 2 of 9. With misplaced files moved back, pooled 11 of 21 against 2 of 21. The
   "copied tests" were mostly tests a contract commit already holds and the harness hides. A Gate set at the wrong depth reads
   outside the checkout, and executors satisfied it with stray files or a junction: 10 of 24 kept runs used such a set. Hidden
   tests are unaffected. Ranked fixes, none built. `docs/planner-tests-experiment.md`.

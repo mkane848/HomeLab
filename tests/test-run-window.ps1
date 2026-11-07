@@ -373,6 +373,12 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $r = Invoke-Window (@{ Run = @("baseline") } + $gameArgsWin) -Plan '{"baseline":{"sleep":120}}'
     Stop-Games
     Check "a game that starts mid-phase ends the window: exit 0, well before the stand-in's 120 s" ("{0}|{1}" -f $r.Exit, ($r.Seconds -lt 60)) "0|True"
+    # This case failed now and then with the window exiting 1 mid-phase, once on CI and once in about 18 local runs (2026-11-06), and the
+    # cause could not be reproduced. CI keeps only the guard's last lines, so when it happens again, print what the window said.
+    if ((Phase-Row $r "baseline") -ne "cut") {
+        Write-Host "---- the window's output (exit $($r.Exit)):"; Write-Host $r.Text; Write-Host "---- its report:"; Write-Host $r.Report
+        foreach ($f in Get-ChildItem -LiteralPath $r.Out -File) { Write-Host "---- $($f.Name)"; Get-Content -LiteralPath $f.FullName -Tail 15 | ForEach-Object { Write-Host $_ } }
+    }
     Check "...the phase is cut, not failed" (Phase-Row $r "baseline") "cut"
     Has "...and the report says it yielded to the game" $r.Report "a game started \($gameName\); the window yielded"
     $null = Start-Game; Start-Sleep -Milliseconds 500
