@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Repo for provisioning a hybrid Ubuntu server / Windows desktop LLM setup (Ollama + OpenCode). Not an app codebase — most changes are bash/PowerShell scripts, JSONC config templates, and docs.
+Repo for provisioning a hybrid Ubuntu server / Windows PCs LLM setup (llama.cpp, with Ollama being replaced; OpenCode). Not an app codebase — most changes are bash/PowerShell scripts, JSONC config templates, and docs.
 
 **End goal (north star): turn every machine in the house into interchangeable compute for one Claude Code / ChatGPT Codex-like development experience** — prompt in plain human language, and the fleet (personal PC today, the Ubuntu server when it's fixed, then node3's 3080 FE) flexibly supplies the models behind that experience. The mechanics documented in this repo exist so you don't have to think about which model runs where: the profile selects it, OpenCode pins it, tests enforce it. See `docs/roadmap.md`. Progress gates by hardware, not by preference.
 

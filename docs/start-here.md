@@ -2,7 +2,7 @@
 
 From a cold machine to a working agent in OpenCode, with a check at each step. (Prefer VS Code? See [vscode.md](vscode.md).) Terms: [glossary](glossary.md).
 
-**Status (2026-10-26):** the server serves the main seat. Default profile `dev-workflow-server-llamacpp`: `qwen3.6` @64k on the server's llama.cpp. You still run OpenCode on the desktop; only the model is remote. Server down, or in a trial window? Use `dev-workflow-quality` (same seat on this desktop): `opencode quality`.
+**Status (2026-11-07):** the server serves the main seat. Default profile `dev-workflow-server-llamacpp`: `qwen3.6` @64k on the server's llama.cpp. You still run OpenCode on the desktop; only the model is remote. Server down, or in a trial window? Use `dev-workflow-quality` (same seat on this desktop): `opencode quality`.
 
 ## The 90-second version
 

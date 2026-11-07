@@ -6,7 +6,7 @@ The fleet that runs the local LLM setup. Refresh the VRAM budget when any node's
 
 | Node | OS | CPU | GPU | VRAM | RAM | IP | Role |
 |------|----|-----|-----|------|-----|----|------|
-| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (Ollama and llama.cpp in Docker) |
+| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (llama.cpp in Docker; Ollama stopped and kept) |
 | Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | 32 GB | `DESKTOP_IP` | Model host, OpenCode client, tool-run host (native Ollama, Vulkan) |
 | Third node | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Model host, OpenCode client, tool-run host (onboarded 2026-09-20). Also a gaming PC |
 | GTX 1070 | — | — | GTX 1070 | 8 GB | — | — | Retired from server Sep 2026; backup / spare candidate |
