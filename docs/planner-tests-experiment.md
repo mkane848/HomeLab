@@ -494,33 +494,35 @@ had already confirmed on 2026-11-02, and those were written by Opus.
 | Gate sets from the confirmed lists, valid on the same check | 1 of 12 | 2 of 6 | 0 of 3 |
 | Executor shown those Gate sets: kept attempts passing the hidden tests | 12 of 12 | 12 of 12 | 6 of 6 |
 | Accepted on the first attempt | 9 of 12 | 11 of 12 | 6 of 6 |
-| Ideal items done, measured on the same Opus-written Ideal sets | 14 of 64 (22%) | 17 of 64 (27%) | 27 of 32 (84%) |
+| Ideal items done, measured on the same Opus-written Ideal sets (the owner's own fix: 5 of 16, 31%) | 14 of 64 (22%) | 17 of 64 (27%) | 27 of 32 (84%) |
 | Planner cost for the three `real-*` tasks | about 20 minutes of GPU time | about 20 minutes of GPU time, using the plain list step | $2.41 |
 
-Plan phase, Fisher's exact test: plain against Opus p = 0.001, guided against Opus p = 0.22, guided against plain
-p = 0.09. Ideal, all local (31 of 128, 95% interval 18% to 32%) against Opus (68% to 93%): p < 0.001. Hidden tests: 0 of
-24 kept attempts wrong, 95% interval 0% to 14%. The 24 runs share 3 tasks and 4 sets, so those intervals are narrower than
-the evidence is. The Opus figures come from the 2026-11-05 round on the server's seat. Each local arm ran on both seats;
-the seats did not differ (15 of 64 and 16 of 64 Ideal).
+Ideal, all local: 31 of 128 (95% interval 18% to 32%); Opus: 68% to 93%. Hidden tests: 0 of 24 kept attempts wrong, 95% interval
+0% to 14%. The 24 runs share 3 tasks and 4 sets, so those intervals are narrower than the evidence is. The Opus figures come from
+the 2026-11-05 round on the server's seat. Each local arm ran on both seats, and the seats did not differ (15 of 64 and 16 of 64
+Ideal). Comparisons between planners, by the correct paired test, are in "Audit of these numbers" below.
 
 ### What this says
 
-- **The hidden tests held, the work got thinner** (the Gate itself has a hole: see the review below). Every kept attempt passed the owner's hidden tests, but the executor did
-  about a quarter of the Ideal list against 84% with Opus's Gate tests in front of it, and wrote less: about 3 lines
-  against 6 to 7 on `real-01`, about 20 against 36 on `real-02`. **A demanding Gate is what makes the executor do more,**
-  so the planner's real contribution is the bar it sets, which pass or fail against the hidden tests cannot show.
-- **The hidden tests are too lenient to see what was lost.** Of the 8 kept Privacy Policies on `real-03`, 2 say `/delete`
-  removes the listing from the database, which is the false claim confirmed item G3.2 exists to prevent; 3 are vague, 2
-  are right, 1 says nothing. One of the 2 false ones came from a set that scored valid, so its test did not hold the
-  line either. Two kept runs also added a `vitest.config.ts` nobody asked for, apparently because that Gate set failed
-  to load without `globals`; the scope gate allows a new config file. Both are things only review catches today.
+- **The hidden tests held, and local-gated work sits near what was shipped** (the Gate itself has a hole: see the review
+  below). Every kept attempt passed the owner's hidden tests. The executor did about a quarter of the Ideal list with local Gate
+  tests, and 84% with Opus's in front of it. The owner's own fix scores 31% on that list, so local-gated work is near what was
+  shipped, and Opus-gated work goes well past it. A demanding Gate may be why, but it is not shown: Opus wrote both that Gate
+  and the Ideal sets, so shared wording could explain part of it.
+- **The hidden tests cannot see what the Ideal list asks for.** Of the 8 kept Privacy Policies on `real-03`, 2 say `/delete` removes
+  the listing from the database, which is what confirmed item G3.2 exists to prevent; 3 are vague, 2 are right, 1 says nothing.
+  One of the 2 came from a set that scored valid, so its test did not hold the line either. **The owner's own policy says the same
+  ("Removed immediately upon your request") and fails G3.2**, while the code only sets a status. Two kept runs also added a
+  `vitest.config.ts` nobody asked for, apparently because that Gate set failed to load without `globals`; the scope gate allows a
+  new config file. Both are things only review catches today.
 - **"Valid" does not work as a score for Gate sets from a confirmed list.** Opus's own sets fail on the owner's real fix
   (0 of 3), because the confirmed lists ask for more than that fix did. It still works for the plan phase, where the
   bar is the request alone. Local Gate sets are not worse by this measure; it just cannot rank them.
 - **The local planner's first failure looked like following instructions; see the review below, which corrects this.** In
   the plain plan phase, 5 of the 12 sets passed on the base. Both `wp-1a` sets were existing tests the harness hides, not
   careless copies, and three others lost a folder path so the runner never found them. The other 7 failed on the real
-  fix, mostly for over-strict wording (one `real-02` set did not load). The stricter checks cost about 15% more time.
+  fix, mostly for over-strict wording (one `real-02` set did not load). The stricter checks cost no time on balance: +17% on these
+  six tasks, -16% on the held-out nine.
 - **Done lists are the frontier model's clearest lead.** All 12 local lists have the visible facts (missing variables,
   the two files, the README links). None of the 4 `real-03` lists has the `/delete` trap, none of the 4 `real-01` lists
   says the work stays off `main`, and one marks the Testing and Behavior Notes sections "already accurate" when the repo
@@ -550,9 +552,8 @@ original code and passes on the real fix. No audit flags in 18 runs.
 | Passed on the original code | 5 | 4 |
 | Failed on the real fix | 2 (`wp-6a` one test; `wp-3a` did not load) | 2 (`wp-4a` six tests; `wp-9a` one test) |
 
-Pooled with the first six tasks, plain is 2 of 21 (10%, 95% interval 3% to 29%) and stricter is 7 of 21 (33%, 17% to
-55%): Fisher's exact test p = 0.13. Opus got 8 of 12 on the first six tasks only, so that comparison mixes task sets
-(Opus against stricter p = 0.08; against plain p = 0.001).
+Pooled with the first six tasks, plain is 2 of 21 (10%, 95% interval 3% to 29%) and stricter is 7 of 21 (33%, 17% to 55%). Paired,
+stricter did better in 6 pairs and worse in 1. Opus got 8 of 12 on the first six tasks only.
 
 - **As handed in, the stricter prompt's lead is not proven.** Its rate held (3 of 9 here, 4 of 12 before) and the plain
   prompt did better on these tasks (2 of 9 against 0 of 12). The review below moves the misplaced files, and that changes
@@ -579,10 +580,10 @@ were moved to where the model had worked on them and validated again, with nothi
 
 Corrected conclusions:
 
-- **The stricter prompt does help.** With placement repaired it is 11 of 21 against 2 of 21 (p = 0.006, 95% intervals 32%
-  to 72% and 3% to 29%). This repair was chosen after seeing the data, so treat it as a strong hint. On the first six tasks it
-  is 6 of 12 against Opus's 8 of 12 (p = 0.68), where as handed in it was 4 of 12. The earlier "not shown to help" was
-  wrong: placement errors were hiding the gain. Note the plain prompt's own sets gain nothing from the repair.
+- **The stricter prompt probably helps; the audit below has the paired tests.** With placement repaired it is 11 of 21 against 2 of 21
+  (95% intervals 32% to 72% and 3% to 29%), better in 9 pairs and worse in none. This repair was chosen after seeing the data, so treat
+  it as a strong hint. On the first six tasks it is 6 of 12 against Opus's 8 of 12, where as handed in it was 4 of 12. The earlier
+  "not shown to help" came from placement errors hiding part of the gain. The plain prompt's own sets gain nothing from the repair.
 - **"Copied existing tests" was mostly a benchmark artifact.** 8 of these 15 tasks exclude test files by name, and the three I checked (`wp-1a`, `wp-7a`, `wp-9a`) start from a test-first
   "contract" commit: failing tests for the feature are already in the repository, and the harness hides them. The planner found
   them, ran them, saw them fail ("The tests already exist") and handed them in, which is what the prompt asks for apart from
@@ -615,7 +616,7 @@ never graded. These leftovers also survive between attempts.
    output, not as a set that looks fine.
 3. **Check each set before use, without knowing the solution:** it must load, the runner must find it, and it must fail on the
    base. One retry with the error as feedback. This catches the sets with load errors, which are model bugs a collector cannot fix.
-4. **Adopt the stricter prompt's rules.** They cost about 15% more planner time.
+4. **Adopt the stricter prompt's rules.** They cost no planner time on balance.
 
 **Fix 1, built and run live (#218, 2026-11-06).** On the desktop's CPU with the server's model (private
 `results/recheck-live-20261106`), up to 2 attempts each. The clean-copy run took 15 to 21 seconds.
@@ -643,9 +644,9 @@ with the stricter prompt, plus 6 tests-phase runs, on both seats (private `resul
 | Stricter prompt, files moved by hand afterwards | 11 | 2 | 8 | 0 |
 | **Stricter prompt, collected from the clone, live** | **8** | **0** | **9** | **4** |
 
-- **It did not reach the 11 the hand repair suggested.** 8 of 21 (95% interval 21% to 59%) is one more than as handed in (p = 1.0)
-  and is not separated from the plain prompt's 2 (p = 0.07), or from Opus's 8 of 12 on the first six tasks, where it scored 5 of 12
-  (p = 0.41). The hand repair was picked after seeing the data, so its 11 was optimistic, as noted above.
+- **It did not reach the 11 the hand repair suggested.** 8 of 21 (95% interval 21% to 59%) is one more than as handed in, with 5 pairs
+  up and 4 down. Against the plain prompt's 2 it is 6 pairs up and none down, and on the first six tasks it is 5 of 12 against Opus's 8
+  of 12. The hand repair was picked after seeing the data, so its 11 was optimistic.
 - **What it did do is end the silent failure.** Sets that pass on the original code went from 8 to 0: every set handed over now
   runs and fails first. The failures left are visible: 9 sets too strict or wrong, and 4 with no set (1 handing back only the
   repository's own tests, 1 writing nothing, 2 at the root).
@@ -657,8 +658,69 @@ with the stricter prompt, plus 6 tests-phase runs, on both seats (private `resul
   was corrected (a hand-in stands when its top-level folder exists in the repository) and applied to this round afterwards from the
   saved hand-copies, then validated, so those 8 did not run live with the corrected code.
 
-None of these touch the biggest gap: Ideal at 24% against 84%, and the traps missing from the local done lists. That needs
-the owner-edited local list test ("Not tested yet" above), which matters more to the budget question than any of the four.
+None of these touch the biggest gap: Ideal at 24% against 84% (the owner's own fix: 31%), and the items missing from the local done
+lists. That needs the owner-edited local list test ("Not tested yet" above), which matters more to the budget question than any of the four.
+
+### Audit of these numbers (2026-11-07)
+
+Before any more testing, every headline number from 2026-11-01 on was recomputed from the raw run JSONs with a separate pass rule,
+and the statistics were checked against textbook values (private `results/audit-20261107`). No model time.
+
+**What held.** Every count, every Wilson interval and the runs-needed table recomputed as written, for the regression, thinking
+budget, retry loop, planner screen, checkpoints, local rounds and North. One apparent difference is not an error: `outputCapHit`
+marks a run's last step only (11), and the 12 quoted is runs with any step at the limit, from the transcripts.
+
+**What was wrong, all corrected in place above:**
+
+| What was written | What is right |
+|---|---|
+| Fisher's exact test on pooled runs, for prompts and planners | The wrong test: runs cluster by task, as the 2026-10-23 review had already said, and these comparisons are paired. See the table below. The older Fisher values in `roadmap.md` have the same flaw, but all are "not shown", so no conclusion changes |
+| "The work got thinner", local against Opus on Ideal | The owner's own fix scores 5 of 16 (31%) on that list. Local-gated work is near what was shipped; Opus-gated work goes well past it |
+| "A demanding Gate is what makes the executor do more" | Not shown. It may be true, but Opus wrote both that Gate and the Ideal measure, so shared wording could explain part of the 84% |
+| The `/delete` claim was the model's failure | The owner's own policy says "Removed immediately upon your request" too, and it fails G3.2. The code only sets a status (`src/services/listings.ts`) |
+| "Stricter prompt costs about 15% more time" | +17% on the first six tasks and -16% on the held-out nine: no cost on balance |
+| About 3 lines against 6 to 7 on `real-01`, about 20 against 36 on `real-02` | Those counts left out blank lines. See the table below |
+| "Valid" as a whole verdict on a set | On `wp-6f` the task's test command runs only `apps/server`, so the `apps/web` tests in its sets never ran, Opus's and local's alike |
+
+**Paired comparisons** (same task and run number; exact two-sided sign test; "up" means the first did better):
+
+| Comparison | Pairs: up, down | p, by pair | Tasks: up, down | p, by task |
+|---|---|---|---|---|
+| Stricter as handed in, against plain (21 pairs, 15 tasks) | 6, 1 | 0.13 | 5, 1 | 0.22 |
+| Stricter moved by hand, against plain (chosen after the data) | 9, 0 | 0.004 | 7, 0 | 0.016 |
+| Stricter collected from the clone, against plain | 6, 0 | 0.03 | 5, 0 | 0.06 |
+| Collected, against stricter as handed in | 5, 4 | 1.0 | 4, 3 | 1.0 |
+| Opus against plain (12 pairs, 6 tasks) | 8, 0 | 0.008 | 4, 0 | 0.13 |
+| Opus against stricter as handed in | 4, 0 | 0.13 | 3, 0 | 0.25 |
+| Opus against collected | 3, 0 | 0.25 | 3, 0 | 0.25 |
+| Opus against moved by hand | 2, 0 | 0.5 | 2, 0 | 0.5 |
+
+- **The stricter prompt probably helps, though the evidence is modest and partly flattered.** It never lost by more than one pair.
+  Its "new files only" rule also avoids the repository's existing tests, which cost the plain prompt 4 sets and which an ordinary
+  repository would not have. These tests were chosen after looking, with no correction for making eight of them.
+- **Opus is never behind in a pair, and six tasks cannot show how far ahead it is.** A task-level sign test cannot go below 0.03 at 6
+  tasks, or 0.25 at the 3 tasks that differ.
+- **One run says little.** Between two samples of the same stricter prompt (as handed in, and collected), validity flipped in 9 of 21
+  pairs, 5 up and 4 down. So one run of one task is weak evidence either way, and the collector's effect on validity is not visible
+  through that noise. Its seats also differed from the earlier rounds: the nine held-out tasks all ran on node3's seat.
+
+**The Ideal list against what was actually shipped:**
+
+| Task | Owner's fix: Ideal | Local-gated | Opus-gated | Lines added: owner | Local-gated, mean | Opus-gated |
+|---|---|---|---|---|---|---|
+| `real-01` | 1 of 4 | 2 of 32 (6%) | 7 of 8 (88%) | 9 | 4 | 8, 9 |
+| `real-02` | 2 of 5 | 18 of 40 (45%) | 10 of 10 (100%) | 18 (and 7 removed) | 21 | 35, 37 |
+| `real-03` | 2 of 7 | 11 of 56 (20%) | 10 of 14 (71%) | 203 | 115 | 117, 133 |
+| Total | **5 of 16 (31%)** | **31 of 128 (24%)** | **27 of 32 (84%)** | | | |
+
+- **Read:** Opus's list is well beyond what the owner shipped, and the owner confirmed it as what the best answer would do. So the
+  gap is what the frontier planner's bar buys over the owner's own level of finish. Local-gated work is close to shipped work on
+  `real-02` (above it) and `real-03` (a little below), and well below it on `real-01`, where its short notes miss what the owner's
+  nine lines included.
+- **Limits:** three tasks, so no test at task level can pass 0.25, though all three lean the same way. The owner's fix was one commit
+  made before the list existed. The lists were not compared on anything but these tests.
+
+**Not checked:** rounds before 2026-11-01, and speed benchmarks (`bench-speed.tsv`), which were not recomputed.
 
 ### `kane-08` at a 60-minute limit (2026-11-05)
 

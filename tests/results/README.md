@@ -17,7 +17,7 @@ Dated measurement logs, per-category row inventories and the era notes live in [
 | `NOTES.md` | Dated measurement logs, row inventories, era notes | Why a row or number looks the way it does |
 
 
-Pass rule in one line: a public-task run passes on **scope + suite + failsOnOld**; a real task on **scope + suite + hidden acceptance tests**. Rows from different eras are not comparable ("Era confound"). Terms: [glossary](../../docs/glossary.md).
+Pass rule in one line: a public-task run passes on **scope + suite + failsOnOld**; a real task on **scope + suite + hidden acceptance tests**. What a dispatcher accepts on a planner's Gate is separate: the Gate, scope, suite and integrity must pass, nothing tampered, and from 2026-11-06 the Gate again on a clean copy (`selector.recheck`). Rows from different eras are not comparable ("Era confound"). Terms: [glossary](../../docs/glossary.md).
 
 ## Real-prompt tasks: `real-tasks-public.tsv`
 

@@ -1,7 +1,7 @@
 # How we measure, and how sure we are
 
 The one page on how this repo tests models and harnesses, and on how much each headline number can carry. Written
-2026-11-03; the numbers in "How sure we are" are dated and move as rounds land. Terms: [glossary](glossary.md). The
+2026-11-03, audited 2026-11-07; the numbers in "How sure we are" are dated and move as rounds land. Terms: [glossary](glossary.md). The
 limits that still apply are kept short in [methodology-caveats.md](methodology-caveats.md).
 
 ## What one measurement is
@@ -18,6 +18,9 @@ limits that still apply are kept short in [methodology-caveats.md](methodology-c
   (`failsOnOld`); a real task's hidden tests pass. Further gates catch a model that described a change without making
   it (writes), edited the tests it was shown (tampering), or lost or broke documentation (integrity). The exact rule is
   in [tests/results/README.md → "What counts as a pass"](../tests/results/README.md#what-counts-as-a-pass).
+- **A planner's Gate has to pass twice** (from 2026-11-06). An attempt the gates would otherwise keep has its Gate tests run again on the
+  base plus only its patch, in a new folder under empty ones (`selector.recheck`), because a test at the wrong depth can read
+  something outside the checkout. Anything but a pass rejects the attempt.
 - **An infrastructure failure is not a measurement.** A run that never reached the model (host down, agent crashed)
   is filed as `_INFRA_`, not graded, and counted separately. A run that hit the time limit is filed as `_TIMEOUT_` and
   not graded either; where a headline counts timeouts as failures (North's 21 of 30), it says so.
@@ -45,19 +48,36 @@ For real work (a task from the owner, delivered as a branch) there are no hidden
 verdict** on the delivered branch (merged, fixed, or rejected: `tests/record-verdict.ps1`), and a rejected accepted
 delivery is a false positive.
 
-## How sure we are (2026-11-03)
+## How sure we are (2026-11-07)
 
-Intervals are 95% Wilson. "Enough to" says what the data can and cannot decide.
+Intervals are 95% Wilson. "Enough to" says what the data can and cannot decide. Each number was recomputed from the run JSONs on
+2026-11-07 ([planner-tests-experiment.md → "Audit of these numbers"](planner-tests-experiment.md#audit-of-these-numbers-2026-11-07)).
 
 | Claim | Data | 95% interval | Enough to |
 |---|---|---|---|
-| `qwen3.6` on the server passes small real tasks unassisted | 81 of 96 runs, 16 tasks × 6 (window 20261101-2213) | 76% to 90% | Call it a solid main seat. Not to rank tasks finely: one task's 5 of 6 is 44% to 97% |
-| ...and passes them every time | 10 of 16 tasks passed all 6 runs; pass^6 0.625 | | Know which tasks are safe to hand off: 6 of 16 are not yet |
+| `qwen3.6` passes small real tasks unassisted, today's settings | 45 of 48 runs, 16 tasks × 3 (2026-11-04; one timeout counted as a failure) | 83% to 98% | Call it a solid main seat |
+| ...before the thinking budget and the 4,096 batch | 81 of 96 runs, 16 tasks × 6 (window 20261101-2213) | 76% to 90% | Not to say the settings raised the rate: the intervals overlap, and the budget's clear gain is on the tasks it targeted |
+| ...and passes them every time | 10 of 16 tasks passed all 6 runs; pass^6 0.625 (before the settings) | | Know which tasks are safe to hand off |
+| A thinking budget stops the output-limit stall | 0 of 47 graded runs lost a step to it (2026-11-04), against 12 of 96 before | | Say the stall is gone. On the three worst tasks: 14 of 18 against 9 of 18, not proven at that size |
 | North Mini Code is not an upgrade | 21 of 30 runs | 52% to 83% | **Not** to say it is worse at passing: telling 70% from 84% needs about 141 runs a model. The verdict rests on speed (about 3× slower per task) |
-| A planner's tests can gate unattended work | 3 false positives in 28 accepted (screen, 2026-10-31) | 4% to 27% | Find where the risk is (all three on one vague documentation request). Not to show the rate is under 10% |
-| The confirmation checkpoint works | 6 of 6 attempts passed the planner's Gate and the hidden tests (2026-11-02) | 61% to 100% | Show it works end to end. Not how often it fails |
+| A planner's tests can gate unattended work | 3 false positives in 28 accepted (screen, 2026-10-31); 0 in 12 with confirmed Opus lists (2026-11-02 and 11-05) | 4% to 27%; 0% to 24% | Find where the risk is (all three on one vague documentation request). Not to show the rate is under 10% |
+| Local Gate tests, on Opus's confirmed lists | 24 of 24 kept attempts passed the hidden tests, but 10 of the 24 used a set reading outside the checkout (closed since by the recheck) | 86% to 100% | Say the hidden tests held. Not to trust those Gates: 3 sets, rechecked live, rejected wrong work once and good work three times |
+| A local planner can write a valid set from the request alone | Stricter prompt 7 of 21 as handed in, 8 of 21 collected from the clone; plain 2 of 21; Opus 8 of 12 on six of those tasks | 17% to 55%; 21% to 59%; 3% to 29%; 39% to 86% | Say the plain prompt is not enough. Not to rank stricter against Opus: 6 tasks |
+| Opus's confirmed bar gets more of the Ideal list | 27 of 32, against local-gated 31 of 128 and the owner's own fix 5 of 16 | 68% to 93%; 18% to 32%; 14% to 56% | See the gap, on 3 tasks. Not why: Opus wrote both that Gate and the Ideal tests |
 | Tests shown to the model help | own tests 17 of 18; a planner's 25 of 35; none 13 of 18 | 74%–99%; 55%–84%; 49%–88% | Say the task's own tests help a lot. Not that a planner's help at all |
-| The output cap costs `qwen3.6` passes | 12 of 96 runs lost a step to it; 11 of the 15 failures | | Point at the cause. The test of the fix (limit 16,384) compares against 9 of 18 on the three worst tasks (29% to 71%) |
+
+## How to compare two arms
+
+- **Pair, and do not pool runs.** Runs of one task are correlated, so a test on pooled runs (Fisher's exact on two totals) overstates the
+  evidence. When two arms ran the same tasks, count the tasks or pairs each won, and use an exact sign test. Report by task: that is the
+  independent unit, and it also sets the limit. No result on 3 tasks can pass 0.25, and none on 6 can pass 0.03.
+- **Keep the seats, days and settings the same** across arms, or say they differ.
+- **Decide on the test before looking.** A test chosen after seeing the data is a hint, and several tests need a correction.
+- **Replicate before believing a single run's verdict.** Two samples of one prompt differed on 9 of 21 pairs.
+- **Give a measure a floor.** A score means little until the known-good answer has been through it: the owner's own fix scores 31% on
+  the Ideal list, which changed what "24%" meant.
+- **Prove a verdict covers what it claims.** A set counted valid only for the tests the task's command can reach (`testDir`), and a Gate
+  can pass on files outside the checkout. Recheck any headline against the raw results before it goes in a report.
 
 ## How many runs a question needs
 
@@ -82,6 +102,7 @@ What follows from the table:
 
 ## What the numbers do not cover
 
+- **The Ideal list and the confirmed lists were written by Opus,** so their tests suit its Gate wording better than a local one.
 - **The tasks are small and come from three repositories.** Large features (`large-f1`, `large-f2`) have never been
   rated. A pass rate here is a pass rate on this kind of task.
 - **Runs of one task are not independent.** The per-run interval treats them as if they were, so it is narrower than it
