@@ -176,8 +176,6 @@ new era (llama.cpp, sealed checkouts, node3's fixed shell): do not pool it with 
   and `run-tasks-batch.ps1`, with reports and results pushed from node3. The rounds are in `docs/roadmap.md`, each with its private
   `results/window-*` folder. `-FillTo` and `-UnloadAtEnd` were used in those rounds, and `-YieldToGames`'s check at the gate passed on 9 of
   them.
-- **Not verified on a real window:** a game starting mid-phase. No report shows the window yielding to one, so that path has run only
-  against the guard's stand-in, the one case with an unexplained failure (below).
 - **Known gaps:** a reboot of node3 ends the run with no resume. The server-side watchdog restarts the container but cannot tell a slow
   model from a hung one beyond `/health`. Planner rounds started by hand (`run-planner-local.ps1`) do not use a window, so they
   yield to a game only if their wrapper checks for one.
