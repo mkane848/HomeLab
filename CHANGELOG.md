@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the server's upgrade sizes corrected from the model file (2026-11-07).** The advice used the catalog's 23.0 GB. The weights are 21.71
+  GB, and 3.68 GB of cache and buffers makes about 25.4 GB with everything on the GPU. So a 24 GB card is at the edge rather than short: one
+  or two layers on the CPU, against 20 today. `docs/hardware.md`. The stricter planner rules are adopted in the private prompts (version 3).
+
 - **docs: an audit of the recent numbers and method (2026-11-07, owner's request).** Every count, interval and sample size from 2026-11-01
   on was recomputed from the raw results and held. What did not: Fisher's exact on pooled runs (now paired by task, in
   `docs/methodology.md` -> "How to compare two arms"), "the work got thinner" (the owner's own fix scores 31% on the Ideal list, local-gated
