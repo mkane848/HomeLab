@@ -68,13 +68,14 @@ which is not the file):
 
 The CPU is already about half busy serving those experts, and harness work on the same CPU would compete with decode. **Nothing below
 was measured on such a card. The sizes are arithmetic from the numbers above, assuming the 3.68 GB stays the same, and no speed-up is
-estimated.**
+estimated.** The sum does match the seat's own sweep: it gives 15.5 GiB at `n-cpu-moe` 18, where 15.6 was measured, and more than the card
+holds at 16, which did not load at that batch.
 
 1. **A GPU that holds the model: 24 GB is the edge, 32 GB is comfortable.**
    - **24 GB** (about 24,560 MiB) would leave about 350 MiB with everything on it. That is too close: node3's 3080 lost most of its speed
      at 9.7 of 10 GB. One or two layers on the CPU (`n-cpu-moe` 1 or 2) leave about 0.8 to 1.3 GB, so nearly all of today's 20-layer spill
      goes. A smaller batch would also free some room, at a cost in prompt reading.
-   - **32 GB** holds all of it, with about 6 GB to spare for a longer context.
+   - **32 GB** holds all of it, with about 8.5 GB to spare for a longer context.
    - **A second card beside the 4070 Ti Super** reaches the same total, and more: 16 + 24 GB is 40 GB. llama.cpp splits layers across
      cards. It needs a free slot with at least x4 lanes and room under the larger card, which the board's manual and the case should confirm.
    - Whichever: check the power supply's connectors and the case's clearance first (the supply is a Corsair RM850e; the rest is the
