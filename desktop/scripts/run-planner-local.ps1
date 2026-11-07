@@ -12,7 +12,10 @@
 #        -Model llamacpp-server/qwen3.6:35b-a3b-coding -ServerUrl http://<host>:8090/v1 [-Tasks real-01,wp-5b] [-MaxMinutes 45]
 #
 # Output, per phase: <Out>\run<N>[-<phase>]\planner\<task>\<N>\... (and <N>-ideal), <task>.jsonl (the transcript),
-# <task>.json (exit, minutes, usage, files, outside references), meta.json (model, prompt hash, agent version).
+# <task>.json (exit, minutes, usage, files, outside references, collect), meta.json (model, prompt hash, agent version).
+#
+# The plan and tests phases collect the planner's files from its clone (Get-PlannerCollection), so a hand-copy that lost a folder
+# path cannot change where a test runs. What the model handed in is kept beside the set in handed-in\<task>\ for the record.
 param(
     [string]$Pack,
     [string]$Out,
@@ -50,6 +53,107 @@ function Get-OutsideReferences {
         if ($text -match '(?i)homelab-private') { [void]$found.Add("(names HomeLab-private)") }
     }
     return @($found | Sort-Object)
+}
+
+function Get-PlannerCollection {
+    # What the planner really wrote, read from its clone. The review of 2026-11-06 found the hand-copy step losing folder paths, so
+    # tests never ran or climbed out of the checkout (docs/planner-tests-experiment.md, "Review"). So the clone decides where a file
+    # belongs and what it holds. What the model handed in decides only which tier it is, and whether an edited test counts.
+    #   Collected: new test files, tests it edited and handed in, and new helpers those tests import. Each with its tiers.
+    #   Moved: collected at another path than it was handed in at. NotInClone: handed in, never written in the clone.
+    #   ExistingUnchanged: handed in, but the clone has that path untouched (tests the repository already holds).
+    #   EditedNotHandedIn / OtherChanges / Ignored: changes left out, recorded so a reader can see them.
+    param([string]$CloneDir, [string]$GateDir, [string]$IdealDir = "", [switch]$Tiers)
+    $out = [pscustomobject]@{ CloneFound = $false; Collected = @(); Moved = @(); NotInClone = @(); ExistingUnchanged = @(); EditedNotHandedIn = @(); OtherChanges = @(); Ignored = @() }
+    $handed = @()
+    foreach ($t in @(@{ Tier = "gate"; Dir = $GateDir }, @{ Tier = "ideal"; Dir = $IdealDir })) {
+        if ($t.Dir -and (Test-Path -LiteralPath $t.Dir)) {
+            $handed += @(Get-ChildItem -LiteralPath $t.Dir -Recurse -File | Where-Object { $_.Name -notin "NOTES.md", "DONE.md", "DONE.planner.md" } | ForEach-Object {
+                    [pscustomobject]@{ Tier = $t.Tier; Rel = $_.FullName.Substring($t.Dir.TrimEnd('\', '/').Length + 1).Replace('\', '/'); Name = $_.Name } })
+        }
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $CloneDir ".git"))) {
+        $out.NotInClone = @($handed | ForEach-Object Rel | Select-Object -Unique)
+        return $out
+    }
+    $out.CloneFound = $true
+    # -z: a path with a space or an accent comes back as it is. Ignored files (node_modules) are not listed at all.
+    # git writes UTF-8; PowerShell would decode it with the console's code page and garble an accented path.
+    $savedEnc = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
+        $raw = (& git -C $CloneDir -c core.quotepath=off status --porcelain -z --untracked-files=all --no-renames 2>$null) -join "`n"
+    } finally { [Console]::OutputEncoding = $savedEnc }
+    $changes = @($raw -split "`0" | Where-Object { $_.Length -gt 3 } | ForEach-Object { [pscustomobject]@{ Code = $_.Substring(0, 2); Rel = $_.Substring(3).Replace('\', '/').Trim("`n") } })
+    $isTest = { param($rel) $rel -match '\.(test|spec)\.[cm]?[jt]sx?$' }
+    $skip = { param($rel) ($rel -split '/' | Where-Object { $_ -in "node_modules", "dist", "coverage", ".git" }) -or (Split-Path -Leaf $rel) -in "NOTES.md", "DONE.md", "DONE.planner.md" }
+    $tests = New-Object System.Collections.Generic.List[object]
+    $helpers = New-Object System.Collections.Generic.List[string]
+    $other = New-Object System.Collections.Generic.List[string]
+    $editedOut = New-Object System.Collections.Generic.List[string]
+    foreach ($c in $changes) {
+        if (& $skip $c.Rel) { continue }
+        $name = Split-Path -Leaf $c.Rel
+        $wasHanded = [bool]($handed | Where-Object Name -eq $name)
+        if (& $isTest $c.Rel) {
+            if ($c.Code -eq "??" -or $wasHanded) { $tests.Add($c.Rel) } else { $editedOut.Add($c.Rel) }
+        } elseif ($c.Code -eq "??") { $helpers.Add($c.Rel) } else { $other.Add($c.Rel) }
+    }
+    $tierOf = { param($rel)
+        $h = @($handed | Where-Object Name -eq (Split-Path -Leaf $rel) | ForEach-Object Tier | Select-Object -Unique)
+        if ($h.Count) { return $h }
+        if (-not $Tiers) { return @("gate") }
+        # Written and not handed in: the ids in its test names say which tier it is.
+        $text = Get-Content -Raw -LiteralPath (Join-Path $CloneDir $rel)
+        $ideal = $text -match "(?:\bit|\btest)(?:\.\w+)?\(\s*['""``]I[0-9]"
+        $gate = $text -match "(?:\bit|\btest)(?:\.\w+)?\(\s*['""``]G[0-9]"
+        if ($ideal -and -not $gate) { return @("ideal") }
+        return @("gate") }
+    $items = New-Object System.Collections.Generic.List[object]
+    foreach ($t in $tests) { $items.Add([pscustomobject]@{ Rel = $t; Tiers = @(& $tierOf $t) }) }
+    # A new file that is not a test belongs only if a collected test imports it, in that test's tiers. Otherwise it is scratch.
+    $ignored = New-Object System.Collections.Generic.List[string]
+    foreach ($h in $helpers) {
+        $stem = [regex]::Escape(((Split-Path -Leaf $h) -replace '\.[^.]+$', ''))
+        $users = @($items | Where-Object { (Get-Content -Raw -LiteralPath (Join-Path $CloneDir $_.Rel)) -match "['""``/\\]$stem(\.[A-Za-z]+)?['""``]" })
+        $name = Split-Path -Leaf $h
+        if ($users.Count -or ($handed | Where-Object Name -eq $name)) {
+            $byHand = @($handed | Where-Object Name -eq $name | ForEach-Object Tier)
+            $items.Add([pscustomobject]@{ Rel = $h; Tiers = @(($byHand + @($users | ForEach-Object Tiers)) | Select-Object -Unique) })
+        } else { $ignored.Add($h) }
+    }
+    $out.Collected = $items.ToArray()
+    $out.EditedNotHandedIn = $editedOut.ToArray(); $out.OtherChanges = $other.ToArray(); $out.Ignored = $ignored.ToArray()
+    $collectedNames = @($items | ForEach-Object { Split-Path -Leaf $_.Rel })
+    $out.Moved = @($items | Where-Object { $i = $_; $names = @($handed | Where-Object Name -eq (Split-Path -Leaf $i.Rel)); $names.Count -and -not ($names | Where-Object Rel -eq $i.Rel) } | ForEach-Object Rel)
+    foreach ($h in @($handed | Group-Object Rel | ForEach-Object { $_.Group[0] })) {
+        if ($h.Name -in $collectedNames) { continue }
+        # A file already in the clone and unchanged there: the repository's own, not the planner's work.
+        $tracked = & git -C $CloneDir ls-files --error-unmatch -- $h.Rel 2>$null
+        $byName = if ($tracked) { $true } else { [bool](& git -C $CloneDir ls-files -- "*/$($h.Name)" 2>$null) -or [bool](& git -C $CloneDir ls-files -- $h.Name 2>$null) }
+        if ($byName) { $out.ExistingUnchanged += $h.Rel } else { $out.NotInClone += $h.Rel }
+    }
+    return $out
+}
+
+function Set-PlannerCollection {
+    # Replaces the hand-copied tests in the output folders with the collected ones, at their real paths. NOTES.md stays.
+    param($Collection, [string]$CloneDir, [string]$GateDir, [string]$IdealDir = "")
+    foreach ($d in @($GateDir, $IdealDir)) {
+        if ($d -and (Test-Path -LiteralPath $d)) {
+            Get-ChildItem -LiteralPath $d -Recurse -File | Where-Object { $_.Name -ne "NOTES.md" } | Remove-Item -Force
+            Get-ChildItem -LiteralPath $d -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending | Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force
+        }
+    }
+    foreach ($i in @($Collection.Collected)) {
+        foreach ($tier in @($i.Tiers)) {
+            $dir = if ($tier -eq "ideal") { $IdealDir } else { $GateDir }
+            if (-not $dir) { continue }
+            $dest = Join-Path $dir $i.Rel
+            New-Item -ItemType Directory -Force (Split-Path -Parent $dest) | Out-Null
+            Copy-Item -LiteralPath (Join-Path $CloneDir $i.Rel) -Destination $dest -Force
+        }
+    }
 }
 
 # --- everything below runs only when the script is run, not when a guard dot-sources it for the functions ---
@@ -121,6 +225,20 @@ try {
         $outside = Get-OutsideReferences -Events $events -Root $root
         $tokens = 0.0; foreach ($e in $events) { if ($e.Kind -eq "step-end" -and $e.HasTokens) { $tokens += [double]$e.Output } }
         $src = Join-Path $workDir "planner"
+        $collect = $null
+        if ($Phase -ne "done") {
+            $gateDir = Join-Path $src "$id\$Run"; $idealDir = Join-Path $src "$id\$Run-ideal"; $clone = Join-Path $workDir "work\$id"
+            if (Test-Path -LiteralPath $src) {
+                $keep = Join-Path $runDir "handed-in\$id"
+                New-Item -ItemType Directory -Force $keep | Out-Null
+                Copy-Item -Recurse -Force -Path (Join-Path $src "*") -Destination $keep
+            }
+            $c = Get-PlannerCollection -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir -Tiers:($Phase -eq "tests")
+            if ($c.Collected.Count) { New-Item -ItemType Directory -Force $gateDir | Out-Null }
+            Set-PlannerCollection -Collection $c -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir
+            $collect = [pscustomobject]@{ cloneFound = $c.CloneFound; collected = @($c.Collected | ForEach-Object Rel); moved = @($c.Moved); notInClone = @($c.NotInClone)
+                existingUnchanged = @($c.ExistingUnchanged); editedNotHandedIn = @($c.EditedNotHandedIn); otherChanges = @($c.OtherChanges); ignored = @($c.Ignored) }
+        }
         $files = @()
         if (Test-Path -LiteralPath $src) {
             Copy-Item -Recurse -Force -LiteralPath $src -Destination $runDir
@@ -130,8 +248,9 @@ try {
         $ok = if ($Phase -eq "done") { [bool]($files | Where-Object { (Split-Path -Leaf $_) -eq "DONE.md" }) -and $tests.Count -eq 0 } else { $tests.Count -gt 0 }
         if (-not $ok) { $failed++ }
         [pscustomobject]@{ task = $id; phase = $Phase; run = $Run; ok = $ok; exit = $r.ExitCode; minutes = [math]::Round($r.ElapsedSec / 60, 1); outputTokens = $tokens
-            files = $files; outside = $outside; ending = $(if ($r.Ending) { $r.Ending.FinishReason } else { $null }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runDir "$id.json")
+            files = $files; outside = $outside; collect = $collect; ending = $(if ($r.Ending) { $r.Ending.FinishReason } else { $null }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runDir "$id.json")
         Write-Host ("  {0}: exit {1}, {2:N1} min, {3:N0} output tokens, {4} file(s), {5} outside reference(s)" -f $(if ($ok) { "ok" } else { "NO OUTPUT" }), $r.ExitCode, ($r.ElapsedSec / 60), $tokens, $files.Count, $outside.Count)
+        if ($collect -and ($collect.moved.Count -or $collect.notInClone.Count -or $collect.existingUnchanged.Count)) { Write-Host ("  collected from the clone: {0} moved back, {1} handed in but never in the clone, {2} the repository's own" -f $collect.moved.Count, $collect.notInClone.Count, $collect.existingUnchanged.Count) }
         Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReadOnly } | ForEach-Object { $_.Attributes = $_.Attributes -band -bnot [IO.FileAttributes]::ReadOnly }
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the local planner's files are collected from its clone (2026-11-06, owner's go).** The review found the hand-copy
+  step losing folder paths, so tests never ran or climbed out of the checkout. `run-planner-local.ps1` now takes each set from
+  the clone (`Get-PlannerCollection`): the clone decides where a file belongs, what the model handed in decides its tier, and
+  new helpers go with the tests that import them. Files never written in the clone, the repository's own tests handed in, and
+  edits left out are recorded as `collect` in `<task>.json`, and the hand-copies are kept in `handed-in/`. Local planner only: the
+  frontier planner has not shown this failure. `tests/test-planner-local.ps1`, mutation-checked. `test-run-window.ps1` now prints
+  the window's output when its intermittent game case fails.
+
 - **results: the stricter planner prompt on nine held-out tasks, and a review that found a hole in the Gate (2026-11-06).**
   As handed in, 3 of 9 against 2 of 9. With misplaced files moved back, pooled 11 of 21 against 2 of 21 (p = 0.006). The
   "copied tests" were mostly tests a contract commit already holds and the harness hides. A Gate set at the wrong depth reads
