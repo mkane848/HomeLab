@@ -1,6 +1,7 @@
 # Server (Ubuntu)
 
-Scripts and configs for the Ubuntu development server — the primary Ollama node.
+Scripts and configs for the Ubuntu server: the fleet's model host. llama.cpp's `llama-server` is its primary engine since 2026-11-01; the
+Ollama container is stopped and kept. The server has no OpenCode client, and the tools run on node3 or the desktop.
 
 ## Hardware
 
@@ -12,12 +13,15 @@ Scripts and configs for the Ubuntu development server — the primary Ollama nod
 
 ## What Runs Here
 
-- **Qwen 2.5 Coder 7B / 14B** — autocomplete + coding via Docker + NVIDIA Container Toolkit
-- **DeepSeek-R1 14B, Qwen3 8B/14B** — reasoning (profile-dependent)
-- **General / creative / embeddings** — `dev-full`/`dev-embeddings` profiles
-- **OpenCode CLI** — driven from WezTerm on the desktop over SSH
+- **`qwen3.6:35b-a3b-coding`**: the main seat, on `llama-server` in Docker (`docker/docker-compose.llamacpp.yml`, presets in
+  `llamacpp/models.ini`). It reaches OpenCode through the `dev-workflow-server-llamacpp` profile, the default.
+- **Other seats in the same presets**, such as `qwen2.5-coder-3b-cpu` for small jobs, on the CPU.
+- Older seats and the Ollama setup below are kept for the Ollama profile (`dev-workflow-server`), not in daily use.
 
 ## Quick Start
+
+This is the Ollama path. For the current engine: `docker compose -f server/docker/docker-compose.llamacpp.yml up -d`, and
+[docs/llamacpp-trial.md](../docs/llamacpp-trial.md) has the runbook.
 
 ```bash
 # 1. Pick a profile (from the dev-docs root — .env is auto-sourced)

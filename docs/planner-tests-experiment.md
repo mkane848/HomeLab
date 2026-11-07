@@ -616,7 +616,8 @@ never graded. These leftovers also survive between attempts.
    output, not as a set that looks fine.
 3. **Check each set before use, without knowing the solution:** it must load, the runner must find it, and it must fail on the
    base. One retry with the error as feedback. This catches the sets with load errors, which are model bugs a collector cannot fix.
-4. **Adopt the stricter prompt's rules.** They cost no planner time on balance.
+4. **Adopt the stricter prompt's rules.** They cost no planner time on balance. Adopted 2026-11-07: they are now in the private
+   `PROMPT.md` and `TESTS-PROMPT.md` (version 3), so a later round is a new era for the planner. Every Opus set so far used version 2.
 
 **Fix 1, built and run live (#218, 2026-11-06).** On the desktop's CPU with the server's model (private
 `results/recheck-live-20261106`), up to 2 attempts each. The clean-copy run took 15 to 21 seconds.
