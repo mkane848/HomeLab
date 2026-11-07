@@ -60,11 +60,14 @@ function Get-PlannerCollection {
     # tests never ran or climbed out of the checkout (docs/planner-tests-experiment.md, "Review"). So the clone decides where a file
     # belongs and what it holds. What the model handed in decides only which tier it is, and whether an edited test counts.
     #   Collected: new test files, tests it edited and handed in, and new helpers those tests import. Each with its tiers.
-    #   Moved: collected at another path than it was handed in at. NotInClone: handed in, never written in the clone.
+    #   Moved: collected at another path than it was handed in at.
+    #   Kept: handed in and not in the clone at the end, at a path that can belong to the repository. A planner may write its test in
+    #   the output folder, copy it into the clone to run it and clean up after itself (wp-0a, 2026-11-06). NotInClone: handed in at a
+    #   path that cannot: at the root with no test there, or under a top-level folder the repository does not have.
     #   ExistingUnchanged: handed in, but the clone has that path untouched (tests the repository already holds).
     #   EditedNotHandedIn / OtherChanges / Ignored: changes left out, recorded so a reader can see them.
     param([string]$CloneDir, [string]$GateDir, [string]$IdealDir = "", [switch]$Tiers)
-    $out = [pscustomobject]@{ CloneFound = $false; Collected = @(); Moved = @(); NotInClone = @(); ExistingUnchanged = @(); EditedNotHandedIn = @(); OtherChanges = @(); Ignored = @() }
+    $out = [pscustomobject]@{ CloneFound = $false; Collected = @(); Moved = @(); Kept = @(); NotInClone = @(); ExistingUnchanged = @(); EditedNotHandedIn = @(); OtherChanges = @(); Ignored = @() }
     $handed = @()
     foreach ($t in @(@{ Tier = "gate"; Dir = $GateDir }, @{ Tier = "ideal"; Dir = $IdealDir })) {
         if ($t.Dir -and (Test-Path -LiteralPath $t.Dir)) {
@@ -131,7 +134,16 @@ function Get-PlannerCollection {
         # A file already in the clone and unchanged there: the repository's own, not the planner's work.
         $tracked = & git -C $CloneDir ls-files --error-unmatch -- $h.Rel 2>$null
         $byName = if ($tracked) { $true } else { [bool](& git -C $CloneDir ls-files -- "*/$($h.Name)" 2>$null) -or [bool](& git -C $CloneDir ls-files -- $h.Name 2>$null) }
-        if ($byName) { $out.ExistingUnchanged += $h.Rel } else { $out.NotInClone += $h.Rel }
+        if ($byName) { $out.ExistingUnchanged += $h.Rel; continue }
+        $tops = @(& git -C $CloneDir ls-tree --name-only -d HEAD 2>$null)
+        $first = ($h.Rel -split '/')[0]
+        if ($h.Rel.Contains('/') -and $first -in $tops) {
+            $tiersHere = @($handed | Where-Object Rel -eq $h.Rel)
+            foreach ($k in $tiersHere) {
+                $from = Join-Path $(if ($k.Tier -eq "ideal") { $IdealDir } else { $GateDir }) $h.Rel
+                $out.Kept += [pscustomobject]@{ Rel = $h.Rel; Tier = $k.Tier; Bytes = [IO.File]::ReadAllBytes($from) }
+            }
+        } else { $out.NotInClone += $h.Rel }
     }
     return $out
 }
@@ -144,6 +156,11 @@ function Set-PlannerCollection {
             Get-ChildItem -LiteralPath $d -Recurse -File | Where-Object { $_.Name -ne "NOTES.md" } | Remove-Item -Force
             Get-ChildItem -LiteralPath $d -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending | Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force
         }
+    }
+    foreach ($k in @($Collection.Kept)) {
+        $dest = Join-Path $(if ($k.Tier -eq "ideal") { $IdealDir } else { $GateDir }) $k.Rel
+        New-Item -ItemType Directory -Force (Split-Path -Parent $dest) | Out-Null
+        [IO.File]::WriteAllBytes($dest, $k.Bytes)
     }
     foreach ($i in @($Collection.Collected)) {
         foreach ($tier in @($i.Tiers)) {
@@ -234,9 +251,9 @@ try {
                 Copy-Item -Recurse -Force -Path (Join-Path $src "*") -Destination $keep
             }
             $c = Get-PlannerCollection -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir -Tiers:($Phase -eq "tests")
-            if ($c.Collected.Count) { New-Item -ItemType Directory -Force $gateDir | Out-Null }
+            if ($c.Collected.Count -or $c.Kept.Count) { New-Item -ItemType Directory -Force $gateDir | Out-Null }
             Set-PlannerCollection -Collection $c -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir
-            $collect = [pscustomobject]@{ cloneFound = $c.CloneFound; collected = @($c.Collected | ForEach-Object Rel); moved = @($c.Moved); notInClone = @($c.NotInClone)
+            $collect = [pscustomobject]@{ cloneFound = $c.CloneFound; collected = @($c.Collected | ForEach-Object Rel); moved = @($c.Moved); keptFromHandIn = @($c.Kept | ForEach-Object Rel | Select-Object -Unique); notInClone = @($c.NotInClone)
                 existingUnchanged = @($c.ExistingUnchanged); editedNotHandedIn = @($c.EditedNotHandedIn); otherChanges = @($c.OtherChanges); ignored = @($c.Ignored) }
         }
         $files = @()
@@ -250,7 +267,7 @@ try {
         [pscustomobject]@{ task = $id; phase = $Phase; run = $Run; ok = $ok; exit = $r.ExitCode; minutes = [math]::Round($r.ElapsedSec / 60, 1); outputTokens = $tokens
             files = $files; outside = $outside; collect = $collect; ending = $(if ($r.Ending) { $r.Ending.FinishReason } else { $null }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runDir "$id.json")
         Write-Host ("  {0}: exit {1}, {2:N1} min, {3:N0} output tokens, {4} file(s), {5} outside reference(s)" -f $(if ($ok) { "ok" } else { "NO OUTPUT" }), $r.ExitCode, ($r.ElapsedSec / 60), $tokens, $files.Count, $outside.Count)
-        if ($collect -and ($collect.moved.Count -or $collect.notInClone.Count -or $collect.existingUnchanged.Count)) { Write-Host ("  collected from the clone: {0} moved back, {1} handed in but never in the clone, {2} the repository's own" -f $collect.moved.Count, $collect.notInClone.Count, $collect.existingUnchanged.Count) }
+        if ($collect -and ($collect.moved.Count -or $collect.keptFromHandIn.Count -or $collect.notInClone.Count -or $collect.existingUnchanged.Count)) { Write-Host ("  collected from the clone: {0} moved back, {1} kept from the hand-in, {2} dropped (a path the repository cannot have), {3} the repository's own" -f $collect.moved.Count, $collect.keptFromHandIn.Count, $collect.notInClone.Count, $collect.existingUnchanged.Count) }
         Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReadOnly } | ForEach-Object { $_.Attributes = $_.Attributes -band -bnot [IO.FileAttributes]::ReadOnly }
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     }

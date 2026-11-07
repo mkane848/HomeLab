@@ -10,7 +10,8 @@
 # What it does: the REAL functions on the real prompts (mount points moved, nothing else changed) and on stand-in tool
 # events (outside paths caught in either slash style and any case; the scratch folder and a sibling with the same prefix
 # told apart; the private repository named without a drive letter; text events ignored), the collection from a real git clone
-# (lost paths restored, tiers kept apart, helpers, the repository's own tests, files never in the clone, edits, scratch), plus
+# (lost paths restored, tiers kept apart, helpers, the repository's own tests, tests tidied out of the clone, impossible paths,
+# edits, scratch), plus
 # the script's refusals.
 # Exit 1 on any failure.
 #
@@ -118,6 +119,21 @@ try {
     Check "a test written only in the output folder is not collected, and recorded" ("{0}|{1}" -f $r.Collected.Count, (Names $r.NotInClone)) "0|wrote-it-out-here.test.ts"
     Set-PlannerCollection -Collection $r -CloneDir $c -GateDir $gd
     Check "...and it does not stand as a set" (Test-Path -LiteralPath (Join-Path $gd "wrote-it-out-here.test.ts")) "False"
+
+    # wp-0a, 2026-11-06: written in the output folder at the right path, copied into the clone to run it, removed again. Good work.
+    $c = New-Clone k; $gd = Join-Path $g "k\gate"; $id = Join-Path $g "k\ideal"
+    Write-File $gd "packages/shared/src/tidied.test.ts" "it('G1: a', () => {})"
+    Write-File $id "packages/shared/src/tidied-ideal.test.ts" "it('I1: b', () => {})"
+    Write-File $gd "packages/brand-new/x.test.ts" "it('G2: c', () => {})"
+    Write-File $gd "src/routes/no-package-folder.test.ts" "it('G3: d', () => {})"
+    Write-File $gd "tests/no-such-top-folder.test.ts" "it('G4: e', () => {})"
+    $r = Get-PlannerCollection -CloneDir $c -GateDir $gd -IdealDir $id -Tiers
+    Check "a test tidied out of the clone at a real path is kept" (Names ($r.Kept | ForEach-Object Rel)) "packages/brand-new/x.test.ts,packages/shared/src/tidied-ideal.test.ts,packages/shared/src/tidied.test.ts"
+    Check "...a path the repository cannot have is not" (Names $r.NotInClone) "src/routes/no-package-folder.test.ts,tests/no-such-top-folder.test.ts"
+    Set-PlannerCollection -Collection $r -CloneDir $c -GateDir $gd -IdealDir $id
+    Check "...kept byte for byte, in its own tier" ("{0}|{1}" -f [IO.File]::ReadAllText((Join-Path $gd "packages/shared/src/tidied.test.ts")), [IO.File]::ReadAllText((Join-Path $id "packages/shared/src/tidied-ideal.test.ts"))) "it('G1: a', () => {})|it('I1: b', () => {})"
+    Check "...and the Ideal one is not in the Gate folder" (Test-Path -LiteralPath (Join-Path $gd "packages/shared/src/tidied-ideal.test.ts")) "False"
+    Check "...the impossible path is gone from the set" (Test-Path -LiteralPath (Join-Path $gd "src/routes/no-package-folder.test.ts")) "False"
 
     $c = New-Clone e; $gd = Join-Path $g "e\gate"
     Add-Content -LiteralPath (Join-Path $c "packages/shared/src/existing.test.ts") -Value "it('G1: new', () => {})"
