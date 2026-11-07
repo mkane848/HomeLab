@@ -2,9 +2,8 @@
 
 How to use an 8 or 9 hour window on the server and node3 without being there: one command on each machine, then
 nothing until the report. Written 2026-10-27, when the window plan of that night (milestone 4's loop, then a capability
-baseline) had no way to start without the owner at a keyboard. **None of this has run on the real machines yet**: the
-first window is its first live test, which is why it starts with a smoke test and stops by itself if that fails (what was
-and was not checked: "What is verified" at the end).
+baseline) had no way to start without the owner at a keyboard. It has run on the real machines many times since 2026-11-01
+(what is and is not checked: "What is verified" at the end). Every parameter is described in the head of `tests/run-window.ps1`.
 
 ## The two halves
 
@@ -173,12 +172,13 @@ new era (llama.cpp, sealed checkouts, node3's fixed shell): do not pool it with 
   fractional poll interval that aborted the server script and a recovery wait that truncated to whole minutes (both only
   with the fractional settings the guards use), and a report that captured nothing from a summariser that prints with
   `Write-Host`, which would have left every real report without its numbers.
-- **Not verified:** anything against the real hardware. `-Detach` (the scheduled-task registration) was syntax-checked, not run,
-  because it needs Windows; if it fails, register the same command by hand the way earlier rounds were started, with
-  `pwsh -NoProfile -ExecutionPolicy Bypass -File tests\run-window.ps1 <the arguments>` as the action. The runner has
-  not driven a real `run-retries.ps1` or `run-tasks-batch.ps1` (their command lines are in `commands\`, so the first thing to
-  read after a failed smoke is `smoke-retries.log` and `smoke-retries.err.log`). The llama.cpp seat names, the
-  `opencode models llamacpp-server` listing and the batch's `-Models llamacpp-server/...` handling are assumed from the
-  existing code and the 2026-10-23 rounds, not re-run.
-- **Known gaps:** a reboot of node3 ends the run with no resume; the runner cannot tell that someone started a game on
-  node3; the server-side watchdog restarts the container but cannot tell a slow model from a hung one beyond `/health`.
+- **Verified on the real machines (2026-11-01 onward):** detached windows on node3 against both seats, driving the real `run-retries.ps1`
+  and `run-tasks-batch.ps1`, with reports and results pushed from node3. The rounds are in `docs/roadmap.md`, each with its private
+  `results/window-*` folder. `-FillTo` and `-UnloadAtEnd` were used in those rounds, and `-YieldToGames`'s check at the gate passed on 9 of
+  them.
+- **Known gaps:** a reboot of node3 ends the run with no resume. The server-side watchdog restarts the container but cannot tell a slow
+  model from a hung one beyond `/health`. Planner rounds started by hand (`run-planner-local.ps1`) do not use a window, so they
+  yield to a game only if their wrapper checks for one.
+- **An intermittent guard failure, unexplained:** `test-run-window.ps1`'s case of a game starting mid-phase failed with the window
+  exiting 1, once on CI and once in about 18 local runs (2026-11-06), and not in 16 more. Not seen on a real window. The guard now
+  prints the window's output if it happens again.

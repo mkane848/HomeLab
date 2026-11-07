@@ -14,6 +14,20 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
 
+## Next up (2026-11-07)
+
+The short list as it stands. The older lists below are kept as the record of how the work got here.
+
+1. **A planner-free run, with the owner's edit of a local done list.** Local lists for `real-01` to `real-03`, edited and confirmed by the
+   owner, then local tests and a local executor. It answers how much of Opus's bar a couple of minutes of attention recovers.
+   Needs the owner. (`docs/planner-tests-experiment.md` -> "Not tested yet", and its audit.)
+2. **Check each planner set before use:** it must load, the runner must find it, and it must fail on the base, with one retry. It catches
+   sets that do not load and runs with no set; too-strict tests still need review.
+3. **A pilot on real work:** 3 to 5 tasks in the owner's own words, delivered as branches, each with the owner's verdict (`tests/new-real-task.ps1`,
+   `tests/deliver-attempt.ps1`, `tests/record-verdict.ps1`). This is what can show the Gate's false-positive rate is under 10%.
+- **Parked, the owner's call:** server hardware (deferred until testing is done; `docs/hardware.md`), the Qwen Code probes, OpenCode Go, the ratings of
+  `large-f1` and `large-f2`, the choice of a larger Stage 2 project.
+
 ## Next up (ordered, as of 2026-10-13): the engine trial, then the run host
 
 The rest of this file is the full backlog by theme. This is the short list of what to pick up next.
@@ -583,7 +597,7 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
        - **The output cap, 11 of the 15.** 11 of the failures ended a step on exactly 8,192 output tokens
          (`limit.output`; `summarize-rounds.ps1` now counts this: 12 of the 96 runs had such a step and one of them still
          passed): `kane-08`'s five, `lfc-07`'s three, `asohav-03`'s, `kane-07`'s and one of `kane-14`'s. Seven
-         of them never wrote a file; the other four stopped mid-change (a broken suite or failing hidden tests). The capped step holds no text, no tool call and 0
+         of them never wrote a file; the other four stopped mid-change (a broken suite). The capped step holds no text, no tool call and 0
          reasoning tokens in the transcript, so the 8,192 tokens are almost certainly the model's thinking, which
          llama.cpp returns apart from the answer and OpenCode does not keep: it read files, then thought until the cap
          cut it off. Whether that thinking was going somewhere or looping is not in the logs.
@@ -745,7 +759,7 @@ In order (owner, 2026-10-13). None of these starts before the trial's results ar
          one-hour slices (`run-window.ps1 -FillTo/-FillFrom`, #204), each split across both seats at once and the halves
          swapped between slices so every task ran on both. Private `results/window-regr-s{1,2,3}-{server,node3}-20261104`.
          - **45 of 48 (94%, 95% interval 83% to 98%), against 81 of 96 (84%) on 2026-11-01 before the change**
-           (Fisher's exact p = 0.18). Slices 1 and 2: 32 of 32. The server's 25 graded runs all passed; node3's 22: 20.
+           (Fisher's exact p = 0.18; on pooled runs, so too kind. Task by task: 5 up, 1 down, 10 the same). Slices 1 and 2: 32 of 32. The server's 25 graded runs all passed; node3's 22: 20.
          - The three misses, all in slice 3 on node3: `kane-08` timed out at 45 minutes (it passed its other two runs);
            `kane-14` failed fails-on-old only (its own test missed the bug, the kind seen before the change);
            `asohav-09` ended after one step of 164 output tokens with no text and no tool call (an empty reply, nowhere

@@ -6,7 +6,7 @@ The fleet that runs the local LLM setup. Refresh the VRAM budget when any node's
 
 | Node | OS | CPU | GPU | VRAM | RAM | IP | Role |
 |------|----|-----|-----|------|-----|----|------|
-| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (Ollama and llama.cpp in Docker) |
+| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (llama.cpp in Docker; Ollama stopped and kept) |
 | Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | 32 GB | `DESKTOP_IP` | Model host, OpenCode client, tool-run host (native Ollama, Vulkan) |
 | Third node | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Model host, OpenCode client, tool-run host (onboarded 2026-09-20). Also a gaming PC |
 | GTX 1070 | — | — | GTX 1070 | 8 GB | — | — | Retired from server Sep 2026; backup / spare candidate |
@@ -54,17 +54,32 @@ system RAM and the CPU that computes them, not by the GPU or the PCIe link.** Th
 The question: the server only serves models, and every harness run borrows node3's or the desktop's CPU for the tools
 (`vitest`, `tsc`, `npm`). Both are personal PCs whose CPUs are "nice to have". What would let the server do both?
 
-Starting facts: the served model is **23.0 GB on disk** (`models/catalog.tsv`), so on 16 GB the experts of 20 layers sit
-in RAM (`server/llamacpp/models.ini`), and the CPU is already about half busy serving them. Harness work on the same CPU
-would compete with decode. **Nothing below was measured on the server. The sizes are arithmetic from the numbers above,
-and no speed-up is estimated.**
+Starting facts, read from the model file's header and the card (2026-11-07; the first version of this section used the catalog's 23.0 GB,
+which is not the file):
 
-1. **A GPU that holds the model: 32 GB is the size that does it.** 23 GB of weights plus a 64k KV cache and the compute
-   buffers should fit in 32 GB, which removes the spill and frees the CPU. A 24 GB card leaves about 1 GB for everything
-   but the weights, so the spill would shrink to a few layers and stay. Whichever card: check the power supply's wattage
-   and connectors and the case's clearance first (both unknown; the owner's to read off the machine), and check current
-   prices and specs. A second 16 GB card beside the 4070 Ti Super would also reach 32 GB for the model (llama.cpp splits
-   layers across cards), but it needs a free slot with at least x4 lanes, which the board's manual should confirm.
+| | Size |
+|---|---|
+| The weights (`qwen3.6-35b-a3b-coding.gguf`) | 21.71 GB (20.23 GiB) |
+| Of those, expert tensors | 20.03 GB, 0.488 GB per layer over 41 layers |
+| Everything else in the weights | 1.68 GB |
+| On the GPU today (`n-cpu-moe 20`) | 11.95 GB of weights, 15.63 GB in use (14,902 MiB): so 3.68 GB of cache and compute buffers at 64k context and batch 4,096 |
+| In system RAM today | 9.75 GB of expert tensors |
+| **Everything on the GPU** | **about 25.4 GB (about 24,210 MiB)** |
+
+The CPU is already about half busy serving those experts, and harness work on the same CPU would compete with decode. **Nothing below
+was measured on such a card. The sizes are arithmetic from the numbers above, assuming the 3.68 GB stays the same, and no speed-up is
+estimated.** The sum does match the seat's own sweep: it gives 15.5 GiB at `n-cpu-moe` 18, where 15.6 was measured, and more than the card
+holds at 16, which did not load at that batch.
+
+1. **A GPU that holds the model: 24 GB is the edge, 32 GB is comfortable.**
+   - **24 GB** (about 24,560 MiB) would leave about 350 MiB with everything on it. That is too close: node3's 3080 lost most of its speed
+     at 9.7 of 10 GB. One or two layers on the CPU (`n-cpu-moe` 1 or 2) leave about 0.8 to 1.3 GB, so nearly all of today's 20-layer spill
+     goes. A smaller batch would also free some room, at a cost in prompt reading.
+   - **32 GB** holds all of it, with about 8.5 GB to spare for a longer context.
+   - **A second card beside the 4070 Ti Super** reaches the same total, and more: 16 + 24 GB is 40 GB. llama.cpp splits layers across
+     cards. It needs a free slot with at least x4 lanes and room under the larger card, which the board's manual and the case should confirm.
+   - Whichever: check the power supply's connectors and the case's clearance first (the supply is a Corsair RM850e; the rest is the
+     owner's to read off the machine), current prices and specs, and how much memory a workstation card's ECC reserves.
 2. **A 12 or 16 core Ryzen 5000 chip (5900X or 5950X) in the same socket.** This is for the harness, not for decode: it
    would give the tools their own cores beside the model. Retailer listings say the B550 TOMAHAWK MAX supports Ryzen 5000
    and the BIOS is from April 2026, but **MSI's own page refused an automated read (HTTP 403), so confirm on MSI's CPU
@@ -169,7 +184,8 @@ Measured on Vulkan, `qwen2.5-coder:14b` Q4:
 
 ### Runtime VRAM (measured, not catalog disk size)
 
-Only ~14.8 GB of the 16 GB is usable. Catalog `size_gb` is the GGUF on disk and
+Only ~14.8 GB of the 16 GB is usable. Catalog `size_gb` is the size on disk (for `qwen3.6:35b-a3b-coding` its 23.0 is above the 21.7 GB weights file; the difference
+is probably Ollama's vision projector, not checked) and
 omits KV cache + compute buffers, so it undercounts by 1–3 GB — budget from
 `/api/ps`, not from `catalog.tsv`. With `OLLAMA_FLASH_ATTENTION=1` and
 `OLLAMA_KV_CACHE_TYPE=q8_0`:

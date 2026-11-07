@@ -56,7 +56,7 @@ Intervals are 95% Wilson. "Enough to" says what the data can and cannot decide. 
 | Claim | Data | 95% interval | Enough to |
 |---|---|---|---|
 | `qwen3.6` passes small real tasks unassisted, today's settings | 45 of 48 runs, 16 tasks × 3 (2026-11-04; one timeout counted as a failure) | 83% to 98% | Call it a solid main seat |
-| ...before the thinking budget and the 4,096 batch | 81 of 96 runs, 16 tasks × 6 (window 20261101-2213) | 76% to 90% | Not to say the settings raised the rate: the intervals overlap, and the budget's clear gain is on the tasks it targeted |
+| ...before the thinking budget and the 4,096 batch | 81 of 96 runs, 16 tasks × 6 (window 20261101-2213) | 76% to 90% | Say nothing regressed. Not that the settings raised the rate: task by task, 5 went up, 1 down and 10 stayed the same, and the seats differed. Two settings changed together |
 | ...and passes them every time | 10 of 16 tasks passed all 6 runs; pass^6 0.625 (before the settings) | | Know which tasks are safe to hand off |
 | A thinking budget stops the output-limit stall | 0 of 47 graded runs lost a step to it (2026-11-04), against 12 of 96 before | | Say the stall is gone. On the three worst tasks: 14 of 18 against 9 of 18, not proven at that size |
 | North Mini Code is not an upgrade | 21 of 30 runs | 52% to 83% | **Not** to say it is worse at passing: telling 70% from 84% needs about 141 runs a model. The verdict rests on speed (about 3× slower per task) |

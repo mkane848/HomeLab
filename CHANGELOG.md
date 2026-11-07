@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: a second review of the record and the docs (2026-11-07).** The explanations in the record were rechecked against the raw runs and held:
+  why `qwen3.6` fails, what the thinking budget changed, costs, where the planner's false positives fell. The regression check now also reads
+  task by task (5 up, 1 down, 10 the same). Stale text fixed: `unattended-window.md` still said it had never run on real machines and could
+  not detect a game; `server/README.md` called the server an Ollama node; the roadmap's short list dated from October; the index lacked
+  `methodology-caveats.md`. No broken links in our own docs.
+
+- **docs: the server's upgrade sizes corrected from the model file (2026-11-07).** The advice used the catalog's 23.0 GB. The weights are 21.71
+  GB, and 3.68 GB of cache and buffers makes about 25.4 GB with everything on the GPU. So a 24 GB card is at the edge rather than short: one
+  or two layers on the CPU, against 20 today. `docs/hardware.md`. The stricter planner rules are adopted in the private prompts (version 3).
+
 - **docs: an audit of the recent numbers and method (2026-11-07, owner's request).** Every count, interval and sample size from 2026-11-01
   on was recomputed from the raw results and held. What did not: Fisher's exact on pooled runs (now paired by task, in
   `docs/methodology.md` -> "How to compare two arms"), "the work got thinner" (the owner's own fix scores 31% on the Ideal list, local-gated
