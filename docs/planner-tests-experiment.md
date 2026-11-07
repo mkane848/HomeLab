@@ -633,6 +633,30 @@ never graded. These leftovers also survive between attempts.
   falls back to a labelled near miss for review. That is the right failure, since nothing could vouch for them, but it
   raises the priority of fixes 2 and 3, which stop broken sets reaching an executor at all. Three sets is a small sample.
 
+**Fix 2, built and run live (#219, 2026-11-06).** The runner takes each set from the planner's clone. The same 21 plan-phase runs
+with the stricter prompt, plus 6 tests-phase runs, on both seats (private `results/planner-collect-20261106`):
+
+| The 21 plan-phase runs | Valid | Passed on the original code (tests mostly never ran) | Too strict or wrong | No set |
+|---|---|---|---|---|
+| Plain prompt, as handed in | 2 | 10 | 9 | 0 |
+| Stricter prompt, as handed in | 7 | 8 | 6 | 0 |
+| Stricter prompt, files moved by hand afterwards | 11 | 2 | 8 | 0 |
+| **Stricter prompt, collected from the clone, live** | **8** | **0** | **9** | **4** |
+
+- **It did not reach the 11 the hand repair suggested.** 8 of 21 (95% interval 21% to 59%) is one more than as handed in (p = 1.0)
+  and is not separated from the plain prompt's 2 (p = 0.07), or from Opus's 8 of 12 on the first six tasks, where it scored 5 of 12
+  (p = 0.41). The hand repair was picked after seeing the data, so its 11 was optimistic, as noted above.
+- **What it did do is end the silent failure.** Sets that pass on the original code went from 8 to 0: every set handed over now
+  runs and fails first. The failures left are visible: 9 sets too strict or wrong, and 4 with no set (1 handing back only the
+  repository's own tests, 1 writing nothing, 2 at the root).
+- **The tests phase:** none of the 6 sets climbs out of the checkout (5 of 12 before, a different sample), so fix 1 should have
+  less good work to turn away. 1 of 6 is valid on the real fix, which still cannot rank them (Opus's own: 0 of 3), and 1 does not load.
+- **Too strict is now the limit:** 9 of 21, and no runner change can see it without the solution.
+- **The first version had a bug the live run found.** A planner may write its test in the output folder at the right path, copy it
+  into the clone to run it, and remove it again. The collector dropped those as "never in the clone", 8 sets in this round. The rule
+  was corrected (a hand-in stands when its top-level folder exists in the repository) and applied to this round afterwards from the
+  saved hand-copies, then validated, so those 8 did not run live with the corrected code.
+
 None of these touch the biggest gap: Ideal at 24% against 84%, and the traps missing from the local done lists. That needs
 the owner-edited local list test ("Not tested yet" above), which matters more to the budget question than any of the four.
 
