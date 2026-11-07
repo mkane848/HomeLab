@@ -69,6 +69,8 @@ overlap a benchmark round.
 - **Voice:** a local assistant from Home Assistant, Whisper, Piper and one of the fleet's LLMs.
 - **Document search:** RAG over local documents with the embedding models already in `models/catalog.tsv`
   (`nomic-embed-text`, `mxbai-embed-large`).
+- **Household assistant:** chat agents over a chore and maintenance tracker, for running the house. Planned on its
+  own in [household-assistant.md](household-assistant.md) (2026-11-07).
 
 ## LLM side projects
 

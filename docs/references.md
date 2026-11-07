@@ -227,6 +227,24 @@ Project pages, read once for [fleet-side-projects.md](fleet-side-projects.md); r
 | flamenco | Flamenco, Blender (read 2026-10-22) — open-source render manager, GPL 3.0, used in production by Blender Studio | <https://flamenco.blender.org/> |
 | immich-ml | Immich, "Hardware-Accelerated Machine Learning" (read 2026-10-22) — CUDA, ROCm, OpenVINO, ARM NN, RKNN; smart search and facial recognition | <https://docs.immich.app/features/ml-hardware-acceleration> |
 
+## Household assistant (2026-11-07)
+
+Project pages and docs, read once for [household-assistant.md](household-assistant.md); re-read before installing anything. The Home Assistant pages were read from the docs' source on GitHub because home-assistant.io did not resolve from the session.
+
+| ID | Source | URL |
+|---|---|---|
+| donetick | Donetick, GitHub README (read 2026-11-07) — household chores and tasks; natural-language recurrence; adaptive scheduling; assignee rotation; REST API, webhooks, Home Assistant integration; AGPL-3.0 | <https://github.com/donetick/donetick> |
+| homebox | Homebox (sysadminsmedia), GitHub README (read 2026-11-07) — home inventory; document and warranty tracking; purchase and maintenance tracking | <https://github.com/sysadminsmedia/homebox> |
+| grocy | Grocy, GitHub README (read 2026-11-07) — groceries and household management, chores feature set, REST API; MIT | <https://github.com/grocy/grocy> |
+| open-webui | Open WebUI, GitHub README (read 2026-11-07) — self-hosted, runs offline; Ollama and OpenAI-compatible backends; custom licence requiring its branding | <https://github.com/open-webui/open-webui> |
+| khoj | Khoj, GitHub README (read 2026-11-07) — self-hostable "AI second brain"; chat over own documents; scheduled automations; AGPL-3.0 | <https://github.com/khoj-ai/khoj> |
+| home-llm | home-llm (acon96), GitHub README (read 2026-11-07) — Home Assistant integration plus small (<5B) device-control models; llama.cpp, Ollama, OpenAI-compatible backends | <https://github.com/acon96/home-llm> |
+| ha-docs | Home Assistant docs source, GitHub (read 2026-11-07) | <https://github.com/home-assistant/home-assistant.io> |
+| ha-ollama | Home Assistant, "Ollama" integration, docs source (read 2026-11-07) — since 2024.4; control of the house is experimental, needs a tool-capable model, fewer than 25 exposed entities advised | <https://github.com/home-assistant/home-assistant.io/blob/current/source/_integrations/ollama.markdown> |
+| ha-mcp-server | Home Assistant, "Model Context Protocol Server", docs source (read 2026-11-07) — since 2025.2; HA's devices as tools for an outside agent; examples include OpenCode | <https://github.com/home-assistant/home-assistant.io/blob/current/source/_integrations/mcp_server.markdown> |
+| ha-mcp | Home Assistant, "Model Context Protocol" (client), docs source (read 2026-11-07) — since 2025.2; Streamable HTTP then SSE; tools only | <https://github.com/home-assistant/home-assistant.io/blob/current/source/_integrations/mcp.markdown> |
+| ha-local-voice | Home Assistant, "Set up a fully local voice assistant", docs source (read 2026-11-07) — Whisper ~8 s on a Raspberry Pi 4, under 1 s on an Intel NUC | <https://github.com/home-assistant/home-assistant.io/blob/current/source/voice_control/voice_remote_local_assistant.markdown> |
+
 ## Another page to cite from
 
 If a source is new and not yet here, add a row in the matching table. If a
