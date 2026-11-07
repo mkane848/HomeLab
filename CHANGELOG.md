@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the window's output when its intermittent game case fails. Live, 21 runs: 8 valid (7 as handed in, 11 moved by hand), sets passing
   on the original code down from 8 to 0, and 4 runs now visibly without a set. `docs/planner-tests-experiment.md`.
 
+- **fix: a passing Gate is checked again on a clean copy (2026-11-06, owner's go).** A planner's set at the wrong depth
+  climbs out of the checkout, and executors satisfied it with stray files or a junction beside the checkout, so the Gate
+  passed on something other than the delivered work. An attempt the gates would otherwise keep now has its set run again
+  on the base plus only its patch, in a new folder under empty ones (`Invoke-CleanRecheck` in `test-tasks.ps1`, recorded
+  as `selector.recheck`). `run-retries.ps1` rejects anything but a pass, with the reason `recheck`; `summarize-rounds.ps1`
+  and `deliver-attempt.ps1` follow. Install and setup moved to `Install-TaskDependencies` so both checkouts are built
+  the same way. `tests/test-clean-recheck.ps1`, mutation-checked (13 of 13 caught across its guards).
+  Live on the desktop's CPU: 3 of 3 honest sets kept (recheck 15 to 21 s); 3 sets that climb out all rejected, including one
+  attempt the hidden tests fail that the old Gate would have kept.
+
 - **results: the stricter planner prompt on nine held-out tasks, and a review that found a hole in the Gate (2026-11-06).**
   As handed in, 3 of 9 against 2 of 9. With misplaced files moved back, pooled 11 of 21 against 2 of 21 (p = 0.006). The
   "copied tests" were mostly tests a contract commit already holds and the harness hides. A Gate set at the wrong depth reads

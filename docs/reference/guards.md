@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-55 guards.
+56 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -16,6 +16,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-bench-speed.ps1` | bench-speed.ps1 speeds, prompt sizing and TSV logging for both engines | Either bench-speed script |
 | `tests/test-cap-hit.ps1` | Writes-gate cap-hit classification (output cap vs liar mode) | How the harness reads a transcript's last step |
 | `tests/test-checklist-grading.ps1` | grading "checklist" tasks (owner-rated, no hidden tests) | How a task is graded |
+| `tests/test-clean-recheck.ps1` | test-tasks.ps1 Invoke-CleanRecheck, a planner's Gate run again on a clean copy of the attempt's patch | How a planner's set is run, a checkout is built or an attempt is accepted |
 | `tests/test-command-timeout.ps1` | -CommandTimeout enforcement and process-tree kill (exit 124) | How the harness runs a command |
 | `tests/test-compaction-nudge.ps1` | -NudgeAfterCompaction diagnostic and assisted-row refusal | The nudge or Get-ContextEvents |
 | `tests/test-compaction-plugin.ps1` | opencode/plugins/compaction-continue.js (fails on any opencode other than 1.19.5) | The plugin, any opencode upgrade, Start/Stop-AgentRunEnv |

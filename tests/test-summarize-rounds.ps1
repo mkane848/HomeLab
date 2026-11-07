@@ -114,6 +114,9 @@ Check "false positives (selector PASS, hidden FAIL) and false negatives (selecto
 Check "kept by a dispatcher (selector, scope, suite PASS): 5, one of them wrong by the hidden tests" ("{0}|{1}" -f $c.accepted, $c.acceptedWrong) "5|1"
 $tp = @($pruns[0..3]) + @(PR PASS PASS PASS PASS @("p.test.ts (edited)"))
 Check "a tampered run is not kept by a dispatcher" (Get-SelectorConfusion $tp).accepted 4
+$rcFail = PR PASS PASS; $rcFail.selector = [pscustomobject]@{ status = "PASS"; source = "planner"; recheck = [pscustomobject]@{ status = "FAIL"; detail = "x" } }
+$rcOk = PR PASS PASS; $rcOk.selector = [pscustomobject]@{ status = "PASS"; source = "planner"; recheck = [pscustomobject]@{ status = "PASS"; detail = "x" } }
+Check "a Gate that failed its clean copy is not kept; one that passed it is" (Get-SelectorConfusion @($pruns[0..3] + $rcFail + $rcOk)).accepted 5
 Check "oracle-shown runs (selector source hidden) are not counted; no planner runs: null" ($null -eq (Get-SelectorConfusion @((PR PASS PASS PASS PASS @() hidden)))) "True"
 Check "a hidden-test run with no selector field: null" ($null -eq (Get-SelectorConfusion @((Run m t acceptance PASS)))) "True"
 $w = Get-WilsonInterval 1 10

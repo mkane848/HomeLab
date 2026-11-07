@@ -15,7 +15,7 @@
 # `falseNegatives` (attempts the selector rejected that the hidden tests pass). The truth never decides an attempt.
 #
 # Each attempt's rejection reason is recorded: infrastructure (no run JSON: exit, timeout, CPU-only, overflow ...),
-# tampered, acceptance, suite, scope. One row per task goes to retry-summary.tsv in -ResultsDir, and the end of the run
+# tampered, acceptance, selector, suite, scope, integrity, recheck (a planner's set passed in the checkout but not on a clean copy). One row per task goes to retry-summary.tsv in -ResultsDir, and the end of the run
 # reports the design's falsifier: more than 1.5 attempts per task, or the cap reached on more than 15% of tasks.
 #
 # Usage:
@@ -59,6 +59,13 @@ function Get-AttemptVerdict {
     # The owner's standing hard blocks (2026-11-01): lost or wrong Markdown is never kept. Rows before that date have
     # no integrity gate; SKIP means no Markdown changed.
     if ($Json.gates.PSObject.Properties['integrity'] -and $Json.gates.integrity -eq "FAIL") { return & $v $false "integrity" }
+    # The Gate passed in the model's checkout but not on a clean copy of the attempt's patch: it was reading something outside
+    # the checkout (test-tasks.ps1, Invoke-CleanRecheck). What a dispatcher sees is then a failed Gate. Rows before 2026-11-06
+    # have no recheck and decide as before.
+    if ($hasSel -and $Json.selector.PSObject.Properties['recheck'] -and $Json.selector.recheck -and $Json.selector.recheck.status -ne "PASS") {
+        $selector = "FAIL"
+        return & $v $false "recheck"
+    }
     return & $v $true "accepted"
 }
 

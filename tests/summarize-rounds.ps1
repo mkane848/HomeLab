@@ -98,7 +98,7 @@ function Get-SelectorConfusion {
     if ($pl.Count -eq 0) { return $null }
     $selPass = @($pl | Where-Object { $_.selector.status -eq "PASS" })
     $selFail = @($pl | Where-Object { $_.selector.status -eq "FAIL" })
-    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 -and -not ($_.gates.PSObject.Properties['integrity'] -and $_.gates.integrity -eq "FAIL") })
+    $accepted = @($selPass | Where-Object { $_.gates.scope -eq "PASS" -and $_.gates.suite -eq "PASS" -and @($_.acceptanceShown.tampered | Where-Object { $_ }).Count -eq 0 -and -not ($_.gates.PSObject.Properties['integrity'] -and $_.gates.integrity -eq "FAIL") -and -not ($_.selector.PSObject.Properties['recheck'] -and $_.selector.recheck -and $_.selector.recheck.status -ne "PASS") })
     [pscustomobject]@{
         runs = $pl.Count
         selectorPass = $selPass.Count
