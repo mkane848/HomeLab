@@ -38,19 +38,28 @@ localhost, with made-up data; it was removed after.
   when there is none.
 - **Load:** Grocy idles at about 40 MB of its 512 MB.
 
-**Done on the server (2026-11-08):** step 1, the install. See "Installed version".
+**Done on the server (2026-11-08):**
+- **Step 1, the install.** See "Installed version".
+- **Step 2, in part (owner):** the admin password was changed (the default login is refused), and the API key file is
+  in place (mode 600; the key check returns 200).
+- **Step 3, the import.**
+  - **The seed CSVs** were rebuilt with the owner from the phase 0 session's files. They are kept in
+    `~/household-data/` on the server, with a working copy on the desktop outside the repo.
+  - **Result:** the dry run was approved, then `--apply` made 142 writes and a second `--apply` made 0. Grocy now holds
+    111 products (56 for any store), 3 stores, 8 locations and 12 chores, 9 of them with a tracked last completion. A
+    backup was taken just before.
+  - **Owner's exception:** the owner allowed the cloud model (Claude) to see this initial import, its appointment
+    reminders included. From here on, the rule in household-assistant.md applies as written: health entries are never
+    sent to a cloud model.
+  - **Store convention:** a blank store means "any store" (the description starts "Any store"); a named store means
+    that store only.
 
 **Next, in order:**
-1. Step 2 is the **owner's**: users, password, API key file, calendar link. The default `admin` / `admin` login is live
-   on the LAN until it is changed.
-2. Step 3: the owner copies `chores.csv` and `products.csv` to `~/household-data/`.
-   - Run the dry run and show the owner the summary.
-   - Run `--apply` only on the owner's go.
-   - A second `--apply` must report `writes: 0`.
-3. Phones, as in "On the phones".
-4. Step 4: the desktop pull task (the owner registers it), then the restore test in week 1. The server's nightly
+1. **The rest of step 2 (owner):** one user per adult, then the calendar link on each phone.
+2. **Phones,** as in "On the phones".
+3. **Step 4:** the desktop pull task (the owner registers it), then the restore test in week 1. The server's nightly
    cron line is in place (2026-11-08).
-5. Start the month (step 5), and record what happened at the bottom of this file.
+4. **Start the month (step 5),** and record what happened at the bottom of this file.
 
 **Rules for this work:**
 - **No household data in the repo, a commit message, a PR or a log you paste.** That means names, list contents,
