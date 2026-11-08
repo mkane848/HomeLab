@@ -13,6 +13,42 @@ completion and purchase **dated**. Then the family lives with it for about a mon
 **No household data goes in this repo.** The seed files live on the server in `~/household-data/`; the API key and the
 calendar link live only on the server and the phones.
 
+## Status and handoff (2026-11-08)
+
+Written for whichever agent picks this up next: likely the one on the owner's desktop, since the cloud session that
+wrote this cannot reach the LAN.
+
+**Done (in the repo):**
+- `server/docker/docker-compose.household.yml`: the Grocy service.
+- `server/household/grocy_import.py` and `tests/test_grocy_import.py`. The tests run in CI and were mutation-checked.
+- `server/household/backup.sh` and `desktop/scripts/pull-household-backup.ps1`.
+- This runbook.
+
+**Not yet verified:**
+- **The importer has run only against a fake Grocy:** the cloud session had no Docker daemon. Its first real run is
+  the dry run in step 3, so read that output carefully.
+- **The `period_interval` field.** It is not in Grocy's OpenAPI spec, though the schedule view uses it. If the API
+  rejects it on `--apply`, report the error; do not drop the field silently.
+
+**Next, in order:**
+1. Pull `main` on the server (`~/HomeLab`).
+2. Step 1: pin `GROCY_TAG` in `server/docker/.env`, then `compose up`. Record the version under "Installed version".
+3. Step 2 is the **owner's**: users, password, API key file, calendar link.
+4. Step 3: the owner copies `chores.csv` and `products.csv` to `~/household-data/`.
+   - Run the dry run and show the owner the summary.
+   - Run `--apply` only on the owner's go.
+   - A second `--apply` must report `writes: 0`.
+5. Phones, as in "On the phones".
+6. Step 4: the cron line, then the desktop pull task (the owner registers it), then the restore test.
+7. Start the month (step 5), and record what happened at the bottom of this file.
+
+**Rules for this work:**
+- **No household data in the repo, a commit message, a PR or a log you paste.** That means names, list contents,
+  health details, the API key, and the calendar link.
+- **The seed CSVs come from the owner,** who has them from the phase 0 session, and they live only in
+  `~/household-data/`.
+- **The design and its decisions** are in [household-assistant.md](../household-assistant.md).
+
 ## Why Grocy (verified from its source, 2026-11-08)
 
 Read from [Grocy's OpenAPI spec](https://github.com/grocy/grocy/blob/master/grocy.openapi.json) and its
