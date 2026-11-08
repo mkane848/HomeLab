@@ -1,3 +1,5 @@
+# protects: sync-wezterm.ps1 fills SSH_USER/SERVER_IP from .env, refuses without them, backs up; WezTerm opens a local pwsh
+# run-after: desktop/scripts/sync-wezterm.ps1 or wezterm/wezterm.lua
 # test-sync-wezterm.ps1 - regression guard for desktop/scripts/sync-wezterm.ps1 and wezterm/wezterm.lua
 #
 # Why this exists: on 2026-10-13 the owner's live ~/.wezterm.lua turned out to be the repo template with the real

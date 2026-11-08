@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: bring PR #120's WezTerm fix into `main` (2026-11-07).** #120 was merged into its base branch `tests/stop-classifier-3`
+  14 minutes after that branch's own PR (#119) had gone into `main`, so it never reached `main`. The owner's desktop has run
+  the branch version since 2026-10-13: a local PowerShell 7 by default, and a sync that fills `SSH_USER`/`SERVER_IP` from `.env`
+  and backs up. Running `sync-wezterm.ps1` from `main` would have put back the placeholders and the server-first default.
+  The fix commit is cherry-picked as it was. Its guard gains the `# protects:`/`# run-after:` headers that CI now requires.
+  The two roadmap commits of #120 are left out: their resume-here block is from October and out of date. Found during branch
+  cleanup.
+
 - **docs: a plan for a household assistant (2026-11-07, owner's request).** `docs/household-assistant.md`: a private,
   self-hosted chat assistant for running the house (decision help, recurring upkeep, big tasks ahead, "when did we last
   do X"). The design keeps dates and history in a tracker (Donetick/Homebox or Grocy), with chat agents over it
