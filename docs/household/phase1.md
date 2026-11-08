@@ -24,23 +24,45 @@ wrote this cannot reach the LAN.
 - `server/household/backup.sh` and `desktop/scripts/pull-household-backup.ps1`.
 - This runbook.
 
-**Not yet verified:**
-- **The importer has run only against a fake Grocy:** the cloud session had no Docker daemon. Its first real run is
-  the dry run in step 3, so read that output carefully.
-- **The `period_interval` field.** It is not in Grocy's OpenAPI spec, though the schedule view uses it. If the API
-  rejects it on `--apply`, report the error; do not drop the field silently.
+**Verified on the server (2026-11-08, desktop session).** The test used a throwaway Grocy `v4.7.1-ls348`, bound to
+localhost, with made-up data; it was removed after.
+- **Importer:**
+  - the dry run wrote nothing;
+  - `--apply` made 26 writes for 10 chores and 3 products;
+  - a second `--apply` made 0.
+- **`period_interval`:** Grocy accepts it, and the next due dates are right. Every 2 weeks from 10-30 is due 11-13;
+  quarterly from 09-15 is due 12-15; every 2 years from 2025-01-10 is due 2027-01-10; the 31st becomes the 28th.
+- **Backups:** `backup.sh` keeps the newest `KEEP` copies and leaves the container running. The restore test, as
+  written below, brought back every chore and tracked completion.
+- **The desktop pull:** `pull-household-backup.ps1` copies the newest backup, skips one it already has, and exits 1
+  when there is none.
+- **Load:** Grocy idles at about 40 MB of its 512 MB.
+
+**Done on the server (2026-11-08):**
+- **Step 1, the install.** See "Installed version".
+- **Step 2, in part (owner):** the admin password was changed (the default login is refused), and the API key file is
+  in place (mode 600; the key check returns 200).
+- **Step 3, the import.**
+  - **The seed CSVs** were rebuilt with the owner from the phase 0 session's files. They are kept in
+    `~/household-data/` on the server, with a working copy on the desktop outside the repo.
+  - **Result:** the dry run was approved, then `--apply` made 142 writes and a second `--apply` made 0. Grocy now holds
+    111 products (56 for any store), 3 stores, 8 locations and 12 chores, 9 of them with a tracked last completion. A
+    backup was taken just before.
+  - **Owner's exception:** the owner allowed the cloud model (Claude) to see this initial import, its appointment
+    reminders included. From here on, the rule in household-assistant.md applies as written: health entries are never
+    sent to a cloud model.
+  - **Store convention:** a blank store means "any store" (the description starts "Any store"); a named store means
+    that store only.
 
 **Next, in order:**
-1. Pull `main` on the server (`~/HomeLab`).
-2. Step 1: pin `GROCY_TAG` in `server/docker/.env`, then `compose up`. Record the version under "Installed version".
-3. Step 2 is the **owner's**: users, password, API key file, calendar link.
-4. Step 3: the owner copies `chores.csv` and `products.csv` to `~/household-data/`.
-   - Run the dry run and show the owner the summary.
-   - Run `--apply` only on the owner's go.
-   - A second `--apply` must report `writes: 0`.
-5. Phones, as in "On the phones".
-6. Step 4: the cron line, then the desktop pull task (the owner registers it), then the restore test.
-7. Start the month (step 5), and record what happened at the bottom of this file.
+1. **The rest of step 2 (owner):** one user per adult, then the calendar link on each phone.
+2. **Phones,** as in "On the phones".
+3. **Step 4:** the restore test, in week 1. Both backup halves are in place (2026-11-08):
+   - **The server's nightly cron line** (03:15).
+   - **The desktop pull task,** `HomeLab household backup pull`, daily at 07:00. Registered by Claude Code at the owner's
+     request. It catches up if the PC was off at 07:00, runs as the owner only when they are logged on, and logs to
+     `%USERPROFILE%\Backups\household\pull.log`. Its first run copied a backup, with result 0.
+4. **Start the month (step 5),** and record what happened at the bottom of this file.
 
 **Rules for this work:**
 - **No household data in the repo, a commit message, a PR or a log you paste.** That means names, list contents,
@@ -96,10 +118,22 @@ The agent can do everything here except the steps marked **owner**. Only the doc
    cd ~/HomeLab && docker compose -p household -f server/docker/docker-compose.household.yml up -d
    docker compose -p household -f server/docker/docker-compose.household.yml ps
    ```
-3. **Owner:** if the server's firewall is on, allow TCP 9283 from the LAN (sudo).
-4. Check it from the desktop: open `http://<server>:9283`. The default login is `admin` / `admin`: **change it at once.**
+3. **Let it set up its database before anyone logs in.** On a new volume the first page request creates the
+   database, and the login page alone does not. Seen twice on 2026-11-08: logging in on a new install gave HTTP 500
+   ("no such table: migrations") until `/` had been opened again. So wait for the init line, then open `/` once:
+   ```bash
+   until docker logs household-grocy 2>&1 | grep -q 'init\] done'; do sleep 2; done
+   curl -s -o /dev/null http://127.0.0.1:9283/ && docker exec household-grocy stat -c '%s bytes' /config/data/grocy.db
+   ```
+   A database of a few hundred KB is right (602,112 bytes on 4.7.1); 0 bytes means open `/` again.
+4. **No firewall step is needed.** `ufw` is active on the server, but Docker publishes its ports through its own
+   iptables rules, which `ufw` does not filter. The desktop reached 9283 with no rule added (2026-11-08). The
+   other side of this: `ufw` does not protect the port either, so never forward it from the router.
+5. Check it from the desktop: open `http://<server>:9283`. The default login is `admin` / `admin`: **change it at once.**
 
-**Installed version:** *(tag, date, by whom)*
+**Installed version:** `v4.7.1-ls348` (Grocy 4.7.1), 2026-11-08, by Claude Code on the owner's desktop at the
+owner's go. The tag is in `~/HomeLab/server/docker/.env` (mode 600). Volume `household_grocy_config`; the limits of
+0.5 CPU and 512 MB are in force.
 
 ## 2. First-run setup (owner, in the Grocy web UI)
 
@@ -128,6 +162,9 @@ session.
 
 **Columns:**
 - **`cadence`:** weekly, every N weeks, monthly, quarterly, every N months, yearly, every N years, adaptive, or manual.
+  - **`adaptive` with one `last_done`:** it is due on that same date, so it starts overdue. Grocy spaces adaptive chores by
+    the average gap between completions, and one completion has no gap (seen on 4.7.1, 2026-11-08). Give such a chore a
+    fixed cadence for the first month, or accept that it starts overdue.
 - **`last_done`:** YYYY-MM-DD, or empty. It becomes the first tracked completion, so "next due" starts right.
 - **`assignee`:** a Grocy username, `rotate`, or empty.
 - **`stores`:** `Store A + Store B` style. The first is the product's store; the rest go in its description.
@@ -151,17 +188,22 @@ python3 -I server/household/grocy_import.py --apply         # again: must report
 
 ## 4. Backups
 
-- **On the server**, nightly at 03:15, from `crontab -e` as the server user (no sudo):
+- **On the server**, nightly at 03:15, from `crontab -e` as the server user (no sudo). **Make the folder first:**
+  cron opens the log before the script runs, so with no `~/backups/household/` the redirect fails and the backup never
+  starts. Installed 2026-11-08; the line below is the one in the crontab.
   ```
+  mkdir -p ~/backups/household
   15 3 * * * $HOME/HomeLab/server/household/backup.sh >> $HOME/backups/household/backup.log 2>&1
   ```
   - **What it does:** pauses the container for a few seconds, tars the `household_grocy_config` volume to
     `~/backups/household/`, checks the archive lists, and keeps 14.
 - **On the desktop:** `desktop/scripts/pull-household-backup.ps1` copies the newest one to
   `%USERPROFILE%\Backups\household` and keeps 30. Run it once by hand, then schedule it nightly. The schedule is the
-  **owner's** step, from a pwsh prompt:
+  **owner's** step, from a pwsh prompt. Set `$repo` to this repo's checkout on the desktop: `M:\Projects\dev-docs`
+  on the owner's desktop, not `$HOME\HomeLab`. With the wrong path the task fails every night without a word.
   ```powershell
-  $a = New-ScheduledTaskAction -Execute (Get-Process -Id $PID).Path -Argument "-NoProfile -File `"$HOME\HomeLab\desktop\scripts\pull-household-backup.ps1`""
+  $repo = 'M:\Projects\dev-docs'
+  $a = New-ScheduledTaskAction -Execute (Get-Process -Id $PID).Path -Argument "-NoProfile -File `"$repo\desktop\scripts\pull-household-backup.ps1`""
   Register-ScheduledTask -TaskName 'HomeLab household backup pull' -Action $a -Trigger (New-ScheduledTaskTrigger -Daily -At 7am)
   ```
 - **Restore test (do it once in week 1).** A backup is only proven when it restores.
