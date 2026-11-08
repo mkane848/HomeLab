@@ -199,6 +199,10 @@ settings screens):
   own events, private ones included; other members' events only if public. "Both see everything" therefore takes **one
   link per adult**, each with private events ticked. A link is a secret: it lives in the server's secrets folder, never
   in the repo, and is reset in the app if it leaks.
+- **Whose entry is it.** The owner comes from whose feed an event is in; an event in both, or marked shared, belongs to
+  both. The app's ICS export carries no colour, owner or category, so old exported entries without a name in the title
+  stay unassigned until the feeds or the owner settle them. On paper, the family uses one ink colour per person (and one
+  for both), so the photo import reads colour as the owner.
 - **Writing.** The app cannot be written to through its feed, but it displays the phone's own calendars ("Local
   Calendars": iCloud and others). So the assistant publishes **its own calendar** from the server (reminders, "time to
   book", house tasks due); each iPhone subscribes to it in the Calendar app, and it appears inside the family app.
