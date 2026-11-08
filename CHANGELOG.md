@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: household phase 2 started, a basic chat over Grocy (2026-11-08, the owner's choice, ahead of phase 1's month).**
+  - **The chat:** Open WebUI goes in the `household` compose project, on `server:3000`, LAN only. The tag is pinned,
+    `WEBUI_SECRET_KEY` is required, and Valve encryption is on. It uses the llama-server router's models; no GPU of its own.
+  - **The tool:** `server/household/openwebui_grocy_tool.py`, with eight tools (find, shopping list, add, remove,
+    purchase, stock, chores due, complete chore).
+    - An ambiguous or unknown name comes back as a question. A purchase is dated by Grocy, tied to a store, and leaves
+      the list alone. The API key is redacted from every result.
+  - **The prompt:** `openwebui-household-prompt.md`, five lines.
+  - **Tests:** `tests/test_openwebui_grocy_tool.py` (20 tests against a fake Grocy, in CI). Mutation-checked: an
+    ambiguous name picking the first match, no store filter, no key redaction, no best-before date.
+  - **Checked against a throwaway real Grocy 4.7.1.** That run caught that purchases took a best-before date of today,
+    so every product would show as expired the next day. Purchases now send Grocy's "never overdue" date.
+  - **Runbook:** `docs/household/phase2-chat.md`.
+
 - **feat: household assistant phase 1, the tracker (2026-11-08, owner's go).** Grocy on the server as the household's
   system of record. Chosen after checking its source: chores with yearly and adaptive periods, products with a store and
   minimum stock, dated purchases, and a public iCal link the phones subscribe to.

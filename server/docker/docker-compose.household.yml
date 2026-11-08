@@ -1,7 +1,8 @@
 # Household tracker (Grocy): phase 1 of docs/household-assistant.md; runbook docs/household/phase1.md.
 #
 # Its own compose project, separate from the model stack ("docker" project, which owns the models' volume):
-#   GROCY_TAG=<pinned tag> docker compose -p household -f server/docker/docker-compose.household.yml up -d
+#   docker compose -p household -f server/docker/docker-compose.household.yml up -d
+# with GROCY_TAG, OPENWEBUI_TAG and WEBUI_SECRET_KEY set in server/docker/.env (git-ignored).
 #
 # PINNED, like every image on this server (server/docker/docker-compose.yml): an unattended :latest pull can
 # change the database schema under the household's history. GROCY_TAG has no default on purpose; the compose
@@ -27,5 +28,33 @@ services:
     cpus: 0.5
     mem_limit: 512m
 
+  # Chat over the tracker: phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
+  # Open WebUI, talking to the models on the server's llama-server router (:8090) and to Grocy through one Tool
+  # (server/household/openwebui_grocy_tool.py). Pinned like Grocy; OPENWEBUI_TAG has no default either.
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:${OPENWEBUI_TAG:?set OPENWEBUI_TAG to a pinned open-webui release tag}
+    container_name: household-openwebui
+    restart: unless-stopped
+    environment:
+      - ENABLE_OLLAMA_API=false
+      - OPENAI_API_BASE_URL=http://host.docker.internal:8090/v1
+      - OPENAI_API_KEY=none
+      # Keeps logins across container rebuilds, and keys the Valve encryption below. In server/docker/.env only.
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in server/docker/.env (openssl rand -hex 32)}
+      # The Tool's Grocy API key is a Valve; without this it is stored as plaintext in Open WebUI's database.
+      - ENABLE_VALVE_ENCRYPTION=true
+      - TZ=${HOUSEHOLD_TZ:-America/New_York}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # LAN only, like Grocy. Never port-forward this from the router.
+      - "3000:8080"
+    volumes:
+      - openwebui_data:/app/backend/data
+    # No GPU: the model runs in llama-server. Limits to tune after measuring (runbook -> Status).
+    cpus: 1.0
+    mem_limit: 2g
+
 volumes:
   grocy_config:
+  openwebui_data:

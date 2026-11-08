@@ -47,6 +47,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 | Third-node Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | SSH | 22 | TCP | 0.0.0.0 | Server access |
 | Household tracker (Grocy) | 9283 | TCP | 0.0.0.0 (LAN only, never port-forwarded) | Docker, `household` project ([docs/household/phase1.md](household/phase1.md)) |
+| Household chat (Open WebUI) | 3000 | TCP | 0.0.0.0 (LAN only, never port-forwarded) | Docker, `household` project ([docs/household/phase2-chat.md](household/phase2-chat.md)) |
 
 OpenCode reaches each Ollama node through a per-host provider (`ollama-server`,
 `ollama-desktop`, `ollama-node3`) whose `baseURL` comes from the active profile's
