@@ -1,0 +1,31 @@
+# Household tracker (Grocy): phase 1 of docs/household-assistant.md; runbook docs/household/phase1.md.
+#
+# Its own compose project, separate from the model stack ("docker" project, which owns the models' volume):
+#   GROCY_TAG=<pinned tag> docker compose -p household -f server/docker/docker-compose.household.yml up -d
+#
+# PINNED, like every image on this server (server/docker/docker-compose.yml): an unattended :latest pull can
+# change the database schema under the household's history. GROCY_TAG has no default on purpose; the compose
+# refuses to start without it. Record the tag in docs/household/phase1.md -> "Installed version" when you set it,
+# and back up before moving it.
+#
+# No GPU, small CPU and memory limits: the 3700X also carries the model seats' CPU spill
+# (docs/reference/machines.md), and the tracker must never compete with them.
+services:
+  grocy:
+    image: lscr.io/linuxserver/grocy:${GROCY_TAG:?set GROCY_TAG to a pinned linuxserver/grocy release tag}
+    container_name: household-grocy
+    restart: unless-stopped
+    environment:
+      - PUID=${HOUSEHOLD_PUID:-1000}
+      - PGID=${HOUSEHOLD_PGID:-1000}
+      - TZ=${HOUSEHOLD_TZ:-America/New_York}
+    ports:
+      # LAN only (owner, 2026-11-08: home Wi-Fi, no VPN yet). Never port-forward this from the router.
+      - "9283:80"
+    volumes:
+      - grocy_config:/config
+    cpus: 0.5
+    mem_limit: 512m
+
+volumes:
+  grocy_config:
