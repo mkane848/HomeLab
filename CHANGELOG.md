@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opencode's ripgrep download on the runner, but that is not confirmed. The guard now prints the check's detail and
   seconds when the search is not ok, so the next failure names its cause.
 
+- **feat: household phase 2 started, a basic chat over Grocy (2026-11-08, the owner's choice, ahead of phase 1's month).**
+  - **The chat:** Open WebUI goes in the `household` compose project, on `server:3000`, LAN only. The tag is pinned,
+    `WEBUI_SECRET_KEY` is required, and Valve encryption is on. It uses the llama-server router's models; no GPU of its own.
+  - **The tool:** `server/household/openwebui_grocy_tool.py`, with eight tools (find, shopping list, add, remove,
+    purchase, stock, chores due, complete chore).
+    - An ambiguous or unknown name comes back as a question. A purchase is dated by Grocy, tied to a store, and leaves
+      the list alone. The API key is redacted from every result.
+  - **The prompt:** `openwebui-household-prompt.md`, five lines.
+  - **Tests:** `tests/test_openwebui_grocy_tool.py` (20 tests against a fake Grocy, in CI). Mutation-checked: an
+    ambiguous name picking the first match, no store filter, no key redaction, no best-before date.
+  - **Checked against a throwaway real Grocy 4.7.1.** That run caught that purchases took a best-before date of today,
+    so every product would show as expired the next day. Purchases now send Grocy's "never overdue" date.
+  - **Runbook:** `docs/household/phase2-chat.md`.
+
 - **docs: household phase 1, step 1 done on the server, and the runbook corrected from a live test (2026-11-08).**
   - **Installed:** Grocy `v4.7.1-ls348` on `server:9283`, with its database set up, the nightly backup cron line, and one
     backup pulled to the desktop.

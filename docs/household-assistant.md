@@ -142,7 +142,9 @@ risk the PoC measures.
 1. **Tracker only** ([runbook](household/phase1.md)). Run Grocy in Docker on `server`, load the list, get reminders onto both phones, and live
    with it for a month. This alone answers "when did we last" and "what's due".
 2. **Chat over the tracker.** Open WebUI plus one house-upkeep agent whose tools read "due" and "last done" and log a
-   completion. The model is a fleet seat.
+   completion. The model is a fleet seat. **Started 2026-11-08, at the owner's choice, before phase 1's month was up.**
+   It began as the most basic agent possible, one Grocy tool and a five-line prompt, as the baseline for the area
+   agents ([runbook](household/phase2-chat.md)).
 3. **Knowledge.** Import notes, sheets and calendar exports for retrieval, and add the decision-help agents (meals,
    projects).
 4. **The hardware decision.** Apply the criteria above to the PoC's numbers. Record the decision and its evidence here.
