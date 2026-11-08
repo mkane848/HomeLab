@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-56 guards.
+57 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -57,6 +57,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-stop-nudge.ps1` | -NudgeOnStop and Get-StopKind classifiers 2 and 3 | The nudge, Get-StopKind or where results are written |
 | `tests/test-summarize-rounds.ps1` | summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, the planner arm's selector counts, the cap / long-step splits and the cost line | summarize-rounds.ps1 |
 | `tests/test-sync-opencode.ps1` | sync-opencode.ps1: local staging, backups, -Push role gate, secrets | Either script, the template's plugin paths or machines.tsv |
+| `tests/test-sync-wezterm.ps1` | sync-wezterm.ps1 fills SSH_USER/SERVER_IP from .env, refuses without them, backs up; WezTerm opens a local pwsh | desktop/scripts/sync-wezterm.ps1 or wezterm/wezterm.lua |
 | `tests/test-task-env.ps1` | A task's pinned testEnv for the test command and the model's shell | How the harness runs a command or launches opencode |
 | `tests/test-task-pins.ps1` | Task bases: full-SHA pins, summary rows ran from the pin, Resolve-TaskBase | The manifest or how a worktree's base is chosen |
 | `tests/test-tasks.ps1` | The task-veracity benchmark itself (run it to measure a model; needs live hosts) | n/a (live-host run, not a CI guard) |
