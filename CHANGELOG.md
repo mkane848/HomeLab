@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `test-agent-tools` says why its live search failed (2026-11-08).** On CI it failed twice in a row on a
+  docs-only PR (#226), with only `got: True|False|False` after about 140 s. It had passed on `main` at 02:06 on the same
+  runner image (20261103.298.1) and opencode 1.19.5, and it passed locally and on the next run. The likely cause is
+  opencode's ripgrep download on the runner, but that is not confirmed. The guard now prints the check's detail and
+  seconds when the search is not ok, so the next failure names its cause.
+
 - **feat: household assistant phase 1, the tracker (2026-11-08, owner's go).** Grocy on the server as the household's
   system of record. Chosen after checking its source: chores with yearly and adaptive periods, products with a store and
   minimum stock, dated purchases, and a public iCal link the phones subscribe to.
