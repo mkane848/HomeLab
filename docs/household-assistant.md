@@ -201,12 +201,11 @@ settings screens):
   in the repo, and is reset in the app if it leaks.
 - **Writing.** The app cannot be written to through its feed, but it displays the phone's own calendars ("Local
   Calendars": iCloud and others). So the assistant publishes **its own calendar** from the server (reminders, "time to
-  book", house tasks due); each iPhone subscribes to it in the Calendar app, and it appears inside the family app. One
-  test confirms it before building on it: subscribe an iPhone to any ICS link and check it shows under the app's local
-  calendars. The phone reaches the server over the LAN or the VPN; away from both, it keeps the last copy.
+  book", house tasks due); each iPhone subscribes to it in the Calendar app, and it appears inside the family app.
+  **Tested by the owner, 2026-11-08:** a calendar subscribed on the iPhone showed up under the app's local calendars. The phone reaches the server over the LAN or the VPN; away from both, it keeps the last copy.
 - **No CalDAV server is needed for this.** A one-way published calendar is enough. A self-hosted CalDAV server such as
-  [Radicale](https://github.com/Kozea/Radicale) (calendars and to-do lists, stored as plain files, GPL-3.0) is the
-  fallback if that test fails, or if two-way editing is wanted later.
+  [Radicale](https://github.com/Kozea/Radicale) (calendars and to-do lists, stored as plain files, GPL-3.0) stays the
+  option if two-way editing is wanted later.
 - **Where the data goes.** The calendar's contents already live on the app vendor's servers; pulling them to the
   household's own server adds no new place. Sharing the assistant's calendar into the family app ("share local
   calendars with family") would copy it to the vendor's servers, so it stays a per-phone subscription.
@@ -214,6 +213,5 @@ settings screens):
 ## Open questions
 
 - Donetick plus Homebox, or Grocy alone? Leaning Grocy (findings above), once its features are verified.
-- Does a subscribed iPhone calendar show inside the family app? One test (findings above) settles it.
 - Which data sources first? Decided from real examples (owner, 2026-11-07).
 - Does a seat on `server` stay loaded for household chat, or load on demand? The PoC's availability numbers decide.
