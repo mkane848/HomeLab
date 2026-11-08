@@ -57,8 +57,11 @@ localhost, with made-up data; it was removed after.
 **Next, in order:**
 1. **The rest of step 2 (owner):** one user per adult, then the calendar link on each phone.
 2. **Phones,** as in "On the phones".
-3. **Step 4:** the desktop pull task (the owner registers it), then the restore test in week 1. The server's nightly
-   cron line is in place (2026-11-08).
+3. **Step 4:** the restore test, in week 1. Both backup halves are in place (2026-11-08):
+   - **The server's nightly cron line** (03:15).
+   - **The desktop pull task,** `HomeLab household backup pull`, daily at 07:00. Registered by Claude Code at the owner's
+     request. It catches up if the PC was off at 07:00, runs as the owner only when they are logged on, and logs to
+     `%USERPROFILE%\Backups\household\pull.log`. Its first run copied a backup, with result 0.
 4. **Start the month (step 5),** and record what happened at the bottom of this file.
 
 **Rules for this work:**
