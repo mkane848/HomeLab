@@ -35,7 +35,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [planner-tests-experiment.md](planner-tests-experiment.md) | Experiment 3: planner-written acceptance tests; design, every round to date, the local planner against Opus, and the audit of 2026-11-07 |
 | [review-gate/README.md](review-gate/README.md) | Can a local LLM gate code review? Answer 2026-09-19: no (n=18, with a floor effect) |
 | [implementation-tasks.md](implementation-tasks.md) | Live file written by `/plan`; the latest planning pass |
-| [fleet-side-projects.md](fleet-side-projects.md), [hardware-planning.md](hardware-planning.md) | Planning lists; nothing scheduled |
+| [fleet-side-projects.md](fleet-side-projects.md), [hardware-planning.md](hardware-planning.md), [household-assistant.md](household-assistant.md) | Planning lists; nothing scheduled |
 | [archive/](archive/) | Dated narrative moved out of the pages above |
 | [agent-notes/](agent-notes/) | Prompts and scratch notes from AI coding agents |
 | [references.md](references.md) | Every external source cited, and the citation convention |
