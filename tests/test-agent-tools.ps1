@@ -224,6 +224,8 @@ function Read-AgentEvents {
     if ($realVersion -eq $script:AgentToolsCheckedVersion) {
         $r = Test-AgentTools
         Check "the search works here" ("{0}|{1}|{2}" -f $r.checked, $r.ok, [bool]($r.detail -match '^ripgrep search works \(opencode debug rg search found the probe file\); shell Core 7\.')) "True|True|True"
+        # Say why when it fails: on CI (2026-11-08) it failed twice in a row with nothing but True|False|False.
+        if (-not $r.ok) { Write-Host "     detail:   $($r.detail) ($($r.seconds) s)" }
         # node3's case without breaking Windows PowerShell: ripgrep nowhere opencode
         # looks (no rg.exe on PATH, an empty cache) and its download unreachable.
         $saved = @{}
