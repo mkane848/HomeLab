@@ -16,6 +16,8 @@ From the owner, 2026-11-07:
 2. **Staying consistent with semi-regular work.** Spring cleaning, maintaining tools and parts of the house.
 3. **Not losing the big task ahead.** Something months out that must not slip.
 4. **"When did we last do X?"** Replacing a filter, cleaning a thing.
+5. **Doctor's appointments for each family member** (added 2026-11-08). Track, manage and help schedule them, per
+   person, including new family members as they arrive.
 
 **Hard requirements:** self-hosted, uses the household's own data, private.
 
@@ -132,7 +134,7 @@ risk the PoC measures.
 
 ## Phases
 
-0. **Inventory, no software.** Each of you lists 20 to 30 real recurring things (with the last date, if known), 5 big
+0. **Inventory, no software.** Fill in [household/phase0-inventory.md](household/phase0-inventory.md): each of you lists 20 to 30 real recurring things (with the last date, if known), 5 big
    things ahead, and 5 "help us decide" questions you actually had. These become the PoC's test set, and they settle
    which data sources matter.
 1. **Tracker only.** Run the tracker in Docker on `server`, load the list, get reminders onto both phones, and live
@@ -149,6 +151,11 @@ A phase is done when your real phase-0 questions get correct answers, not when t
 
 ## Privacy
 
+- **Health is its own area** (owner, 2026-11-08). Appointment and medical entries are tagged by person and
+  kept in a separate health area. They are never sent to a cloud model, including a cloud fallback. Both adults see
+  everything in it, each other's appointments included.
+- **Imports sort before they store.** A calendar export mixes household tasks, personal plans and health entries. The
+  import classifies each entry (household, personal, health) and the household agents see only the household class.
 - Everything stays on the LAN plus the VPN. No cloud model calls by default. A cloud fallback, if ever wanted, is
   opt-in per agent and never for the private areas.
 - One account each. Decide up front what is shared and what is personal.
@@ -156,8 +163,44 @@ A phase is done when your real phase-0 questions get correct answers, not when t
   server has been down for weeks before ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)).
 - Secrets follow the repo's rule: they live outside the repo, never in it.
 
+## Phase 0 findings (2026-11-08)
+
+The household's real exports were read on 2026-11-08: the shared-calendar app's ICS export (FamCal), its three store
+shopping lists (PDF), fridge and wall-calendar photos, and saved social-media posts. **None of that data is in this
+repo;** what follows is only what it taught about the design.
+
+- **Exports carry plans, not completions.** The ICS file says a task was *planned* for a date, not that it was done, and
+  the shopping lists keep a tick state with no dates. So history cannot be recovered from the old tools, and the tracker
+  must date every completion and every purchase from day one. That is what makes "when did we last" and "what do we
+  probably need" answerable.
+- **Repeats come out as copies.** The calendar export has no repeat rules: each occurrence is its own event. Cadence
+  has to be inferred from the gaps between dates, and confirmed by the owner. Inference got the air filter's "monthly"
+  and the fridge coils' "quarterly" right from a year of entries.
+- **Paper still carries real tasks.** Garbage and recycling moved from the app to letters on a paper wall calendar
+  early in the year. The tracker has to beat paper on effort, or tasks drift back to it.
+- **Shopping is a product catalogue with several stores, not one list per store.** Three store lists came to 109
+  products, five of them bought at more than one store. The lists also need a household glossary: nicknames for
+  products, duplicates under two names, typos, and grouped entries to split.
+- **The pantry side leans toward Grocy.** It is a groceries and household manager with chores and a REST API
+  ([Grocy](https://github.com/grocy/grocy)). Its stock, per-store and purchase-history features are **not yet verified**:
+  its site was unreachable from the session on 2026-11-08. Check those, and compare its chores against Donetick's
+  rotation and natural-language entry, before choosing.
+- **Saved posts hold their content in the image.** A saved post or a shared story is often a picture of a list (one
+  became 55 places). A platform's data export gives only links, and stories expire, so a screenshot into one "inbox"
+  album is the capture habit. A local vision model turns it into rows.
+- **Appointments need a calendar in layer 1, next to the tracker.** The record per person: provider, kind, usual gap,
+  last visit, next booked, who books it, and visit notes. The assistant prepares, reminds and checks clashes. **It does
+  not book:** providers book by phone or portal.
+
+**The calendar decision is open** (owner, 2026-11-08: check first). Either the family keeps its calendar app and the
+assistant reads its feed (and, if the app can show an outside calendar, publishes its own reminders into it), or a
+self-hosted CalDAV server such as [Radicale](https://github.com/Kozea/Radicale) (calendars and to-do lists, stored as
+plain files, GPL-3.0) becomes the calendar of record. What the app can import or subscribe to decides it: the owner is
+checking, since its store page was unreachable from the session.
+
 ## Open questions
 
-- Donetick plus Homebox, or Grocy alone? Decided from the phase-0 list.
+- Donetick plus Homebox, or Grocy alone? Leaning Grocy (findings above), once its features are verified.
+- Which calendar is the one of record? The owner's check of the calendar app decides (findings above).
 - Which data sources first? Decided from real examples (owner, 2026-11-07).
 - Does a seat on `server` stay loaded for household chat, or load on demand? The PoC's availability numbers decide.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: household assistant, phase 0 findings and an appointments area (2026-11-08, owner's request).** What the family's
+  real exports taught, with none of the data committed: exports carry plans, not completions, so the tracker dates every
+  completion and purchase; repeats come out as copies; shopping is one catalogue across stores with a glossary; the pantry
+  leans toward Grocy, unverified. New requirement: doctor's appointments per family member, as a separate health area that
+  never goes to a cloud model. The calendar of record stays open until the owner checks the app. The blank inventory
+  template is now `docs/household/phase0-inventory.md`, and `.gitignore` keeps `*-filled.md` copies out.
+
 - **docs: a plan for a household assistant (2026-11-07, owner's request).** `docs/household-assistant.md`: a private,
   self-hosted chat assistant for running the house (decision help, recurring upkeep, big tasks ahead, "when did we last
   do X"). The design keeps dates and history in a tracker (Donetick/Homebox or Grocy), with chat agents over it
