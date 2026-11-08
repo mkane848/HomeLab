@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `test-agent-tools` says why its live search failed (2026-11-08).** On CI it failed twice in a row on a
+  docs-only PR (#226), with only `got: True|False|False` after about 140 s. It had passed on `main` at 02:06 on the same
+  runner image (20261103.298.1) and opencode 1.19.5, and it passed locally and on the next run. The likely cause is
+  opencode's ripgrep download on the runner, but that is not confirmed. The guard now prints the check's detail and
+  seconds when the search is not ok, so the next failure names its cause.
+
 - **feat: household phase 2 started, a basic chat over Grocy (2026-11-08, the owner's choice, ahead of phase 1's month).**
   - **The chat:** Open WebUI goes in the `household` compose project, on `server:3000`, LAN only. The tag is pinned,
     `WEBUI_SECRET_KEY` is required, and Valve encryption is on. It uses the llama-server router's models; no GPU of its own.
