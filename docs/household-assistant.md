@@ -67,7 +67,9 @@ picks the host, as it does for the coding seat.
 | [Homebox](https://github.com/sysadminsmedia/homebox) | Home inventory (Go, SQLite): items, locations, documents and warranties, "purchase & maintenance tracking … maintenance schedules for your items" | The asset side: which filter, which manual, when bought |
 | [Grocy](https://github.com/grocy/grocy) | "ERP beyond your fridge": groceries and household management, with a chores feature set and a REST API. MIT. | One app for pantry plus chores, if the meals agent matters more than rotation |
 
-The likely pick is **Donetick plus Homebox**, or Grocy alone. Phase 0's real list decides which. Writing a custom
+**Chosen (2026-11-08): Grocy alone.** Phase 0's lists needed stores per product, dated purchases and chores together, and
+Grocy has them all (verified from its source: [phase 1 runbook](household/phase1.md) → "Why Grocy"). Donetick and Homebox
+are no longer needed. Writing a custom
 tracker is not on the table while these exist.
 
 ### Open source: chat, knowledge and agents (layers 2 and 3)
@@ -137,7 +139,7 @@ risk the PoC measures.
 0. **Inventory, no software.** Fill in [household/phase0-inventory.md](household/phase0-inventory.md): each of you lists 20 to 30 real recurring things (with the last date, if known), 5 big
    things ahead, and 5 "help us decide" questions you actually had. These become the PoC's test set, and they settle
    which data sources matter.
-1. **Tracker only.** Run the tracker in Docker on `server`, load the list, get reminders onto both phones, and live
+1. **Tracker only** ([runbook](household/phase1.md)). Run Grocy in Docker on `server`, load the list, get reminders onto both phones, and live
    with it for a month. This alone answers "when did we last" and "what's due".
 2. **Chat over the tracker.** Open WebUI plus one house-upkeep agent whose tools read "due" and "last done" and log a
    completion. The model is a fleet seat.
@@ -182,9 +184,8 @@ repo;** what follows is only what it taught about the design.
   products, five of them bought at more than one store. The lists also need a household glossary: nicknames for
   products, duplicates under two names, typos, and grouped entries to split.
 - **The pantry side leans toward Grocy.** It is a groceries and household manager with chores and a REST API
-  ([Grocy](https://github.com/grocy/grocy)). Its stock, per-store and purchase-history features are **not yet verified**:
-  its site was unreachable from the session on 2026-11-08. Check those, and compare its chores against Donetick's
-  rotation and natural-language entry, before choosing.
+  ([Grocy](https://github.com/grocy/grocy)). Its stock, per-store and purchase-history features were then
+  verified from its source code, and it was chosen for phase 1 ([runbook](household/phase1.md)).
 - **Saved posts hold their content in the image.** A saved post or a shared story is often a picture of a list (one
   became 55 places). A platform's data export gives only links, and stories expire, so a screenshot into one "inbox"
   album is the capture habit. A local vision model turns it into rows.
@@ -216,6 +217,5 @@ settings screens):
 
 ## Open questions
 
-- Donetick plus Homebox, or Grocy alone? Leaning Grocy (findings above), once its features are verified.
 - Which data sources first? Decided from real examples (owner, 2026-11-07).
 - Does a seat on `server` stay loaded for household chat, or load on demand? The PoC's availability numbers decide.

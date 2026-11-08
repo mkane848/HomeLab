@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: household assistant phase 1, the tracker (2026-11-08, owner's go).** Grocy on the server as the household's
+  system of record. Chosen after checking its source: chores with yearly and adaptive periods, products with a store and
+  minimum stock, dated purchases, and a public iCal link the phones subscribe to.
+  - `server/docker/docker-compose.household.yml`: its own `household` project, a tag that must be pinned, LAN port
+    9283, 0.5 CPU and 512 MB.
+  - `server/household/grocy_import.py`: loads chores and products from CSVs kept outside the repo. Dry run by default;
+    matches on name, so it can be re-run.
+  - `tests/test_grocy_import.py`: runs against a fake Grocy, mutation-checked, and in CI.
+  - Backups: `server/household/backup.sh` (nightly, keeps 14) and `desktop/scripts/pull-household-backup.ps1`.
+  - The runbook, `docs/household/phase1.md`.
+  - Not yet installed on the server.
+
 - **docs: household assistant, phase 0 findings and an appointments area (2026-11-08, owner's request).** What the family's
   real exports taught, with none of the data committed: exports carry plans, not completions, so the tracker dates every
   completion and purchase; repeats come out as copies; shopping is one catalogue across stores with a glossary; the pantry
