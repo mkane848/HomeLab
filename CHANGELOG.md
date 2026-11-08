@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: household phase 1, step 1 done on the server, and the runbook corrected from a live test (2026-11-08).**
+  - **Installed:** Grocy `v4.7.1-ls348` on `server:9283`, with its database set up, the nightly backup cron line, and one
+    backup pulled to the desktop.
+  - **Verified first on a throwaway Grocy with made-up data:** the importer (26 writes, then 0 on a re-run),
+    `period_interval` and the due dates it gives, `backup.sh`, the restore test, and the desktop pull.
+  - **Runbook fixes:**
+    - a new install's first login can fail with HTTP 500 until `/` is opened;
+    - `ufw` does not filter Docker's ports, so no firewall step is needed (and none protects it);
+    - the cron log folder must exist first, or the backup never runs;
+    - the desktop task's path was `$HOME\HomeLab`, which does not exist on the owner's desktop;
+    - an `adaptive` chore with one completion starts overdue.
+
 - **feat: household assistant phase 1, the tracker (2026-11-08, owner's go).** Grocy on the server as the household's
   system of record. Chosen after checking its source: chores with yearly and adaptive periods, products with a store and
   minimum stock, dated purchases, and a public iCal link the phones subscribe to.
