@@ -106,19 +106,20 @@ Photograph a receipt, and the chat records what was bought: the date, the store,
 **How to photograph it: upright, flat and whole.**
 
 **How well it reads (2026-11-09):** one real 13-item Costco receipt, read 4 times per photo with the current prompt.
-The reference is Claude's transcript; its prices add up to the printed subtotal (318.07) and tax (9.27), and the
-owner's check against the paper is pending. One item number is disputed: the model reads 1779098 every time, where
-the reference has 1179098. It is counted as a miss until the paper settles it.
+The reference is Claude's transcript; its prices add up to the printed subtotal and tax, and the owner's check
+against the paper is pending. One item number is disputed: the model reads it the same way every time, differently
+from the reference. It is counted as a miss until the paper settles it. The receipt and its transcript stay outside
+the repo.
 
 | Photo | Item lines found | Prices right, of lines found | Date |
 |---|---|---|---|
 | Sideways (as taken) | 10 to 11 of 13; the same two pen-marked lines missed every time | 36 of 37 | wrong every time |
 | Upright | 11 to 13 of 13 | 42 of 42 | wrong every time |
 
-- **The date:** read 11/08 as 2026-08-11, even with the US-date rule in the prompt. So check it in the confirmation
+- **The date:** read with day and month swapped every time, even with the US-date rule in the prompt. So check it in the confirmation
   list.
-- **A miss is visible:** the model does read "Items Sold: 13" correctly, so the confirmation list shows a gap ("read 11
-  of 13").
+- **A miss is visible:** the model reads the printed "Items Sold" count correctly, so the confirmation list shows a gap
+  (for example "read 11 of 13").
 - **The tool-call probe** (`tests/test-toolcalls.ps1 -Engine llamacpp`): PASS, 0.3 s.
 
 **After a merge that changes the tool** (owner, in Open WebUI):
