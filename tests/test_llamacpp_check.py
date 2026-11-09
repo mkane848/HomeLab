@@ -163,6 +163,28 @@ class Live(Base):
         self.assertEqual([l for l, _ in levels()], ["OK", "OK"])
 
 
+class ServerOnlyImport(Base):
+    # A GGUF under /models that only the server serves (the household vision seat, 2026-11-09): pinned like an import.
+    SHA = "b" * 64
+
+    def run_with(self, source, weights):
+        seats = {"v:8b": {"num_ctx": "32768", "num_gpu": "-", "from": "-", "weights": weights, "source": source}}
+        lc.static_checks({"*": {}, "v:8b": {"model": "/models/v-Q4_K_M.gguf", "c": "32768", "alias": "v:8b", "parallel": "1"}}, seats)
+
+    def test_a_pinned_server_only_gguf_passes(self):
+        self.run_with("import-server", "sha256:" + self.SHA)
+        self.assertIn("weights are a GGUF file pinned by server-seats.tsv (bbbbbbbbbbbb...)", messages("OK"))
+        self.assertEqual(messages("WARN") + messages("FAIL"), [])
+
+    def test_an_unpinned_server_only_gguf_warns(self):
+        self.run_with("import-server", "-")
+        self.assertEqual(len(messages("WARN")), 1)
+
+    def test_a_pull_seat_with_a_gguf_file_is_not_treated_as_pinned(self):
+        self.run_with("pull", "sha256:" + self.SHA)
+        self.assertEqual(len(messages("WARN")), 1)
+
+
 class ChatTemplate(Base):
     # gpt-oss's Ollama blob has no usable template; its seat loads one from the repo (2026-10-23).
     SEATS = {"g:1": {"num_ctx": "65536", "num_gpu": "-", "from": "-", "weights": "sha256:" + "a" * 64}}

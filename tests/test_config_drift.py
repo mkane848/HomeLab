@@ -75,6 +75,19 @@ class Drift(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("[seat-ctx] qwen3:8b", out)
 
+    def test_a_server_only_seat_need_not_be_on_the_desktop(self):
+        row = "\t".join(["zz-vision:8b", "32768", "-", "-", "sha256:" + "c" * 64, "%s", "test row"]) + "\n"
+        with open(os.path.join(self.tmp, "models", "server-seats.tsv"), "a", encoding="utf-8", newline="") as f:
+            f.write(row % "import-server")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 0, out)
+        with open(os.path.join(self.tmp, "models", "server-seats.tsv"), "a", encoding="utf-8", newline="") as f:
+            f.write((row % "import").replace("zz-vision", "zz-other"))
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[seat-not-on-desktop] zz-other:8b", out)
+        self.assertNotIn("zz-vision", out)
+
     def test_server_limit_mismatch(self):
         self.edit("models/server-seats.tsv", "qwen3.6:35b-a3b-coding\t65536", "qwen3.6:35b-a3b-coding\t49152")
         code, out = run(self.tmp)

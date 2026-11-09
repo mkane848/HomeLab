@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: household receipts, so a photo becomes dated purchases (2026-11-09, the owner's first feature wish).**
+  - **The vision seat:** `qwen3-vl:8b` (Qwen's own Qwen3-VL-8B GGUF plus its vision projector, sha256-pinned) in
+    `server/llamacpp/models.ini`. It is the new seat source `import-server`, a GGUF only the server serves.
+    `llamacpp_check.py` and `check_config_drift.py` accept it, with tests and mutation checks for both.
+  - **The tool, 0.2.0:**
+    - `find_by_receipt_code` and `save_receipt_code`: item numbers are stored as Grocy barcodes, tied to the store;
+    - `record_purchase` takes the total paid, the location and the purchase date.
+  - **The prompt:** for a receipt, show one list (matches, quantities, prices, lines read against "Items Sold", the date)
+    and write nothing before OK.
+  - **Gate, on the owner's real receipt (4 reads per photo):**
+    - the tool-call probe passes;
+    - an upright photo gives 11 to 13 of 13 lines, with every price found right;
+    - a sideways photo gives 10 to 11;
+    - the date is misread every time, so the confirmation list carries it.
+  - **Checked live on a throwaway Grocy:** a past `purchased_date` is kept, the price is stored per unit, and codes
+    are per store.
+
 - **tests: `test-agent-tools` says why its live search failed (2026-11-08).** On CI it failed twice in a row on a
   docs-only PR (#226), with only `got: True|False|False` after about 140 s. It had passed on `main` at 02:06 on the same
   runner image (20261103.298.1) and opencode 1.19.5, and it passed locally and on the next run. The likely cause is

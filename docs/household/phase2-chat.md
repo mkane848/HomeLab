@@ -13,15 +13,16 @@ first proof of concept was a Costco trip:
   to Grocy). It runs on `server:3000`, LAN only. It uses the models of the server's llama-server router (`:8090`) and
   has no GPU of its own.
 - **The tool:** [`server/household/openwebui_grocy_tool.py`](../../server/household/openwebui_grocy_tool.py), with
-  eight tools: `find_products`, `shopping_list`, `add_to_shopping_list`, `remove_from_shopping_list`,
-  `record_purchase`, `stock`, `chores_due`, `complete_chore`.
+  ten tools: `find_products`, `shopping_list`, `add_to_shopping_list`, `remove_from_shopping_list`,
+  `record_purchase`, `stock`, `chores_due`, `complete_chore`, plus `find_by_receipt_code` and `save_receipt_code`
+  for receipts (see "Receipts" below).
   - A name that matches several products, or none, is sent back as a question. The tool never picks.
   - A purchase does not change the shopping list. Taking items off is asked for separately.
   - Tests: `tests/test_openwebui_grocy_tool.py`, against a fake Grocy, run in CI.
 - **The prompt:** [`server/household/openwebui-household-prompt.md`](../../server/household/openwebui-household-prompt.md).
   It is deliberately bare: nothing about meals, budgets or advice.
-- **The model:** `qwen3:8b`, the plan's "tool-calling 7 to 9B". Every router model is listed, so others can be
-  compared from the model menu.
+- **The model:** `qwen3:8b` at first, the plan's "tool-calling 7 to 9B". From 2026-11-09 it is `qwen3-vl:8b`, which
+  also reads photos (see "Receipts"). Every router model is listed, so others can be compared from the model menu.
 
 **How Open WebUI Tools work** ([Open WebUI's tools docs](https://docs.openwebui.com/features/extensibility/plugin/tools),
 read 2026-11-08):
@@ -81,6 +82,53 @@ read 2026-11-08):
 - answers that were wrong, or tools it should have used and didn't;
 - how long answers took;
 - anything you wished it could do. That is the backlog for the area agents.
+
+## Receipts (added 2026-11-09)
+
+Photograph a receipt, and the chat records what was bought: the date, the store, the price, and where it is kept.
+
+**How it works:**
+1. **The vision model** `qwen3-vl:8b` reads the photo: store, date and item lines.
+   - It is Qwen's own GGUF ([Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF),
+     Apache-2.0), sha256-pinned in `models/server-seats.tsv` as `import-server`. That means a server-only llama.cpp
+     seat, which the desktop never has.
+   - It uses 8.9 GB of VRAM loaded, so it does **not** fit beside `qwen3:8b` (7.5 GB) on the 16 GB card. It replaces
+     `qwen3:8b` as the Household model.
+2. **Item numbers are matched:** `find_by_receipt_code` looks the item numbers up. Each is saved as a Grocy product
+   barcode, tied to the store, the first time the user confirms a match (`save_receipt_code`). From then on that
+   line matches exactly.
+3. **Nothing is written before the user's OK.** The chat first shows one list: each line, its matched product or
+   "unknown", the quantity and the price; how many item lines it read against the receipt's printed "Items Sold";
+   and the date.
+4. **Then it records each purchase.** `record_purchase` takes the receipt's date (Grocy keeps a past purchase date:
+   checked live, 2026-11-09), the store, the price per unit (the total ÷ quantity) and the place it was put away.
+
+**How to photograph it: upright, flat and whole.**
+
+**How well it reads (2026-11-09):** one real 13-item Costco receipt, read 4 times per photo with the current prompt.
+The reference is Claude's transcript; its prices add up to the printed subtotal (318.07) and tax (9.27), and the
+owner's check against the paper is pending. One item number is disputed: the model reads 1779098 every time, where
+the reference has 1179098. It is counted as a miss until the paper settles it.
+
+| Photo | Item lines found | Prices right, of lines found | Date |
+|---|---|---|---|
+| Sideways (as taken) | 10 to 11 of 13; the same two pen-marked lines missed every time | 36 of 37 | wrong every time |
+| Upright | 11 to 13 of 13 | 42 of 42 | wrong every time |
+
+- **The date:** read 11/08 as 2026-08-11, even with the US-date rule in the prompt. So check it in the confirmation
+  list.
+- **A miss is visible:** the model does read "Items Sold: 13" correctly, so the confirmation list shows a gap ("read 11
+  of 13").
+- **The tool-call probe** (`tests/test-toolcalls.ps1 -Engine llamacpp`): PASS, 0.3 s.
+
+**After a merge that changes the tool** (owner, in Open WebUI):
+1. Workspace → Tools → the Grocy tool: paste the new `openwebui_grocy_tool.py` over the old one, and save. The Valve
+   key stays.
+2. Workspace → Models → Household:
+   - base model `qwen3-vl:8b`;
+   - paste the new prompt;
+   - tick **Vision** under Capabilities;
+   - save.
 
 ## Status
 *(dated notes go here)*
