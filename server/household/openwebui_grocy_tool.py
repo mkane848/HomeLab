@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.1.0
+version: 0.2.0
 description: Read and change the household's Grocy: products, stock, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -94,6 +94,21 @@ class Tools:
     def _stock_amounts(self):
         return {int(s["product_id"]): float(s["amount"]) for s in (self._call("GET", "/stock") or [])}
 
+    def _codes(self, store_id):
+        """Receipt item numbers saved for one store: {code: product id}. Codes are per store (Costco's 1767102 is
+        not another store's), so one saved without a store does not count."""
+        return {str(b["barcode"]).strip(): int(b["product_id"]) for b in self._objects("product_barcodes")
+                if b.get("shopping_location_id") not in (None, "") and int(b["shopping_location_id"]) == store_id}
+
+    @staticmethod
+    def _date(text):
+        if not (text or "").strip():
+            return dt.date.today()
+        try:
+            return dt.date.fromisoformat(text.strip())
+        except ValueError:
+            raise GrocyError(f"'{text}' is not a date like 2026-11-08") from None
+
     @staticmethod
     def _num(x):
         x = float(x)
@@ -183,15 +198,21 @@ class Tools:
             return f"Took {p['name']} off the shopping list."
         return self._run(go)
 
-    async def record_purchase(self, product: str, amount: float = 1, store: str = "") -> str:
+    async def record_purchase(self, product: str, amount: float = 1, store: str = "", total_paid: float = 0,
+                              location: str = "", date: str = "") -> str:
         """
-        Record that a product was bought today: it goes into stock with today's date and the store it came from. It does not change the shopping list.
+        Record that a product was bought: it goes into stock with the date, the store, what was paid and where it is kept. It does not change the shopping list.
         :param product: the product's name
         :param amount: how many were bought, default 1
         :param store: where it was bought, e.g. "Costco"; empty means the product's usual store, if it has one
+        :param total_paid: what the receipt line cost in total, after any discount on it; 0 if unknown
+        :param location: where it was put away, e.g. "Garage Freezer"; empty means the product's usual place
+        :param date: the purchase date, YYYY-MM-DD (e.g. the receipt's date); empty means today
         """
         def go():
             p = self._resolve("products", product, "product")
+            if float(amount) <= 0:
+                raise GrocyError(f"the amount must be more than 0, not {amount}")
             # Grocy's "never overdue" date. Without one it uses the product's default best-before days, 0 for every
             # imported product, so each purchase was due the day it was bought (seen live, 2026-11-08). Real dates come
             # later, per product, once anyone wants them.
@@ -204,8 +225,64 @@ class Tools:
             elif p.get("shopping_location_id") not in (None, ""):
                 body["shopping_location_id"] = int(p["shopping_location_id"])
                 where = f" at {self._names('shopping_locations').get(int(p['shopping_location_id']), '?')}"
+            if float(total_paid) > 0:
+                body["price"] = round(float(total_paid) / float(amount), 4)  # Grocy keeps a price per unit
+            put = ""
+            if location.strip():
+                loc = self._resolve("locations", location, "location")
+                body["location_id"] = int(loc["id"])
+                put = f", put in {loc['name']}"
+            day = self._date(date)
+            if day != dt.date.today():
+                body["purchased_date"] = day.isoformat()
             self._call("POST", f"/stock/products/{int(p['id'])}/add", body)
-            return f"Recorded {self._num(amount)} x {p['name']} bought today{where}."
+            paid = f" for {float(total_paid):.2f}" if float(total_paid) > 0 else ""
+            when = "today" if day == dt.date.today() else day.isoformat()
+            return f"Recorded {self._num(amount)} x {p['name']} bought {when}{where}{paid}{put}."
+        return self._run(go)
+
+    async def find_by_receipt_code(self, codes: str, store: str) -> str:
+        """
+        Look up receipt item numbers (the number printed before each item on a receipt) to find which products they are. A number is known only once it has been saved with save_receipt_code.
+        :param codes: one or more item numbers, separated by commas, e.g. "1767102, 512599"
+        :param store: the store the receipt is from, e.g. "Costco"
+        """
+        def go():
+            s = self._resolve("shopping_locations", store, "store")
+            known = self._codes(int(s["id"]))
+            names = self._names("products")
+            want = [c.strip() for c in codes.split(",") if c.strip()]
+            if not want:
+                raise GrocyError("no item numbers were given")
+            lines = []
+            for c in want:
+                pid = known.get(c)
+                lines.append(f"- {c}: {names.get(pid, f'product {pid}')}" if pid else f"- {c}: unknown at {s['name']}")
+            return f"Item numbers at {s['name']}:\n" + "\n".join(lines)
+        return self._run(go)
+
+    async def save_receipt_code(self, product: str, code: str, store: str) -> str:
+        """
+        Remember that a receipt item number at a store is this product, so the next receipt matches it without asking. Use only after the user has confirmed the match.
+        :param product: the product's name
+        :param code: the item number printed on the receipt, e.g. "1767102"
+        :param store: the store the receipt is from, e.g. "Costco"
+        """
+        def go():
+            p = self._resolve("products", product, "product")
+            s = self._resolve("shopping_locations", store, "store")
+            c = code.strip()
+            if not c:
+                raise GrocyError("no item number was given")
+            have = self._codes(int(s["id"])).get(c)
+            if have == int(p["id"]):
+                return f"{c} at {s['name']} is already saved as {p['name']}."
+            if have:
+                other = self._names("products").get(have, f"product {have}")
+                raise GrocyError(f"{c} at {s['name']} is already saved as {other}; change it in Grocy if that is wrong")
+            self._call("POST", "/objects/product_barcodes",
+                       {"product_id": int(p["id"]), "barcode": c, "shopping_location_id": int(s["id"]), "note": "receipt item number"})
+            return f"Saved: {c} at {s['name']} is {p['name']}."
         return self._run(go)
 
     async def stock(self, product: str = "") -> str:

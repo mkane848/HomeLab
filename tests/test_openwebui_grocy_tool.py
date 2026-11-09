@@ -52,6 +52,9 @@ class FakeGrocy:
             ],
             "shopping_list": [],
             "chores": [{"id": 30, "name": "Test filter"}, {"id": 31, "name": "Test spigots"}],
+            "product_barcodes": [{"id": 50, "product_id": 10, "barcode": "1111111", "shopping_location_id": 1},
+                                 {"id": 51, "product_id": 14, "barcode": "2222222", "shopping_location_id": 2},
+                                 {"id": 52, "product_id": 11, "barcode": "3333333", "shopping_location_id": None}],
         }
         self.stock = [{"product_id": 10, "amount": "2"}, {"product_id": 14, "amount": "0"}]
         self.chores = [
@@ -113,6 +116,11 @@ class FakeGrocy:
                     return self._send(200, [{"id": 1}])
                 if path.startswith("/chores/") and path.endswith("/execute"):
                     return self._send(200, {"id": 1})
+                if path.startswith("/objects/"):
+                    entity = path.split("/")[2]
+                    new = dict(body, id=900 + len(fake.objects.setdefault(entity, [])))
+                    fake.objects[entity].append(new)
+                    return self._send(200, {"created_object_id": new["id"]})
                 self._send(404, {"error_message": "no route"})
 
         self.server = HTTPServer(("127.0.0.1", 0), H)
@@ -259,10 +267,58 @@ class ToolTest(unittest.TestCase):
         self.assertTrue(all(c[3] == KEY for c in self.g.calls))
         self.assertFalse(any(KEY in o for o in outs), outs[-1])
 
-    def test_only_the_eight_tools_are_public(self):
+    def test_only_the_ten_tools_are_public(self):
         public = sorted(n for n in dir(tool.Tools) if not n.startswith("_") and callable(getattr(tool.Tools, n)) and n != "Valves")
         self.assertEqual(public, sorted(["find_products", "shopping_list", "add_to_shopping_list", "remove_from_shopping_list",
-                                         "record_purchase", "stock", "chores_due", "complete_chore"]))
+                                         "record_purchase", "stock", "chores_due", "complete_chore",
+                                         "find_by_receipt_code", "save_receipt_code"]))
+
+    # --- receipts: item numbers per store, and purchases with price, place and date
+
+    def test_receipt_codes_known_and_unknown(self):
+        out = run(self.t.find_by_receipt_code("1111111, 9999999", "Store A"))
+        self.assertIn("- 1111111: Test mangoes", out)
+        self.assertIn("- 9999999: unknown at Store A", out)
+
+    def test_a_code_saved_for_one_store_does_not_match_another(self):
+        self.assertIn("- 2222222: unknown at Store A", run(self.t.find_by_receipt_code("2222222", "Store A")))
+        self.assertIn("- 2222222: Test milk", run(self.t.find_by_receipt_code("2222222", "Store B")))
+
+    def test_a_code_saved_without_a_store_does_not_match(self):
+        self.assertIn("- 3333333: unknown at Store A", run(self.t.find_by_receipt_code("3333333", "Store A")))
+
+    def test_save_code_then_it_matches(self):
+        self.assertEqual(run(self.t.save_receipt_code("bread", " 4444444 ", "Store A")), "Saved: 4444444 at Store A is Test bread.")
+        (_, path, body, _), = self.g.posts("/objects/product_barcodes")
+        self.assertEqual(body, {"product_id": 11, "barcode": "4444444", "shopping_location_id": 1, "note": "receipt item number"})
+        self.assertIn("- 4444444: Test bread", run(self.t.find_by_receipt_code("4444444", "Store A")))
+
+    def test_save_code_will_not_overwrite_another_products_code(self):
+        out = run(self.t.save_receipt_code("bread", "1111111", "Store A"))
+        self.assertIn("already saved as Test mangoes", out)
+        self.assertEqual(self.g.posts("/objects/product_barcodes"), [])
+        self.assertIn("already saved as Test mangoes", run(self.t.save_receipt_code("mangoes", "1111111", "Store A")))
+        self.assertEqual(self.g.posts("/objects/product_barcodes"), [])
+
+    def test_purchase_with_price_location_and_date(self):
+        out = run(self.t.record_purchase("mangoes", 2, "Store A", 17.98, "Fridge", "2026-11-08"))
+        self.assertEqual(out, "Recorded 2 x Test mangoes bought 2026-11-08 at Store A for 17.98, put in Fridge.")
+        body = self.g.posts("/stock/products/")[0][2]
+        self.assertEqual(body["price"], 8.99)  # per unit
+        self.assertEqual(body["location_id"], 2)
+        self.assertEqual(body["purchased_date"], "2026-11-08")
+
+    def test_purchase_today_sends_no_date_and_no_price_when_unknown(self):
+        run(self.t.record_purchase("mangoes"))
+        body = self.g.posts("/stock/products/")[0][2]
+        self.assertNotIn("purchased_date", body)
+        self.assertNotIn("price", body)
+        self.assertNotIn("location_id", body)
+
+    def test_purchase_rejects_a_bad_date_or_amount(self):
+        self.assertIn("is not a date", run(self.t.record_purchase("mangoes", 1, "", 0, "", "yesterday")))
+        self.assertIn("more than 0", run(self.t.record_purchase("mangoes", 0)))
+        self.assertEqual(self.g.posts(), [])
 
 
 if __name__ == "__main__":

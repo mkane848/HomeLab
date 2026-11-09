@@ -142,7 +142,7 @@ def static_checks(ini, seats):
             continue
         path = sec.get("model", "")
         m = re.search(r"/blobs/sha256-([0-9a-f]{64})$", path)
-        if not m and GGUF_FILE_RE.search(path) and seat.get("source") == "import" and re.fullmatch(r"sha256:[0-9a-f]{64}", seat.get("weights", "")):
+        if not m and GGUF_FILE_RE.search(path) and seat.get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", seat.get("weights", "")):
             # A GGUF file under the /models mount (not an Ollama blob): pinned by the seat table's sha256 instead of
             # its name, which --weights-container --hash checks against the bytes (2026-11-02, North Mini Code).
             say("OK", tag, "weights are a GGUF file pinned by server-seats.tsv (%s...)" % seat["weights"][7:19])
@@ -293,10 +293,17 @@ class ContainerBlobs:
         return out.split()[0].decode()
 
 
+# Seats whose weights are a GGUF file under /models, pinned by the seat table's sha256. "import" also has a desktop
+# copy; "import-server" is served by the server's llama.cpp only (e.g. the household vision seat, 2026-11-09).
+IMPORT_SOURCES = ("import", "import-server")
+
+
 def how_to_get(tag, seat):
     """The fix for a missing blob. Ollama's volume is where the weights live until Phase 6."""
     src = (seat or {}).get("source")
     pull = (seat or {}).get("from") if src == "derived" else tag
+    if src == "import-server":
+        return "a server-only seat: download its GGUF into ~/models again (the seat row's note names the file)"
     if src == "import":
         return "an import seat: copy the desktop's GGUF and 'ollama create %s' from it" % tag
     return ("pull it into Ollama's volume: docker start ollama-server && docker exec ollama-server ollama pull %s "
@@ -311,7 +318,7 @@ def weights_checks(ini, seats, blobs, rehash=False):
         pinned = (seats.get(tag) or {}).get("weights", "")
         if m:
             name, want = m.group(1), m.group(1)[7:]
-        elif g and (seats.get(tag) or {}).get("source") == "import" and re.fullmatch(r"sha256:[0-9a-f]{64}", pinned):
+        elif g and (seats.get(tag) or {}).get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", pinned):
             name, want = g.group(1), pinned[7:]   # a GGUF under /models: the seat table pins its bytes
         else:
             continue  # static_checks already WARNs that it is unpinned

@@ -136,7 +136,9 @@ def check(root):
     desk, srv, llsrv = limits("ollama-desktop"), limits("ollama-server"), limits("llamacpp-server")
 
     # 1. startup.ps1 <-> server-seats.tsv (same tag, same baked context)
-    for tag, (n, _src) in seats.items():
+    for tag, (n, src) in seats.items():
+        if src == "import-server":
+            continue    # served by the server's llama.cpp only; the desktop never has it (models/server-seats.tsv)
         base = derived if tag in derived else ctx_models
         if tag in base and n is not None and base[tag] != n:
             bad("seat-ctx", tag, "server-seats.tsv bakes %d, startup.ps1 bakes %d" % (n, base[tag]))
