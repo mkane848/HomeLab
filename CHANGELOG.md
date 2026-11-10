@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: household tool 0.3.1 reads a tax flag touching the price, `10.00-A` (2026-11-10).**
+  - **Why:** the first live 0.3.0 receipt run stopped at a discount line. Costco prints the tax letter straight after
+    the price's minus sign, and 0.3.0 dropped a tax letter only when it stood apart. The chat then offered to skip
+    the line, which would have lost the discount; the owner did not accept.
+  - **Change:** the price pattern allows one letter touching the price. The unreadable-line error now tells the chat
+    not to skip or change the line itself but to ask the user.
+  - **Test:** `test_receipt_tax_flag_touching_the_price` (item and discount lines, both kinds of minus sign);
+    mutation-checked: with 0.3.0's pattern it fails, and the restored file is byte-identical.
+
 - **feat: household tool 0.3.0, receipt bookkeeping in code, purchase history and undo (2026-11-09).**
   - **Why:** the first live receipt was recorded correctly only after the owner corrected the chat 4 times:
     - discount lines listed as items;
