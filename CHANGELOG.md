@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: household tool 0.3.0, receipt bookkeeping in code, purchase history and undo (2026-11-09).**
+  - **Why:** the first live receipt was recorded correctly only after the owner corrected the chat 4 times:
+    - discount lines listed as items;
+    - a skipped line kept;
+    - a discount on the wrong line;
+    - item numbers not saved.
+
+    A second chat answered "when did I last buy X" from the product's usual store, and "corrected" a purchase by
+    recording a new one with an invented date. The reading was right every time; the bookkeeping was not.
+  - **`record_receipt`:** the model copies the lines as printed, and the code does the rest. It:
+    - matches the item numbers saved for the store;
+    - applies each discount to the item it names, or to the line above;
+    - drops skipped lines with their discounts;
+    - reads `MM/DD/YYYY`;
+    - totals the lines and compares them with "Items Sold".
+
+    Without `confirm` it writes nothing. With it, it refuses while a line is unknown, records each line, and saves
+    the newly matched item numbers. A second OK writes nothing twice.
+  - **Corrections and questions:**
+    - `last_purchases` reads the stock log;
+    - `undo_last_purchase` shows the purchase first and undoes it only with `confirm`;
+    - a purchase date in the future or more than 60 days back is refused;
+    - plurals fall back to the singular.
+  - **Prompt:** the receipt rule now says "copy, call, show unchanged, confirm after OK".
+  - **Tests:** 43, up from 28, all synthetic. Each of the 15 new rules was mutation-checked and goes red with it
+    disabled. An offline replay of the real receipt, kept outside the repo, gave the reference's 11 products and
+    prices exactly.
+
 - **fix: the Grocy tool's examples use made-up item numbers (2026-11-09; tool 0.2.1).** The docstrings of 0.2.0
   used two real item numbers from the owner's receipt as examples. They are now 1234567 and 7654321, so no household
   data is in the tree. Only the text changed; the 28 tests pass unchanged. #229 was merged with a merge commit, so its

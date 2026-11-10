@@ -36,6 +36,8 @@ import openwebui_grocy_tool as tool  # noqa: E402
 
 KEY = "test-key-0123456789"
 TODAY = dt.date.today()
+DAY = (TODAY - dt.timedelta(days=1)).isoformat()  # a recent past purchase date (the date guard refuses old ones)
+US_DAY = (TODAY - dt.timedelta(days=1)).strftime("%m/%d/%Y")  # the same day as a US receipt prints it
 
 
 class FakeGrocy:
@@ -55,6 +57,7 @@ class FakeGrocy:
             "product_barcodes": [{"id": 50, "product_id": 10, "barcode": "1111111", "shopping_location_id": 1},
                                  {"id": 51, "product_id": 14, "barcode": "2222222", "shopping_location_id": 2},
                                  {"id": 52, "product_id": 11, "barcode": "3333333", "shopping_location_id": None}],
+            "stock_log": [],  # filled by purchases, as Grocy does; tests may seed rows
         }
         self.stock = [{"product_id": 10, "amount": "2"}, {"product_id": 14, "amount": "0"}]
         self.chores = [
@@ -113,7 +116,20 @@ class FakeGrocy:
                     fake.objects["shopping_list"] = [i for i in fake.objects["shopping_list"] if i["product_id"] != body["product_id"]]
                     return self._send(200, {})
                 if path.startswith("/stock/products/") and path.endswith("/add"):
-                    return self._send(200, [{"id": 1}])
+                    log = fake.objects["stock_log"]
+                    row = {"id": 700 + len(log), "product_id": int(path.split("/")[3]), "amount": body["amount"],
+                           "transaction_type": "purchase", "undone": 0, "price": body.get("price"),
+                           "purchased_date": body.get("purchased_date", TODAY.isoformat()),
+                           "shopping_location_id": body.get("shopping_location_id"), "location_id": body.get("location_id", 1)}
+                    log.append(row)
+                    return self._send(200, [row])
+                if path.startswith("/stock/bookings/") and path.endswith("/undo"):
+                    bid = int(path.split("/")[3])
+                    for r in fake.objects["stock_log"]:
+                        if r["id"] == bid:
+                            r["undone"] = 1
+                            return self._send(204, None)
+                    return self._send(400, {"error_message": "Booking does not exist"})
                 if path.startswith("/chores/") and path.endswith("/execute"):
                     return self._send(200, {"id": 1})
                 if path.startswith("/objects/"):
@@ -267,11 +283,12 @@ class ToolTest(unittest.TestCase):
         self.assertTrue(all(c[3] == KEY for c in self.g.calls))
         self.assertFalse(any(KEY in o for o in outs), outs[-1])
 
-    def test_only_the_ten_tools_are_public(self):
+    def test_only_the_thirteen_tools_are_public(self):
         public = sorted(n for n in dir(tool.Tools) if not n.startswith("_") and callable(getattr(tool.Tools, n)) and n != "Valves")
         self.assertEqual(public, sorted(["find_products", "shopping_list", "add_to_shopping_list", "remove_from_shopping_list",
                                          "record_purchase", "stock", "chores_due", "complete_chore",
-                                         "find_by_receipt_code", "save_receipt_code"]))
+                                         "find_by_receipt_code", "save_receipt_code", "record_receipt",
+                                         "last_purchases", "undo_last_purchase"]))
 
     # --- receipts: item numbers per store, and purchases with price, place and date
 
@@ -301,12 +318,12 @@ class ToolTest(unittest.TestCase):
         self.assertEqual(self.g.posts("/objects/product_barcodes"), [])
 
     def test_purchase_with_price_location_and_date(self):
-        out = run(self.t.record_purchase("mangoes", 2, "Store A", 17.98, "Fridge", "2026-11-08"))
-        self.assertEqual(out, "Recorded 2 x Test mangoes bought 2026-11-08 at Store A for 17.98, put in Fridge.")
+        out = run(self.t.record_purchase("mangoes", 2, "Store A", 17.98, "Fridge", DAY))
+        self.assertEqual(out, f"Recorded 2 x Test mangoes bought {DAY} at Store A for 17.98, put in Fridge.")
         body = self.g.posts("/stock/products/")[0][2]
         self.assertEqual(body["price"], 8.99)  # per unit
         self.assertEqual(body["location_id"], 2)
-        self.assertEqual(body["purchased_date"], "2026-11-08")
+        self.assertEqual(body["purchased_date"], DAY)
 
     def test_purchase_today_sends_no_date_and_no_price_when_unknown(self):
         run(self.t.record_purchase("mangoes"))
@@ -319,6 +336,155 @@ class ToolTest(unittest.TestCase):
         self.assertIn("is not a date", run(self.t.record_purchase("mangoes", 1, "", 0, "", "yesterday")))
         self.assertIn("more than 0", run(self.t.record_purchase("mangoes", 0)))
         self.assertEqual(self.g.posts(), [])
+
+    def test_purchase_date_guard(self):
+        ago = lambda n: (TODAY - dt.timedelta(days=n)).isoformat()
+        self.assertIn("looks wrong", run(self.t.record_purchase("mangoes", 1, "", 0, "", ago(-1))))  # tomorrow
+        self.assertIn("looks wrong", run(self.t.record_purchase("mangoes", 1, "", 0, "", ago(61))))
+        self.assertIn("looks wrong", run(self.t.record_purchase("mangoes", 1, "", 0, "", "2023-10-15")))  # the invented one
+        self.assertEqual(self.g.posts(), [])
+        self.assertIn(f"bought {ago(60)}", run(self.t.record_purchase("mangoes", 1, "", 0, "", ago(60))))
+        self.assertIn(f"bought {DAY}", run(self.t.record_purchase("mangoes", 1, "", 0, "", US_DAY)))
+
+    # --- names: a plural finds the singular
+
+    def test_plural_falls_back_to_the_singular(self):
+        out = run(self.t.record_purchase("cheeses"))
+        self.assertIn("matches 2 products", out)  # asks, as for "cheese"
+        self.assertIn("Test mangoes", run(self.t.find_products("mangoess")))  # "es" then "s"
+        self.assertEqual(run(self.t.stock("milks")), "Test milk: 0 in stock.")
+        self.assertIn("no product is called 'caviars'", run(self.t.stock("caviars")))
+
+    # --- purchase history and undo
+
+    def seed_log(self):
+        self.g.objects["stock_log"] += [
+            {"id": 1, "product_id": 11, "amount": 1, "transaction_type": "purchase", "undone": 0, "price": 3.5,
+             "purchased_date": "2026-10-01", "shopping_location_id": 1, "location_id": 1},
+            {"id": 2, "product_id": 11, "amount": 2, "transaction_type": "purchase", "undone": 0, "price": 4.0,
+             "purchased_date": "2026-10-20", "shopping_location_id": 2, "location_id": 2},
+            {"id": 3, "product_id": 11, "amount": 1, "transaction_type": "purchase", "undone": 1, "price": 9.0,
+             "purchased_date": "2026-10-30", "shopping_location_id": 1, "location_id": 1},
+            {"id": 4, "product_id": 11, "amount": 1, "transaction_type": "consume", "undone": 0, "price": None,
+             "purchased_date": "2026-10-31", "shopping_location_id": None, "location_id": 1},
+        ]
+
+    def test_last_purchases_reads_the_log_and_skips_undone(self):
+        self.seed_log()
+        out = run(self.t.last_purchases("bread"))
+        self.assertTrue(out.startswith("Test bread, the last 2 of 2 purchase(s):"), out)
+        lines = out.splitlines()[1:]
+        self.assertEqual(lines[0], "- bought 2026-10-20 at Store B for 8.00 (2), put in Fridge")
+        self.assertEqual(lines[1], "- bought 2026-10-01 at Store A for 3.50 (1), put in Pantry")
+        self.assertEqual(run(self.t.last_purchases("milk")), "No purchase of Test milk is recorded.")
+
+    def test_undo_shows_first_then_undoes_only_the_latest(self):
+        self.seed_log()
+        out = run(self.t.undo_last_purchase("bread"))
+        self.assertIn("This would undo: Test bread bought 2026-10-20 at Store B", out)
+        self.assertEqual(self.g.posts(), [])
+        out = run(self.t.undo_last_purchase("bread", True))
+        self.assertTrue(out.startswith("Undid: Test bread bought 2026-10-20"), out)
+        (_, path, _, _), = self.g.posts()
+        self.assertEqual(path, "/api/stock/bookings/2/undo")
+        self.assertIn("2026-10-01", run(self.t.undo_last_purchase("bread")))  # the next one down, not the undone #3
+        self.assertIn("nothing to undo", run(self.t.undo_last_purchase("milk", True)))
+
+    # --- record_receipt: the model copies lines, the code does the bookkeeping
+
+    RECEIPT = "\n".join([
+        "E 1111111 TEST MANGO 8.99 A",
+        "5555555 **TEST LOAF** 12.00",
+        "0000000001 / 5555555 2.50-",
+        "6666666 TEST GAME 59.99 A",
+        "0000000002 / 6666666 5.00-",
+        "7777777 TEST CHEESE 6.49",
+        "8888888 TEST MILK 4.00",
+        "0000000003 1.00-",
+    ])
+
+    def receipt(self, **kw):
+        args = dict(store="Store A", date=US_DAY, lines=self.RECEIPT, items_sold=5, skip="6666666",
+                    matches="5555555=Test bread; 6666666=Test cheese, blueberry; 7777777=Test cheese, herby; 8888888=Test milk")
+        args.update(kw)
+        return run(self.t.record_receipt(**args))
+
+    def purchases(self):
+        return [(int(c[1].split("/")[4]), c[2].get("price"), c[2].get("purchased_date"), c[2].get("shopping_location_id"))
+                for c in self.g.posts("/stock/products/")]
+
+    def test_receipt_preview_applies_discounts_and_writes_nothing(self):
+        out = self.receipt()
+        self.assertIn(f"Receipt: Store A, {DAY}. Item lines read: 5 (Items Sold printed: 5).", out)
+        self.assertIn("1. 1111111 TEST MANGO -> Test mangoes, 1, 8.99\n", out)
+        self.assertIn("2. 5555555 TEST LOAF -> Test bread, 1, 9.50 (after a 2.50 discount)", out)
+        self.assertIn("3. 7777777 TEST CHEESE -> Test cheese, herby, 1, 6.49", out)
+        self.assertIn("4. 8888888 TEST MILK -> Test milk, 1, 3.00 (after a 1.00 discount)", out)  # unnamed: the line above
+        self.assertIn("Skipped: 6666666 TEST GAME", out)
+        self.assertIn("Total paid for these 4: 27.98", out)
+        self.assertTrue(out.endswith("Nothing written yet. Show this list to the user and wait for OK."), out)
+        self.assertEqual(self.g.posts(), [])
+
+    def test_receipt_skip_by_text_drops_the_line_and_its_discount(self):
+        out = self.receipt(skip="game, loaf")
+        self.assertIn("Skipped: 5555555 TEST LOAF; 6666666 TEST GAME", out)
+        self.assertIn("Total paid for these 3: 18.48", out)
+
+    def test_receipt_discount_named_out_of_order(self):
+        lines = "5555555 TEST LOAF 12.00\n7777777 TEST CHEESE 6.49\n0000000001 / 5555555 2.50-"
+        out = self.receipt(lines=lines, items_sold=0, skip="")
+        self.assertIn("TEST LOAF -> Test bread, 1, 9.50 (after a 2.50 discount)", out)
+        self.assertIn("TEST CHEESE -> Test cheese, herby, 1, 6.49\n", out)
+
+    def test_receipt_bad_discounts_are_errors(self):
+        self.assertIn("has no item line above it", self.receipt(lines="0000000001 2.50-\n1111111 TEST MANGO 8.99", confirm=True))
+        self.assertIn("names item 9999999", self.receipt(lines="1111111 TEST MANGO 8.99\n0000000001 / 9999999 2.50-", confirm=True))
+        self.assertIn("more than its price", self.receipt(lines="1111111 TEST MANGO 1.99\n0000000001 / 1111111 2.50-", confirm=True))
+        self.assertIn("cannot read the receipt line 'TEST MANGO 8.99'", self.receipt(lines="TEST MANGO 8.99", confirm=True))
+        self.assertEqual(self.g.posts(), [])
+
+    def test_receipt_unknown_line_blocks_confirm(self):
+        out = self.receipt(matches="5555555=Test bread; 7777777=Test cheese, herby", confirm=True)
+        self.assertIn("4. 8888888 TEST MILK -> UNKNOWN: ask the user which product", out)
+        self.assertIn("1 line(s) unknown", out)
+        self.assertTrue(out.endswith("Nothing written yet."), out)
+        self.assertEqual(self.g.posts(), [])
+
+    def test_receipt_counts_that_differ_are_flagged(self):
+        self.assertIn("THE COUNTS DIFFER", self.receipt(items_sold=6))
+
+    def test_receipt_confirm_records_net_prices_and_saves_only_new_codes(self):
+        out = self.receipt(confirm=True)
+        self.assertTrue(out.startswith(f"Recorded 4 purchase(s) at Store A dated {DAY}:"), out)
+        self.assertEqual(self.purchases(), [(10, 8.99, DAY, 1), (11, 9.5, DAY, 1), (12, 6.49, DAY, 1), (14, 3.0, DAY, 1)])
+        saved = sorted((c[2]["barcode"], c[2]["product_id"], c[2]["shopping_location_id"]) for c in self.g.posts("/objects/product_barcodes"))
+        self.assertEqual(saved, [("5555555", 11, 1), ("7777777", 12, 1), ("8888888", 14, 1)])  # not the known 1111111, not the skipped game
+        self.assertIn("- 5555555: Test bread", run(self.t.find_by_receipt_code("5555555", "Store A")))
+
+    def test_receipt_second_ok_writes_nothing_twice(self):
+        self.receipt(confirm=True)
+        before = len(self.g.posts())
+        out = self.receipt(confirm=True)
+        self.assertEqual(len(self.g.posts()), before, out)
+        self.assertIn("Recorded 0 purchase(s)", out)
+        self.assertIn("Already recorded, so not written again: Test mangoes, Test bread, Test cheese, herby, Test milk.", out)
+
+    def test_receipt_two_identical_lines_are_two_purchases(self):
+        lines = "1111111 TEST MANGO 8.99\n1111111 TEST MANGO 8.99"
+        self.receipt(lines=lines, items_sold=2, skip="", matches="", confirm=True)
+        self.assertEqual(len(self.purchases()), 2)
+        self.receipt(lines=lines, items_sold=2, skip="", matches="", confirm=True)
+        self.assertEqual(len(self.purchases()), 2)
+
+    def test_receipt_will_not_resave_a_code_to_another_product(self):
+        out = self.receipt(matches="1111111=Test bread", confirm=True)
+        self.assertIn("already saved as Test mangoes", out)
+        self.assertEqual(self.g.posts(), [])
+
+    def test_receipt_date_as_printed_or_iso_and_guarded(self):
+        self.assertIn(f"Receipt: Store A, {DAY}.", self.receipt(date=DAY))
+        self.assertIn("looks wrong", self.receipt(date="08/11/2025"))
+        self.assertIn("is not a date", self.receipt(date="13/45/2026"))
 
 
 if __name__ == "__main__":
