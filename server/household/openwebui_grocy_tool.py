@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.2.0
+version: 0.2.1
 description: Read and change the household's Grocy: products, stock, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -95,7 +95,7 @@ class Tools:
         return {int(s["product_id"]): float(s["amount"]) for s in (self._call("GET", "/stock") or [])}
 
     def _codes(self, store_id):
-        """Receipt item numbers saved for one store: {code: product id}. Codes are per store (Costco's 1767102 is
+        """Receipt item numbers saved for one store: {code: product id}. Codes are per store (Costco's 1234567 is
         not another store's), so one saved without a store does not count."""
         return {str(b["barcode"]).strip(): int(b["product_id"]) for b in self._objects("product_barcodes")
                 if b.get("shopping_location_id") not in (None, "") and int(b["shopping_location_id"]) == store_id}
@@ -244,7 +244,7 @@ class Tools:
     async def find_by_receipt_code(self, codes: str, store: str) -> str:
         """
         Look up receipt item numbers (the number printed before each item on a receipt) to find which products they are. A number is known only once it has been saved with save_receipt_code.
-        :param codes: one or more item numbers, separated by commas, e.g. "1767102, 512599"
+        :param codes: one or more item numbers, separated by commas, e.g. "1234567, 7654321"
         :param store: the store the receipt is from, e.g. "Costco"
         """
         def go():
@@ -265,7 +265,7 @@ class Tools:
         """
         Remember that a receipt item number at a store is this product, so the next receipt matches it without asking. Use only after the user has confirmed the match.
         :param product: the product's name
-        :param code: the item number printed on the receipt, e.g. "1767102"
+        :param code: the item number printed on the receipt, e.g. "1234567"
         :param store: the store the receipt is from, e.g. "Costco"
         """
         def go():
