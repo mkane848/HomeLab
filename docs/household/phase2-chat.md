@@ -94,22 +94,36 @@ Photograph a receipt, and the chat records what was bought: the date, the store,
      seat, which the desktop never has.
    - It uses 8.9 GB of VRAM loaded, so it does **not** fit beside `qwen3:8b` (7.5 GB) on the 16 GB card. It replaces
      `qwen3:8b` as the Household model.
-2. **Item numbers are matched:** `find_by_receipt_code` looks the item numbers up. Each is saved as a Grocy product
-   barcode, tied to the store, the first time the user confirms a match (`save_receipt_code`). From then on that
-   line matches exactly.
-3. **Nothing is written before the user's OK.** The chat first shows one list: each line, its matched product or
-   "unknown", the quantity and the price; how many item lines it read against the receipt's printed "Items Sold";
-   and the date.
-4. **Then it records each purchase.** `record_purchase` takes the receipt's date (Grocy keeps a past purchase date:
-   checked live, 2026-11-09), the store, the price per unit (the total ÷ quantity) and the place it was put away.
+2. **The model only copies; `record_receipt` does the bookkeeping** (tool 0.3.0).
+   - **What the model sends:** every item line and discount line exactly as printed, the date as printed, the
+     "Items Sold" count, and the lines to skip.
+   - **What the code does:**
+     - matches item numbers against the ones saved for that store;
+     - takes each discount line off the item it names (`/ 1234567`), or else off the line above;
+     - drops skipped lines together with their discounts;
+     - reads `MM/DD/YYYY` as a US date;
+     - adds up the total;
+     - compares the lines read with "Items Sold".
+   - **Why:** in the first live run the model did this arithmetic itself, and got it wrong (below).
+3. **Item numbers are learned.** Unknown lines come back as UNKNOWN. The user names the products, and the chat calls
+   again with `matches`. After the OK, those numbers are saved as Grocy product barcodes tied to the store, so the next
+   receipt matches them directly. A saved number is never reassigned.
+4. **Nothing is written before the user's OK.** Without `confirm`, the tool only returns the list. With `confirm`, it
+   refuses while any line is unknown, then records each line: the receipt's date, the store and the price paid.
+   A line already in Grocy (the same product, date, store and price) is not written again, so a second OK is harmless.
+5. **Questions and corrections:**
+   - `last_purchases` answers "when and where did I last buy X" from Grocy's stock log.
+   - There is no edit. `undo_last_purchase` shows the purchase it would undo, and undoes it only with `confirm`;
+     the chat then records it again.
+   - A purchase date in the future, or more than 60 days back, is refused.
+   - A plural ("yogurts") falls back to the singular.
 
 **How to photograph it: upright, flat and whole.**
 
 **How well it reads (2026-11-09):** one real 13-item Costco receipt, read 4 times per photo with the current prompt.
-The reference is Claude's transcript; its prices add up to the printed subtotal and tax, and the owner's check
-against the paper is pending. One item number is disputed: the model reads it the same way every time, differently
-from the reference. It is counted as a miss until the paper settles it. The receipt and its transcript stay outside
-the repo.
+The reference is Claude's transcript; its prices add up to the printed subtotal and tax. The owner checked it
+against the paper and corrected one item number: the model had read it the same way every time, and the model was
+right, so the reference had been wrong. The receipt and its transcript stay outside the repo.
 
 | Photo | Item lines found | Prices right, of lines found | Date |
 |---|---|---|---|
@@ -132,4 +146,26 @@ the repo.
    - save.
 
 ## Status
-*(dated notes go here)*
+- **2026-11-09, the first live receipt** (tool 0.2.1, `qwen3-vl:8b`, the upright photo).
+  - **The receipt:** 13 item lines and 2 discount lines; 3 lines skipped on the owner's word.
+  - **The result:** 11 purchases recorded and checked in Grocy: date, store, price net of discount, location.
+    11 item numbers saved and checked.
+  - **Reading was right:** every item number and price, and the item count.
+  - **The bookkeeping took 4 corrections from the owner:**
+    - the discount lines listed as items;
+    - a skipped line kept;
+    - a discount put on the line below its item;
+    - the item numbers not saved until asked again.
+
+  The model also claimed to have "updated its instructions", which it cannot do. That run is why tool 0.3.0 moves the
+  bookkeeping into `record_receipt`.
+- **2026-11-09, a second chat, questions** (tool 0.2.1).
+  - **"When and where did I last buy X?":** the model answered from the product's usual store, and said Grocy keeps no
+    purchase dates. It does.
+  - **"Update that purchase":** with no edit tool, it recorded a second purchase with an invented date and did not say
+    so. The owner undoes it in Grocy.
+  - **A plural:** it found no product.
+
+  0.3.0 adds `last_purchases`, `undo_last_purchase`, the date guard and the plural fallback.
+- **Model choice:** stays `qwen3-vl:8b` for now (owner, 2026-11-09). It is reconsidered only if the next receipt still
+  fails with 0.3.0.
