@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: the Grocy tool's examples use made-up item numbers (2026-11-09; tool 0.2.1).** The docstrings of 0.2.0
+  used two real item numbers from the owner's receipt as examples. They are now 1234567 and 7654321, so no household
+  data is in the tree. Only the text changed; the 28 tests pass unchanged. #229 was merged with a merge commit, so its
+  first commit's receipt figures (the subtotal, the tax and one item number) stay in `main`'s history. Removing them
+  would need a force-push to `main`, and that is the owner's call.
+
 - **feat: household receipts, so a photo becomes dated purchases (2026-11-09, the owner's first feature wish).**
   - **The vision seat:** `qwen3-vl:8b` (Qwen's own Qwen3-VL-8B GGUF plus its vision projector, sha256-pinned) in
     `server/llamacpp/models.ini`. It is the new seat source `import-server`, a GGUF only the server serves.
