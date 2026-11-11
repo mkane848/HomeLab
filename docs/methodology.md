@@ -92,6 +92,12 @@ Size the runs to the question before running them, not by habit (owner, 2026-10-
 | 70% against 84% (North against `qwen3.6`) | about 141 |
 | A false-positive rate is under 10%, if none is wrong | 35 accepted attempts (the "rule of three" gives 30) |
 
+**These counts assume every run is independent, and ours are not** (added 2026-11-11). Runs of one task are correlated, so the
+true numbers are larger, and by an amount this repo has not measured. Standard errors clustered on the unit that was sampled (here,
+the task) "can be over three times as large as naive standard errors" on popular evals
+([Anthropic, "A statistical approach to model evaluations"](https://www.anthropic.com/research/statistical-approach-to-model-evals)).
+More runs of the same 16 tasks tighten each task's own rate and nothing else: a question about models in general needs more tasks.
+
 What follows from the table:
 - **Small differences between models are not worth buying with runs.** 141 runs a model is more than a night's
   window for `qwen3.6` alone, and about four nights for a model as slow as North (30 runs filled one). A model has to win by a lot, or on speed or cost, to be decided here.

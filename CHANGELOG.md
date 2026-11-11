@@ -26,6 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Tests:** 3 new; 48 OK. Mutation-checked six ways, each failing a test, restored byte-identical.
   - **Still a model problem:** a guard stops wrong writes; it cannot make the chat follow "skip the book". The model
     question is back with the owner (the 2026-11-09 plan: reconsider if 0.3 still fails).
+- **docs: the quick fixes from the 2026-11-09 audit (2026-11-11).** A read-only audit (Haiku subagents, each finding checked against
+  the source) found pages that still read as current and were not. No script, config or guard changes.
+  - **Stale pages brought up to date:** the roadmap's north-star stages (they said the server "hasn't POSTed");
+    `network-topology.md` (llama.cpp on 8090, the server's Ollama stopped, neither with an API key); `opencode/README.md` (the
+    registered models, and an open item naming Go defaults the template no longer has); `model-architecture.md` (four profiles
+    that are in `profiles/parked/`); `vscode.md` (its seats are 2026-09-27's).
+  - **Method:** the runs-needed table assumes independent runs, and ours cluster by task, so its counts are a lower bound
+    (`methodology.md`; new source `anthropic-eval-stats`). The 2026-09-30 standings read a pooled Fisher p of 0.051 as a
+    lead; `methodology-caveats.md` and the 2026-11-07 audit had said no old value claimed a difference. All three now agree.
+  - **Scope:** the household assistant is on the roadmap as the owner's choice, and its plan no longer says "nothing here is
+    installed". "Close the KaneEnabler validator holes" fell out of the lists after 2026-09-23 without a note; it is listed
+    again, and the owner made it one of the pilot's real tasks (2026-11-11).
+  - **Owner's decisions recorded (2026-11-11):** the Grocy default login was replaced; the one receipt a cloud model read
+    is an owner's exception, and the rule stands from here on; the order of work is the small fixes, then the pilot on
+    real work, then containerised runs.
+  - **Onboarding:** `start-here.md` has the first-time steps it skipped (`.env`, the key file, `sync-opencode.ps1`).
+    `CONTRIBUTING.md` says which three guards CI does not run, and that a SKIP counts as OK.
 
 - **feat: `openwebui_push.py` pushes the household tool and prompt into Open WebUI (2026-11-10).**
   - **Why:** the owner pasted the tool by hand three times in one evening (0.3.0, 0.3.1, 0.3.2) and asked for the

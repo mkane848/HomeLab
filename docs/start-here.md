@@ -14,12 +14,21 @@ cd <path-to-HomeLab-checkout>
 
 Then type a request. Step 1 is only needed for the desktop fallback and VS Code.
 
+**First time on this machine** (once; the steps below assume it):
+
+1. PowerShell 7 (`pwsh`), OpenCode, and Ollama for the desktop fallback (`startup.ps1` stops without it).
+2. Copy `.env.example` to `.env` at the repo root and fill in `SERVER_IP` (and the other hosts you have).
+3. Create the key file the config points at, even if it is empty: `~/.config/opencode/.secrets/opencode-go-api-key`. OpenCode
+   will not start while a `{file:...}` reference has no file ([opencode/README.md](../opencode/README.md)).
+4. `.\desktop\scripts\sync-opencode.ps1` stages the config, agents and commands into `~/.config/opencode/`. Step 2b checks it.
+5. The server's llama.cpp stack must be up for the default profile: on the server, `./server/scripts/status.sh`.
+
 ## Steps
 
 | # | Do | Expect | If not |
 |---|---|---|---|
 | 1 | `.\desktop\scripts\startup.ps1` | Prints a "Context contract" table matching `limit.context` in `opencode.jsonc` | `Get-Process ollama`; see [troubleshooting](troubleshooting.md) |
-| 1b | `curl.exe -s http://localhost:11434/api/version` | The running version (desktop pinned to `0.34.3`) | A different version means it auto-updated: re-run `.\tests\test-toolcalls.ps1` before trusting any seat |
+| 1b | `curl.exe -s http://localhost:11434/api/version` | The running version (`0.34.3` is the measured one; `pin-ollama-desktop.ps1` blocks the updater with a firewall rule, which is not a true pin) | A different version means it auto-updated: re-run `.\tests\test-toolcalls.ps1` before trusting any seat |
 | 2 | `.\desktop\scripts\opencode.ps1` | `[opencode] profile=dev-workflow-server-llamacpp OPENCODE_MODEL=llamacpp-server/qwen3.6:35b-a3b-coding` | Check `.env` has `SERVER_IP` |
 | 2b | `opencode debug config` | `"model"` = the profile's model, and a `limit` block on its provider entry | No `limit`: every request fails ([troubleshooting](troubleshooting.md)) |
 | 3 | Ask: `Create a file at docs/_scratch.md containing the single line: it works` | `← Write docs/_scratch.md`, you approve, the file exists. Delete it | File claimed but missing: the model cannot call tools, see [tool-calling.md](tool-calling.md) |

@@ -130,6 +130,7 @@ The agent can do everything here except the steps marked **owner**. Only the doc
    iptables rules, which `ufw` does not filter. The desktop reached 9283 with no rule added (2026-11-08). The
    other side of this: `ufw` does not protect the port either, so never forward it from the router.
 5. Check it from the desktop: open `http://<server>:9283`. The default login is `admin` / `admin`: **change it at once.**
+   Done: the owner confirmed on 2026-11-11 that the default login was replaced (the password is not recorded anywhere in this repo).
 
 **Installed version:** `v4.7.1-ls348` (Grocy 4.7.1), 2026-11-08, by Claude Code on the owner's desktop at the
 owner's go. The tag is in `~/HomeLab/server/docker/.env` (mode 600). Volume `household_grocy_config`; the limits of

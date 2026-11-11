@@ -1,6 +1,6 @@
 # VS Code + local models: BYOK setup
 
-> Setup current as of **2026-09-27** (desktop, RX 6800 XT, Ollama 0.34.3). A peer to the OpenCode fleet ([start-here](start-here.md), [model-architecture](model-architecture.md)), not a replacement. Terms: [glossary](glossary.md).
+> Setup current as of **2026-09-27** (desktop, RX 6800 XT, Ollama 0.34.3). **The seats below are that date's**: the fleet's executor has been `qwen3.6:35b-a3b-coding` since 2026-10-03, not `qwen3:14b` ([reference/workflow.md](reference/workflow.md)). A peer to the OpenCode fleet ([start-here](start-here.md), [model-architecture](model-architecture.md)), not a replacement. Terms: [glossary](glossary.md).
 
 VS Code's BYOK (bring-your-own-key) mechanism treats Ollama's OpenAI-compatible endpoint (`http://127.0.0.1:11434/v1`) as another endpoint; each registered model becomes a picker entry, the role OpenCode's profiles play in the terminal. **Ollama is the only backend** (LM Studio was retired 2026-09-27), so a VS Code run uses the same baked `num_ctx` as OpenCode and the task benchmark.
 

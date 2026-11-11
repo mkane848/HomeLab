@@ -125,6 +125,10 @@ The reference is Claude's transcript; its prices add up to the printed subtotal 
 against the paper and corrected one item number: the model had read it the same way every time, and the model was
 right, so the reference had been wrong. The receipt and its transcript stay outside the repo.
 
+**Owner's exception (recorded 2026-11-11):** the owner allowed the cloud model (Claude) to read this one receipt to
+build the reference. From here on the rule in [household-assistant.md](../household-assistant.md) applies as written:
+no cloud model calls by default.
+
 | Photo | Item lines found | Prices right, of lines found | Date |
 |---|---|---|---|
 | Sideways (as taken) | 10 to 11 of 13; the same two pen-marked lines missed every time | 36 of 37 | wrong every time |

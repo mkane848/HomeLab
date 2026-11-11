@@ -25,8 +25,14 @@ The short list as it stands. The older lists below are kept as the record of how
    sets that do not load and runs with no set; too-strict tests still need review.
 3. **A pilot on real work:** 3 to 5 tasks in the owner's own words, delivered as branches, each with the owner's verdict (`tests/new-real-task.ps1`,
    `tests/deliver-attempt.ps1`, `tests/record-verdict.ps1`). This is what can show the Gate's false-positive rate is under 10%.
+   **One of the tasks is "Close the KaneEnabler validator holes"** (owner, 2026-11-11): item 1 of the 2026-09-23 list below, which
+   fell out of the later lists without a note (found by the 2026-11-09 audit) and is still unchecked under "Hardening".
+   **Order (owner, 2026-11-11):** the audit's small fixes first, then this pilot on today's setup, then containerised runs, which
+   start a new era.
 - **Parked, the owner's call:** server hardware (deferred until testing is done; `docs/hardware.md`), the Qwen Code probes, OpenCode Go, the ratings of
   `large-f1` and `large-f2`, the choice of a larger Stage 2 project.
+- **Outside this list, at the owner's choice:** the household assistant ([household-assistant.md](household-assistant.md)), phases 1 and 2
+  running on the server since 2026-11-08. Its chat shares the server's GPU with the coding seat, so it stays off during a test window.
 
 ## Next up (ordered, as of 2026-10-13): the engine trial, then the run host
 
@@ -1291,6 +1297,10 @@ above is unchanged for the other five seats (N=1).
 | `qwen3.5:9b` | 64k | 13/21 (0.41–0.79) | 4/9 |
 | `qwen3:14b` (default main seat until 2026-10-03) | 32k | 2/13 (0.04–0.42) | 0/7 |
 
+- **Read these p-values with the 2026-11-07 correction** (added 2026-11-11): they are Fisher's exact test on pooled
+  attempts, which overstates the evidence because attempts cluster by task
+  ([methodology.md](methodology.md#how-to-compare-two-arms)). The lead over `qwen3:14b` (14 of 15 against 2 of 13) is large and unlikely to
+  depend on the test; the lead over `qwen3.5` at 0.051 was not shown by this test. No paired test by task has been run on these rows.
 - **The `qwen3.6` lead now holds up.** Against `qwen3.5`: Fisher p = 0.051 over
   all tasks, 0.13 on the frontier cells alone. Against `qwen3:14b`: p = 0.0001
   and 0.0014. The step-6 table's 8/9 against 7/9 could not separate the top two;
@@ -1392,19 +1402,20 @@ The profile selects which models run where, OpenCode pins the main seat, and
 
 Progress gates by hardware, not by preference:
 
-1. **Personal PC (this desktop, RX 6800 XT)** — doing this *today*.
-   `dev-workflow-quality` seats `qwen3:14b` (2026-09-17) as the tool-capable
-   main seat, the first seat that is both a real conversational agent and a
-   coder. Nothing below needs the server.
-2. **Ubuntu server (RTX 4070 Ti Super)** — unblocked once it POSTs; the
-   profile stream (`profiles/parked/`) is already in place. Server becomes the
-   heavyweight node (server-side `qwen3`, reasoners, embeddings) so the desktop
-   can stay a conversational seat.
-3. **Third node (RTX 3080 FE)** — **live as of 2026-09-20**, ahead of the
-   server (stage 2), which still hasn't POSTed. `qwen3:8b` is a measured,
-   tool-capable agent seat on this host; see "Onboarding the third node"
-   below. Progress here gated by hardware, not by the plan's original
-   ordering — node3 came up first.
+1. **Personal PC (this desktop, RX 6800 XT)** — the first seat (`qwen3:14b`,
+   2026-09-17). Today it is the OpenCode client and the fallback model host:
+   `dev-workflow-quality` seats `qwen3.6:35b-a3b-coding` here when the server
+   is down or in a trial window.
+2. **Ubuntu server (RTX 4070 Ti Super)** — back 2026-10-11/12 and the main
+   seat since 2026-10-13: `qwen3.6:35b-a3b-coding`, on llama.cpp since
+   2026-10-22 (the default profile, `dev-workflow-server-llamacpp`).
+3. **Third node (RTX 3080 FE)** — live 2026-09-20, ahead of the server.
+   `qwen3:8b` is its measured agent seat (see "Onboarding the third node"
+   below); it is the harness run host since 2026-10-21 and a second `qwen3.6`
+   seat on demand.
+
+(Stages rewritten 2026-11-11: the list had still said the server "hasn't
+POSTed". The order the hardware arrived in was desktop, node3, server.)
 
 Each node joins by taking a profile, not by re-learning the workflow. The end
 state is a pool: a loose prompt, and whichever hardware is up and fastest

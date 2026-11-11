@@ -675,7 +675,7 @@ marks a run's last step only (11), and the 12 quoted is runs with any step at th
 
 | What was written | What is right |
 |---|---|
-| Fisher's exact test on pooled runs, for prompts and planners | The wrong test: runs cluster by task, as the 2026-10-23 review had already said, and these comparisons are paired. See the table below. The older Fisher values in `roadmap.md` have the same flaw, but all are "not shown", so no conclusion changes |
+| Fisher's exact test on pooled runs, for prompts and planners | The wrong test: runs cluster by task, as the 2026-10-23 review had already said, and these comparisons are paired. See the table below. The older Fisher values in `roadmap.md` have the same flaw. Most are "not shown"; two were read as leads in the 2026-09-30 standings, and a note there now says so (corrected 2026-11-11: this row had said all were "not shown") |
 | "The work got thinner", local against Opus on Ideal | The owner's own fix scores 5 of 16 (31%) on that list. Local-gated work is near what was shipped; Opus-gated work goes well past it |
 | "A demanding Gate is what makes the executor do more" | Not shown. It may be true, but Opus wrote both that Gate and the Ideal measure, so shared wording could explain part of the 84% |
 | The `/delete` claim was the model's failure | The owner's own policy says "Removed immediately upon your request" too, and it fails G3.2. The code only sets a status (`src/services/listings.ts`) |

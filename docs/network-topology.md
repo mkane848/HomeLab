@@ -24,10 +24,10 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 │  ┌─────────────────────┐          ┌─────────────────────┐           │
 │  │   WINDOWS DESKTOP   │          │   UBUNTU SERVER     │           │
 │  │   WezTerm ──────────┼──SSH────>│   (model host)      │           │
-│  │                     │          │   Qwen Coder 7B/14B │           │
-│  │   DeepSeek-R1 14B   │<─────┼──>│   DeepSeek-R1 14B   │           │
-│  │   (native Vulkan)   │ :11434   │   (Docker) 0.0.0.0  │           │
-│  │   :11434            │          │   :11434            │           │
+│  │   OpenCode client   │          │   llama.cpp :8090   │           │
+│  │   Ollama, fallback  │<─────┼──>│   main seat qwen3.6 │           │
+│  │   (native Vulkan)   │          │   (Docker) 0.0.0.0  │           │
+│  │   :11434            │          │   Ollama :11434 off │           │
 │  └─────────────────────┘          └─────────────────────┘           │
 │          │                                │                          │
 │          │         ┌──────────────┐       │        ┌──────────────┐  │
@@ -42,17 +42,19 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 
 | Service | Port | Protocol | Bound To | Notes |
 |---------|------|----------|----------|-------|
-| Server Ollama | 11434 | TCP | 0.0.0.0 | Docker container |
+| Server llama.cpp (`llama-server`) | 8090 | TCP | 0.0.0.0 | Docker container; the engine that starts at boot since 2026-11-01. No API key: any LAN host can use it |
+| Server Ollama | 11434 | TCP | 0.0.0.0 | Docker container, stopped since 2026-11-01 and kept as the rollback engine (`startup.sh --engine ollama`). No API key |
 | Desktop Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | Third-node Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | SSH | 22 | TCP | 0.0.0.0 | Server access |
 | Household tracker (Grocy) | 9283 | TCP | 0.0.0.0 (LAN only, never port-forwarded) | Docker, `household` project ([docs/household/phase1.md](household/phase1.md)) |
 | Household chat (Open WebUI) | 3000 | TCP | 0.0.0.0 (LAN only, never port-forwarded) | Docker, `household` project ([docs/household/phase2-chat.md](household/phase2-chat.md)) |
 
-OpenCode reaches each Ollama node through a per-host provider (`ollama-server`,
-`ollama-desktop`, `ollama-node3`) whose `baseURL` comes from the active profile's
-`OLLAMA_*_BASE_URL` — one provider per machine because a single ollama provider
-can only point at one host.
+OpenCode reaches each engine through a per-host provider (`llamacpp-server`,
+`ollama-server`, `ollama-desktop`, `ollama-node3`) whose `baseURL` comes from the
+active profile's `LLAMACPP_*_BASE_URL` or `OLLAMA_*_BASE_URL` — one provider per
+machine because a single provider can only point at one host. (Diagram and ports
+brought up to the 2026-11-01 engine change on 2026-11-11.)
 
 ## Firewall Rules Needed
 
