@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: household tool 0.3.3 checks the user's OK itself, and counts skipped lines left out (2026-11-10).**
+  - **Why:** the 0.3.2 re-run matched every known line, and applied both discounts correctly. But `qwen3-vl:8b`:
+    - never added the book to `skip`, though the owner asked twice;
+    - called `record_receipt` with `confirm=true` right after "skip the book" (nothing was written: the book was
+      unknown);
+    - misread the result, asking about a line that had matched.
+
+    The count warning was also false: the chat named the game in `skip` but left its line out, so 12 lines were
+    read of 13.
+  - **Change:**
+    - `record_receipt` and `undo_last_purchase` read the chat's last user message (Open WebUI's `__messages__`,
+      hidden from the model). They write only when that message is an OK that asks for nothing else, so "Yes, but
+      skip the milk" writes nothing. Called outside a chat, they behave as before.
+    - A skip naming an item number that is not among the lines counts as a line read.
+    - The count warning is calmer: "ask the user whether a line is missing".
+    - The prompt says skips go in `skip` with their item numbers, including ones the user names later.
+  - **Tests:** 3 new; 48 OK. Mutation-checked six ways, each failing a test, restored byte-identical.
+  - **Still a model problem:** a guard stops wrong writes; it cannot make the chat follow "skip the book". The model
+    question is back with the owner (the 2026-11-09 plan: reconsider if 0.3 still fails).
 - **docs: the quick fixes from the 2026-11-09 audit (2026-11-11).** A read-only audit (Haiku subagents, each finding checked against
   the source) found pages that still read as current and were not. No script, config or guard changes.
   - **Stale pages brought up to date:** the roadmap's north-star stages (they said the server "hasn't POSTed");
