@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.3.0
+version: 0.3.2
 description: Read and change the household's Grocy: products, stock, purchases and receipts, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -30,12 +30,12 @@ class GrocyError(Exception):
     """A problem worth telling the user about, as a plain sentence."""
 
 
-PRICE = re.compile(r"^(-?)\$?(\d+\.\d{2})(-?)$")
+PRICE = re.compile(r"^(-?)\$?(\d+\.\d{2})(-?)[A-Za-z]?$")  # a tax flag may touch the price: 2.50-A (Costco)
 
 
 def parse_receipt(lines):
     """Receipt lines as printed -> item dicts {code, text, price, discount}, in order. A line's first number is its
-    item number and its last number its price; one-letter tax flags after the price and a leading "E" are dropped.
+    item number and its last number its price; one-letter tax flags after the price (apart, or touching it as in 2.50-A) and a leading "E" are dropped.
     A price marked negative (10.00- or -10.00) is a discount: taken off the item it names ("/ 1234567"), else off the
     nearest item line above it. The model only copies lines; this does the arithmetic (2026-11-09: the chat put a
     discount on the wrong line and kept discount lines as items)."""
@@ -51,13 +51,19 @@ def parse_receipt(lines):
         m = PRICE.match(t[-1]) if t else None
         if len(t) < 2 or not t[0].isdigit() or not m:
             raise GrocyError(f"cannot read the receipt line '{raw.strip()}': expected an item number first and a price "
-                             "last, as printed")
+                             "last, as printed. Do not skip or change the line yourself: show it to the user and ask")
         amount = float(m.group(2))
         text = " ".join(t[1:-1])
         if m.group(1) or m.group(3):
             ref = re.search(r"/\s*(\d+)", text)
             if ref:
-                hits = [i for i in items if i["code"].lstrip("0") == ref.group(1).lstrip("0")]
+                want = ref.group(1).lstrip("0")
+                hits = [i for i in items if i["code"].lstrip("0") == want]
+                if not hits and len(want) >= 5:
+                    # A digit lost reading the photo ("/1234567" read as "/ 234567", 2026-11-10): accept the one
+                    # item above whose number ends with it. Two such items is ambiguous and stays an error.
+                    ends = [i for i in items if i["code"].lstrip("0").endswith(want)]
+                    hits = ends if len(ends) == 1 else []
                 if not hits:
                     raise GrocyError(f"the discount line '{raw.strip()}' names item {ref.group(1)}, which is not above it")
                 target = hits[-1]
