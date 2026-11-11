@@ -437,12 +437,22 @@ class ToolTest(unittest.TestCase):
         self.assertIn("TEST CHEESE -> Test cheese, herby, 1, 6.49\n", out)
 
     def test_receipt_tax_flag_touching_the_price(self):
-        # 2026-11-10: Costco prints a discount as "10.00-A"; 0.3.0 could not read it and the chat offered to skip it.
+        # 2026-11-10: Costco prints a discount as "2.50-A"; 0.3.0 could not read it and the chat offered to skip it.
         lines = "5555555 TEST LOAF 12.00A\n0000000001 / 5555555 2.50-A\n8888888 TEST MILK 4.00\n0000000003 -1.00N"
         out = self.receipt(lines=lines, items_sold=2, skip="")
         self.assertIn("TEST LOAF -> Test bread, 1, 9.50 (after a 2.50 discount)", out)
         self.assertIn("TEST MILK -> Test milk, 1, 3.00 (after a 1.00 discount)", out)
         self.assertIn("cannot read the receipt line", self.receipt(lines="5555555 TEST LOAF 12.00AB", skip=""))
+
+    def test_receipt_discount_with_a_lost_leading_digit(self):
+        # 2026-11-10: the chat dropped the first digit of the item a discount names; the one item above ending in those digits takes it.
+        lines = "5555555 TEST LOAF 12.00\n7777777 TEST CHEESE 6.49\n0000000001 / 555555 2.50-"
+        out = self.receipt(lines=lines, items_sold=0, skip="")
+        self.assertIn("TEST LOAF -> Test bread, 1, 9.50 (after a 2.50 discount)", out)
+        two = "1555555 TEST LOAF 12.00\n2555555 TEST CHEESE 6.49\n0000000001 / 555555 2.50-"
+        self.assertIn("names item 555555", self.receipt(lines=two, items_sold=0, skip=""))  # two candidates
+        short = "5555555 TEST LOAF 12.00\n0000000001 / 5555 2.50-"
+        self.assertIn("names item 5555", self.receipt(lines=short, items_sold=0, skip=""))  # too short to trust
 
     def test_receipt_bad_discounts_are_errors(self):
         self.assertIn("has no item line above it", self.receipt(lines="0000000001 2.50-\n1111111 TEST MANGO 8.99", confirm=True))
