@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the quick fixes from the 2026-11-09 audit (2026-11-11).** A read-only audit (Haiku subagents, each finding checked against
+  the source) found pages that still read as current and were not. No script, config or guard changes.
+  - **Stale pages brought up to date:** the roadmap's north-star stages (they said the server "hasn't POSTed");
+    `network-topology.md` (llama.cpp on 8090, the server's Ollama stopped, neither with an API key); `opencode/README.md` (the
+    registered models, and an open item naming Go defaults the template no longer has); `model-architecture.md` (four profiles
+    that are in `profiles/parked/`); `vscode.md` (its seats are 2026-09-27's).
+  - **Method:** the runs-needed table assumes independent runs, and ours cluster by task, so its counts are a lower bound
+    (`methodology.md`; new source `anthropic-eval-stats`). The 2026-09-30 standings read a pooled Fisher p of 0.051 as a
+    lead; `methodology-caveats.md` and the 2026-11-07 audit had said no old value claimed a difference. All three now agree.
+  - **Scope:** the household assistant is on the roadmap as the owner's choice, and its plan no longer says "nothing here is
+    installed". "Close the KaneEnabler validator holes" fell out of the lists after 2026-09-23 without a note; it is listed
+    again for the owner's call.
+  - **Onboarding:** `start-here.md` has the first-time steps it skipped (`.env`, the key file, `sync-opencode.ps1`).
+    `CONTRIBUTING.md` says which three guards CI does not run, and that a SKIP counts as OK.
+
 - **feat: `openwebui_push.py` pushes the household tool and prompt into Open WebUI (2026-11-10).**
   - **Why:** the owner pasted the tool by hand three times in one evening (0.3.0, 0.3.1, 0.3.2) and asked for the
     agent to do it.

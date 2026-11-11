@@ -121,11 +121,13 @@ Use profiles to select which tiers are active (see `docs/profiles.md`):
 
 ```bash
 bash profiles/select-model.sh          # menu-driven
-source profiles/dev-server-all.sh      # coder + reasoner on the server
-source profiles/dev-local-only.sh      # Qwen server + DeepSeek desktop, zero cloud
-source profiles/dev-embeddings.sh      # autocomplete + embeddings for search work
-source profiles/dev-go-only.sh         # Qwen + OpenCode Go for cloud testing
+source profiles/parked/dev-server-all.sh      # coder + reasoner on the server
+source profiles/parked/dev-local-only.sh      # Qwen server + DeepSeek desktop, zero cloud
+source profiles/parked/dev-embeddings.sh      # autocomplete + embeddings for search work
+source profiles/parked/dev-go-only.sh         # Qwen + OpenCode Go for cloud testing
 ```
+
+These four are parked (`profiles/parked/README.md`); the live profiles are in [profiles.md](profiles.md).
 
 The active profile sets environment variables that the startup scripts and
 OpenCode config use to determine which models are available. OpenCode model IDs

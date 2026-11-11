@@ -10,7 +10,7 @@ How far the benchmark's numbers can be trusted, in one page. The method, today's
 | Compare only within one **era** | Engine, plugins, classifier, checkout and shell changed mid-corpus ([tests/results/README.md](../tests/results/README.md) → "Era confound") |
 | Prefer "passes every time" (pass^k) over per-run rates for unattended work | Runs of one task are correlated |
 | Do not quote p-values in headline docs | Tests were run after looking at the data and are not corrected for multiple comparisons; they stay in the dated logs |
-| Pair by task; do not pool runs | Runs cluster by task, so a test on pooled totals overstates the evidence ([methodology.md](methodology.md#how-to-compare-two-arms)). Older logged values have that flaw; none of them claimed a difference |
+| Pair by task; do not pool runs | Runs cluster by task, so a test on pooled totals overstates the evidence ([methodology.md](methodology.md#how-to-compare-two-arms)). Older logged values have that flaw. Two were read as leads (`qwen3.6` over `qwen3.5` at p = 0.051 and over `qwen3:14b` at p = 0.0001, [roadmap.md](roadmap.md#executor-standings-after-the-n1-protocol-2026-09-30)); the first is not shown by that test (corrected 2026-11-11: this row had said none claimed a difference) |
 | Ask what the owner's own fix scores | The owner's real fix does 31% of the Ideal list, so 24% is near shipped work, not far below it |
 | A probe PASS is not a seat | See [tool-calling.md](tool-calling.md) |
 

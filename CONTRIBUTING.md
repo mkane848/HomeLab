@@ -56,8 +56,11 @@ PR's "Verification" section rather than asserting success:
 - Tool-calling: `.\tests\test-toolcalls.ps1` before trusting any model in a
   seat that reads/edits/runs. `PASS` is one row — the whole probe exits 1 if
   anything fails, and that is expected.
-- Guards: `.\tests\run-guards.ps1` runs every regression guard. CI runs the
-  same set on Windows for each pull request.
+- Guards: `.\tests\run-guards.ps1` runs every regression guard except the three
+  that need live hosts (`test-profiles`, `test-tasks`, `test-toolcalls`; run
+  those on the desktop). CI runs the same set on Windows for each pull request.
+  A guard that prints SKIP still counts as OK in the table, so read the output
+  of the guard you changed.
 - PowerShell syntax: see [AGENTS.md](AGENTS.md)
   `[System.Management.Automation.Language.Parser]::ParseFile(...)`.
 - Bash syntax: `bash -n` (Git bash on Windows).

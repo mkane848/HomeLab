@@ -1,7 +1,8 @@
 # Household assistant: plan
 
 A planning doc, written 2026-11-07 at the owner's request. It covers a private, self-hosted assistant for the owner
-and their wife, about the business of running the house. **Nothing here is installed or scheduled.** It stays
+and their wife, about the business of running the house. **Status (2026-11-11): phases 1 and 2 are installed on the server** (Grocy and the chat, both since 2026-11-08; runbooks
+[phase1](household/phase1.md), [phase2-chat](household/phase2-chat.md)); the rest is still a plan. It stays
 non-technical on purpose: what the thing must do, the shape that does it, what already exists, and how a proof of
 concept on the existing fleet decides what hardware (if any) to buy. Project facts were read from each project's own
 page on 2026-11-07 (sources in [references.md](references.md) → "Household assistant"). Re-read them before any
