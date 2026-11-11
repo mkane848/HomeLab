@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.3.2
+version: 0.3.3
 description: Read and change the household's Grocy: products, stock, purchases and receipts, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -31,6 +31,23 @@ class GrocyError(Exception):
 
 
 PRICE = re.compile(r"^(-?)\$?(\d+\.\d{2})(-?)[A-Za-z]?$")  # a tax flag may touch the price: 2.50-A (Costco)
+
+# Whether the user's last message is an OK. 2026-11-10: the chat called record_receipt with confirm=true right after the
+# user said "skip the book", twice. Open WebUI passes the chat to a tool as __messages__, so the tool checks for itself.
+APPROVE = re.compile(r"\b(ok|okay|yes|yep|yeah|confirm|confirmed|approve|approved|go ahead|looks good|sounds good"
+                     r"|correct|record it|record them|do it)\b", re.I)
+HOLD = re.compile(r"\b(no|not|don'?t|wait|skip|wrong|change|instead|but|missing|except|stop)\b", re.I)
+
+
+def user_said_ok(messages):
+    """True when the last user message approves and asks for nothing else. None means no chat (called directly)."""
+    if messages is None:
+        return True
+    last = next((m for m in reversed(messages) if isinstance(m, dict) and m.get("role") == "user"), None)
+    text = (last or {}).get("content") or ""
+    if isinstance(text, list):
+        text = " ".join(p.get("text", "") for p in text if isinstance(p, dict))
+    return bool(APPROVE.search(text)) and not HOLD.search(text)
 
 
 def parse_receipt(lines):
@@ -354,7 +371,7 @@ class Tools:
                     + "\n".join(f"- {self._describe(r, stores, locs)}" for r in shown))
         return self._run(go)
 
-    async def undo_last_purchase(self, product: str, confirm: bool = False) -> str:
+    async def undo_last_purchase(self, product: str, confirm: bool = False, __messages__: list = None) -> str:
         """
         Undo the most recently recorded purchase of a product, to correct a mistake. There is no edit: to fix a purchase, undo it and record it again. First call without confirm to see which purchase it would undo, tell the user, and call again with confirm=true only after they say OK.
         :param product: the product's name
@@ -367,8 +384,10 @@ class Tools:
                 return f"No purchase of {p['name']} is recorded, so there is nothing to undo."
             r = rows[0]
             what = f"{p['name']} {self._describe(r, self._names('shopping_locations'), self._names('locations'))}"
-            if not confirm:
-                return f"This would undo: {what}. Nothing changed yet; ask the user, and call again with confirm=true after OK."
+            if not confirm or not user_said_ok(__messages__):
+                held = "" if not confirm else " The user's last message is not an OK, so nothing was undone."
+                return (f"This would undo: {what}. Nothing changed yet;{held} ask the user, and call again with "
+                        "confirm=true after OK.")
             self._call("POST", f"/stock/bookings/{int(r['id'])}/undo")
             return f"Undid: {what}."
         return self._run(go)
@@ -418,7 +437,7 @@ class Tools:
         return self._run(go)
 
     async def record_receipt(self, store: str, date: str, lines: str, items_sold: int = 0, skip: str = "",
-                             matches: str = "", confirm: bool = False) -> str:
+                             matches: str = "", confirm: bool = False, __messages__: list = None) -> str:
         """
         Record a receipt. Copy every item line and every discount line exactly as printed, one per line; this tool matches the item numbers, applies each discount to its item, leaves out skipped lines and adds up the total. Without confirm it only shows the list: show that list to the user unchanged. Call again with confirm=true only after the user says OK.
         :param store: the store the receipt is from, e.g. "Costco"
@@ -433,9 +452,16 @@ class Tools:
             s = self._resolve("shopping_locations", store, "store")
             day = self._date(date)
             items = parse_receipt(lines)
-            words = [w.strip().lower() for w in skip.split(",") if w.strip()]
-            skipped = [i for i in items if any(w.lstrip("0") == i["code"].lstrip("0") or (not w.isdigit() and w in i["text"].lower())
-                                              for w in words)]
+            # A skip is an item number, words of the line, or both ("1234567 GAME"). One naming an item number that
+            # is not among the lines (the chat left the line out) still counts as a line read, against Items Sold.
+            def hit(w, i):
+                code, _, words = w.partition(" ") if w.split()[0].isdigit() else ("", "", w)
+                if code:
+                    return code.lstrip("0") == i["code"].lstrip("0")
+                return words.strip() in i["text"].lower()
+            wants = [w.strip().lower() for w in skip.split(",") if w.strip()]
+            skipped = [i for i in items if any(hit(w, i) for w in wants)]
+            absent = [w for w in wants if w.split()[0].isdigit() and not any(hit(w, i) for i in items)]
             keep = [i for i in items if i not in skipped]
             known = self._codes(int(s["id"]))
             names = {int(p["id"]): p for p in self._objects("products")}
@@ -461,18 +487,22 @@ class Tools:
                 disc = f" (after a {i['discount']:.2f} discount)" if i["discount"] else ""
                 return f"{n}. {i['code']} {i['text']} -> {prod}, 1, {i['paid']:.2f}{disc}"
 
-            head = f"Receipt: {s['name']}, {day.isoformat()}. Item lines read: {len(items)}"
+            read = len(items) + len(absent)
+            head = f"Receipt: {s['name']}, {day.isoformat()}. Item lines read: {read}"
             head += f" (Items Sold printed: {items_sold})" if int(items_sold or 0) else ""
-            head += "." if int(items_sold or 0) in (0, len(items)) else ". THE COUNTS DIFFER: a line may be missing or extra."
+            head += "." if int(items_sold or 0) in (0, read) else ". The counts differ: ask the user whether a line is missing."
             body = [head] + [row(n, i) for n, i in enumerate(keep, 1)]
-            if skipped:
-                body.append("Skipped: " + "; ".join(f"{i['code']} {i['text']}" for i in skipped))
+            if skipped or absent:
+                body.append("Skipped: " + "; ".join([f"{i['code']} {i['text']}" for i in skipped] + [w.upper() for w in absent]))
             body.append(f"Total paid for these {len(keep)}: {sum(i['paid'] for i in keep):.2f}")
-            if not confirm or unknown:
+            held = confirm and not unknown and not user_said_ok(__messages__)
+            if not confirm or unknown or held:
+                if held:
+                    body.append("Not written: the user's last message is not an OK. Show this list and wait for OK.")
                 if unknown:
                     body.append(f"{len(unknown)} line(s) unknown: ask the user which product each is, then call again "
                                 "with matches.")
-                body.append("Nothing written yet." + ("" if unknown else " Show this list to the user and wait for OK."))
+                body.append("Nothing written yet." + ("" if unknown or held else " Show this list to the user and wait for OK."))
                 return "\n".join(body)
             # The writes. A line already in Grocy (same product, date, store and price, not undone) is not written
             # again, so a second OK records nothing twice; two identical lines on one receipt still count as two.
