@@ -136,7 +136,21 @@ right, so the reference had been wrong. The receipt and its transcript stay outs
   (for example "read 11 of 13").
 - **The tool-call probe** (`tests/test-toolcalls.ps1 -Engine llamacpp`): PASS, 0.3 s.
 
-**After a merge that changes the tool** (owner, in Open WebUI):
+### Updating the tool and prompt
+**Since 2026-11-10 the agent does this** with `server/household/openwebui_push.py`, on the server after `git pull`:
+- `python3 -I server/household/openwebui_push.py` is a dry run: it says whether the tool's code and the Household
+  model's system prompt differ from the repo, and writes nothing. `--apply` writes.
+- It goes through Open WebUI's own API, the calls its editor makes. The tool's Valves (the Grocy key) are kept. Every
+  other model setting (base model, tools, Vision, access) is sent back as Open WebUI returned it, and the script fails
+  if the base model changed.
+- **One-time owner step:** an Open WebUI API key, in a file only the owner can read. The agent never sees it.
+  1. If Settings → Account has no **API keys** section, turn it on first: Admin Panel → Settings → General →
+     **Enable API Keys**.
+  2. Settings → Account → API keys → **Create new secret key**, and copy it.
+  3. On the server: `read -rs k && install -m 600 /dev/null ~/.config/household/openwebui-api-key && printf %s "$k" > ~/.config/household/openwebui-api-key; unset k`
+     and paste the key (nothing shows) and press Enter.
+
+**By hand, if the script cannot run** (owner, in Open WebUI):
 1. Workspace → Tools → the Grocy tool: paste the new `openwebui_grocy_tool.py` over the old one, and save. The Valve
    key stays.
 2. Workspace → Models → Household:

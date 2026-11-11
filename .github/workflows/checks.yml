@@ -61,11 +61,12 @@ jobs:
           # Errors are printed but do not fail the job: the scripts predate this check.
           shellcheck -S error server/scripts/*.sh models/catalog.sh profiles/*.sh || true
 
-      - name: Python unit tests (llamacpp_check, config drift, planner checkpoint, grocy import, chat tool)
+      - name: Python unit tests (llamacpp_check, config drift, planner checkpoint, grocy import, chat tool, chat push)
         run: |
           python3 -m unittest -v tests/test_llamacpp_check.py
           python3 -m unittest -v tests/test_grocy_import.py
           python3 -m unittest -v tests/test_openwebui_grocy_tool.py
+          python3 -m unittest -v tests/test_openwebui_push.py
           python3 -I tests/test_planner_done.py
           python3 -I tests/test_config_drift.py
 
