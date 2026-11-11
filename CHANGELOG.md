@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: `openwebui_push.py` pushes the household tool and prompt into Open WebUI (2026-11-10).**
+  - **Why:** the owner pasted the tool by hand three times in one evening (0.3.0, 0.3.1, 0.3.2) and asked for the
+    agent to do it.
+  - **What:** `server/household/openwebui_push.py` compares the tool's code and the Household model's system prompt
+    with the repo's files. It writes only with `--apply`, and only what differs, through Open WebUI's API. It keeps
+    the tool's Valves and every other model setting, and it fails if the base model changed. The API key is the
+    owner's, in a 600 file, and it is never printed.
+  - **Tests:** `tests/test_openwebui_push.py`, 7 tests against a fake Open WebUI, added to CI. Mutation-checked: dropping
+    access from the update, the base-model check, the up-to-date check or the dry run each makes a test fail.
+  - **Runbook:** `docs/household/phase2-chat.md` → "Updating the tool and prompt", with the one-time key step.
+
 - **fix: household tool 0.3.1 reads a tax flag touching the price, as in `2.50-A` (2026-11-10).**
   - **Why:** the first live 0.3.0 receipt run stopped at a discount line. Costco prints the tax letter straight after
     the price's minus sign, and 0.3.0 dropped a tax letter only when it stood apart. The chat then offered to skip
