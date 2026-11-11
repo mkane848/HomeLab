@@ -37,7 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     lead; `methodology-caveats.md` and the 2026-11-07 audit had said no old value claimed a difference. All three now agree.
   - **Scope:** the household assistant is on the roadmap as the owner's choice, and its plan no longer says "nothing here is
     installed". "Close the KaneEnabler validator holes" fell out of the lists after 2026-09-23 without a note; it is listed
-    again for the owner's call.
+    again, and the owner made it one of the pilot's real tasks (2026-11-11).
+  - **Owner's decisions recorded (2026-11-11):** the Grocy default login was replaced; the one receipt a cloud model read
+    is an owner's exception, and the rule stands from here on; the order of work is the small fixes, then the pilot on
+    real work, then containerised runs.
   - **Onboarding:** `start-here.md` has the first-time steps it skipped (`.env`, the key file, `sync-opencode.ps1`).
     `CONTRIBUTING.md` says which three guards CI does not run, and that a SKIP counts as OK.
 

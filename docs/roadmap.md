@@ -25,13 +25,14 @@ The short list as it stands. The older lists below are kept as the record of how
    sets that do not load and runs with no set; too-strict tests still need review.
 3. **A pilot on real work:** 3 to 5 tasks in the owner's own words, delivered as branches, each with the owner's verdict (`tests/new-real-task.ps1`,
    `tests/deliver-attempt.ps1`, `tests/record-verdict.ps1`). This is what can show the Gate's false-positive rate is under 10%.
+   **One of the tasks is "Close the KaneEnabler validator holes"** (owner, 2026-11-11): item 1 of the 2026-09-23 list below, which
+   fell out of the later lists without a note (found by the 2026-11-09 audit) and is still unchecked under "Hardening".
+   **Order (owner, 2026-11-11):** the audit's small fixes first, then this pilot on today's setup, then containerised runs, which
+   start a new era.
 - **Parked, the owner's call:** server hardware (deferred until testing is done; `docs/hardware.md`), the Qwen Code probes, OpenCode Go, the ratings of
   `large-f1` and `large-f2`, the choice of a larger Stage 2 project.
 - **Outside this list, at the owner's choice:** the household assistant ([household-assistant.md](household-assistant.md)), phases 1 and 2
   running on the server since 2026-11-08. Its chat shares the server's GPU with the coding seat, so it stays off during a test window.
-- **Dropped without a note, found by the 2026-11-09 audit:** "Close the KaneEnabler validator holes", item 1 of the 2026-09-23 list
-  below ("the only open item with real correctness value"), is in no later list and is still unchecked under "Hardening". The owner's
-  call whether it is still wanted.
 
 ## Next up (ordered, as of 2026-10-13): the engine trial, then the run host
 
