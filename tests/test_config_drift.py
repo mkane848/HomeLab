@@ -75,6 +75,12 @@ class Drift(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("[seat-ctx] qwen3:8b", out)
 
+    def test_catalog_context_mismatch(self):
+        self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[catalog-ctx] qwen3:8b", out)
+
     def test_a_server_only_seat_need_not_be_on_the_desktop(self):
         row = "\t".join(["zz-vision:8b", "32768", "-", "-", "sha256:" + "c" * 64, "%s", "test row"]) + "\n"
         with open(os.path.join(self.tmp, "models", "server-seats.tsv"), "a", encoding="utf-8", newline="") as f:

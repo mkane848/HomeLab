@@ -78,6 +78,12 @@ try {
         Remove-Item (Join-Path $dir "digest.test.ts")
         $r = Run @("-Step", "run", "-Id", "lfc-w01", "-PrivateRoot", $priv)
         Check "confirmed but no Gate tests: exit 1, before any run" "$($r.Exit) $(Test-Path (Join-Path $priv 'results/real-work/lfc-w01'))" "1 False"
+        # No address is built in (2026-11-11): with no -ServerUrl, no variable and no SERVER_IP, the run stops and says so.
+        [IO.File]::WriteAllText((Join-Path $dir "digest.test.ts"), "it('G1: x', () => {})`n", $utf8)
+        $noIp = Join-Path $tmp "empty.env"; [IO.File]::WriteAllText($noIp, "SSH_USER=x`n", $utf8)
+        $saved = $env:LLAMACPP_SERVER_BASE_URL; $env:LLAMACPP_SERVER_BASE_URL = $null
+        try { $r = Run @("-Step", "run", "-Id", "lfc-w01", "-PrivateRoot", $priv, "-EnvFile", $noIp) } finally { $env:LLAMACPP_SERVER_BASE_URL = $saved }
+        Check "no server url anywhere: exit 3, saying so, before any run" "$($r.Exit) $([bool]($r.Out -match 'no server url')) $(Test-Path (Join-Path $priv 'results/real-work/lfc-w01'))" "3 True False"
     } else { Write-Host "SKIP the run refusals: no working python" }
     $r = Run @("-Step", "deliver", "-Id", "missing-01", "-PrivateRoot", $priv)
     Check "a task that was never added: exit 3" $r.Exit 3

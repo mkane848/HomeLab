@@ -59,7 +59,8 @@ PR's "Verification" section rather than asserting success:
 - Guards: `.\tests\run-guards.ps1` runs every regression guard except the three
   that need live hosts (`test-profiles`, `test-tasks`, `test-toolcalls`; run
   those on the desktop). CI runs the same set on Windows for each pull request.
-  A guard that prints SKIP still counts as OK in the table, so read the output
+  A guard that left part of itself out (a line starting `SKIP`) shows as
+  `OK+SKIP` in the table, with the count: it is green, so read the output
   of the guard you changed.
 - PowerShell syntax: see [AGENTS.md](AGENTS.md)
   `[System.Management.Automation.Language.Parser]::ParseFile(...)`.

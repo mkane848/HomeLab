@@ -31,7 +31,8 @@ param(
     [string]$Model = "llamacpp-server/qwen3.6:35b-a3b-coding",
     [string]$PlannerModel = "claude-opus-5-5",
     [int]$MaxAttempts = 3,
-    [string]$ServerUrl = "http://192.168.1.198:8090/v1"
+    [string]$ServerUrl = "",     # default: $env:LLAMACPP_SERVER_BASE_URL, else SERVER_IP in -EnvFile (as tests/run-window.ps1)
+    [string]$EnvFile = ""
 )
 $ErrorActionPreference = "Stop"
 $here = $PSScriptRoot
@@ -106,6 +107,13 @@ switch ($Step) {
         $ok = & $py -I (Join-Path $repoRoot "desktop\scripts\planner_done.py") verify (Join-Path $taskDir "1\DONE.md")
         if ($LASTEXITCODE -ne 0) { Fail "DONE.md is not confirmed: $ok" }
         if (-not @(Get-ChildItem -LiteralPath (Join-Path $taskDir "1") -Recurse -Filter "*.test.*" -ErrorAction SilentlyContinue).Count) { Fail "no Gate tests in $taskDir\1 (run -Step tests)" }
+        if (-not $ServerUrl) { $ServerUrl = $env:LLAMACPP_SERVER_BASE_URL }
+        if (-not $EnvFile) { $EnvFile = Join-Path $repoRoot ".env" }
+        if (-not $ServerUrl -and (Test-Path -LiteralPath $EnvFile)) {
+            $line = Get-Content -LiteralPath $EnvFile | Where-Object { $_ -match '^\s*SERVER_IP\s*=\s*\S' } | Select-Object -First 1
+            if ($line) { $ServerUrl = "http://{0}:8090/v1" -f (($line -split "=", 2)[1].Trim().Trim('"').Trim("'")) }
+        }
+        if (-not $ServerUrl) { Fail "no server url: no -ServerUrl, no LLAMACPP_SERVER_BASE_URL, and no SERVER_IP in $EnvFile" 3 }
         $env:LLAMACPP_SERVER_BASE_URL = $ServerUrl; $env:OPENCODE_DISABLE_AUTOUPDATE = "1"; $env:GIT_TERMINAL_PROMPT = "0"
         $results = Join-Path $PrivateRoot "results\real-work\$Id"
         New-Item -ItemType Directory -Force $results | Out-Null

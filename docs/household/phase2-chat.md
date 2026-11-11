@@ -43,7 +43,8 @@ read 2026-11-08):
 1. **Pull `main`** in `~/HomeLab`.
 2. **Set the variables** in `server/docker/.env` (git-ignored, mode 600):
    - `OPENWEBUI_TAG`: the newest [release](https://github.com/open-webui/open-webui/releases); `v0.13.2` on 2026-11-08.
-   - `WEBUI_SECRET_KEY`: generated once with `openssl rand -hex 32`, never printed.
+   - `WEBUI_SECRET_KEY`: generated once with `openssl rand -hex 32`, never printed. Keep a copy outside the server
+     (owner): the nightly backup holds the chat's data but not this key ([phase1.md](phase1.md) → "Backups").
 3. **Start it:** `cd ~/HomeLab && docker compose -p household -f server/docker/docker-compose.household.yml up -d`.
    This leaves Grocy as it is.
 4. **Check it:**

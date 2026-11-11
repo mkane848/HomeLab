@@ -145,6 +145,11 @@ def check(root):
         if tag not in base and n is not None:
             bad("seat-not-on-desktop", tag, "in server-seats.tsv but not in startup.ps1 ($contextModels/$derivedModels)")
 
+    # 1b. catalog.tsv ctx <-> startup.ps1 (the catalog column is display-only, so nothing else would notice it going stale)
+    for tag, n in ctx_models.items():
+        if tag in catalog and catalog[tag]["ctx"] != str(n):
+            bad("catalog-ctx", tag, "catalog.tsv ctx %s, startup.ps1 bakes %d" % (catalog[tag]["ctx"], n))
+
     # 2. opencode.jsonc ollama-desktop limit.context <-> startup.ps1
     for tag, n in ctx_models.items():
         if tag in desk and desk[tag] != n:
