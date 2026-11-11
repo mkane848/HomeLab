@@ -390,6 +390,14 @@ class ToolTest(unittest.TestCase):
         self.assertIn("2026-10-01", run(self.t.undo_last_purchase("bread")))  # the next one down, not the undone #3
         self.assertIn("nothing to undo", run(self.t.undo_last_purchase("milk", True)))
 
+    def test_undo_needs_the_users_ok(self):
+        self.seed_log()
+        out = run(self.t.undo_last_purchase("bread", True, [{"role": "user", "content": "change the price instead"}]))
+        self.assertIn("nothing was undone", out)
+        self.assertEqual(self.g.posts(), [])
+        out = run(self.t.undo_last_purchase("bread", True, [{"role": "user", "content": "confirmed."}]))
+        self.assertTrue(out.startswith("Undid: Test bread"), out)
+
     # --- record_receipt: the model copies lines, the code does the bookkeeping
 
     RECEIPT = "\n".join([
@@ -469,7 +477,32 @@ class ToolTest(unittest.TestCase):
         self.assertEqual(self.g.posts(), [])
 
     def test_receipt_counts_that_differ_are_flagged(self):
-        self.assertIn("THE COUNTS DIFFER", self.receipt(items_sold=6))
+        self.assertIn("The counts differ: ask the user", self.receipt(items_sold=6))
+
+    def test_receipt_skip_naming_a_line_left_out_still_counts(self):
+        # 2026-11-10: the chat put "<code> <text>" of a line in skip but left the line out of lines; 12 read of 13.
+        lines = "\n".join(l for l in self.RECEIPT.splitlines() if "GAME" not in l and "/ 6666666" not in l)
+        out = self.receipt(lines=lines, skip="9999999 TEST TOY")
+        self.assertIn("Item lines read: 5 (Items Sold printed: 5).", out)
+        self.assertIn("Skipped: 9999999 TEST TOY", out)
+        out = self.receipt(skip="6666666 TEST GAME")  # code and words: matches the line itself, counted once
+        self.assertIn("Item lines read: 5 (Items Sold printed: 5).", out)
+        self.assertIn("Skipped: 6666666 TEST GAME\n", out)
+        self.assertNotIn("The counts differ", self.receipt(skip="game"))
+
+    def test_receipt_confirm_needs_the_users_ok(self):
+        # 2026-11-10: confirm=true right after "skip the book". The tool reads the user's last message itself.
+        ok = "5555555=Test bread; 7777777=Test cheese, herby; 8888888=Test milk; 1111111=Test mangoes"
+        for said in ["Skip the book.", "Yes, but skip the milk", "no", "OK, wait", "Record this receipt"]:
+            out = self.receipt(matches=ok, confirm=True, __messages__=[{"role": "user", "content": "OK"},
+                                                                       {"role": "assistant", "content": "list"},
+                                                                       {"role": "user", "content": said}])
+            self.assertIn("Not written: the user's last message is not an OK", out, said)
+            self.assertEqual(self.g.posts(), [], said)
+        parts = [{"type": "text", "text": "Looks good"}, {"type": "image_url", "image_url": {"url": "data:"}}]
+        out = self.receipt(matches=ok, confirm=True, __messages__=[{"role": "user", "content": parts},
+                                                                   {"role": "assistant", "content": "tool call"}])
+        self.assertTrue(out.startswith("Recorded 4 purchase(s)"), out)
 
     def test_receipt_confirm_records_net_prices_and_saves_only_new_codes(self):
         out = self.receipt(confirm=True)
