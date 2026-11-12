@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a timed-out run counts as a failure in `summarize-rounds.ps1` (2026-11-12, the owner's decision of 2026-11-11).**
+  - **Why:** a timeout leaves only a `_TIMEOUT_` transcript, so the script printed how many there were and left them out
+    of every rate. A model that loops to the time limit looked better than one that fails quickly. Found by the
+    2026-11-09 audit.
+  - **What:** each timed-out transcript is a failed run of the model its name gives, in the arm of the folder it is in.
+    The task and model come from the name, matched against the run JSONs in the same folders (a label can hold
+    dashes); one that matches no model there is named and **not** counted. It is in the pass rate, pass@k and pass^k,
+    and not in the cap, long-step or cost lines. `-ExcludeTimeouts` prints the numbers as before. Infrastructure
+    failures are still not measurements.
+  - **On the public results** (`tests/results`, 30 timeouts, all matched): `laguna-xs-2.1` 11 of 11 becomes 11 of 14,
+    `qwen3-coder:30b-a3b` 6 of 9 becomes 6 of 12, `qwen3.6` 41 of 63 becomes 41 of 66. These pool eras and are an
+    illustration, not a standing. **The private rounds were not re-derived here.** Numbers written before today are
+    graded runs only unless they say a timeout was counted (`docs/methodology.md`).
+  - **Guard:** `test-summarize-rounds.ps1`, 80 checks (was 66). Mutation-checked seven ways, each red and restored
+    byte-identical: a timeout's gates at PASS, the shortest label tried first, timeouts not added, `-ExcludeTimeouts`
+    ignored, an unmatched transcript counted anyway, the arm ignored, and `main`'s script. One mutation stayed green
+    first: an explicit "timed out is FAIL" line was dead code beside the gates, and was removed. The three checks on
+    private rounds pass `-ExcludeTimeouts`, since their recorded figures are graded runs only.
+
 - **tests: shellcheck can fail the CI job (2026-11-12, the owner's decision of 2026-11-11).** The step ended in
   `|| true`, so it could not fail. It now fails on any error-severity finding, and covers the household script, the
   parked profiles, `tests/*.sh`, the session hook and `make-executable.sh` as well. Nothing needed fixing: shellcheck
