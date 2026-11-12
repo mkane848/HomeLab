@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: shellcheck can fail the CI job (2026-11-12, the owner's decision of 2026-11-11).** The step ended in
+  `|| true`, so it could not fail. It now fails on any error-severity finding, and covers the household script, the
+  parked profiles, `tests/*.sh`, the session hook and `make-executable.sh` as well. Nothing needed fixing: shellcheck
+  0.11.0 reports no error in any tracked `.sh`. Checked that it can fail: an `if` with no `then`, added to a profile,
+  gave exit 1. Warnings are not checked. Found by the 2026-11-09 audit.
+
 - **fix: the audit's small code fixes (2026-11-11, the owner's decisions of that day).**
   - **The household backup covers the chat.** `server/household/backup.sh` also archives the Open WebUI volume
     (`openwebui-<stamp>.tar.gz`) when it exists, and `pull-household-backup.ps1` pulls the newest of each kind. A missing
