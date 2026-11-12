@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.3.3
+version: 0.3.4
 description: Read and change the household's Grocy: products, stock, purchases and receipts, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -462,6 +462,7 @@ class Tools:
             wants = [w.strip().lower() for w in skip.split(",") if w.strip()]
             skipped = [i for i in items if any(hit(w, i) for w in wants)]
             absent = [w for w in wants if w.split()[0].isdigit() and not any(hit(w, i) for i in items)]
+            missed = [w for w in wants if not w.split()[0].isdigit() and not any(hit(w, i) for i in items)]
             keep = [i for i in items if i not in skipped]
             known = self._codes(int(s["id"]))
             names = {int(p["id"]): p for p in self._objects("products")}
@@ -471,7 +472,11 @@ class Tools:
                     code, _, name = pair.partition("=")
                     if not name.strip():
                         raise GrocyError(f"'{pair.strip()}' is not like 1234567=Product name")
-                    p = self._resolve("products", name, "product")
+                    try:
+                        p = self._resolve("products", name, "product")
+                    except GrocyError as e:
+                        raise GrocyError(f"{e} For {code.strip()}: ask the user for the product's exact name, or, if they "
+                                         f"do not want that line recorded, put {code.strip()} in skip")
                     have = known.get(code.strip())
                     if have and have != int(p["id"]):
                         raise GrocyError(f"{code.strip()} at {s['name']} is already saved as "
@@ -483,7 +488,7 @@ class Tools:
             unknown = [i for i in keep if i["product"] is None]
 
             def row(n, i):
-                prod = i["product"]["name"] if i["product"] else "UNKNOWN: ask the user which product"
+                prod = i["product"]["name"] if i["product"] else "UNKNOWN: ask the user which product, or to skip it"
                 disc = f" (after a {i['discount']:.2f} discount)" if i["discount"] else ""
                 return f"{n}. {i['code']} {i['text']} -> {prod}, 1, {i['paid']:.2f}{disc}"
 
@@ -499,9 +504,14 @@ class Tools:
             if not confirm or unknown or held:
                 if held:
                     body.append("Not written: the user's last message is not an OK. Show this list and wait for OK.")
+                if missed:
+                    body.append(f"Skip matched no line: {', '.join(repr(w) for w in missed)}. Skip takes the item number "
+                                "as printed (e.g. 2076209) or words from the receipt text.")
                 if unknown:
-                    body.append(f"{len(unknown)} line(s) unknown: ask the user which product each is, then call again "
-                                "with matches.")
+                    codes = ", ".join(i["code"] for i in unknown)
+                    body.append(f"{len(unknown)} line(s) unknown ({codes}). Ask the user, for each one, which product it "
+                                "is or whether to skip it. Then call again: matches='<code>=<product name>' for the ones "
+                                "they name, and skip='<code>' for the ones they skip.")
                 body.append("Nothing written yet." + ("" if unknown or held else " Show this list to the user and wait for OK."))
                 return "\n".join(body)
             # The writes. A line already in Grocy (same product, date, store and price, not undone) is not written

@@ -490,6 +490,18 @@ class ToolTest(unittest.TestCase):
         self.assertIn("Skipped: 6666666 TEST GAME\n", out)
         self.assertNotIn("The counts differ", self.receipt(skip="game"))
 
+    def test_receipt_messages_say_what_to_do_next(self):
+        # 2026-11-12: "skip BOOK" matched nothing and the model did not notice; unknown lines did not say what to call.
+        out = self.receipt(matches="1111111=Test mangoes; 6666666=Test cheese, blueberry; 7777777=Test cheese, herby; "
+                                   "8888888=Test milk", skip="book, 2076209", lines=self.RECEIPT.replace("TEST LOAF", "BK GARTEN"))
+        self.assertIn("Skip matched no line: 'book'", out)
+        self.assertIn("1 line(s) unknown (5555555). Ask the user", out)
+        self.assertIn("skip='<code>'", out)
+        out = self.receipt(matches="5555555=Nonexistent thing", confirm=False)
+        self.assertIn("For 5555555: ask the user for the product's exact name", out)
+        self.assertIn("put 5555555 in skip", out)
+        self.assertEqual(self.g.posts(), [])
+
     def test_receipt_confirm_needs_the_users_ok(self):
         # 2026-11-10: confirm=true right after "skip the book". The tool reads the user's last message itself.
         ok = "5555555=Test bread; 7777777=Test cheese, herby; 8888888=Test milk; 1111111=Test mangoes"
