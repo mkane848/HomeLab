@@ -308,7 +308,7 @@ of the "6/6 liar mode" misreading).
 
 **node3 (15 runs) — infrastructure outage, zero gradable data.** Host healthy
 at batch start (20:43, 4 tags), dead by first node3 run ~22:47: every node3 run
-failed `Cannot connect to API [http://192.168.1.235:11434/v1/chat/completions]`
+failed `Cannot connect to API [http://NODE3_IP:11434/v1/chat/completions]`
 and was recorded `_INFRA_`. Confirmed down after (TCP 11434 refused, `ssh`
 hangs). **The whole node3 breadth leg is unmeasured — re-run seats
 `ollama-node3/qwen3:8b` across the same 5 tasks × N=3 once the box is back.**

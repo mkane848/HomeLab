@@ -198,8 +198,13 @@ python3 -I server/household/grocy_import.py --apply         # again: must report
   ```
   - **What it does:** pauses the container for a few seconds, tars the `household_grocy_config` volume to
     `~/backups/household/`, checks the archive lists, and keeps 14.
-- **On the desktop:** `desktop/scripts/pull-household-backup.ps1` copies the newest one to
-  `%USERPROFILE%\Backups\household` and keeps 30. Run it once by hand, then schedule it nightly. The schedule is the
+  - **The chat too (in the script since 2026-11-11):** when the `household_openwebui_data` volume exists, the same run
+    writes `openwebui-<stamp>.tar.gz` beside it, 14 kept. The crontab line does not change; the server needs the new
+    `backup.sh` (pull `main`). Not yet run on the server: the first night's `backup.log` should show two `backup:` lines.
+  - **Not in any backup: `WEBUI_SECRET_KEY`** (`server/docker/.env`). Without it a restored chat cannot decrypt its
+    stored settings, the Grocy key among them. Keeping a copy somewhere safe is the **owner's** step.
+- **On the desktop:** `desktop/scripts/pull-household-backup.ps1` copies the newest of each to
+  `%USERPROFILE%\Backups\household` and keeps 30 of each. Run it once by hand, then schedule it nightly. The schedule is the
   **owner's** step, from a pwsh prompt. Set `$repo` to this repo's checkout on the desktop: `M:\Projects\dev-docs`
   on the owner's desktop, not `$HOME\HomeLab`. With the wrong path the task fails every night without a word.
   ```powershell

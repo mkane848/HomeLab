@@ -23,7 +23,7 @@ checking them against the digests GitHub publishes for them:
 
 Then, from this checkout on node3: `pwsh -File node3\scripts\start-llama-server.ps1`.
 
-The preset's `model` path is node3's own Ollama blob (`C:\Users\danaj\.ollama\models\blobs\sha256-a3de86…`): the same
+The preset's `model` path is node3's own Ollama blob (`C:\Users\<user>\.ollama\models\blobs\sha256-a3de86…`, with the real profile name in `node3/llamacpp/models.ini`): the same
 bytes as the server's `qwen3:8b` seat (`models/server-seats.tsv`), so a difference in results is the engine, not the
 weights.
 

@@ -16,24 +16,33 @@ $ErrorActionPreference = 'Stop'
 
 New-Item -ItemType Directory -Force -Path $LocalDir | Out-Null
 
-# -n: stdin from /dev/null, so ssh never waits for input (PowerShell has no `< file` redirection).
-$newest = (& ssh -n -o BatchMode=yes $HostAlias "ls -1t $RemoteDir/grocy-*.tar.gz 2>/dev/null | head -n 1")
-if ($LASTEXITCODE -ne 0 -or -not $newest) {
-    throw "pull-household-backup: no backup found on ${HostAlias}:$RemoteDir (ssh exit ${LASTEXITCODE})"
-}
-$newest = $newest.Trim()
-$name = Split-Path -Leaf $newest
-$dest = Join-Path $LocalDir $name
+# Pull-Newest <prefix> <required>: the newest <prefix>-*.tar.gz on the server, copied here; the newest $Keep kept.
+# The tracker's backup must exist. The chat's (openwebui-*, since 2026-11-11) is absent before phase 2, which is not an error.
+function Pull-Newest([string]$Prefix, [bool]$Required) {
+    # -n: stdin from /dev/null, so ssh never waits for input (PowerShell has no `< file` redirection).
+    $newest = (& ssh -n -o BatchMode=yes $HostAlias "ls -1t $RemoteDir/$Prefix-*.tar.gz 2>/dev/null | head -n 1")
+    if ($LASTEXITCODE -ne 0 -or -not $newest) {
+        if ($Required) { throw "pull-household-backup: no backup found on ${HostAlias}:$RemoteDir (ssh exit ${LASTEXITCODE})" }
+        Write-Host "pull-household-backup: no $Prefix backup on ${HostAlias}:$RemoteDir yet"
+        return
+    }
+    $newest = $newest.Trim()
+    $name = Split-Path -Leaf $newest
+    $dest = Join-Path $LocalDir $name
 
-if (Test-Path $dest) {
-    Write-Host "pull-household-backup: $name already here"
-} else {
-    & scp -o BatchMode=yes -q "${HostAlias}:$newest" "$dest.partial"
-    if ($LASTEXITCODE -ne 0) { throw "pull-household-backup: scp failed (exit ${LASTEXITCODE})" }
-    if ((Get-Item "$dest.partial").Length -le 0) { throw "pull-household-backup: $name arrived empty" }
-    Move-Item -Force "$dest.partial" $dest
-    Write-Host "pull-household-backup: copied $name ($([math]::Round((Get-Item $dest).Length / 1KB)) KB)"
+    if (Test-Path $dest) {
+        Write-Host "pull-household-backup: $name already here"
+    } else {
+        & scp -o BatchMode=yes -q "${HostAlias}:$newest" "$dest.partial"
+        if ($LASTEXITCODE -ne 0) { throw "pull-household-backup: scp failed (exit ${LASTEXITCODE})" }
+        if ((Get-Item "$dest.partial").Length -le 0) { throw "pull-household-backup: $name arrived empty" }
+        Move-Item -Force "$dest.partial" $dest
+        Write-Host "pull-household-backup: copied $name ($([math]::Round((Get-Item $dest).Length / 1KB)) KB)"
+    }
+
+    Get-ChildItem $LocalDir -Filter "$Prefix-*.tar.gz" | Sort-Object LastWriteTime -Descending |
+        Select-Object -Skip $Keep | Remove-Item -Force
 }
 
-Get-ChildItem $LocalDir -Filter 'grocy-*.tar.gz' | Sort-Object LastWriteTime -Descending |
-    Select-Object -Skip $Keep | Remove-Item -Force
+Pull-Newest 'grocy' $true
+Pull-Newest 'openwebui' $false

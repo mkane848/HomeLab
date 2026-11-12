@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: the audit's small code fixes (2026-11-11, the owner's decisions of that day).**
+  - **The household backup covers the chat.** `server/household/backup.sh` also archives the Open WebUI volume
+    (`openwebui-<stamp>.tar.gz`) when it exists, and `pull-household-backup.ps1` pulls the newest of each kind. A missing
+    chat volume is not an error. `WEBUI_SECRET_KEY` is in no backup, and the runbooks now say so. New
+    `tests/test_household_backup.py` (5 tests, in CI) runs the script against a stand-in `docker`; mutation-checked four
+    ways (the old script, no unpause trap, rotation across kinds, a missing chat volume made fatal), each red.
+    **Not yet run on the server.**
+  - **A skipped guard is shown.** `tests/run-guards.ps1` reports `OK+SKIP` and a Skip count for a guard that exits 0
+    with a `SKIP` line; before, the table said `OK`. Still green.
+  - **No address in a script default.** `tests/new-real-task.ps1 -ServerUrl` falls back to `LLAMACPP_SERVER_BASE_URL`,
+    then `SERVER_IP` in `.env` (as `run-window.ps1` does), and stops with exit 3 when there is none. Two docs use the
+    placeholders, and `node3/README.md` no longer shows the profile name. Left as they are: `node3/llamacpp/models.ini`
+    (llama-server needs the real path), the raw result files, and git history.
+  - **The catalog's context column is true again.** Three rows of `models/catalog.tsv` said 16384 for models the
+    desktop bakes at 32768. `tests/check_config_drift.py` has a new `catalog-ctx` rule, with a test; with the rule
+    off the test fails, and with the old catalog the check reports the three rows.
+
 - **fix: household tool 0.3.3 checks the user's OK itself, and counts skipped lines left out (2026-11-10).**
   - **Why:** the 0.3.2 re-run matched every known line, and applied both discounts correctly. But `qwen3-vl:8b`:
     - never added the book to `skip`, though the owner asked twice;

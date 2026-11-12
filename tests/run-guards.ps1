@@ -85,8 +85,11 @@ $results = foreach ($g in $guards) {
     $sw.Stop()
     $exit = if ($timedOut) { $null } else { $p.ExitCode }
     $text = @(Get-Content -LiteralPath $out -ErrorAction SilentlyContinue) + @(Get-Content -LiteralPath $err -ErrorAction SilentlyContinue)
-    $verdict = if ($timedOut) { "TIMEOUT" } elseif ($exit -eq 0) { "OK" } else { "FAIL" }
-    $color = if ($verdict -eq "OK") { "Green" } else { "Red" }
+    # A guard that left part of itself out prints a line starting with SKIP and still exits 0. It stays green (the part
+    # cannot run on this machine), but the verdict says so: "OK" used to hide it (2026-11-11).
+    $skips = @($text | Where-Object { "$_" -match '^\s*SKIP\b' }).Count
+    $verdict = if ($timedOut) { "TIMEOUT" } elseif ($exit -ne 0) { "FAIL" } elseif ($skips) { "OK+SKIP" } else { "OK" }
+    $color = if ($verdict -eq "OK") { "Green" } elseif ($verdict -eq "OK+SKIP") { "Yellow" } else { "Red" }
     Write-Host " $verdict ($([math]::Round($sw.Elapsed.TotalSeconds, 1)) s)" -ForegroundColor $color
     [pscustomobject]@{
         Guard   = $name
@@ -95,6 +98,7 @@ $results = foreach ($g in $guards) {
         Seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1)
         Pass    = @($text | Where-Object { "$_" -match '^\s*PASS\b' }).Count
         Fail    = @($text | Where-Object { "$_" -match '^\s*FAIL\b' }).Count
+        Skip    = $skips
         Out     = $out
         Err     = $err
     }
@@ -102,9 +106,10 @@ $results = foreach ($g in $guards) {
 
 Write-Host ""
 # -Width: with output redirected (CI, a log file) the host width is 0 and the table prints blank.
-($results | Format-Table Guard, Verdict, Exit, Seconds, Pass, Fail -AutoSize | Out-String -Width 200).Trim() | Write-Host
+($results | Format-Table Guard, Verdict, Exit, Seconds, Pass, Fail, Skip -AutoSize | Out-String -Width 200).Trim() | Write-Host
 
-$bad = @($results | Where-Object { $_.Verdict -ne "OK" })
+$bad = @($results | Where-Object { $_.Verdict -notin "OK", "OK+SKIP" })
+$skipped = @($results | Where-Object { $_.Verdict -eq "OK+SKIP" })
 foreach ($r in $bad) {
     Write-Host "---- $($r.Guard): $($r.Verdict), last $TailLines lines ----" -ForegroundColor Red
     @(Get-Content -LiteralPath $r.Out -ErrorAction SilentlyContinue) + @(Get-Content -LiteralPath $r.Err -ErrorAction SilentlyContinue) |
@@ -112,12 +117,14 @@ foreach ($r in $bad) {
 }
 
 if ($env:GITHUB_STEP_SUMMARY) {
-    $md = @("### Guards: $($results.Count - $bad.Count) of $($results.Count) OK", "", "| guard | verdict | exit | seconds | PASS | FAIL |", "|---|---|---|---|---|---|")
-    $md += $results | ForEach-Object { "| ``$($_.Guard)`` | $($_.Verdict) | $($_.Exit) | $($_.Seconds) | $($_.Pass) | $($_.Fail) |" }
+    $md = @("### Guards: $($results.Count - $bad.Count) of $($results.Count) OK", "", "| guard | verdict | exit | seconds | PASS | FAIL | SKIP |", "|---|---|---|---|---|---|---|")
+    $md += $results | ForEach-Object { "| ``$($_.Guard)`` | $($_.Verdict) | $($_.Exit) | $($_.Seconds) | $($_.Pass) | $($_.Fail) | $($_.Skip) |" }
+    if ($skipped.Count) { $md += ""; $md += "Skipped part of themselves here: " + (($skipped | ForEach-Object { "``$($_.Guard)``" }) -join ", ") }
     if (-not $onlyNames.Count) { $md += ""; $md += "Not run here (need live hosts): " + (($Excluded.Keys | ForEach-Object { "``$_``" }) -join ", ") }
     Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($md -join "`n")
 }
 
 if ($bad.Count) { Write-Host "$($bad.Count) of $($results.Count) guard(s) not OK: $(($bad | ForEach-Object Guard) -join ', ')" -ForegroundColor Red; exit 1 }
+if ($skipped.Count) { Write-Host "$($skipped.Count) guard(s) skipped part of themselves: $(($skipped | ForEach-Object Guard) -join ', ')" -ForegroundColor Yellow }
 Write-Host "all $($results.Count) guard(s) OK" -ForegroundColor Green
 exit 0

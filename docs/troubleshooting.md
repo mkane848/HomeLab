@@ -162,7 +162,7 @@ Current contract (`$contextModels` in `startup.ps1` ⇄ `limit.context` in
 | `qwen2.5-coder:7b`, `-16k`, `:3b`, `qwen3:8b` | 16384 |
 
 ```bash
-curl.exe -s http://192.168.1.169:11434/api/ps   # context_length per loaded model
+curl.exe -s http://<HOST_IP>:11434/api/ps   # context_length per loaded model
 ```
 
 Context history: the Windows app once overrode `OLLAMA_CONTEXT_LENGTH` (v0.32, fixed in 0.34.0); we bake per model because the variable is one global default. See [archive](archive/troubleshooting-incidents.md).
