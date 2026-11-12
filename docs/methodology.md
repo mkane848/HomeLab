@@ -22,8 +22,12 @@ limits that still apply are kept short in [methodology-caveats.md](methodology-c
   base plus only its patch, in a new folder under empty ones (`selector.recheck`), because a test at the wrong depth can read
   something outside the checkout. Anything but a pass rejects the attempt.
 - **An infrastructure failure is not a measurement.** A run that never reached the model (host down, agent crashed)
-  is filed as `_INFRA_`, not graded, and counted separately. A run that hit the time limit is filed as `_TIMEOUT_` and
-  not graded either; where a headline counts timeouts as failures (North's 21 of 30), it says so.
+  is filed as `_INFRA_`, not graded, and counted separately.
+- **A timeout is a failure** (from 2026-11-12; owner, 2026-11-11). A run that hit the time limit reached the model and did not
+  finish. It leaves only a `_TIMEOUT_` transcript, so `summarize-rounds.ps1` used to print how many there were and leave
+  them out of every rate, which flattered a model that loops to the limit over one that fails quickly. It now counts each
+  as a failed run of the model its file names. `-ExcludeTimeouts` prints the earlier view. **Numbers written before
+  2026-11-12 are graded runs only unless they say a timeout was counted** (45 of 48 and North's 21 of 30 say so).
 - **Conditions are kept apart.** Runs that showed the model tests (the task's own, or a planner's) are separate arms,
   marked by a file in their results folder, and never pooled with unassisted runs. Runs before and after a change to the
   engine, the agent, the plugins or a classifier are different eras: they are pooled only with a warning
@@ -127,6 +131,7 @@ What follows from the table:
 ```powershell
 pwsh -File tests\summarize-rounds.ps1 -ResultsDir <HomeLab-private>\results\window-20261101-2213\baseline
 pwsh -File tests\summarize-rounds.ps1 -ResultsDir <folder> -AsJson      # the same, as data
+pwsh -File tests\summarize-rounds.ps1 -ResultsDir <folder> -ExcludeTimeouts   # as it printed before 2026-11-12
 ```
 
 Every run leaves a run JSON (all gates and their details) and the raw transcript beside it; the summaries are

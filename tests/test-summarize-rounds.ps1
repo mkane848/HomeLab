@@ -1,4 +1,4 @@
-# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, the planner arm's selector counts, the cap / long-step splits and the cost line
+# protects: summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, timeouts counted as failures, the planner arm's selector counts, the cap / long-step splits and the cost line
 # run-after: summarize-rounds.ps1
 # test-summarize-rounds.ps1 - regression guard for tests/summarize-rounds.ps1 (pass@k and pass^k).
 #
@@ -160,6 +160,25 @@ try {
     Check "...at or over 100: 3 (the length stop at 100 counts, the 40 does not)" (Get-TranscriptLongSteps -Path (Join-Path $ct "tasks-a.jsonl") -Min 100) 3
 } finally { Remove-Item -Recurse -Force $ct -ErrorAction SilentlyContinue }
 
+Write-Host "-- a timed-out transcript's task and model (from its name, against the run JSONs seen)"
+$kn = @{ "lfc-01-ollama-desktop_qwen3.6_35b" = [pscustomobject]@{ taskId = "lfc-01"; model = "ollama-desktop/qwen3.6:35b" } }
+$lb = @{ "ollama-desktop_qwen3.6_35b" = "ollama-desktop/qwen3.6:35b"; "desktop_qwen3.6_35b" = "wrong/shorter-label"; "llamacpp-server_qwen3.6_35b" = "llamacpp-server/qwen3.6:35b" }
+$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
+Check "the exact task and label pair: that run's task and model, a FAIL" ("{0}|{1}|{2}" -f $t.taskId, $t.model, (Get-RunVerdict $t)) "lfc-01|ollama-desktop/qwen3.6:35b|FAIL"
+$t = Resolve-TimeoutRun -FileName "tasks-kane-08-big-task-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
+Check "a task with no run JSON for that model: split at the LONGEST known label (dashes in both parts)" ("{0}|{1}" -f $t.taskId, $t.model) "kane-08-big-task|ollama-desktop/qwen3.6:35b"
+$t = Resolve-TimeoutRun -FileName "tasks-kane-08-llamacpp-server_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
+Check "another seat of the same model is kept apart" ("{0}|{1}" -f $t.taskId, $t.model) "kane-08|llamacpp-server/qwen3.6:35b"
+Check "a label no run JSON has: null, never guessed" ($null -eq (Resolve-TimeoutRun -FileName "tasks-kane-08-ollama-node3_qwen3_8b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
+Check "an _INFRA_ transcript is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_INFRA_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
+Check "a run JSON's name is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_20261101-010203.json" -Known $kn -Labels $lb)) "True"
+$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb -Gradings @{ "lfc-01" = "checklist" }
+Check "a checklist task's timeout stays the owner's to rate (MANUAL)" (Get-RunVerdict $t) "MANUAL"
+Check "the file label is test-tasks.ps1's: every character outside [a-zA-Z0-9._-] becomes _" (ConvertTo-FileLabel "ollama-desktop/qwen3.6:35b-a3b coding") "ollama-desktop_qwen3.6_35b-a3b_coding"
+$mix = @((Run m t1 acceptance PASS), (Run m t1 acceptance PASS), (Resolve-TimeoutRun -FileName "tasks-t1-m_TIMEOUT_20261101-010203.jsonl" -Known @{ "t1-m" = [pscustomobject]@{ taskId = "t1"; model = "m" } } -Labels @{ m = "m" }))
+$sm = Get-RoundSummary -Runs $mix
+Check "in a summary: 2 passes and 1 timeout are 2 of 3, pass^3 0, 1 timeout" ("{0}/{1}|{2}|{3}" -f $sm[0].passes, $sm[0].runs, (R3 $sm[0].passHatK), $sm[0].timeouts) "2/3|0|1"
+
 Write-Host "-- the script end to end"
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("summarize-rounds-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
 New-Item -ItemType Directory -Path (Join-Path $tmp "r\sub") -Force | Out-Null
@@ -184,9 +203,23 @@ try {
     $infra | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $arms "tasks-t1-infra.json")
     $aj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -AsJson 2>&1 | Out-String | ConvertFrom-Json
     Check "a marker in a parent folder splits the arm; an exit-1 run JSON is skipped" (($aj | ForEach-Object { "$($_.arm)=$($_.runs)" } | Sort-Object) -join ",") "=1,ASSISTED=1"
+    # A timed-out run is a failure of the model its transcript names (2026-11-12), in the arm of the folder it is in.
     Set-Content -LiteralPath (Join-Path $arms "nudged/tasks-t1-m_TIMEOUT_20261103-000000.jsonl") -Value ""
+    $tj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -AsJson 2>&1 | Out-String | ConvertFrom-Json
+    Check "a timed-out transcript counts as a failed run, in its folder's arm only" (($tj | ForEach-Object { "$($_.arm)=$($_.passes)/$($_.runs) t$($_.timeouts)" } | Sort-Object) -join ",") "=1/1 t0,ASSISTED=1/2 t1"
     $tout = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms 2>&1 | Out-String
-    Check "timed-out transcripts (in subfolders too) are counted and named as left out" ([bool]($tout -match '1 run\(s\) timed out: not graded, and not in the numbers below')) "True"
+    Check "...and the table says so, in the header and under the model" ([bool]($tout -match '1 run\(s\) timed out: 1 counted as failure\(s\) below' -and $tout -match 'm \[ASSISTED\]: 2 graded runs, 1 passed' -and $tout -match '1 of those runs timed out and count as failures')) "True"
+    $xj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -ExcludeTimeouts -AsJson 2>&1 | Out-String | ConvertFrom-Json
+    Check "-ExcludeTimeouts: the numbers as before" (($xj | ForEach-Object { "$($_.arm)=$($_.passes)/$($_.runs) t$($_.timeouts)" } | Sort-Object) -join ",") "=1/1 t0,ASSISTED=1/1 t0"
+    $xout = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -ExcludeTimeouts 2>&1 | Out-String
+    Check "...and the old line" ([bool]($xout -match '1 run\(s\) timed out: not graded, and not in the numbers below' -and $xout -notmatch 'counted as failure')) "True"
+    # A transcript whose model has no run JSON here is named and not counted: its model is never guessed.
+    Set-Content -LiteralPath (Join-Path $arms "tasks-t1-other_model_TIMEOUT_20261103-000001.jsonl") -Value ""
+    $uout = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms 2>&1 | Out-String
+    Check "a timeout of a model with no run JSON here: named, not counted" ([bool]($uout -match '2 run\(s\) timed out: 1 counted' -and $uout -match '1 timed-out run\(s\) match no model .* NOT counted: tasks-t1-other_model_TIMEOUT_20261103-000001\.jsonl' -and $uout -match 'm \[ASSISTED\]: 2 graded runs')) "True"
+    Remove-Item -LiteralPath (Join-Path $arms "tasks-t1-other_model_TIMEOUT_20261103-000001.jsonl")
+    $mj = & $psExe -NoProfile -File $ScriptPath -ResultsDir $arms -Model nobody -AsJson 2>&1 | Out-String
+    Check "-Model filters timeouts too (no run of that model: exit 1, nothing counted)" ("{0}|{1}" -f $LASTEXITCODE, [bool]($mj -match 'no run JSONs')) "1|True"
     $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir (Join-Path $tmp "r") -Model a -AsJson 2>&1 | Out-String
     $j = $out | ConvertFrom-Json
     Check "-AsJson, -Model a, subfolders read, other JSON skipped" ("{0}|{1}|{2}|{3}" -f $j.model, $j.runs, $j.passes, $j.k) "a|10|4|3"
@@ -211,16 +244,17 @@ try {
 
     $real = Join-Path $PrivateResults "ollama-read-budget"
     if (Test-Path -LiteralPath $real) {
-        $j = & $psExe -NoProfile -File $ScriptPath -ResultsDir $real -AsJson 2>&1 | Out-String | ConvertFrom-Json
+        $j = & $psExe -NoProfile -File $ScriptPath -ResultsDir $real -ExcludeTimeouts -AsJson 2>&1 | Out-String | ConvertFrom-Json
         Check "the desktop's four plugin-on reps: 47 of 60, 9 of 15 every time, pass^4 0.6, pass@4 0.867" ("{0}/{1}|{2}|{3}|{4}" -f $j.passes, $j.runs, $j.tasksAlwaysPassed, $j.passHatK, $j.passAtK) "47/60|9|0.6|0.867"
     } else {
         Write-Host "SKIP the private results are not on this machine ($PrivateResults)"
     }
     $win = Join-Path $PrivateResults "window-20261101-2213\baseline"
     if (Test-Path -LiteralPath $win) {
-        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win 2>&1 | Out-String
+        # These recorded figures are graded runs only, so -ExcludeTimeouts: the cap and cost lines never held timeouts.
+        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win -ExcludeTimeouts 2>&1 | Out-String
         Check "window 20261101-2213's baseline: 11 of its 15 failures lost a step to the cap (the 2026-11-03 desk review)" ([bool]($out -match 'output cap \(limit\.output\): 12 of 96 run\(s\) lost a step to it, 1 of those passed; 11 of 15 failure\(s\) had one; runs without one: 80 of 84 passed')) "True"
-        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win -StepTokens 8192 2>&1 | Out-String
+        $out = & $psExe -NoProfile -File $ScriptPath -ResultsDir $win -ExcludeTimeouts -StepTokens 8192 2>&1 | Out-String
         Check "...-StepTokens 8192 on it: 12 runs with such a step, 1 passed; and the cost line" ([bool]($out -match 'steps of 8192\+ output tokens .*: 12 of 96 run\(s\) had one, 1 of those passed; runs without one: 80 of 84 passed' -and $out -match 'cost: 557,847 output tokens and 284\.8 min over 96 graded run\(s\); 14\.52 pass')) "True"
     } else {
         Write-Host "SKIP window 20261101-2213 is not on this machine ($win)"

@@ -34,10 +34,20 @@
 # Amini, "Don't Overthink, Don't Underthink" (arXiv 2608.26442): hit against no-hit accuracy, accuracy per token.
 # Timed-out runs leave no run JSON; their number is printed so the cost line is not read as complete.
 #
-# Usage:  .\tests\summarize-rounds.ps1 -ResultsDir <folder>[,<folder>...] [-K n] [-StepTokens n] [-Model <id>] [-AsJson]
+# A timed-out run counts as a FAILURE (2026-11-12, the owner's decision of 2026-11-11). It leaves only a transcript,
+# tasks-<task>-<label>_TIMEOUT_<stamp>.jsonl, so until then it was printed and left out of every rate, and a model
+# that looped to the time limit looked better than one that failed quickly. Its task and model are read from the
+# name, matched against the run JSONs in the same folders (a label can hold dashes, so it is not parsed blind); one
+# that matches no model there is counted and named, never guessed. It is in the pass rate, pass@k and pass^k, and
+# not in the cap, long-step or cost lines, which need a run JSON. -ExcludeTimeouts gives the numbers as they
+# printed before. Infrastructure failures (_INFRA_, a non-zero agent exit) are still not measurements.
+#
+# Usage:  .\tests\summarize-rounds.ps1 -ResultsDir <folder>[,<folder>...] [-K n] [-StepTokens n] [-Model <id>] [-ExcludeTimeouts] [-AsJson]
 param(
     [string[]]$ResultsDir,
     [int]$K = 0,
+    # Leave timed-out runs out of the rates, as every summary before 2026-11-12 did.
+    [switch]$ExcludeTimeouts,
     # Split runs by whether any step reached this many output tokens (a thinking budget); 0 = off.
     [int]$StepTokens = 0,
     [string]$Model = "",
@@ -70,6 +80,7 @@ function Get-RunVerdict {
     param($Run)
     $g = $Run.gates
     if ($Run.grading -eq "checklist") { return "MANUAL" }
+    # A timed-out run (built by Resolve-TimeoutRun) has no gate at PASS, so it falls through to FAIL below.
     if ($Run.grading -eq "acceptance") {
         $ok = $Run.acceptance -and $Run.acceptance.status -eq "PASS" -and $g.scope -eq "PASS" -and $g.suite -eq "PASS"
         return $(if ($ok) { "PASS" } else { "FAIL" })
@@ -229,6 +240,30 @@ function Get-RunCapSteps {
     return (Get-TranscriptLongSteps -Path ([IO.Path]::ChangeExtension($JsonPath, ".jsonl")) -Min ([int]$lim) -LengthOnly)
 }
 
+function ConvertTo-FileLabel([string]$Label) { $Label -replace '[^a-zA-Z0-9._-]', '_' }   # as tests/test-tasks.ps1 names its files
+
+function Resolve-TimeoutRun {
+    # The task and model of a timed-out transcript, from its file name: tasks-<task>-<label>_TIMEOUT_<stamp>.jsonl.
+    # $Known maps "<task>-<label>" to a run JSON seen in the same folders (the exact pair); $Labels maps a file
+    # label to its model, for a task that never produced a run JSON for that model. The longest label wins, since
+    # one label can end another. $null when the name is not a timeout transcript or no model matches.
+    param([string]$FileName, [hashtable]$Known, [hashtable]$Labels, [hashtable]$Gradings = @{})
+    if ($FileName -notmatch '^tasks-(.+)_TIMEOUT_[^_]+\.jsonl$') { return $null }
+    $x = $Matches[1]
+    $task = $null; $model = $null
+    if ($Known.ContainsKey($x)) { $task = $Known[$x].taskId; $model = $Known[$x].model }
+    else {
+        foreach ($lab in ($Labels.Keys | Sort-Object Length -Descending)) {
+            if ($x.Length -gt $lab.Length + 1 -and $x.EndsWith("-$lab")) { $task = $x.Substring(0, $x.Length - $lab.Length - 1); $model = $Labels[$lab]; break }
+        }
+    }
+    if (-not $task) { return $null }
+    # No gate is PASS and there is no `acceptance`, so Get-RunVerdict gives FAIL under either pass rule.
+    $run = [ordered]@{ model = $model; taskId = $task; timedOut = $true; gates = [pscustomobject]@{ scope = "TIMEOUT"; suite = "TIMEOUT"; failsOnOld = "TIMEOUT" } }
+    if ($Gradings.ContainsKey($task)) { $run.grading = $Gradings[$task] }
+    return [pscustomobject]$run
+}
+
 function Get-RoundSummary {
     # One summary per model over the run objects given.
     param([object[]]$Runs, [int]$K = 0, [int]$StepTokens = 0)
@@ -263,7 +298,7 @@ function Get-RoundSummary {
             if ($vals.Count -gt 1) { $eras[$name] = $vals }
         }
         $first = $mg.Group[0]
-        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group); cap = (Get-CapSummary $mg.Group); longSteps = (Get-LongStepSummary $mg.Group $StepTokens); cost = (Get-CostSummary $mg.Group) }
+        $groups += [pscustomobject]@{ model = $first.model; arm = $(if ($first.PSObject.Properties['arm']) { $first.arm } else { "" }); tasks = $tasks; manual = $manual; eras = $eras; zeroWritePasses = $zeroWritePasses; selector = (Get-SelectorConfusion $mg.Group); ideal = (Get-IdealSummary $mg.Group); cap = (Get-CapSummary $mg.Group); longSteps = (Get-LongStepSummary $mg.Group $StepTokens); cost = (Get-CostSummary $mg.Group); timeouts = @($mg.Group | Where-Object { $_.PSObject.Properties['timedOut'] -and $_.timedOut -and (Get-RunVerdict $_) -ne "MANUAL" }).Count }
     }
     # One k for every model shown, so the means can be compared across models.
     $allN = @($groups | ForEach-Object { $_.tasks } | ForEach-Object { $_.n })
@@ -281,7 +316,7 @@ function Get-RoundSummary {
         $out += [pscustomobject]@{
             model = $grp.model; arm = $grp.arm; k = $k; tasks = $tasks
             eras = $grp.eras; zeroWritePasses = $grp.zeroWritePasses; selector = $grp.selector; ideal = $grp.ideal; cap = $grp.cap; longSteps = $grp.longSteps; cost = $grp.cost
-            runs = [int]$runCount; passes = [int]$passCount
+            runs = [int]$runCount; passes = [int]$passCount; timeouts = [int]$grp.timeouts
             perRun = $(if ($runCount) { [math]::Round($passCount / $runCount, 3) } else { $null })
             passAtK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passAtK -Average).Average, 3) } else { $null })
             passHatK = $(if ($scored.Count) { [math]::Round(($scored | Measure-Object passHatK -Average).Average, 3) } else { $null })
@@ -298,6 +333,18 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
     $runs = @()
     $skippedExit = 0
     $markerNames = @("ASSISTED", "ACCEPTANCE-SHOWN", "ACCEPTANCE-READONLY", "ACCEPTANCE-PLANNER")
+    # The arm of a file: markers in its folder or any folder above it, up to the results folder given.
+    function Get-FileArm([string]$Dir, [string]$Root) {
+        $arm = @()
+        while ($Dir -and $Dir.Length -ge $Root.Length) {
+            foreach ($m in $markerNames) { if ((Test-Path -LiteralPath (Join-Path $Dir $m)) -and $arm -notcontains $m) { $arm += $m } }
+            if ($Dir.TrimEnd('\', '/') -eq $Root) { break }
+            $Dir = Split-Path -Parent $Dir
+        }
+        return (($arm | Sort-Object) -join "+")
+    }
+    # What the run JSONs say about names, for matching timed-out transcripts (every model, before -Model filters).
+    $known = @{}; $labels = @{}; $gradings = @{}
     # Read-AgentEvents, for counting capped steps in transcripts older than the run JSON's `cappedSteps`.
     . (Join-Path (Join-Path $PSScriptRoot "agents") "opencode.ps1")
     foreach ($d in $ResultsDir) {
@@ -306,34 +353,45 @@ if ($MyInvocation.InvocationName -ne '.' -and $ResultsDir) {
         foreach ($f in Get-ChildItem -LiteralPath $d -Recurse -Filter "tasks-*.json") {
             try { $j = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json } catch { continue }
             if (-not $j -or -not $j.taskId -or -not $j.gates) { continue }
+            $lab = ConvertTo-FileLabel $(if ($j.PSObject.Properties['modelLabel'] -and $j.modelLabel) { "$($j.modelLabel)" } else { "$($j.model)" })
+            if ($lab) { $known["$($j.taskId)-$lab"] = [pscustomobject]@{ taskId = "$($j.taskId)"; model = $j.model }; $labels[$lab] = $j.model }
+            if ($j.PSObject.Properties['grading'] -and $j.grading) { $gradings["$($j.taskId)"] = "$($j.grading)" }
             if ($Model -and $j.model -ne $Model) { continue }
             # A non-zero agent exit never reached the model (or was not lifted): no measurement.
             $ex = $j.PSObject.Properties['opencodeExit']
             if ($ex -and $null -ne $ex.Value -and "$($ex.Value)" -match '^-?\d+$' -and [int]$ex.Value -ne 0) { $skippedExit++; continue }
-            # The arm: markers in the run's folder or any folder above it, up to the one given.
-            $arm = @()
-            $dir = $f.DirectoryName
-            while ($dir -and $dir.Length -ge $root.Length) {
-                foreach ($m in $markerNames) { if ((Test-Path -LiteralPath (Join-Path $dir $m)) -and $arm -notcontains $m) { $arm += $m } }
-                if ($dir.TrimEnd('\', '/') -eq $root) { break }
-                $dir = Split-Path -Parent $dir
-            }
-            $j | Add-Member -NotePropertyName arm -NotePropertyValue (($arm | Sort-Object) -join "+") -Force
+            $j | Add-Member -NotePropertyName arm -NotePropertyValue (Get-FileArm $f.DirectoryName $root) -Force
             $j | Add-Member -NotePropertyName capSteps -NotePropertyValue (Get-RunCapSteps $j $f.FullName) -Force
             if ($StepTokens -gt 0) { $j | Add-Member -NotePropertyName longSteps -NotePropertyValue (Get-TranscriptLongSteps -Path ([IO.Path]::ChangeExtension($f.FullName, ".jsonl")) -Min $StepTokens) -Force }
             $runs += $j
         }
     }
     if ($runs.Count -eq 0) { Write-Host "ERROR: no run JSONs under $($ResultsDir -join ', ')" -ForegroundColor Red; exit 1 }
+    # Timed-out transcripts: failures of the model they name, unless -ExcludeTimeouts (the view before 2026-11-12).
+    $timeouts = 0; $timeoutsCounted = 0; $timeoutsUnmatched = @()
+    foreach ($d in $ResultsDir) {
+        $root = (Resolve-Path -LiteralPath $d).Path.TrimEnd('\', '/')
+        foreach ($f in @(Get-ChildItem -LiteralPath $d -Recurse -File -Filter "tasks-*_TIMEOUT_*.jsonl" -ErrorAction SilentlyContinue)) {
+            $timeouts++
+            if ($ExcludeTimeouts) { continue }
+            $t = Resolve-TimeoutRun -FileName $f.Name -Known $known -Labels $labels -Gradings $gradings
+            if (-not $t) { $timeoutsUnmatched += $f.Name; continue }
+            if ($Model -and $t.model -ne $Model) { continue }
+            $t | Add-Member -NotePropertyName arm -NotePropertyValue (Get-FileArm $f.DirectoryName $root) -Force
+            $runs += $t; $timeoutsCounted++
+        }
+    }
     $summary = Get-RoundSummary -Runs $runs -K $K -StepTokens $StepTokens
     if ($AsJson) { $summary | ConvertTo-Json -Depth 6; exit 0 }
-    $timeouts = @($ResultsDir | ForEach-Object { Get-ChildItem -LiteralPath $_ -Recurse -Filter "tasks-*_TIMEOUT_*.jsonl" -ErrorAction SilentlyContinue }).Count
-    if ($timeouts) { Write-Host ("{0} run(s) timed out: not graded, and not in the numbers below (their time is not in the cost line either)" -f $timeouts) -ForegroundColor Yellow }
+    if ($timeouts -and $ExcludeTimeouts) { Write-Host ("{0} run(s) timed out: not graded, and not in the numbers below (their time is not in the cost line either)" -f $timeouts) -ForegroundColor Yellow }
+    elseif ($timeouts) { Write-Host ("{0} run(s) timed out: {1} counted as failure(s) below (-ExcludeTimeouts leaves them out, as before 2026-11-12); their time is not in the cost line" -f $timeouts, $timeoutsCounted) -ForegroundColor Yellow }
+    if ($timeoutsUnmatched.Count) { Write-Host ("{0} timed-out run(s) match no model with a run JSON in these folders, so they are NOT counted: {1}" -f $timeoutsUnmatched.Count, ($timeoutsUnmatched -join ", ")) -ForegroundColor Yellow }
     if ($skippedExit) { Write-Host ("{0} run JSON(s) with a non-zero agent exit skipped (infrastructure: no measurement)" -f $skippedExit) -ForegroundColor Yellow }
     foreach ($s in $summary) {
         Write-Host ""
         $label = if ($s.arm) { "$($s.model) [$($s.arm)]" } else { $s.model }
         Write-Host ("{0}: {1} graded runs, {2} passed ({3:P0} per run); k = {4}" -f $label, $s.runs, $s.passes, $s.perRun, $s.k)
+        if ($s.timeouts) { Write-Host ("  {0} of those runs timed out and count as failures" -f $s.timeouts) }
         foreach ($name in $s.eras.Keys) { Write-Host ("  WARN pooled across different {0}: {1}" -f $name, ($s.eras[$name] -join " | ")) -ForegroundColor Yellow }
         if ($s.zeroWritePasses) { Write-Host ("  note: {0} passing run(s) recorded no write/edit tool call (edits made through the shell?); the harness counts those as liar mode" -f $s.zeroWritePasses) -ForegroundColor Yellow }
         Write-Host ("  pass@{0} {1:N3}  pass^{0} {2:N3}  (means over tasks); passed every run: {3} of {4} tasks; never: {5}" -f $s.k, $s.passAtK, $s.passHatK, $s.tasksAlwaysPassed, $s.tasks.Count, $s.tasksNeverPassed)

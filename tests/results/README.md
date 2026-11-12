@@ -9,7 +9,7 @@ Dated measurement logs, per-category row inventories and the era notes live in [
 | Path | Holds | Read it for |
 |---|---|---|
 | `tasks-summary.tsv` | One row per graded public-task run (+ a `.json` and `.jsonl` per run) | Per-seat pass rates ("What counts as a pass") |
-| `tasks-*_INFRA_/_TIMEOUT_*.jsonl` | Transcripts of runs that never reached the model or timed out; no row | "Not every row is a run" |
+| `tasks-*_INFRA_/_TIMEOUT_*.jsonl` | Transcripts of runs that never reached the model or timed out; no row. Since 2026-11-12 `summarize-rounds.ps1` counts a `_TIMEOUT_` one as a failed run (`-ExcludeTimeouts` for the earlier view); the summary TSVs still have no row for it | "Not every row is a run" |
 | `real-tasks-public.tsv` | Opaque public mirror of the private real-prompt set | Real-task verdicts |
 | `toolcalls-summary.tsv` (+ `-llamacpp.tsv`) | Tool-call probe results by host and engine version | [docs/tool-calling.md](../../docs/tool-calling.md) |
 | `bench-speed*.tsv`, `llamacpp-soak.tsv`, `overflow-probe.tsv` | Speed, soak and overflow measurements | Hardware and engine numbers |
