@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: household tool 0.3.4 says what to do next in its receipt messages (2026-11-12).**
+  - **Why:** the 30B trial and the 8B both failed the same way on the 2026-11-12 receipt. "skip BOOK" matched no line and
+    nothing said so. An unknown line said only "ask the user", not what to call next. A product name that matched
+    nothing gave no way out but a retry.
+  - **Change:** a skip word that matches no line is reported, with the item number as the fix. An unknown line says
+    to ask which product or whether to skip it, and gives the two calls (`matches`, `skip`). A product name that is
+    not found says to put the item number in `skip` if the user does not want that line.
+  - **Test:** `test_receipt_messages_say_what_to_do_next`; mutation-checked: removing the skip-miss message or the
+    skip hint each fails it.
+
 - **tests: a timed-out run counts as a failure in `summarize-rounds.ps1` (2026-11-12, the owner's decision of 2026-11-11).**
   - **Why:** a timeout leaves only a `_TIMEOUT_` transcript, so the script printed how many there were and left them out
     of every rate. A model that loops to the time limit looked better than one that fails quickly. Found by the
