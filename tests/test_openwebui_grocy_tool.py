@@ -490,6 +490,16 @@ class ToolTest(unittest.TestCase):
         self.assertIn("Skipped: 6666666 TEST GAME\n", out)
         self.assertNotIn("The counts differ", self.receipt(skip="game"))
 
+    def test_receipt_whole_pasted_receipt_with_footer_and_literal_breaks(self):
+        # 2026-11-12: the chat sent the receipt as one string with backslash-n breaks, footer included.
+        lines = ("5555555 TEST LOAF 12.00A\\n0000000001 / 5555555 2.50-A\\n8888888 TEST MILK 4.00\\nSUBTOTAL 17.50\\n"
+                 "TAX 0.27\\n**** TOTAL 17.77\\nA 6.625% Tax 0.27\\n11/08/2026 09:15 739 2 15 79\\n"
+                 "21073900200152611080915\\nOP#: 79 Name: SANDY K\\nTotal BOB Item Count = 2")
+        out = self.receipt(lines=lines, items_sold=2, skip="", matches="5555555=Test bread; 8888888=Test milk")
+        self.assertIn("Item lines read: 2 (Items Sold printed: 2).", out)
+        self.assertIn("TEST LOAF -> Test bread, 1, 9.50 (after a 2.50 discount)", out)
+        self.assertNotIn("cannot read", out)
+
     def test_receipt_messages_say_what_to_do_next(self):
         # 2026-11-12: "skip BOOK" matched nothing and the model did not notice; unknown lines did not say what to call.
         out = self.receipt(matches="1111111=Test mangoes; 6666666=Test cheese, blueberry; 7777777=Test cheese, herby; "

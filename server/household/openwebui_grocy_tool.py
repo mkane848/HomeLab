@@ -1,7 +1,7 @@
 """
 title: Grocy (household tracker)
 author: HomeLab
-version: 0.3.4
+version: 0.3.5
 description: Read and change the household's Grocy: products, stock, purchases and receipts, the shopping list and chores.
 """
 # Phase 2 of docs/household-assistant.md; runbook docs/household/phase2-chat.md.
@@ -30,6 +30,9 @@ class GrocyError(Exception):
     """A problem worth telling the user about, as a plain sentence."""
 
 
+# Footer lines of a Costco receipt (subtotal, tax, card, the item count): not items, skipped. 2026-11-12: the chat sent
+# the whole receipt, footer included, as one line with literal backslash-n breaks, and the tool refused it.
+FOOTER = re.compile(r"^(SUBTOTAL|TAX|TOTAL|AID|SEQ|VISA|APPROVED|CHANGE|INSTANT|THANK|OP#|NAME|BOB|A$|\d{2}/\d{2}/\d{4}|\d{20,})", re.I)
 PRICE = re.compile(r"^(-?)\$?(\d+\.\d{2})(-?)[A-Za-z]?$")  # a tax flag may touch the price: 2.50-A (Costco)
 
 # Whether the user's last message is an OK. 2026-11-10: the chat called record_receipt with confirm=true right after the
@@ -57,9 +60,11 @@ def parse_receipt(lines):
     nearest item line above it. The model only copies lines; this does the arithmetic (2026-11-09: the chat put a
     discount on the wrong line and kept discount lines as items)."""
     items = []
-    for raw in (lines or "").splitlines():
+    for raw in (lines or "").replace("\\n", "\n").splitlines():
         t = raw.replace("*", " ").split()
         if not t:
+            continue
+        if FOOTER.match(t[0]):
             continue
         if t[0].upper() == "E" and len(t) > 1:
             t = t[1:]
