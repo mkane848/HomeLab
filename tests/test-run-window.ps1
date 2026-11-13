@@ -117,7 +117,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     # with Connection: close, so it needs no URL reservation on Windows.
     $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0); $listener.Start()
     $port = $listener.LocalEndpoint.Port
-    $server = [hashtable]::Synchronized(@{ Up = $true; Models = @("qwen3.6:35b-a3b-coding"); Stop = $false; Unloads = 0 })
+    $server = [hashtable]::Synchronized(@{ Up = $true; Models = @("qwen3.6:35b-a3b-coding"); Stop = $false; Unloads = 0; Others = @(); OthersState = "loaded"; UnloadWorks = $true })
     $serverJob = Start-ThreadJob -ArgumentList $listener, $server -ScriptBlock {
         param($tcp, $st)
         try {
@@ -132,9 +132,10 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
                     $code = 200; $body = "{}"
                     switch ($path) {
                         "/health" { if ($st.Up) { $body = '{"status":"ok"}' } else { $code = 503; $body = '{"error":{"message":"down"}}' } }
-                        "/models" { $body = (@{ data = @($st.Models | ForEach-Object { @{ id = $_; aliases = @(); status = @{ value = "loaded" } } }) } | ConvertTo-Json -Depth 6 -Compress) }
+                        # $st.Others: models loaded beside the seat, each with an alias (router mode rewrites a colon id).
+                        "/models" { $body = (@{ data = @(@($st.Models | ForEach-Object { @{ id = $_; aliases = @(); status = @{ value = "loaded" } } }) + @($st.Others | ForEach-Object { @{ id = (($_ -split ":")[0] + ":X"); aliases = @($_); status = @{ value = $st.OthersState } } })) } | ConvertTo-Json -Depth 6 -Compress) }
                         "/props" { $body = '{"build_info":"b11561-stand-in"}' }
-                        "/models/unload" { $st.Unloads++; $body = '{"success":true}' }
+                        "/models/unload" { $st.Unloads++; if ($st.UnloadWorks) { $st.Others = @() }; $body = '{"success":true}' }
                         default { $code = 404 }
                     }
                     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
@@ -333,6 +334,53 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "a STOP file ends the window: exit 0" $r.Exit 0
     Check "...the phase did not run to its 120 s" ($r.Seconds -lt 60) "True"
     Has "...the report says why" $r.Report 'STOP file ended the window'
+
+    Write-Host "-- the GPU to itself (a model loaded beside the seat)"
+    # The household chat's model was left loaded: the gate unloads it, by the tag a client uses (its alias).
+    $server.Others = @("qwen3-vl:8b"); $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "a model loaded beside the seat is unloaded and the window runs" ("{0}|{1}|{2}|{3}" -f $r.Exit, (Phase-Row $r "baseline"), ($server.Unloads - $before), $server.Others.Count) "0|ok|1|0"
+    Has "...the gate says which, in the report" $r.Report 'GPU to itself.*unloaded qwen3-vl:8b'
+    Has "...and the log has the request" $r.Text "unloaded qwen3-vl:8b from"
+    # It will not unload (the chat is in use): no-go, before any phase.
+    $server.Others = @("qwen3-vl:8b"); $server.UnloadWorks = $false; $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "a model that stays loaded after the request: exit 2, no phase" ("{0}|{1}|{2}" -f $r.Exit, $r.Calls.Count, ($server.Unloads - $before)) "2|0|1"
+    Has "...named in the report" $r.Report 'NO-GO at the gate.*GPU to itself'
+    Has "...with the model" $r.Report 'still loaded beside the seat after an unload request: qwen3-vl:8b'
+    # -KeepOthers: nothing is unloaded, the window runs, and the gate warns.
+    $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline"); KeepOthers = $true }
+    Check "-KeepOthers: no unload request, the window runs" ("{0}|{1}|{2}" -f $r.Exit, (Phase-Row $r "baseline"), ($server.Unloads - $before)) "0|ok|0"
+    Has "...and the report warns that the GPU is shared" $r.Report 'GPU to itself.*left there \(-KeepOthers\): qwen3-vl:8b'
+    # -Plan looks and changes nothing.
+    $server.UnloadWorks = $true; $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline"); Plan = $true }
+    Check "-Plan: no unload request" ("{0}|{1}" -f ($server.Unloads - $before), $server.Others.Count) "0|1"
+    Has "...and it says a window would unload it" $r.Text 'gate WARN GPU to itself: loaded beside the seat: qwen3-vl:8b; a window unloads them first'
+    # A model that is still loading counts; one that is listed but unloaded does not; the CPU title model is allowed.
+    $server.OthersState = "loading"; $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "a model still loading beside the seat is unloaded too" ($server.Unloads - $before) 1
+    $server.Others = @("qwen3-vl:8b"); $server.OthersState = "unloaded"; $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "a model the router lists but has not loaded: nothing to do" ("{0}|{1}" -f $r.Exit, ($server.Unloads - $before)) "0|0"
+    Has "...and the gate passes" $r.Report 'GPU to itself.*nothing loaded beside the seat'
+    $server.Others = @("qwen2.5-coder-3b-cpu"); $server.OthersState = "loaded"; $before = $server.Unloads
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "the CPU title model (-AllowLoaded) is left alone" ("{0}|{1}|{2}" -f $r.Exit, ($server.Unloads - $before), $server.Others.Count) "0|0|1"
+    $r = Invoke-Window @{ Run = @("baseline"); AllowLoaded = @("something-else") }
+    Check "...and is unloaded when -AllowLoaded does not name it" ($server.Unloads - $before) 1
+    # Something used the server during the window: a model appears after the gate, and the report says so.
+    $server.Others = @()
+    $job = Start-AfterPhase "baseline" 0 { param($st) $st.Others = @("qwen3-vl:8b") } $server
+    $r = Invoke-Window @{ Run = @("baseline") }
+    $null = $job | Wait-Job -Timeout 30; Remove-Job $job -Force -ErrorAction SilentlyContinue
+    Has "a model that appears during the window is in the report" $r.Report 'another model was loaded when the window ended: qwen3-vl:8b'
+    Check "...and the window still ran to its end" ("{0}|{1}" -f $r.Exit, (Phase-Row $r "baseline")) "0|ok"
+    $server.Others = @()
+    $r = Invoke-Window @{ Run = @("baseline") }
+    Check "no such line when nothing appeared" ([bool]($r.Report -match 'another model was loaded')) "False"
 
     Write-Host "-- games (-YieldToGames) and -UnloadAtEnd"
     # A stand-in game: a copy of a harmless long-running program under a name no real process has. -SteamKey is

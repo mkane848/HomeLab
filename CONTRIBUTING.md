@@ -21,6 +21,11 @@ and the repo adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Every notable change gets an entry under `[Unreleased]` in `CHANGELOG.md`,
   grouped Added / Changed / Deprecated / Removed / Fixed / Security.
+- **The household assistant has its own:** `docs/household/CHANGELOG.md` (since
+  2026-11-13). A change to `server/household/`, the household compose file,
+  `docs/household*` or their tests is entered there, not in `CHANGELOG.md`. A
+  change that also touches the fleet (a shared seat, a shared check) goes in
+  `CHANGELOG.md`, with one line in the household's pointing at it.
 - Don't dump the commit log into the changelog. One curated, human-readable
   line per change; open a PR right after a release to promote `[Unreleased]`
   into a dated version heading.

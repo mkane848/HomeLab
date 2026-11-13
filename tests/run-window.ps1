@@ -80,6 +80,14 @@ param(
     # run host's own GPU (node3's llama-server) frees its VRAM. Loading again takes seconds (2026-11-03: 6.6 to 7.7 s
     # on node3, 5.5 s on the server). Leave it off against the server: its main seat should stay loaded.
     [switch]$UnloadAtEnd,
+    # Models loaded beside the seat (2026-11-13). The server's router holds two models at once, and the household chat
+    # shares it (docs/household/phase2-chat.md: "do not use the chat during a test window", which nothing enforced).
+    # The gate asks the router which models are loaded and unloads every one that is not the seat or in -AllowLoaded,
+    # so the window starts with the GPU to itself; a model that will not unload is a no-go. -KeepOthers leaves them
+    # and only warns. When the window ends it looks again: a model that appeared means something used the server
+    # during the window, and the report says so. -AllowLoaded defaults to the CPU title model, which holds no VRAM.
+    [string[]]$AllowLoaded = @("qwen2.5-coder-3b-cpu"),
+    [switch]$KeepOthers,
     # -FillTo N -FillFrom <folders>: a slice of a larger run (2026-11-04, owner: split a night's test into short
     # slices). Baseline tasks that already have N attempts in the -FillFrom results folders are left out, so each slice
     # runs only what is missing. An attempt is a graded row (tasks-summary.tsv / real-tasks-summary.tsv) or a timed-out
@@ -229,6 +237,25 @@ function Get-TaskAttempts {
     return $n
 }
 
+# The models a llama-server router has loaded (or is loading) that are not in $Keep, one tag each: the first alias
+# when there is one (router mode rewrites a colon id, and the alias keeps the exact tag), else the id. A model is
+# kept when its id or any alias is in $Keep. @() when there is none; $null when the router did not answer, so
+# "could not look" is never read as "nothing there".
+function Get-OtherLoadedModels {
+    param([string]$Root, [string[]]$Keep = @())
+    try { $data = @((Invoke-RestMethod -Uri ($Root.TrimEnd('/') + "/models") -TimeoutSec 10).data) } catch { return $null }
+    $others = @()
+    foreach ($m in $data) {
+        $state = if ($m.status) { "$($m.status.value)" } else { "" }
+        if ($state -notin "loaded", "loading") { continue }
+        $names = @(@($m.id) + @($m.aliases) | Where-Object { $_ } | ForEach-Object { "$_" })
+        if (-not $names.Count -or @($names | Where-Object { $_ -in $Keep }).Count) { continue }
+        $aliases = @(@($m.aliases) | Where-Object { $_ })
+        $others += $(if ($aliases.Count) { "$($aliases[0])" } else { "$($m.id)" })
+    }
+    return , @($others)
+}
+
 # Ask a llama-server router to unload one model. Returns a short note for the log.
 function Invoke-SeatUnload {
     param([string]$Root, [string]$ModelId)
@@ -319,6 +346,7 @@ $script:attention = @()              # lines for "Needs your eyes"
 function Add-Attention([string]$Text) { $script:attention += $Text; Write-Log "ATTENTION: $Text" }
 $script:gateResults = @()
 $script:go = @{ retries = $true; batch = $true; window = $true }
+$script:gpuAlone = $false   # set by the gate when nothing but the seat (and -AllowLoaded) was loaded
 $script:exitCode = 0
 $script:m4Ids = @(); $script:baselineTasks = @()
 $script:child = $null
@@ -461,6 +489,20 @@ function Invoke-Gate {
             else { Add-Gate "seat served" "FAIL" "$seatTag is not served by $serverRoot (served: $(if ($served) { $served -join ', ' } else { 'nothing' }))" }
             $build = Get-EngineVersion -Root $serverRoot
             if ($build) { Add-Gate "llama.cpp build" "PASS" $build }
+            # The GPU to itself: nothing loaded beside the seat (the household chat's model, a candidate left loaded).
+            $keep = @($seatTag) + @(Split-List $AllowLoaded)
+            $others = Get-OtherLoadedModels -Root $serverRoot -Keep $keep
+            if ($null -eq $others) { Add-Gate "GPU to itself" "WARN" "could not read which models $serverRoot has loaded" }
+            elseif ($others.Count -eq 0) { Add-Gate "GPU to itself" "PASS" "nothing loaded beside the seat"; $script:gpuAlone = $true }
+            elseif ($Plan) { Add-Gate "GPU to itself" "WARN" "loaded beside the seat: $($others -join ', '); a window unloads them first (-KeepOthers leaves them)" }
+            elseif ($KeepOthers) { Add-Gate "GPU to itself" "WARN" "loaded beside the seat and left there (-KeepOthers): $($others -join ', '); the window shares the GPU with them" }
+            else {
+                foreach ($o in $others) { Write-Log (Invoke-SeatUnload -Root $serverRoot -ModelId $o) }
+                $still = Get-OtherLoadedModels -Root $serverRoot -Keep $keep
+                if ($null -eq $still) { Add-Gate "GPU to itself" "WARN" "asked the router to unload $($others -join ', '), then could not read what is loaded" }
+                elseif ($still.Count) { Add-Gate "GPU to itself" "FAIL" "still loaded beside the seat after an unload request: $($still -join ', ') (is the household chat in use? docs/household/phase2-chat.md)" }
+                else { Add-Gate "GPU to itself" "PASS" "unloaded $($others -join ', '), which was loaded beside the seat"; $script:gpuAlone = $true }
+            }
         } else {
             Add-Gate "server /health" "FAIL" "$serverRoot did not answer within $WaitServerMinutes min (is the server's half open? bash server/scripts/llamacpp-window.sh status)"
         }
@@ -737,6 +779,12 @@ try {
 } finally {
     if ($script:child -and -not $script:child.HasExited) {
         if ($IsWindows) { & taskkill.exe /PID $script:child.Id /T /F 2>&1 | Out-Null } else { Stop-Process -Id $script:child.Id -Force -ErrorAction SilentlyContinue }
+    }
+    # Did anything else use the server during the window? A model loaded beside the seat now was not there after the gate.
+    # Only when the gate saw the seat alone: otherwise there is no "before" to compare with.
+    if ($serverRoot -and $seatTag -and $script:gpuAlone) {
+        $late = Get-OtherLoadedModels -Root $serverRoot -Keep (@($seatTag) + @(Split-List $AllowLoaded))
+        if ($late -and $late.Count) { Add-Attention "another model was loaded when the window ended: $($late -join ', '). Something used the server during the window (the household chat?), so its timings and timeouts may not be the seat's alone." }
     }
     if ($UnloadAtEnd -and $serverRoot -and $seatTag) { Write-Log (Invoke-SeatUnload -Root $serverRoot -ModelId $seatTag) }
     Write-Status "done"
