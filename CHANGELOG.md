@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server: a firewall rule that limits the model ports to named hosts (2026-11-13, the owner's decision of 2026-11-11). Not yet applied.**
+  - **Why:** llama-server (8090) and Ollama (11434) on the server take no API key and are published on every
+    interface, and `ufw` does not filter Docker's published ports. Found by the 2026-11-09 audit. The owner chose a
+    rule by host now, and API keys before any VPN.
+  - **What:** `server/scripts/model-ports-firewall.sh apply|remove|status`. It adds a chain that returns for each allowed
+    source and drops the rest, and one jump from `DOCKER-USER` per port, for packets arriving on the LAN interface in the
+    original direction. The allowed hosts are `DESKTOP_IP` and `NODE3_IP` from `.env`, or `--allow`. It refuses an empty
+    list, is idempotent, and has `--dry-run`. `server/systemd/model-ports-firewall.service` re-applies it after Docker
+    starts. Grocy, the chat's page, the server itself and the chat's own path to the engine are not affected.
+  - **Runbook:** `docs/network-topology.md` → "Limit the model ports to named hosts". Applying it needs `sudo`: the
+    owner's step, with three checks to make from the LAN and one for IPv6.
+  - **Tested:** `tests/test_model_ports_firewall.py` (13 tests, in CI) against a stand-in `iptables` that keeps chains
+    and rules. Mutation-checked nine ways, each red: an empty list accepted, the DROP first, a jump added on every run,
+    the old chain not flushed, `remove` leaving the chain, no `--ctdir`, no interface, a dry run that runs, a bad
+    address accepted. **Not tested: that the kernel filters as intended.** That is step 4 of the runbook.
+  - **Source:** Docker's "Docker with iptables" (new `docker-iptables` in `docs/references.md`), read as the Markdown
+    source on GitHub because docs.docker.com was not reachable.
+
 - **fix: household tool 0.3.5 reads a receipt pasted as one line, and skips its footer (2026-11-12).**
   - **Why:** in the live run the chat sent the whole receipt, footer included, as one string with backslash-n breaks.
     The tool read it as one line and refused it. Nothing was written.

@@ -1,0 +1,23 @@
+[Unit]
+Description=Limit the model ports (8090, 11434) to named LAN hosts (server/scripts/model-ports-firewall.sh)
+# Docker creates the DOCKER-USER chain, so this runs after it, and again whenever Docker is restarted.
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Runs as root: it writes iptables rules. The allowed hosts are DESKTOP_IP and NODE3_IP in the checkout's .env.
+# Install (the owner's step: it needs sudo), after `apply` has been run and checked by hand
+# (docs/network-topology.md -> "Limit the model ports to named hosts"):
+#   sed -e "s#/path/to/HomeLab#$HOME/HomeLab#" server/systemd/model-ports-firewall.service \
+#       | sudo tee /etc/systemd/system/model-ports-firewall.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now model-ports-firewall.service
+# After any daemon-reload, check the container still sees the GPU (status.sh; docs/troubleshooting.md ->
+# "Container lost the GPU").
+ExecStart=/path/to/HomeLab/server/scripts/model-ports-firewall.sh apply
+ExecStop=/path/to/HomeLab/server/scripts/model-ports-firewall.sh remove
+
+[Install]
+WantedBy=multi-user.target

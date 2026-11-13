@@ -63,13 +63,14 @@ jobs:
           shellcheck -S error server/scripts/*.sh server/household/*.sh models/catalog.sh \
             profiles/*.sh profiles/parked/*.sh tests/*.sh .claude/hooks/*.sh make-executable.sh
 
-      - name: Python unit tests (llamacpp_check, config drift, planner checkpoint, grocy import, chat tool, chat push, household backup)
+      - name: Python unit tests (llamacpp_check, config drift, planner checkpoint, grocy import, chat tool, chat push, household backup, model-ports firewall)
         run: |
           python3 -m unittest -v tests/test_llamacpp_check.py
           python3 -m unittest -v tests/test_grocy_import.py
           python3 -m unittest -v tests/test_openwebui_grocy_tool.py
           python3 -m unittest -v tests/test_openwebui_push.py
           python3 -m unittest -v tests/test_household_backup.py
+          python3 -m unittest -v tests/test_model_ports_firewall.py
           python3 -I tests/test_planner_done.py
           python3 -I tests/test_config_drift.py
 

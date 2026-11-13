@@ -112,7 +112,7 @@ to produce the numbers that decide the purchase. Machines are as in
 | Tracker, Open WebUI, vector store, nightly backup (Docker containers) | `server` | Already Docker and the closest thing to always-on. These containers need no GPU and little CPU, which matters because the 3700X is the fleet's weakest CPU and is busy with qwen3.6's CPU spill. |
 | Chat model, a tool-calling 7 to 9B (e.g. `qwen3:8b`, probe-PASS on server and node3) | `server`'s llama-server when no coding run holds the GPU; `node3` as the fallback when it is free | One big job per GPU ([fleet-side-projects.md](fleet-side-projects.md)). Household chat must never overlap a benchmark round or a run window ([unattended-window.md](unattended-window.md)). |
 | Embeddings for retrieval (a small model, e.g. `nomic-embed-text`, already in `models/catalog.tsv`) | CPU on the server, or batch indexing on node3 or the desktop | Re-index in batches, not on every edit, to keep load off the 3700X |
-| Phone access | Open WebUI in the phones' browsers on the LAN; a VPN (WireGuard or Tailscale) from outside the house | Never port-forward the household's data to the internet |
+| Phone access | Open WebUI in the phones' browsers on the LAN; a VPN (WireGuard or Tailscale) from outside the house. **Before any VPN: API keys on the model engines** (owner, 2026-11-11; [network-topology.md](network-topology.md) → "Limit the model ports to named hosts") | Never port-forward the household's data to the internet |
 
 The tracker sends reminders even with every GPU off, so **the PoC depends on the fleet only for chat.** That is the
 risk the PoC measures.
