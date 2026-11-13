@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: household tool 0.3.5 reads a receipt pasted as one line, and skips its footer (2026-11-12).**
+  - **Why:** in the live run the chat sent the whole receipt, footer included, as one string with backslash-n breaks.
+    The tool read it as one line and refused it. Nothing was written.
+  - **Change:** a literal backslash-n counts as a line break. Footer lines (subtotal, tax, card, item count, barcode,
+    date) are skipped, not read as items.
+  - **Test:** `test_receipt_whole_pasted_receipt_with_footer_and_literal_breaks`; mutation-checked: skipping the footer
+    or splitting on literal breaks each fails it.
+
 - **fix: household tool 0.3.4 says what to do next in its receipt messages (2026-11-12).**
   - **Why:** the 30B trial and the 8B both failed the same way on the 2026-11-12 receipt. "skip BOOK" matched no line and
     nothing said so. An unknown line said only "ask the user", not what to call next. A product name that matched
