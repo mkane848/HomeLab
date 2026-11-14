@@ -42,7 +42,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 
 | Service | Port | Protocol | Bound To | Notes |
 |---------|------|----------|----------|-------|
-| Server llama.cpp (`llama-server`) | 8090 | TCP | 0.0.0.0 | Docker container; the engine that starts at boot since 2026-11-01. No API key: any LAN host can use it |
+| Server llama.cpp (`llama-server`) | 8090 | TCP | 0.0.0.0 | Docker container; the engine that starts at boot since 2026-11-01. No API key: any LAN host can use it until the rule under "Limit the model ports to named hosts" is applied |
 | Server Ollama | 11434 | TCP | 0.0.0.0 | Docker container, stopped since 2026-11-01 and kept as the rollback engine (`startup.sh --engine ollama`). No API key |
 | Desktop Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | Third-node Ollama | 11434 | TCP | 0.0.0.0 | Native install |
@@ -68,6 +68,67 @@ brought up to the 2026-11-01 engine change on 2026-11-11.)
 
 ### Windows (Third node)
 - **Inbound**: Allow TCP 11434 from desktop + server IPs (OpenCode → its Ollama)
+
+## Limit the model ports to named hosts
+
+**Status (2026-11-13): written and tested against a stand-in `iptables`; not yet applied on the server.** Applying it is
+the owner's step, because it needs `sudo`.
+
+**The gap.** The server's llama-server (8090) and Ollama (11434) take no API key, and Docker publishes them on every
+interface. Any device on the LAN can run inference and load or unload models. `ufw` does not close this: Docker routes
+published ports through its own rules, "effectively ignoring your firewall configuration"
+([Docker, "Packet filtering and firewalls"](https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/network/packet-filtering-firewalls.md)).
+
+**The fix (owner, 2026-11-11): a firewall rule by host now, API keys before any VPN.**
+`server/scripts/model-ports-firewall.sh` adds rules to the `DOCKER-USER` chain, the place Docker documents for rules
+of your own, matched on the original destination port with the `conntrack` extension
+([Docker, "Docker with iptables"](https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/network/firewall-iptables.md)).
+Only the hosts you name reach 8090 and 11434 from the LAN.
+
+| Still works | Why |
+|---|---|
+| The desktop and node3 | They are the allowed hosts (`DESKTOP_IP`, `NODE3_IP` in `.env`, or `--allow`) |
+| The server itself (`localhost:8090`) | It does not arrive on the LAN interface |
+| The household chat (Open WebUI → 8090) | It reaches the engine over a Docker bridge, not the LAN interface |
+| Grocy (9283) and the chat's web page (3000), from the phones | They are not model ports; the rule names 8090 and 11434 only |
+
+**Steps (on the server; the `sudo` ones are the owner's):**
+
+1. Pull `main`. Check `.env` in the checkout has `DESKTOP_IP` and `NODE3_IP`.
+2. Look before changing anything. This needs no root and changes nothing:
+   ```bash
+   server/scripts/model-ports-firewall.sh apply --dry-run
+   ```
+   It prints the `iptables` commands, with the interface it found from the default route. A wrong interface: add
+   `--iface <name>`.
+3. Apply it, and look at the result:
+   ```bash
+   sudo server/scripts/model-ports-firewall.sh apply
+   sudo server/scripts/model-ports-firewall.sh status
+   ```
+4. **Check it from three places.** This is the test the stand-in cannot make.
+   - **The desktop (allowed):** `curl.exe -s -m 5 http://<SERVER_IP>:8090/health` answers.
+   - **A device that is not on the list** (a phone's browser, or node3 with its address left out for the test):
+     `http://<SERVER_IP>:8090/health` times out, while `http://<SERVER_IP>:3000` still opens.
+   - **The household chat:** `docker exec household-openwebui curl -s -m 5 http://host.docker.internal:8090/v1/models`
+     still lists the models.
+5. **IPv6.** The rule is IPv4 only. From a LAN device with an IPv6 address, try the server's IPv6 address:
+   `curl -g -s -m 5 "http://[<server IPv6>]:8090/health"`. If it answers, tell the agent: that path needs its own rule.
+6. **Make it survive a reboot.** The rules live in memory. Install the unit, which runs after Docker and again whenever
+   Docker restarts (the commands are in its header):
+   `server/systemd/model-ports-firewall.service`.
+7. Record the date and what step 4 showed, here.
+
+**Undo:** `sudo server/scripts/model-ports-firewall.sh remove` (and `sudo systemctl disable --now
+model-ports-firewall.service` if the unit is installed). The ports are open to the LAN again.
+
+**Not covered, on purpose or not yet:**
+- **API keys.** A host on the list is trusted completely. Keys on the engines are a precondition of the VPN planned
+  for the phones ([household-assistant.md](household-assistant.md)): a VPN peer is one more device on the network.
+- **node3's own llama-server** already has a Windows firewall rule for the LAN range (`node3/README.md`), not per host.
+- **The desktop's Ollama** (11434, native) is a Windows firewall matter, above.
+- **Whether Docker keeps `DOCKER-USER` rules across its own restart** is not stated in the pages read, which is why the
+  unit is tied to `docker.service`.
 
 ## Environment Variables
 
