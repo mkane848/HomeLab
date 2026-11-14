@@ -34,7 +34,8 @@ read 2026-11-08):
 
 ## Rules
 - **Do not use the chat during a test window.** It shares the GPU with the coding seat (`--models-max 2`): see
-  [unattended-window.md](../unattended-window.md).
+  [unattended-window.md](../unattended-window.md). Since 2026-11-13 a window unloads the chat's model when it starts,
+  and its report says if the model was loaded again by the end. Using the chat mid-window still slows the run.
 - **No household data** in the repo, a commit, a PR or a pasted log.
 - **Health stays off cloud models** ([household-assistant.md](../household-assistant.md) → Privacy). This chat uses
   only local models.

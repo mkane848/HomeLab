@@ -76,6 +76,12 @@ pwsh -File tests\run-window.ps1 -Detach -Model llamacpp-node3/qwen3.6:35b-a3b-co
 - `-UnloadAtEnd`: when the window ends, for any reason, the seat is unloaded and the 3080's memory is free again (about
   2 s; loading took 6.6 to 7.7 s when the file was in Windows' cache, longer from a cold disk after a reboot).
 - Do not pass `-UnloadAtEnd` against the server: its main seat should stay loaded for interactive use.
+- **The GPU to itself (2026-11-13).** The server's router holds two models at once, and the household chat shares it.
+  The gate asks the router which models are loaded and unloads every one that is not the seat (or in `-AllowLoaded`,
+  by default the CPU title model). A model that will not unload is a no-go. `-KeepOthers` leaves them and warns;
+  `-Plan` only says what a window would unload. When the window ends it looks again, and a model that appeared goes
+  in the report's attention list: something used the server during the window. It cannot stop someone using the chat
+  mid-window. It makes that visible.
 
 ### A long run in slices (2026-11-04)
 
