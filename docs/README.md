@@ -29,6 +29,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [main-seat-trial.md](main-seat-trial.md) | The plain-language trial that chose the main seat |
 | [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) | What each harness measures, what to stop claiming (the second was written by a Claude subagent) |
 | [audit-2026-09-29/](audit-2026-09-29/README.md) | Working material of the 2026-09-29 benchmark audit: the independent review, mining notes, validation rig and its runs, and the conversation |
+| [audit-2026-11-09.md](audit-2026-11-09.md) | The audit of 2026-11-09: what it found, what was fixed (#235 to #243), and what is still open |
 | [methodology.md](methodology.md) | How models are tested and graded, and how sure each headline number is (95% intervals, runs needed per question) |
 | [methodology-research.md](methodology-research.md) | Methodology and community resources (2026-09-24; superseded in places by the reviews above) |
 | [methodology-caveats.md](methodology-caveats.md) | How far the numbers can be trusted, in one page; who checked what, and what is still open |
