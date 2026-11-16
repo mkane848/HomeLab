@@ -14,6 +14,25 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
 
+## Open after the 2026-11-09 audit (as of 2026-11-16)
+
+The audit's small fixes are merged (#235 to #238, #242, #243). What is left, in order. The findings, their status and
+the smaller items not acted on are in [audit-2026-11-09.md](audit-2026-11-09.md).
+
+**The owner's steps:**
+1. **Apply the firewall rule on the server** (`sudo`): [network-topology.md](network-topology.md) → "Limit the model
+   ports to named hosts". Until then 8090 and 11434 are open to the whole LAN.
+2. **Keep a copy of `WEBUI_SECRET_KEY`** off the server.
+3. **Pull `main` on the server**, so the nightly backup includes the chat; check the next `backup.log` has two lines.
+4. **`tests\run-window.ps1 -Plan` on the desktop**, once, to see what the new "GPU to itself" gate reads from the real router.
+5. **`summarize-rounds.ps1` on a recent private round, with and without `-ExcludeTimeouts`.**
+6. **The pilot on real work** (item 3 of the list below), on today's setup, with the KaneEnabler validator holes as one task.
+
+**For an agent, when the owner says:**
+- **The design for containerised runs** (owner, 2026-11-11): written alongside the pilot, built after it. A new era.
+- **API keys on the model engines**, before any VPN.
+- The rest of the table in [audit-2026-11-09.md](audit-2026-11-09.md) → "Open: work for an agent".
+
 ## Next up (2026-11-07)
 
 The short list as it stands. The older lists below are kept as the record of how the work got here.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the 2026-11-09 audit is on file, with what is still open (2026-11-16, owner's request).**
+  `docs/audit-2026-11-09.md` records the findings and where each stands, the owner's steps that remain (the firewall
+  rule on the server, the chat's secret key, the pilot), the work left for an agent (the container design, API keys
+  before a VPN), the smaller findings not acted on, and the reading not yet done. `docs/roadmap.md` opens with the
+  open items. Until now this was only in the session that did the work.
+
 - **tests: a window starts with the GPU to itself, and says if it did not keep it (2026-11-13, owner's go).**
   - **Why:** the server's router holds two models, and the household chat shares it. "Do not use the chat during a test
     window" was a sentence in a runbook, enforced by nothing.
