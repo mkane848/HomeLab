@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # server/scripts/llamacpp-auth.sh - sourced, not run. The API key the server's scripts send to llama-server.
 #
 # llama-server started with --api-key-file (server/docker/docker-compose.llamacpp.yml) answers only /health without
