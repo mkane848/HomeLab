@@ -133,6 +133,10 @@ $targets = @($PromptTokens -split '[,\s]+' | Where-Object { $_ } | ForEach-Objec
 if ($targets.Count -eq 0 -or $Reps -lt 1) { Write-Host "no prompt sizes, or -Reps below 1" -ForegroundColor Red; exit 2 }
 
 $numCtx = $null
+# llama-server's API key (docs/engine-api-keys.md); Ollama needs none, so it gets no header.
+. (Join-Path $PSScriptRoot "engines/llamacpp-auth.ps1")
+$llamaHeaders = if ($Engine -eq "llamacpp") { Get-LlamacppHeaders } else { @{} }
+
 if ($Engine -eq "llamacpp") {
     # /props carries the build and the served context. In router mode it wants the
     # model as a query parameter, so ask that way first and fall back to the bare path.
@@ -141,7 +145,7 @@ if ($Engine -eq "llamacpp") {
     # would fuse both URLs into one string.)
     $propsUrls = @(("$root/props?model=" + [uri]::EscapeDataString($Model)), "$root/props")
     foreach ($u in $propsUrls) {
-        try { $props = Invoke-RestMethod -Uri $u -TimeoutSec 10; if ($props) { break } } catch { }
+        try { $props = Invoke-RestMethod -Headers $llamaHeaders -Uri $u -TimeoutSec 10; if ($props) { break } } catch { }
     }
     $version = if ($props -and $props.build_info) { [string]$props.build_info } else { "unknown" }
     if ($props) {
@@ -169,7 +173,7 @@ function Measure-Request([string]$Prompt, [int]$Predict) {
         $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); max_tokens = $Predict
                    temperature = 0; seed = 1; stream = $false; cache_prompt = $false } | ConvertTo-Json -Depth 6
         $sw = [Diagnostics.Stopwatch]::StartNew()
-        $reply = Invoke-RestMethod -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
+        $reply = Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
         $sw.Stop()
         return (Get-BenchMetricsLlama $reply $sw.Elapsed.TotalSeconds)
     }

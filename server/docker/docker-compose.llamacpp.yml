@@ -88,12 +88,27 @@ services:
       - /config/models.ini
       - --models-max
       - "2"
-    # Unhealthy when the API is up but the container cannot see the GPU.
+      # API key (docs/engine-api-keys.md): every path but /health needs `Authorization: Bearer <key>`. The file holds
+      # one key per line (# comments allowed): the fleet's and the household chat's, so either can be revoked alone.
+      - --api-key-file
+      - /run/secrets/llamacpp_api_key
+    # A compose secret (read-only at /run/secrets). `docker compose config` does not check that the host file exists,
+    # and a server that read no key would come up open; the healthcheck below and llamacpp-check.sh's live check
+    # (401 without the key) are what catch that. Check the file exists before `up` (docs/engine-api-keys.md).
+    secrets:
+      - llamacpp_api_key
+    # Unhealthy when the API is up but the container cannot see the GPU, or when /props answers without a key
+    # (the key did not take, and the engine would be open to the LAN).
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/health >/dev/null && nvidia-smi -L >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/health >/dev/null && nvidia-smi -L >/dev/null && test \"$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/props)\" = 401"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+secrets:
+  llamacpp_api_key:
+    # On the server, outside the repo, mode 600: docs/engine-api-keys.md -> "Install the keys".
+    file: ${LLAMACPP_API_KEY_FILE:-${HOME}/.config/llamacpp/api-key}
 
 volumes:
   ollama_data:

@@ -67,10 +67,13 @@ $OllamaHost = $OllamaHost -replace '/v1/?$', '' -replace '/$', ''
 if (-not $HostLabel) {
     $HostLabel = if ($OllamaHost -match '//(localhost|127\.0\.0\.1)[:/]?') { "desktop" } else { ([uri]$OllamaHost).Host }
 }
+# llama-server's API key (docs/engine-api-keys.md); Ollama needs none, so it gets no header.
+. (Join-Path $PSScriptRoot "engines/llamacpp-auth.ps1")
+$llamaHeaders = if ($Engine -eq "llamacpp") { Get-LlamacppHeaders } else { @{} }
 if ($Engine -eq "llamacpp") {
     # /props carries the build (build_info, e.g. "b11561-abcdef0").
     $ollamaVersion = "unknown"
-    try { $bi = (Invoke-RestMethod -Uri "$OllamaHost/props" -TimeoutSec 10).build_info; if ($bi) { $ollamaVersion = [string]$bi } } catch { }
+    try { $bi = (Invoke-RestMethod -Headers $llamaHeaders -Uri "$OllamaHost/props" -TimeoutSec 10).build_info; if ($bi) { $ollamaVersion = [string]$bi } } catch { }
 } else {
     try   { $ollamaVersion = (Invoke-RestMethod -Uri "$OllamaHost/api/version" -TimeoutSec 10).version }
     catch { $ollamaVersion = "unknown" }
@@ -84,7 +87,7 @@ function Get-ChatModels {
         # OpenAI-style listing; in router mode the ids are the preset's model names.
         foreach ($u in @("$OllamaHost/v1/models", "$OllamaHost/models")) {
             try {
-                $ids = @((Invoke-RestMethod -Uri $u -TimeoutSec 30).data | ForEach-Object { $_.id } | Where-Object { $_ })
+                $ids = @((Invoke-RestMethod -Headers $llamaHeaders -Uri $u -TimeoutSec 30).data | ForEach-Object { $_.id } | Where-Object { $_ })
                 if ($ids.Count -gt 0) { return @($ids | Where-Object { $_ -notmatch $SKIP_PATTERN } | Sort-Object) }
             } catch { }
         }
@@ -124,13 +127,13 @@ function Test-ToolCallLlama {
     $unload = {
         # Router mode only; a single-model server has no such endpoint, which is fine.
         if (-not $KeepLoaded) {
-            try { $null = Invoke-RestMethod -Uri "$OllamaHost/models/unload" -Method Post -Body (@{ model = $Tag } | ConvertTo-Json) -ContentType "application/json" -TimeoutSec 60 } catch { }
+            try { $null = Invoke-RestMethod -Headers $llamaHeaders -Uri "$OllamaHost/models/unload" -Method Post -Body (@{ model = $Tag } | ConvertTo-Json) -ContentType "application/json" -TimeoutSec 60 } catch { }
         }
     }
 
     $sw = [Diagnostics.Stopwatch]::StartNew()
     try {
-        $r = Invoke-RestMethod -Uri "$OllamaHost/v1/chat/completions" -Method Post -Body $body `
+        $r = Invoke-RestMethod -Headers $llamaHeaders -Uri "$OllamaHost/v1/chat/completions" -Method Post -Body $body `
                 -ContentType "application/json" -TimeoutSec $TimeoutSec
     } catch {
         & $unload

@@ -12,6 +12,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [troubleshooting.md](troubleshooting.md) | Symptom → cause → fix |
 | [hardware.md](hardware.md) | Machines, measured VRAM and throughput |
 | [network-topology.md](network-topology.md) | LAN layout, ports, firewall, SSH |
+| [engine-api-keys.md](engine-api-keys.md) | API keys on the llama-server engines: which client sends which key, the rollout, the checks |
 | [costs.md](costs.md) | Hosted-seat prices against plan limits |
 | [vscode.md](vscode.md) | The same fleet from VS Code |
 | [model-architecture.md](model-architecture.md) | Which models run where (partly stale; see its banner) |

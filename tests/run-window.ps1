@@ -243,7 +243,7 @@ function Get-TaskAttempts {
 # "could not look" is never read as "nothing there".
 function Get-OtherLoadedModels {
     param([string]$Root, [string[]]$Keep = @())
-    try { $data = @((Invoke-RestMethod -Uri ($Root.TrimEnd('/') + "/models") -TimeoutSec 10).data) } catch { return $null }
+    try { $data = @((Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri ($Root.TrimEnd('/') + "/models") -TimeoutSec 10).data) } catch { return $null }
     $others = @()
     foreach ($m in $data) {
         $state = if ($m.status) { "$($m.status.value)" } else { "" }
@@ -260,7 +260,7 @@ function Get-OtherLoadedModels {
 function Invoke-SeatUnload {
     param([string]$Root, [string]$ModelId)
     try {
-        $null = Invoke-RestMethod -Method Post -Uri ($Root.TrimEnd('/') + "/models/unload") -ContentType "application/json" -Body (@{ model = $ModelId } | ConvertTo-Json -Compress) -TimeoutSec 30
+        $null = Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Method Post -Uri ($Root.TrimEnd('/') + "/models/unload") -ContentType "application/json" -Body (@{ model = $ModelId } | ConvertTo-Json -Compress) -TimeoutSec 30
         return "unloaded $ModelId from $Root"
     } catch { return "could not unload $ModelId from $Root ($($_.Exception.Message))" }
 }

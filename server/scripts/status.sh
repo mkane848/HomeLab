@@ -6,6 +6,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# API key (docs/engine-api-keys.md): llamacpp_curl adds it; /health is the only path that does not need it.
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/llamacpp-auth.sh"
 CATALOG="$PROJECT_ROOT/models/catalog.sh"
 
 echo "=== Server Services Status ==="
@@ -55,9 +57,9 @@ echo ""
 # llama.cpp (the primary engine since Phase 3)
 echo "--- llama.cpp (http://localhost:8090) ---"
 if curl -sf http://localhost:8090/health &>/dev/null; then
-    echo "llama-server: UP, build $(curl -sf http://localhost:8090/props | python3 -c "import sys,json; print(json.load(sys.stdin).get('build_info','?'))" 2>/dev/null || echo '?')"
+    echo "llama-server: UP, build $(llamacpp_curl -sf http://localhost:8090/props | python3 -c "import sys,json; print(json.load(sys.stdin).get('build_info','?'))" 2>/dev/null || echo '?')"
     echo "Seats:"
-    curl -sf http://localhost:8090/models | python3 -c "import sys,json; [print(f'  {m[\"id\"]:<28} {m.get(\"status\",{}).get(\"value\",\"?\")}') for m in json.load(sys.stdin).get('data',[])]" 2>/dev/null || echo "  (could not read /models)"
+    llamacpp_curl -sf http://localhost:8090/models | python3 -c "import sys,json; [print(f'  {m[\"id\"]:<28} {m.get(\"status\",{}).get(\"value\",\"?\")}') for m in json.load(sys.stdin).get('data',[])]" 2>/dev/null || echo "  (could not read /models)"
 else
     echo "llama-server: DOWN or not responding (start: ./server/scripts/startup.sh)"
 fi

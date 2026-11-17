@@ -163,6 +163,88 @@ class Live(Base):
         self.assertEqual([l for l, _ in levels()], ["OK", "OK"])
 
 
+class Auth(Base):
+    """The API key check (docs/engine-api-keys.md): /props without the key must be refused, and ours accepted."""
+    INI = {"*": {}, "t": {"c": "65536"}}
+
+    def setUp(self):
+        super().setUp()
+        self.real_bare = lc.http_status_without_key
+        self.real_key = lc.API_KEY
+
+    def tearDown(self):
+        lc.http_status_without_key = self.real_bare
+        lc.API_KEY = self.real_key
+        super().tearDown()
+
+    def run_with(self, key, bare, ours=200):
+        lc.API_KEY = key
+        lc.http_status_without_key = lambda url, timeout=15: bare
+        sent = []
+
+        def f(url, data=None, timeout=15):
+            sent.append((url, dict(lc.auth_headers())))
+            if url.endswith("/health"):
+                return 200, {"status": "ok"}
+            if "/models" in url:
+                return 200, {"data": [{"id": "t"}]}
+            if url.endswith("/props") and ours == 401:
+                raise lc.urllib.error.HTTPError(url, 401, "Unauthorized", None, None)
+            return ours, {"default_generation_settings": {"n_ctx": 65536}, "total_slots": 1}
+        lc.http_json = f
+        lc.live_checks(self.INI, "http://llama.invalid:8090", check_auth=True)
+        return [(l, m) for l, s, m in lc.results if s == "auth"], sent
+
+    def test_closed_to_strangers_and_open_to_us_passes(self):
+        auth, sent = self.run_with("k1", bare=401)
+        self.assertEqual([l for l, _ in auth], ["OK"])
+        self.assertTrue(all(h == {"Authorization": "Bearer k1"} for _, h in sent))
+
+    def test_a_key_that_did_not_take_fails(self):
+        auth, _ = self.run_with("k1", bare=200)
+        self.assertEqual([l for l, _ in auth], ["FAIL"])
+        self.assertIn("did not take", auth[0][1])
+
+    def test_our_key_refused_fails_and_stops(self):
+        auth, sent = self.run_with("wrong", bare=401, ours=401)
+        self.assertEqual([l for l, _ in auth], ["FAIL"])
+        self.assertIn("refuses ours", auth[0][1])
+        self.assertFalse([u for u, _ in sent if "/models" in u], "nothing past the auth check when we are refused")
+
+    def test_no_key_against_a_server_that_wants_one_fails(self):
+        auth, _ = self.run_with(None, bare=401)
+        self.assertEqual([l for l, _ in auth], ["FAIL"])
+        self.assertIn("none was found", auth[0][1])
+
+    def test_no_key_on_an_open_server_is_a_warning(self):
+        auth, sent = self.run_with(None, bare=200)
+        self.assertEqual([l for l, _ in auth], ["WARN"])
+        self.assertTrue(all(h == {} for _, h in sent))
+
+    def test_the_key_is_never_in_a_message(self):
+        for bare, ours in ((401, 200), (200, 200), (401, 401)):
+            lc.results.clear()
+            auth, _ = self.run_with("s3cret-key-value", bare=bare, ours=ours)
+            self.assertFalse(any("s3cret-key-value" in m for _, _, m in lc.results))
+
+    def test_read_api_key_order_and_comments(self):
+        import tempfile
+        old = {k: os.environ.pop(k, None) for k in ("LLAMACPP_API_KEY", "LLAMACPP_API_KEY_FILE")}
+        try:
+            with tempfile.NamedTemporaryFile("w", delete=False) as f:
+                f.write("# fleet\n\n  first-key  \n# household\nsecond-key\n")
+            self.assertEqual(lc.read_api_key(f.name), "first-key")
+            os.environ["LLAMACPP_API_KEY"] = "from-env"
+            self.assertEqual(lc.read_api_key(f.name), "from-env")
+            del os.environ["LLAMACPP_API_KEY"]
+            self.assertIsNone(lc.read_api_key(f.name + ".absent"))
+            os.unlink(f.name)
+        finally:
+            for k, v in old.items():
+                if v is not None:
+                    os.environ[k] = v
+
+
 class ServerOnlyImport(Base):
     # A GGUF under /models that only the server serves (the household vision seat, 2026-11-09): pinned like an import.
     SHA = "b" * 64

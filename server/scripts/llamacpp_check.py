@@ -19,9 +19,14 @@ Run through llamacpp-check.sh. Standard library only.
                     Ollama applies that the section does not set means llama-server
                     uses ITS default for it - a difference the engine comparison
                     would otherwise hide.
-  --url U           a running llama-server: /health, the model list, and for each
-                    section /props (n_ctx must equal `c`, total_slots must be 1).
-                    Asked with autoload=false, so checking never loads a model.
+  --url U           a running llama-server: /health, the API key (/props without
+                    the key must be refused with 401, docs/engine-api-keys.md),
+                    the model list, and for each section /props (n_ctx must
+                    equal `c`, total_slots must be 1). Asked with autoload=false,
+                    so checking never loads a model.
+  --key-file F      the API key to send (first line that is not blank or a #
+                    comment). Default: $LLAMACPP_API_KEY, else $LLAMACPP_API_KEY_FILE,
+                    else ~/.config/llamacpp/api-key. Never printed.
   --weights-container NAME | --weights-dir DIR
                     the weights are really there (the job bake-models.sh did under
                     Ollama, "Replacing Ollama" Phase 3): each section's blob exists,
@@ -116,12 +121,82 @@ def pick(section, glob, *names):
     return None
 
 
+API_KEY = None  # set by main() from --key-file / the environment; sent as `Authorization: Bearer`
+
+
+def read_api_key(path=None):
+    """$LLAMACPP_API_KEY, else the first non-blank, non-# line of `path` (default: $LLAMACPP_API_KEY_FILE, else
+    ~/.config/llamacpp/api-key). None when there is none."""
+    k = os.environ.get("LLAMACPP_API_KEY", "").strip()
+    if k:
+        return k
+    path = path or os.environ.get("LLAMACPP_API_KEY_FILE") or os.path.expanduser("~/.config/llamacpp/api-key")
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line
+    except OSError:
+        pass
+    return None
+
+
+def auth_headers():
+    return {"Authorization": "Bearer " + API_KEY} if API_KEY else {}
+
+
 def http_json(url, data=None, timeout=15):
-    req = urllib.request.Request(url, data=(json.dumps(data).encode() if data is not None else None),
-                                 headers={"Content-Type": "application/json"} if data is not None else {})
+    headers = dict(auth_headers())
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=(json.dumps(data).encode() if data is not None else None), headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         body = r.read().decode("utf-8", "replace")
         return r.status, (json.loads(body) if body.strip() else {})
+
+
+def http_status_without_key(url, timeout=15):
+    """The HTTP status of a GET that carries no key (the auth check's probe)."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=timeout) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+
+
+def auth_check(base):
+    """Is the engine closed to a request without the key, and open to ours? docs/engine-api-keys.md.
+    Returns False when nothing past this point can be checked (the engine refuses us)."""
+    try:
+        bare = http_status_without_key(base + "/props")
+    except Exception as e:  # noqa: BLE001
+        say("WARN", "auth", "could not ask /props without a key: %s" % e)
+        return True
+    if not API_KEY:
+        if bare == 401:
+            say("FAIL", "auth", "the server needs an API key and none was found (--key-file, LLAMACPP_API_KEY, "
+                "LLAMACPP_API_KEY_FILE or ~/.config/llamacpp/api-key)")
+            return False
+        say("WARN", "auth", "no API key: /props answered %s without one, so anyone who can reach the port can use it "
+            "(docs/engine-api-keys.md)" % bare)
+        return True
+    if bare != 401:
+        say("FAIL", "auth", "/props answered %s without a key (want 401): the server's key did not take, and it is "
+            "open to anyone who can reach the port" % bare)
+        return True
+    try:
+        status, _ = http_json(base + "/props")
+    except urllib.error.HTTPError as e:
+        status = e.code
+    except Exception as e:  # noqa: BLE001
+        say("WARN", "auth", "/props with the key did not answer: %s" % e)
+        return True
+    if status == 401:
+        say("FAIL", "auth", "refuses requests without a key, but also refuses ours: the key sent is not one of the server's")
+        return False
+    say("OK", "auth", "refuses requests without a key (401) and accepts ours")
+    return True
 
 
 def static_checks(ini, seats):
@@ -352,13 +427,15 @@ def weights_checks(ini, seats, blobs, rehash=False):
             say("FAIL", tag, "%s hashes to %s...: the bytes are not the pinned weights (%s...); fetch it again" % (name[:19], got[:12], want[:12]))
 
 
-def live_checks(ini, url):
+def live_checks(ini, url, check_auth=False):
     base = url.rstrip("/")
     try:
         status, _ = http_json(base + "/health")
         say("OK" if status == 200 else "FAIL", "server", "/health answered %s" % status)
     except Exception as e:  # noqa: BLE001
         say("FAIL", "server", "/health did not answer: %s" % e)
+        return
+    if check_auth and not auth_check(base):
         return
     ids = set()
     for path in ("/v1/models", "/models"):
@@ -404,6 +481,7 @@ def main(argv):
     ap.add_argument("--seats", default=DEFAULT_SEATS)
     ap.add_argument("--ollama-url", help="compare sampling parameters with this Ollama (e.g. http://localhost:11434)")
     ap.add_argument("--url", help="check a running llama-server (e.g. http://localhost:8090)")
+    ap.add_argument("--key-file", help="the API key file to send with --url (default: see the module docstring)")
     where = ap.add_mutually_exclusive_group()
     where.add_argument("--weights-container", metavar="NAME", help="check the weights blobs through docker exec (e.g. llamacpp-server)")
     where.add_argument("--weights-dir", metavar="DIR", help="check the weights blobs in a local blobs directory")
@@ -421,7 +499,9 @@ def main(argv):
     if args.ollama_url:
         sampling_checks(ini, args.ollama_url)
     if args.url:
-        live_checks(ini, args.url)
+        global API_KEY
+        API_KEY = read_api_key(args.key_file)
+        live_checks(ini, args.url, check_auth=True)
     if args.weights_container:
         weights_checks(ini, seats, ContainerBlobs(args.weights_container), args.hash)
     elif args.weights_dir:

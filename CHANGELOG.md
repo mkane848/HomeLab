@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: API keys on the llama-server engines (2026-11-17; repo side, not yet rolled out).** The audit's item, and the
+  precondition of a VPN for the phones. Runbook: `docs/engine-api-keys.md`.
+  - **Servers:** `--api-key-file` on the server's llama-server (a compose secret) and node3's
+    (`start-llama-server.ps1`; `-Lan` refuses without a key). Two keys on the server, fleet and household, so either
+    can be revoked alone.
+  - **Clients:** OpenCode's three `llamacpp-*` providers (`{file:.secrets/llamacpp-api-key}`), the harness adapter,
+    `run-window`, `bench-speed`, `probe-overflow`, `test-toolcalls`, the server's scripts (`llamacpp-auth.sh`; the key
+    goes to curl through a file descriptor, never a command line), `llamacpp_check.py`, and Open WebUI.
+  - **Caught, not found later:** the server's healthcheck and `llamacpp-check.sh`'s new `auth` check fail when
+    `/props` answers without a key. node3's launcher stops a server whose key did not take, the systemd unit will
+    not start without the key file, and a 401 shows in a run's engine line as "no or wrong API key".
+  - **Found on the way:** the batch loads the adapter as a module built from its text, where `$PSScriptRoot` is empty,
+    so the adapter carries a copy of the key functions. The new guard keeps the copy identical.
+  - **Tests:**
+    - **New guard `tests/test-llamacpp-auth.ps1`:** a fake llama-server that wants the key, the module load, and the
+      static checks. 7 new tests in `test_llamacpp_check.py` (43).
+    - **Mutation-checked nine ways,** each red, each file restored byte-identical.
+    - **`test-llamacpp-window` and `test-toolcalls-engine`** copy the helper beside the script they run.
+    - **`test-hosted-seats` and `test-batch-engines`** give `main`'s exact counts on Linux.
+  - **Not covered:** Ollama has no API key; it stays behind the firewall and off any VPN.
+
 - **docs: the 2026-11-09 audit is on file, with what is still open (2026-11-16, owner's request).**
   `docs/audit-2026-11-09.md` records the findings and where each stands, the owner's steps that remain (the firewall
   rule on the server, the chat's secret key, the pilot), the work left for an agent (the container design, API keys

@@ -256,6 +256,19 @@ Project pages and docs, read once for [household-assistant.md](household-assista
 | radicale | Radicale, Kozea, GitHub README (read 2026-11-08) — CalDAV (calendars, to-do lists) and CardDAV server; stores data on the file system; GPL-3.0 | <https://github.com/Kozea/Radicale> |
 | ha-local-voice | Home Assistant, "Set up a fully local voice assistant", docs source (read 2026-11-07) — Whisper ~8 s on a Raspberry Pi 4, under 1 s on an Intel NUC | <https://github.com/home-assistant/home-assistant.io/blob/current/source/voice_control/voice_remote_local_assistant.markdown> |
 
+## Engine API keys (2026-11-17)
+
+Read for [engine-api-keys.md](engine-api-keys.md), at each project's default branch on 2026-11-17 (the files were
+downloaded and searched; the GitHub pages were also loaded). The pinned llama.cpp builds are older: the runbook's
+step 6 is what proves them.
+
+| ID | Source | URL |
+|---|---|---|
+| llamacpp-server-http | llama.cpp, `tools/server/server-http.cpp` — with keys set, only `/health`, `/v1/health` and the web page are public; the key is read from `Authorization` (a `Bearer ` prefix is stripped) or `X-Api-Key`; anything else is 401 | <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-http.cpp> |
+| llamacpp-arg | llama.cpp, `common/arg.cpp` — `--api-key` (comma-separated, env `LLAMA_API_KEY`) and `--api-key-file` (one key per line, `#` lines skipped, env `LLAMA_ARG_API_KEY_FILE`) | <https://github.com/ggml-org/llama.cpp/blob/master/common/arg.cpp> |
+| llamacpp-server-models | llama.cpp, `tools/server/server-models.cpp` — router mode removes `LLAMA_API_KEY` and `LLAMA_ARG_API_KEY_FILE` from each child's preset; the router checks the key | <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-models.cpp> |
+| openwebui-config | Open WebUI, `backend/open_webui/config.py` — `openai.api_keys` is in `DEFAULT_CONFIG`, so with persistent config on (the default) the environment seeds a new install and the database keeps the value after | <https://github.com/open-webui/open-webui/blob/main/backend/open_webui/config.py> |
+
 ## Another page to cite from
 
 If a source is new and not yet here, add a row in the matching table. If a

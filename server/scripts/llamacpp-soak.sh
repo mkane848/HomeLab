@@ -25,6 +25,8 @@ REPLY_FILE="$(mktemp)"
 trap 'rm -f "$REPLY_FILE"' EXIT
 
 URL="${URL:-http://localhost:8090}"
+# API key (docs/engine-api-keys.md): llamacpp_curl adds it; /health is the only path that does not need it.
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/llamacpp-auth.sh"
 HOURS="${HOURS:-24}"
 INTERVAL="${INTERVAL:-600}"
 LOG="${LOG:-$HOME/llamacpp-soak.tsv}"
@@ -33,7 +35,7 @@ SEATS=("qwen3:8b" "qwen3.6:35b-a3b-coding")
 
 # Router status of one seat, by tag or alias: loaded | loading | unloaded | failed | missing.
 status_of() {
-    curl -s --max-time 10 "$URL/models" | python3 -c '
+    llamacpp_curl -s --max-time 10 "$URL/models" | python3 -c '
 import json, sys
 tag = sys.argv[1]
 try:
@@ -59,13 +61,13 @@ while [ "$(date +%s)" -lt "$end" ]; do
     seat="${SEATS[$(( cycle % 2 ))]}"
 
     for s in "${SEATS[@]}"; do
-        curl -s --max-time 60 -X POST "$URL/models/unload" -H 'Content-Type: application/json' \
+        llamacpp_curl -s --max-time 60 -X POST "$URL/models/unload" -H 'Content-Type: application/json' \
             -d "{\"model\":\"$s\"}" > /dev/null || true
     done
     sleep 5
 
     t0=$(date +%s.%N)
-    curl -s --max-time 60 -X POST "$URL/models/load" -H 'Content-Type: application/json' \
+    llamacpp_curl -s --max-time 60 -X POST "$URL/models/load" -H 'Content-Type: application/json' \
         -d "{\"model\":\"$seat\"}" > /dev/null || true
     load="timeout"
     for _ in $(seq 1 120); do              # up to 6 minutes
@@ -78,7 +80,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
     request="skipped"; requestS=""
     if [ "$load" = "loaded" ]; then
         t1=$(date +%s.%N)
-        code=$(curl -s --max-time 300 -o "$REPLY_FILE" -w '%{http_code}' \
+        code=$(llamacpp_curl -s --max-time 300 -o "$REPLY_FILE" -w '%{http_code}' \
             "$URL/v1/chat/completions" -H 'Content-Type: application/json' \
             -d "{\"model\":\"$seat\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: OK\"}],\"max_tokens\":400}")
         requestS=$(python3 -c "import sys; print(round(float(sys.argv[2]) - float(sys.argv[1]), 1))" "$t1" "$(date +%s.%N)")

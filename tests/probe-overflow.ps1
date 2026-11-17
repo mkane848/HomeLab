@@ -144,10 +144,14 @@ if (@("ollama", "llamacpp") -notcontains $Engine) {
 if ($NumCtx -lt 1024 -or $Over -le 1.0) { Write-Host "-NumCtx must be at least 1024 and -Over above 1.0" -ForegroundColor Red; exit 2 }
 $root = $Endpoint.TrimEnd('/') -replace '/v1$', ''
 
+# llama-server's API key (docs/engine-api-keys.md); Ollama needs none, so it gets no header.
+. (Join-Path $PSScriptRoot "engines/llamacpp-auth.ps1")
+$llamaHeaders = if ($Engine -eq "llamacpp") { Get-LlamacppHeaders } else { @{} }
+
 $version = "unknown"
 try {
     if ($Engine -eq "llamacpp") {
-        $bi = (Invoke-RestMethod -Uri "$root/props" -TimeoutSec 10).build_info
+        $bi = (Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/props" -TimeoutSec 10).build_info
         if ($bi) { $version = [string]$bi }
     } else {
         $version = [string](Invoke-RestMethod -Uri "$root/api/version" -TimeoutSec 10).version
@@ -158,7 +162,7 @@ function Invoke-Chat([string]$Prompt, [int]$Predict) {
     # One chat request; returns @{ Reported = <prompt tokens the engine says it evaluated>; Reply = <text> }.
     if ($Engine -eq "llamacpp") {
         $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); max_tokens = $Predict; temperature = 0; stream = $false; cache_prompt = $false } | ConvertTo-Json -Depth 6
-        $r = Invoke-RestMethod -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
+        $r = Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
         $msg = @($r.choices)[0].message
         return @{ Reported = $r.usage.prompt_tokens; Reply = ("$($msg.content) $($msg.reasoning_content)") }
     }

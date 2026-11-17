@@ -648,7 +648,10 @@
         }
       },
       "options": {
-        "baseURL": "{env:LLAMACPP_SERVER_BASE_URL}"
+        "baseURL": "{env:LLAMACPP_SERVER_BASE_URL}",
+        // The engines' API key (docs/engine-api-keys.md): one fleet key, in the same secrets folder as the
+        // opencode-go key. A missing file makes this config invalid, so create it before syncing.
+        "apiKey": "{file:.secrets/llamacpp-api-key}"
       }
     },
 
@@ -689,7 +692,10 @@
         }
       },
       "options": {
-        "baseURL": "{env:LLAMACPP_DESKTOP_BASE_URL}"
+        "baseURL": "{env:LLAMACPP_DESKTOP_BASE_URL}",
+        // The engines' API key (docs/engine-api-keys.md): one fleet key, in the same secrets folder as the
+        // opencode-go key. A missing file makes this config invalid, so create it before syncing.
+        "apiKey": "{file:.secrets/llamacpp-api-key}"
       }
     },
 
@@ -731,7 +737,10 @@
         }
       },
       "options": {
-        "baseURL": "{env:LLAMACPP_NODE3_BASE_URL}"
+        "baseURL": "{env:LLAMACPP_NODE3_BASE_URL}",
+        // The engines' API key (docs/engine-api-keys.md): one fleet key, in the same secrets folder as the
+        // opencode-go key. A missing file makes this config invalid, so create it before syncing.
+        "apiKey": "{file:.secrets/llamacpp-api-key}"
       }
     }
   },

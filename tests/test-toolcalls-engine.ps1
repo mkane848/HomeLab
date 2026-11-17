@@ -231,6 +231,9 @@ exit $LASTEXITCODE
     $copyDir = Join-Path $tmp "copy"
     New-Item -ItemType Directory -Path (Join-Path $copyDir "results") -Force | Out-Null
     Copy-Item -LiteralPath $ScriptPath -Destination (Join-Path $copyDir "test-toolcalls.ps1")
+    # ...with the API-key helper it dot-sources from beside itself (docs/engine-api-keys.md).
+    New-Item -ItemType Directory -Path (Join-Path $copyDir "engines") -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines/llamacpp-auth.ps1") -Destination (Join-Path $copyDir "engines/llamacpp-auth.ps1")
     $realScript = $ScriptPath; $ScriptPath = Join-Path $copyDir "test-toolcalls.ps1"
     try { $r = Invoke-Probe ($lbase + @{ Model = @("qwen3:8b") }) } finally { $ScriptPath = $realScript }
     $defaultLog = Join-Path $copyDir "results/toolcalls-summary-llamacpp.tsv"
