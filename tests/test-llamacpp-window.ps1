@@ -130,6 +130,9 @@ echo "OK stand-in"; exit 0
 '@
 Copy-Item -LiteralPath $real -Destination (Join-Path $tree "server/scripts/llamacpp-window.sh")
 & chmod +x (Join-Path $tree "server/scripts/llamacpp-window.sh")
+# The script sources its API-key helper from beside itself (docs/engine-api-keys.md). No key file in the fixture's
+# HOME, so it sends no header, as against a server without a key.
+Copy-Item -LiteralPath (Join-Path (Split-Path $real -Parent) "llamacpp-auth.sh") -Destination (Join-Path $tree "server/scripts/llamacpp-auth.sh")
 Set-Content -LiteralPath (Join-Path $tree "server/docker/docker-compose.llamacpp.yml") -Value "name: llamacpp"
 $window = Join-Path $tree "server/scripts/llamacpp-window.sh"
 

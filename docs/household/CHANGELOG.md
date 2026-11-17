@@ -10,6 +10,12 @@ The entries from 2026-11-07 to 2026-11-12 were moved here from the repo's change
 
 ## [Unreleased]
 
+- **The chat's key to llama-server (2026-11-17).** Open WebUI now sends the household key
+  (`LLAMACPP_HOUSEHOLD_KEY` in `server/docker/.env`; compose refuses to start without it). The running chat keeps its
+  connection in its database, so the rollout sets the key once in Admin → Settings → Connections. Entered in the
+  repo's [CHANGELOG.md](../../CHANGELOG.md) ("API keys on the llama-server engines"), runbook
+  [engine-api-keys.md](../engine-api-keys.md).
+
 - **fix: household tool 0.3.5 reads a receipt pasted as one line, and skips its footer (2026-11-12).**
   - **Why:** in the live run the chat sent the whole receipt, footer included, as one string with backslash-n breaks.
     The tool read it as one line and refused it. Nothing was written.

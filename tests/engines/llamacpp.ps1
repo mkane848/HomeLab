@@ -20,6 +20,31 @@
 
 $script:EngineName = "llamacpp"
 
+# The API key every request carries (docs/engine-api-keys.md). /health is public; everything else needs it.
+# A copy of tests/engines/llamacpp-auth.ps1's functions, not a dot-source: run-tasks-batch.ps1 loads this adapter as a
+# module built from its text, where $PSScriptRoot is empty. tests/test-llamacpp-auth.ps1 keeps the copies identical.
+# --- BEGIN copy of llamacpp-auth.ps1 ---
+function Get-LlamacppApiKey {
+    $k = "$env:LLAMACPP_API_KEY".Trim()
+    if ($k) { return $k }
+    $file = if ($env:LLAMACPP_API_KEY_FILE) { $env:LLAMACPP_API_KEY_FILE } else {
+        Join-Path ([Environment]::GetFolderPath('UserProfile')) ".config/opencode/.secrets/llamacpp-api-key"
+    }
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { return $null }
+    foreach ($line in (Get-Content -LiteralPath $file -ErrorAction SilentlyContinue)) {
+        $t = "$line".Trim()
+        if ($t -and -not $t.StartsWith('#')) { return $t }
+    }
+    return $null
+}
+
+function Get-LlamacppHeaders {
+    $k = Get-LlamacppApiKey
+    if ($k) { return @{ Authorization = "Bearer $k" } }
+    return @{}
+}
+# --- END copy of llamacpp-auth.ps1 ---
+
 function Get-EngineBaseUrlVar {
     param([string]$ProviderId)
     switch ($ProviderId) {
@@ -41,13 +66,13 @@ function Get-EngineBaseUrl {
 
 function Test-EngineAlive {
     param([string]$Root, [int]$TimeoutSec = 10)
-    try { $null = Invoke-RestMethod -Uri "$Root/health" -TimeoutSec $TimeoutSec; return $true } catch { return $false }
+    try { $null = Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri "$Root/health" -TimeoutSec $TimeoutSec; return $true } catch { return $false }
 }
 
 function Get-EngineVersion {
     param([string]$Root)
     try {
-        $bi = (Invoke-RestMethod -Uri "$Root/props" -TimeoutSec 10).build_info
+        $bi = (Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri "$Root/props" -TimeoutSec 10).build_info
         if ($bi) { return [string]$bi }
     } catch { }
     return $null
@@ -59,6 +84,11 @@ function Format-EngineVersion {
     if (-not $var)  { return "n/a ($ProviderId is not a llama.cpp provider)" }
     if (-not $Root) { return "unknown ($var is unset)" }
     if ($Version)   { return "llama.cpp build $Version" }
+    # Up but refusing: name the cause, so a missing key is not read as a dead engine.
+    try { $null = Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri "$Root/props" -TimeoutSec 10 } catch {
+        $code = try { [int]$_.Exception.Response.StatusCode } catch { 0 }
+        if ($code -eq 401) { return "unknown ($Root/props answered 401: no or wrong API key; docs/engine-api-keys.md)" }
+    }
     return "unknown ($Root/props unreachable)"
 }
 
@@ -68,7 +98,7 @@ function Get-EngineServedModels {
     param([string]$Root)
     foreach ($u in @("$Root/models", "$Root/v1/models")) {
         try {
-            $data = @((Invoke-RestMethod -Uri $u -TimeoutSec 10).data)
+            $data = @((Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri $u -TimeoutSec 10).data)
             $ids = @()
             foreach ($m in $data) {
                 if ($m.id) { $ids += [string]$m.id }
@@ -88,7 +118,7 @@ function Get-EngineSeatTags {
     param([string]$Root)
     foreach ($u in @("$Root/models", "$Root/v1/models")) {
         try {
-            $data = @((Invoke-RestMethod -Uri $u -TimeoutSec 10).data)
+            $data = @((Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri $u -TimeoutSec 10).data)
             $tags = @()
             foreach ($m in $data) {
                 $aliases = @(@($m.aliases) | Where-Object { $_ })
@@ -108,7 +138,7 @@ function Get-EngineServedContext {
     # effect (router mode would otherwise autoload it).
     param([string]$Root, [string]$Tag)
     try {
-        $data = @((Invoke-RestMethod -Uri "$Root/models" -TimeoutSec 10).data)
+        $data = @((Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri "$Root/models" -TimeoutSec 10).data)
         $m = $data | Where-Object { $_.id -ceq $Tag -or (@($_.aliases) -ccontains $Tag) } | Select-Object -First 1
         if ($m -and $m.status -and $m.status.args) {
             $a = @($m.status.args); $i = [array]::IndexOf($a, "--ctx-size")
@@ -116,7 +146,7 @@ function Get-EngineServedContext {
         }
     } catch { }
     try {
-        $props = Invoke-RestMethod -Uri ("$Root/props?model=" + [uri]::EscapeDataString($Tag) + "&autoload=false") -TimeoutSec 10
+        $props = Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri ("$Root/props?model=" + [uri]::EscapeDataString($Tag) + "&autoload=false") -TimeoutSec 10
         $n = $props.default_generation_settings.n_ctx
         if ($null -ne $n -and "$n" -match '^\d+$') { return [int]$n }
         return "unset (no --ctx-size in /models, no n_ctx in /props?model=)"
@@ -182,7 +212,7 @@ function Get-EngineGpuPlacement {
     # match: the tag alone. Case-sensitive, as Get-EngineServedContext matches.
     $names = @($want)
     try {
-        $m = @((Invoke-RestMethod -Uri "$Root/models" -TimeoutSec 10).data) |
+        $m = @((Invoke-RestMethod -Headers (Get-LlamacppHeaders) -Uri "$Root/models" -TimeoutSec 10).data) |
             Where-Object { $_.id -ceq $want -or (@($_.aliases) -ccontains $want) } | Select-Object -First 1
         if ($m) { $names = @(@($want, "$($m.id)") + @(@($m.aliases) | ForEach-Object { "$_" }) | Where-Object { $_ } | Select-Object -Unique) }
     } catch { }

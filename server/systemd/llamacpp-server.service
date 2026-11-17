@@ -18,6 +18,9 @@ WorkingDirectory=/home/YOUR_USER
 #   sudo systemctl daemon-reload && sudo systemctl enable llamacpp-server.service
 # After any daemon-reload, check the container still sees the GPU (status.sh; docs/troubleshooting.md ->
 # "Container lost the GPU").
+# No key file, no start: compose would not notice, and a server with no key is open to the LAN
+# (docs/engine-api-keys.md). The default path below must match the compose file's LLAMACPP_API_KEY_FILE default.
+ExecStartPre=/usr/bin/test -s /home/YOUR_USER/.config/llamacpp/api-key
 ExecStart=/usr/bin/docker compose -f /path/to/HomeLab/server/docker/docker-compose.llamacpp.yml up -d
 ExecStop=/usr/bin/docker compose -f /path/to/HomeLab/server/docker/docker-compose.llamacpp.yml down
 

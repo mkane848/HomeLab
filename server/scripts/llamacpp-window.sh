@@ -60,6 +60,8 @@ LOAD_WAIT="${LOAD_WAIT:-600}"
 GPU_WAIT="${GPU_WAIT:-90}"
 DOCKER="${DOCKER:-docker}"
 CURL="${CURL:-curl}"
+# API key (docs/engine-api-keys.md): llamacpp_curl adds it; /health is the only path that does not need it.
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/llamacpp-auth.sh"
 NVIDIA_SMI="${NVIDIA_SMI:-nvidia-smi}"
 PYTHON="${PYTHON:-}"
 
@@ -82,7 +84,7 @@ find_python() {
 
 # Router status of the seat, by tag or alias: loaded | loading | unloaded | failed | missing | noanswer.
 seat_status() {
-    "$CURL" -s --max-time 10 "$URL/models" | "$PYTHON" -c '
+    llamacpp_curl -s --max-time 10 "$URL/models" | "$PYTHON" -c '
 import json, sys
 tag = sys.argv[1]
 try:
@@ -122,7 +124,7 @@ wait_healthy() {
 load_seat() {
     local start st=""
     start="$(date +%s)"
-    "$CURL" -s --max-time 60 -X POST "$URL/models/load" -H 'Content-Type: application/json' \
+    llamacpp_curl -s --max-time 60 -X POST "$URL/models/load" -H 'Content-Type: application/json' \
         -d "{\"model\":\"$SEAT\"}" >/dev/null || true
     while [ $(( $(date +%s) - start )) -lt "$LOAD_WAIT" ]; do
         st="$(seat_status)"

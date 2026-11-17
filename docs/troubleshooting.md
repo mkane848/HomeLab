@@ -387,6 +387,18 @@ $env:OLLAMA_HOST = "0.0.0.0"
 
 ## OpenCode Issues
 
+### `401` / "Invalid API Key" from llama-server, or "props answered 401" in a run's engine line
+
+The engine has an API key and the client sent none, or the wrong one ([engine-api-keys.md](engine-api-keys.md)).
+`/health` still answers, so the engine looks alive while serving nothing.
+
+- **OpenCode:** `~/.config/opencode/.secrets/llamacpp-api-key` must hold the fleet key (node3: push it with
+  `sync-opencode.ps1 -Push node3 -Secrets llamacpp-api-key`). A missing file makes the whole config invalid.
+- **The harness and tools:** the same file, or `LLAMACPP_API_KEY` / `LLAMACPP_API_KEY_FILE`.
+- **The server's scripts:** the first key line of `~/.config/llamacpp/api-key`.
+- **The household chat:** Admin → Settings → Connections holds its key (the environment only seeds a new install).
+- **Check:** `server/scripts/llamacpp-check.sh --url http://localhost:8090` → the `auth` line says which side is wrong.
+
 ### Models not appearing
 
 ```bash

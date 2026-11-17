@@ -30,7 +30,8 @@ the smaller items not acted on are in [audit-2026-11-09.md](audit-2026-11-09.md)
 
 **For an agent, when the owner says:**
 - **The design for containerised runs** (owner, 2026-11-11): written alongside the pilot, built after it. A new era.
-- **API keys on the model engines**, before any VPN.
+- **API keys on the model engines**, before any VPN: repo side done 2026-11-17; the rollout is the owner's
+  ([engine-api-keys.md](engine-api-keys.md) → "Rollout").
 - The rest of the table in [audit-2026-11-09.md](audit-2026-11-09.md) → "Open: work for an agent".
 
 ## Next up (2026-11-07)

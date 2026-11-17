@@ -38,7 +38,9 @@ services:
     environment:
       - ENABLE_OLLAMA_API=false
       - OPENAI_API_BASE_URL=http://host.docker.internal:8090/v1
-      - OPENAI_API_KEY=none
+      # The household's own key to llama-server (docs/engine-api-keys.md): the second line of the server's key file,
+      # so it can be revoked without touching the fleet's. In server/docker/.env only; compose refuses to start without it.
+      - OPENAI_API_KEY=${LLAMACPP_HOUSEHOLD_KEY:?set LLAMACPP_HOUSEHOLD_KEY in server/docker/.env (docs/engine-api-keys.md)}
       # Keeps logins across container rebuilds, and keys the Valve encryption below. In server/docker/.env only.
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in server/docker/.env (openssl rand -hex 32)}
       # The Tool's Grocy API key is a Valve; without this it is stored as plaintext in Open WebUI's database.

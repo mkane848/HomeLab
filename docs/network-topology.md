@@ -42,7 +42,7 @@ Replace `SERVER_IP`, `DESKTOP_IP`, and `NODE3_IP` with your actual LAN addresses
 
 | Service | Port | Protocol | Bound To | Notes |
 |---------|------|----------|----------|-------|
-| Server llama.cpp (`llama-server`) | 8090 | TCP | 0.0.0.0 | Docker container; the engine that starts at boot since 2026-11-01. No API key: any LAN host can use it until the rule under "Limit the model ports to named hosts" is applied |
+| Server llama.cpp (`llama-server`) | 8090 | TCP | 0.0.0.0 | Docker container; the engine that starts at boot since 2026-11-01. **API key** once [engine-api-keys.md](engine-api-keys.md) is rolled out: everything but `/health` answers 401 without it. Until then, and until the rule under "Limit the model ports to named hosts" is applied, any LAN host can use it |
 | Server Ollama | 11434 | TCP | 0.0.0.0 | Docker container, stopped since 2026-11-01 and kept as the rollback engine (`startup.sh --engine ollama`). No API key |
 | Desktop Ollama | 11434 | TCP | 0.0.0.0 | Native install |
 | Third-node Ollama | 11434 | TCP | 0.0.0.0 | Native install |
@@ -123,8 +123,11 @@ Only the hosts you name reach 8090 and 11434 from the LAN.
 model-ports-firewall.service` if the unit is installed). The ports are open to the LAN again.
 
 **Not covered, on purpose or not yet:**
-- **API keys.** A host on the list is trusted completely. Keys on the engines are a precondition of the VPN planned
-  for the phones ([household-assistant.md](household-assistant.md)): a VPN peer is one more device on the network.
+- **API keys** are a separate layer: [engine-api-keys.md](engine-api-keys.md) (llama-server only). With both, a host
+  must be on the list *and* hold a key. Keys on the engines are a precondition of the VPN planned for the phones
+  ([household-assistant.md](household-assistant.md)): a VPN peer is one more device on the network.
+- **Ollama has no API key** (desktop, node3, the server's stopped container). It stays behind the firewall rules and
+  must never be reachable over the VPN.
 - **node3's own llama-server** already has a Windows firewall rule for the LAN range (`node3/README.md`), not per host.
 - **The desktop's Ollama** (11434, native) is a Windows firewall matter, above.
 - **Whether Docker keeps `DOCKER-USER` rules across its own restart** is not stated in the pages read, which is why the
