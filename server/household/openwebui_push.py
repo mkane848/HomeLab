@@ -2,17 +2,18 @@
 """Push a household chat agent's tool code and system prompt from this repo into Open WebUI.
 
 Runbooks: docs/household/phase2-chat.md -> "Updating the tool and prompt" (the house agent) and
-docs/household/health-agent.md (Health). Replaces pasting both by hand after every merge. Run it on the server after
+docs/household/health-agent.md (Health), docs/household/meals-agent.md (Meals). Replaces pasting both by hand after every merge. Run it on the server after
 `git pull`:
 
   python3 -I server/household/openwebui_push.py                         # dry run: says what differs, writes nothing
   python3 -I server/household/openwebui_push.py --apply                 # writes
   python3 -I server/household/openwebui_push.py --agent health --apply  # the same for Health
+  python3 -I server/household/openwebui_push.py --agent meals --apply   # and for Meals
 
---agent picks the tool file, prompt file, tool id and model id (AGENTS below). For Health the workspace model's base
+--agent picks the tool file, prompt file, tool id and model id (AGENTS below). For Health and Meals the workspace model's base
 model must be one the server's own llama-server serves (--engine-url, default http://localhost:8090; its /v1/models,
 with the fleet key from ~/.config/llamacpp/api-key when that file exists). Anything else, a cloud model among them, is
-refused before anything is written: health stays on the household's own hardware.
+refused before anything is written: health and the household's food stay on its own hardware.
 
 It changes exactly two things, through Open WebUI's own API (the same calls its editor makes):
   - the tool's code (POST /api/v1/tools/id/<tool>/update). Its Valves, the Grocy key among them, are kept;
@@ -40,6 +41,7 @@ AGENTS = {
     "household": ("openwebui_grocy_tool.py", "openwebui-household-prompt.md", "grocy_household_tracker", "household",
                   False),
     "health": ("openwebui_health_tool.py", "openwebui-health-prompt.md", "health_appointments", "health", True),
+    "meals": ("openwebui_meals_tool.py", "openwebui-meals-prompt.md", "meals_recipes", "meals", True),
 }
 DEFAULT_TOOL = AGENTS["household"][2]
 DEFAULT_MODEL = AGENTS["household"][3]

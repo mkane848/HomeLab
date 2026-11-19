@@ -38,7 +38,7 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 | [review-gate/README.md](review-gate/README.md) | Can a local LLM gate code review? Answer 2026-09-19: no (n=18, with a floor effect) |
 | [implementation-tasks.md](implementation-tasks.md) | Live file written by `/plan`; the latest planning pass |
 | [fleet-side-projects.md](fleet-side-projects.md), [hardware-planning.md](hardware-planning.md) | Planning lists; nothing scheduled |
-| [household-assistant.md](household-assistant.md), [household/](household/phase1.md), [household/health-agent.md](household/health-agent.md), [household/CHANGELOG.md](household/CHANGELOG.md) | The household assistant: the plan, the runbooks of the two phases running on the server since 2026-11-08, the Health agent's runbook, and its own changelog |
+| [household-assistant.md](household-assistant.md), [household/](household/phase1.md), [household/health-agent.md](household/health-agent.md), [household/meals-agent.md](household/meals-agent.md), [household/CHANGELOG.md](household/CHANGELOG.md) | The household assistant: the plan, the runbooks of the two phases running on the server since 2026-11-08, the Health and Meals agents' runbooks, and its own changelog |
 | [homies.md](homies.md) | Homies: the household agents' pattern written up for others to try, with its rules and system requirements |
 | [archive/](archive/) | Dated narrative moved out of the pages above |
 | [agent-notes/](agent-notes/) | Prompts and scratch notes from AI coding agents |

@@ -32,7 +32,20 @@ def plan_for(text):
         return "log_visit", {"person": "Alex", "kind": "dentist", "date": d(-1), "confirm": False}
     if "record sam" in t:
         return "log_visit", {"person": "Sam", "kind": "dentist", "date": d(3), "confirm": False}
+    if "what can we make" in t:
+        return "what_can_we_make", {}
+    if "meal plan this week" in t:
+        return "week_plan", {}
+    if "last have tacos" in t:
+        return "last_had", {"recipe": "Tacos"}
+    if "put tacos" in t:
+        return "plan_meal", {"recipe": "Tacos", "date": "tomorrow", "confirm": False}
+    if "from aldi" in t:
+        return "shopping_for", {"store": STORE["aldi"], "confirm": False}
     return None
+
+
+STORE = {"aldi": "Aldi"}  # a test can point the careful model at the wrong store
 
 
 class Scripted:
@@ -146,6 +159,40 @@ class BadModels(unittest.TestCase):
     def test_no_write_when_none_is_expected(self):
         row = score(Scripted(), "future_refused")  # the tool refuses even after "OK"
         self.assertTrue(row["write"], row)
+
+
+MEALS = {c["id"]: c for c in ev.meals_cases()}
+MEALS_PROMPT = "You are Meals."
+
+
+class MealsCases(unittest.TestCase):
+    def test_a_careful_model_passes_every_meals_case(self):
+        for cid, case in MEALS.items():
+            with self.subTest(case=cid):
+                row = ev.run_case(Scripted(), "stand-in", case, MEALS_PROMPT, homie="meals")
+                self.assertTrue(row["pass"], row)
+
+    def test_the_wrong_store_fails_args_answer_and_write(self):
+        STORE["aldi"] = "Costco"
+        try:
+            row = ev.run_case(Scripted(), "stand-in", MEALS["shopping"], MEALS_PROMPT, homie="meals")
+        finally:
+            STORE["aldi"] = "Aldi"
+        self.assertFalse(row["pass"])
+        self.assertEqual({k for k in ("tool", "args", "answer", "private", "write") if not row[k]},
+                         {"args", "answer", "write"})
+
+    def test_every_expected_write_must_happen(self):
+        extra = ("/api/stock/shoppinglist/add-product",
+                 {"product_id": 6, "list_id": 1, "product_amount": 1, "note": "Meals: Fried rice"})
+        case = dict(MEALS["shopping"], write=MEALS["shopping"]["write"] + [extra])
+        row = ev.run_case(Scripted(), "stand-in", case, MEALS_PROMPT, homie="meals")
+        self.assertFalse(row["write"], row)  # two of the three expected writes happened: not enough
+
+    def test_meals_tools_seen_by_the_model(self):
+        specs = {s["function"]["name"] for s in ev.tool_specs(ev.meals.Tools())}
+        self.assertEqual(specs, {"what_can_we_make", "week_plan", "plan_meal", "shopping_for", "last_had",
+                                 "add_recipe"})
 
 
 class AnswerChecks(unittest.TestCase):
