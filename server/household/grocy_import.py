@@ -6,14 +6,18 @@ Phase 1 of docs/household-assistant.md; runbook: docs/household/phase1.md.
 The data never lives in this repo. The CSVs sit in a folder on the server (default
 ~/household-data/), and this script only knows their columns:
 
-  chores.csv    name, cadence, last_done, assignee, description
-  products.csv  name, stores, location, description
+  chores.csv             name, cadence, last_done, assignee, description
+  products.csv           name, stores, location, description
+  appointment_kinds.csv  person, kind, provider, how_to_book, notes, match_words   (Health; optional)
 
 cadence is one of: weekly | every N weeks | monthly | quarterly | every N months |
 yearly | every N years | adaptive | manual. last_done is YYYY-MM-DD or empty.
 assignee is a Grocy username, "rotate" (everyone, who did it least goes next) or empty.
 stores is "Store A + Store B" (the first one is the product's store; the rest go in the
 description). location is a Grocy location name, default "Pantry".
+appointment_kinds.csv fills the Grocy user entity "appointment_kinds" that the Health agent reads
+(docs/household/health-agent.md); the entity and its fields are created when missing, and a row is matched on
+person + kind. Its "Book: <person> <kind>" chores go in chores.csv like any other chore.
 
 Dry run by default: it reads Grocy, prints what it would create, and writes nothing.
 --apply writes. Matching is by name (case-insensitive), so a second --apply creates
@@ -35,6 +39,17 @@ DEFAULT_DATA = os.path.expanduser("~/household-data")
 DEFAULT_KEY_FILE = os.path.expanduser("~/.config/household/grocy-api-key")
 DEFAULT_LOCATION = "Pantry"
 DEFAULT_UNIT = "Piece"
+KINDS_ENTITY = "appointment_kinds"
+KINDS_REF = "userentity-" + KINDS_ENTITY
+# field name -> (caption, Grocy userfield type). The Health tool reads these names (openwebui_health_tool.FIELDS).
+KINDS_FIELDS = {
+    "person": ("Person", "text-single-line"),
+    "kind": ("Kind", "text-single-line"),
+    "provider": ("Provider", "text-single-line"),
+    "how_to_book": ("How to book", "text-single-line"),
+    "notes": ("Notes", "text-multi-line"),
+    "match_words": ("Calendar words", "text-single-line"),
+}
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
 
@@ -179,6 +194,11 @@ class Grocy:
         self.writes += 1
         return self._call("POST", path, body)
 
+    def put(self, path, body):
+        if self.apply:
+            self.writes += 1
+            self._call("PUT", path, body)
+
     def by_name(self, entity):
         return {o["name"].strip().lower(): o["id"] for o in (self.get(f"/objects/{entity}") or [])}
 
@@ -194,11 +214,41 @@ def ensure(grocy, entity, existing, name, payload, log):
     return existing[key], True
 
 
+def import_kinds(g, kinds, log):
+    """appointment_kinds.csv -> the Grocy user entity, its fields, and one object per (person, kind)."""
+    entities = {e["name"].strip().lower(): e["id"] for e in g.get("/objects/userentities") or []}
+    eid, made = ensure(g, "userentities", entities, KINDS_ENTITY,
+                       {"name": KINDS_ENTITY, "caption": "Appointment kinds", "show_in_sidebar_menu": 1}, log)
+    have = {f["name"] for f in g.get("/objects/userfields") or [] if f.get("entity") == KINDS_REF}
+    for name, (caption, ftype) in KINDS_FIELDS.items():
+        if name in have:
+            continue
+        g.write("/objects/userfields", {"entity": KINDS_REF, "name": name, "caption": caption, "type": ftype,
+                                        "show_as_column_in_tables": 1})
+        log.append(f"  create  userfield: {KINDS_ENTITY}.{name}")
+    existing = set()
+    if not made:
+        for o in g.get("/objects/userobjects") or []:
+            if o.get("userentity_id") == eid:
+                v = g.get(f"/userfields/{KINDS_REF}/{o['id']}") or {}
+                existing.add(((v.get("person") or "").strip().lower(), (v.get("kind") or "").strip().lower()))
+    for r in kinds:
+        person, kind = r["person"].strip(), r["kind"].strip()
+        if (person.lower(), kind.lower()) in existing:
+            log.append(f"  keep    {KINDS_ENTITY}: {person} {kind}")
+            continue
+        existing.add((person.lower(), kind.lower()))
+        oid = int(g.write("/objects/userobjects", {"userentity_id": eid})["created_object_id"])
+        g.put(f"/userfields/{KINDS_REF}/{oid}", {f: (r.get(f) or "").strip() for f in KINDS_FIELDS})
+        log.append(f"  create  {KINDS_ENTITY}: {person} {kind}")
+
+
 def run(url, key, data_dir, apply, out=sys.stdout):
     chores = read_csv(os.path.join(data_dir, "chores.csv"), ["name", "cadence"])
     products = read_csv(os.path.join(data_dir, "products.csv"), ["name"])
-    if not chores and not products:
-        raise InputError(f"no chores.csv or products.csv in {data_dir}")
+    kinds = read_csv(os.path.join(data_dir, "appointment_kinds.csv"), ["person", "kind"])
+    if not chores and not products and not kinds:
+        raise InputError(f"no chores.csv, products.csv or appointment_kinds.csv in {data_dir}")
     g = Grocy(url, key, apply)
     users = {}
     for u in g.get("/users") or []:
@@ -230,8 +280,12 @@ def run(url, key, data_dir, apply, out=sys.stdout):
                 g.write(f"/chores/{cid}/execute", {"tracked_time": last.isoformat() + " 12:00:00"})
                 log.append(f"  track   chore: {payload['name']} last done {last.isoformat()}")
 
+    if kinds:
+        import_kinds(g, kinds, log)
+
     mode = "APPLY" if apply else "DRY RUN (nothing written; add --apply)"
-    print(f"{mode}: {len(products)} products, {len(chores)} chores read", file=out)
+    extra = f", {len(kinds)} appointment kinds" if kinds else ""
+    print(f"{mode}: {len(products)} products, {len(chores)} chores{extra} read", file=out)
     print("\n".join(log), file=out)
     print(f"writes: {g.writes}", file=out)
     return g.writes

@@ -96,6 +96,69 @@ class PushTest(unittest.TestCase):
             finally:
                 del os.environ["OPENWEBUI_API_KEY"]
 
+    def test_local_base_passes_and_is_reported(self):
+        f = FakeWebUI()
+        out = push.push(f, "t", "m", NEW, "new prompt\n", True, local={"vision:8B", "other"})
+        self.assertEqual(out[0], "model m: base model vision:8B is local")
+        self.assertEqual(f.tool["content"], NEW)
+
+    def test_a_base_not_served_locally_is_refused_before_any_write(self):
+        for apply in (False, True):
+            with self.subTest(apply=apply):
+                f = FakeWebUI()
+                f.model["base_model_id"] = "gpt-4o"
+                with self.assertRaisesRegex(push.PushError, "'gpt-4o' is not served by the server's llama-server"):
+                    push.push(f, "t", "m", NEW, "new prompt\n", apply, local={"vision:8B"})
+                self.assertEqual(f.posts(), [])
+
+    def test_no_local_check_for_the_house_agent(self):
+        f = FakeWebUI()
+        f.model["base_model_id"] = "anything"
+        self.assertEqual(run(f, apply=False)[0], "tool t: would update 0.1.0 -> 0.2.0")
+
+    def test_served_models_reads_ids_and_aliases_and_sends_the_key(self):
+        seen = {}
+
+        class R:
+            def __init__(self, body):
+                self.body = body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return self.body
+
+        def opener(req, timeout):
+            seen["url"], seen["auth"] = req.full_url, req.get_header("Authorization")
+            return R(b'{"data": [{"id": "qwen3-vl:8b", "aliases": ["vision:8B"]}, {"id": "qwen3:8b"}]}')
+
+        ids = push.served_models("http://e:8090/", "synthetic-fleet-key", opener=opener)
+        self.assertEqual(ids, {"qwen3-vl:8b", "vision:8B", "qwen3:8b"})
+        self.assertEqual(seen, {"url": "http://e:8090/v1/models", "auth": "Bearer synthetic-fleet-key"})
+        with self.assertRaisesRegex(push.PushError, "lists no models"):
+            push.served_models("http://e", None, opener=lambda req, timeout: R(b'{"data": []}'))
+
+    def test_engine_key_first_key_line(self):
+        os.environ.pop("LLAMACPP_API_KEY", None)
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "api-key")
+            self.assertIsNone(push.engine_key(p))
+            with open(p, "w") as fh:
+                fh.write("# fleet\n\n  synthetic-fleet  \nsecond-client\n")
+            self.assertEqual(push.engine_key(p), "synthetic-fleet")
+
+    def test_agents_point_at_real_files(self):
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "server", "household")
+        for name, (tool_file, prompt_file, _, _, _) in push.AGENTS.items():
+            with self.subTest(agent=name):
+                self.assertTrue(os.path.isfile(os.path.join(here, tool_file)))
+                self.assertTrue(os.path.isfile(os.path.join(here, prompt_file)))
+        self.assertTrue(push.AGENTS["health"][4], "Health must require a local base model")
+
     def test_version_of(self):
         self.assertEqual(push.version_of(NEW), "0.2.0")
         self.assertEqual(push.version_of("no header"), "?")

@@ -16,6 +16,7 @@ import sys
 import threading
 import types
 import unittest
+import zoneinfo
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 try:
@@ -187,10 +188,22 @@ class ParseIcs(unittest.TestCase):
     def test_all_day_timed_tzid_and_utc(self):
         text = ("BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261201\r\nSUMMARY:All day\r\nEND:VEVENT\r\n"
                 "BEGIN:VEVENT\r\nDTSTART;TZID=America/New_York:20261202T093000\r\nSUMMARY:Timed\r\nEND:VEVENT\r\n"
-                "BEGIN:VEVENT\r\nDTSTART:20261203T150000Z\r\nSUMMARY:Utc\r\nEND:VEVENT\r\n")
-        evs = tool.parse_ics(text)
+                "BEGIN:VEVENT\r\nDTSTART:20261203T150000Z\r\nSUMMARY:Utc\r\nEND:VEVENT\r\n"
+                "BEGIN:VEVENT\r\nDTSTART:20261204T020000Z\r\nSUMMARY:Late\r\nEND:VEVENT\r\n")
+        evs = tool.parse_ics(text, zoneinfo.ZoneInfo("America/Chicago"))
         self.assertEqual([(e["start"].isoformat(), e["time"], e["summary"]) for e in evs],
-                         [("2026-12-01", "", "All day"), ("2026-12-02", "09:30", "Timed"), ("2026-12-03", "15:00", "Utc")])
+                         [("2026-12-01", "", "All day"), ("2026-12-02", "09:30", "Timed"),
+                          ("2026-12-03", "09:00", "Utc"), ("2026-12-03", "20:00", "Late")])  # UTC moved, date too
+        utc = tool.parse_ics(text, dt.timezone.utc)
+        self.assertEqual((utc[2]["time"], utc[3]["start"].isoformat()), ("15:00", "2026-12-04"))
+
+    def test_bad_time_zone_valve_is_named(self):
+        t = tool.Tools()
+        t.valves.time_zone = "Not/AZone"
+        with self.assertRaisesRegex(tool.HealthError, "is not a time zone name"):
+            t._tz()
+        t.valves.time_zone = " America/Chicago "
+        self.assertEqual(str(t._tz()), "America/Chicago")
 
     def test_folded_summary_and_escapes(self):
         text = ("BEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261201\r\nSUMMARY:Dentist\\, check-up and \r\n"

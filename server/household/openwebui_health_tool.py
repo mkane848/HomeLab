@@ -1,7 +1,7 @@
 """
 title: Health (appointments)
 author: HomeLab
-version: 0.1.0
+version: 0.2.0
 description: The household's appointments: what is due to book, what is coming up, when someone was last seen, clashes.
 """
 # The Health agent: docs/household/health-agent.md. Requirement 5 of docs/household-assistant.md.
@@ -23,6 +23,7 @@ import json
 import re
 import urllib.error
 import urllib.request
+import zoneinfo
 
 from pydantic import BaseModel, Field
 
@@ -50,10 +51,11 @@ def user_said_ok(messages):
     return bool(APPROVE.search(text)) and not HOLD.search(text)
 
 
-def parse_ics(text):
+def parse_ics(text, tz=None):
     """iCalendar text -> [{start: date, time: 'HH:MM' or '', summary}]. Unfolds continuation lines; reads DTSTART with
-    or without VALUE=DATE / TZID and a trailing Z, and SUMMARY with its escapes undone. Repeats come as separate
-    events in the family calendar's feed, so no RRULE expansion."""
+    or without VALUE=DATE / TZID, and SUMMARY with its escapes undone. A UTC time (trailing Z) is moved to tz (a
+    tzinfo; None = this machine's zone), its date with it; a TZID time is taken as written, the feed's own local time.
+    Repeats come as separate events in the family calendar's feed, so no RRULE expansion."""
     lines, out, ev = [], [], None
     for raw in (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         if raw[:1] in (" ", "\t") and lines:
@@ -71,10 +73,16 @@ def parse_ics(text):
             key, value = line.split(":", 1)
             name = key.split(";", 1)[0].upper()
             if name == "DTSTART":
-                m = re.match(r"(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?", value.strip())
+                m = re.match(r"(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})\d{0,2}(Z?))?", value.strip())
                 if m:
-                    ev["start"] = dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-                    ev["time"] = f"{m.group(4)}:{m.group(5)}" if m.group(4) else ""
+                    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                    if m.group(4) and m.group(6):
+                        at = dt.datetime(y, mo, d, int(m.group(4)), int(m.group(5)), tzinfo=dt.timezone.utc)
+                        at = at.astimezone(tz) if tz else at.astimezone()
+                        ev["start"], ev["time"] = at.date(), at.strftime("%H:%M")
+                    else:
+                        ev["start"] = dt.date(y, mo, d)
+                        ev["time"] = f"{m.group(4)}:{m.group(5)}" if m.group(4) else ""
             elif name == "SUMMARY":
                 ev["summary"] = (value.replace("\\n", " ").replace("\\N", " ").replace("\\,", ",")
                                  .replace("\\;", ";").replace("\\\\", "\\").strip())
@@ -103,6 +111,8 @@ class Tools:
         feed_2_person: str = Field(default="", description="Whose calendar feed 2 is")
         feed_2_url: str = Field(default="", description="That person's private calendar feed (subscription) URL",
                                 json_schema_extra={"input": {"type": "password"}})
+        time_zone: str = Field(default="", description="The household's time zone, e.g. America/Chicago, for feed "
+                               "times given in UTC. Empty: the server's own zone")
 
     def __init__(self):
         self.valves = self.Valves()
@@ -180,6 +190,15 @@ class Tools:
         chores = self._book_chores() if chores is None else chores
         return chores.get(f"{BOOK_PREFIX} {rec['person']} {rec['kind']}".lower())
 
+    def _tz(self):
+        name = (self.valves.time_zone or "").strip()
+        if not name:
+            return None
+        try:
+            return zoneinfo.ZoneInfo(name)
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            raise HealthError(f"the time_zone Valve '{name}' is not a time zone name (e.g. America/Chicago)") from None
+
     def _feeds(self):
         """[(person, [events])] for each feed that is set. A feed that fails is named by its person, never its URL."""
         out = []
@@ -193,7 +212,7 @@ class Tools:
             except (urllib.error.URLError, OSError, ValueError) as e:
                 raise HealthError(f"cannot read {person or 'a'}'s calendar feed: "
                                   f"{self._scrub(str(getattr(e, 'reason', e)))}") from None
-            out.append((person.strip(), parse_ics(text)))
+            out.append((person.strip(), parse_ics(text, self._tz())))
         if not out:
             raise HealthError("no calendar feed is set (Workspace > Tools > Health > Valves)")
         return out
