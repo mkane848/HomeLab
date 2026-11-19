@@ -8,8 +8,9 @@ rules, and the rules are what make it work.
 
 Written 2026-11-19 from what this repo built: the household plan ([household-assistant.md](household-assistant.md)),
 the house agent ([household/phase2-chat.md](household/phase2-chat.md)) and the first Homie built to this pattern,
-**Health** ([household/health-agent.md](household/health-agent.md)). **Next: Meals**, then an overall agent that
-routes a question to the right Homie (see "Later").
+**Health** ([household/health-agent.md](household/health-agent.md)). The second is **Meals**
+([household/meals-agent.md](household/meals-agent.md), 2026-11-19). Next: an overall agent that routes a question
+to the right Homie (see "Later").
 
 **The name:** another open-source, self-hosted household project also calls itself "Homies" (found by a web search
 on 2026-11-19; its page could not be opened from the session that wrote this). "Homies" is this repo's working name;
@@ -114,6 +115,8 @@ question by question, paired, as in [methodology.md](methodology.md); one repeti
        --model qwen3:0.6b --model qwen3:1.7b --model qwen3:4b --model qwen3:8b
    ```
    Rows go to `tests/results/homies-eval.tsv`; the exit code is 0 when the last model run passed every question.
+   Add `--homie meals` for Meals' five questions (what can we make tonight, the week's plan, when we last had a dish,
+   planning a meal after an OK, and a store's shopping after an OK); the default is Health.
 3. **The "no GPU" row:** add a CPU-only section for the smallest passing size (as `qwen2.5-coder-3b-cpu` does:
    `n-gpu-layers = 0`, `device = none`), run it alone with `--model <that section>`, and record its seconds.
 4. **Fill the tiers table above** from the TSV, with the date and the run's commit. When a size fails, read the
@@ -146,7 +149,8 @@ Health is the worked example; each step names its file.
 
 ## Later
 
-- **Meals** (next): what to cook with what is in the house, and the shopping list per store from the week's plan.
+- **Meals' recipe import:** the household's CopyMeThat export, then PDFs and printable recipes, into Grocy
+  ([meals-agent.md](household/meals-agent.md) → "Getting recipes in").
 - **The overall agent:** one chat that routes each question to the right Homie. Open questions: whether it relays to
   the Homie's own model (keeping each area's data apart) or calls tools directly, and keeping private areas on local
   models.

@@ -10,6 +10,21 @@ The entries from 2026-11-07 to 2026-11-12 were moved here from the repo's change
 
 ## [Unreleased]
 
+- **feat: the Meals agent (2026-11-19).** The second Homie: a separate "Meals" chat for what to cook and what to buy.
+  Runbook: [meals-agent.md](meals-agent.md). Planned with the owner in five approved chunks.
+  - **Tool 0.1.0** (`openwebui_meals_tool.py`): what can we make now (Grocy's own stock check), the week's plan,
+    planning a meal, a store's shopping for the plan (that store's products and those sold anywhere, minus what is
+    on the list), when a dish was last planned, and adding a recipe sent as a file or link. Every write waits for the
+    user's OK. An ingredient is linked to a product only when exactly one matches; the rest stay as text, never made
+    into products. Grocy's hidden meal-plan recipes are never shown.
+  - **Prompt** `openwebui-meals-prompt.md`; **`openwebui_push.py --agent meals`**, local models only.
+  - **Eval:** `tests/homies_eval.py --homie meals`, five questions; the eval now takes each Homie's own fakes.
+  - **Tests:** `test_openwebui_meals_tool.py` (26, new, in CI); `test_homies_eval.py` (17); `test_openwebui_push.py`.
+    **Mutation-checked nine ways** (the OK guard, an ingredient invented as a product, another store's products, the
+    hidden recipes, items already on the list, the order, a past day, the more specific product, every expected
+    write), each red, each file restored byte-identical. The earlier eight eval mutants re-run: all red.
+  - **Not yet:** the CopyMeThat import (needs the owner's export) and the owner's live check.
+
 - **tests: the Homies small-model eval (2026-11-19).** `tests/homies_eval.py` asks a model Health's six questions with
   Health's real prompt and tool definitions, runs its tool calls against the unit tests' fakes, and scores five checks
   per question (tool, args, answer, private, write). Rows go to `tests/results/homies-eval.tsv`; `--stop-at-first-pass`

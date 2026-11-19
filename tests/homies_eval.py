@@ -41,9 +41,11 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "server", "household"))
 
 import test_openwebui_health_tool as fx  # noqa: E402  (stubs pydantic if needed, then imports the tool)
+import test_openwebui_meals_tool as mfx  # noqa: E402
 import openwebui_push  # noqa: E402
 
 health = fx.tool
+meals = mfx.tool
 DEFAULT_OUT = os.path.join(HERE, "results", "homies-eval.tsv")
 COLUMNS = ["date", "host", "model", "homie", "case", "rep", "pass", "tool", "args", "answer", "private", "write",
            "seconds", "rounds", "note"]
@@ -135,8 +137,63 @@ def health_cases():
     ]
 
 
+def meals_cases():
+    """Meals' questions, against the fake Grocy of tests/test_openwebui_meals_tool.py: Tacos can be made now, the
+    week holds Chicken and rice and Fried rice, Aldi's shopping is an onion and two tortillas, Tacos was last planned
+    seven days ago. Same fields as health_cases; write may also be a list of writes, in order."""
+    md = mfx.d
+    return [
+        {"id": "tonight", "turns": ["What can we make for dinner tonight with what we have?"],
+         "tool": "what_can_we_make", "args": lambda a: True,
+         "answer": lambda t: re.search(r"tacos", t, re.I),
+         "write": None},
+        {"id": "week", "turns": ["What's on the meal plan this week?"],
+         "tool": "week_plan", "args": lambda a: a.get("start", "") in ("", "today", mfx.TODAY.isoformat()),
+         "answer": lambda t: re.search(r"chicken and rice", t, re.I) and re.search(r"fried rice", t, re.I),
+         "write": None},
+        {"id": "last_had", "turns": ["When did we last have tacos?"],
+         "tool": "last_had", "args": lambda a: same(a.get("recipe"), "tacos"),
+         "answer": lambda t: has_date(t, md(-7)) or re.search(r"\b7 days\b|a week ago|seven days", t, re.I),
+         "write": None},
+        {"id": "plan", "turns": ["Put tacos on the meal plan for tomorrow.", "OK, plan it."],
+         "tool": "plan_meal", "args": lambda a: same(a.get("recipe"), "tacos")
+         and a.get("date") in ("tomorrow", md(1)),
+         "answer": lambda t: re.search(r"planned|added|done|scheduled", t, re.I),
+         "write": ("/api/objects/meal_plan", {"day": md(1), "type": "recipe", "recipe_id": 10,
+                                              "recipe_servings": 4})},
+        {"id": "shopping", "turns": ["What do we need from Aldi for this week's meals?", "Yes, add them."],
+         "tool": "shopping_for", "args": lambda a: same(a.get("store"), "aldi"),
+         "answer": lambda t: re.search(r"onion", t, re.I) and re.search(r"tortilla", t, re.I),
+         "write": [("/api/stock/shoppinglist/add-product",
+                    {"product_id": 1, "list_id": 1, "product_amount": 1, "note": "Meals: Fried rice"}),
+                   ("/api/stock/shoppinglist/add-product",
+                    {"product_id": 5, "list_id": 1, "product_amount": 2, "note": "Meals: Fried rice"})]},
+    ]
+
+
+def health_setup():
+    fake = fx.Fake()
+    t = health.Tools()
+    v = t.valves
+    v.grocy_url, v.api_key = fake.url, fx.KEY
+    v.feed_1_person, v.feed_1_url = "Alex", fake.url + "/feed/a.ics"
+    v.feed_2_person, v.feed_2_url = "Sam", fake.url + "/feed/b.ics"
+    return t, fake
+
+
+def meals_setup():
+    fake = mfx.Fake()
+    t = meals.Tools()
+    t.valves.grocy_url, t.valves.api_key = fake.url, mfx.KEY
+    return t, fake
+
+
+HOUSEHOLD = os.path.join(ROOT, "server", "household")
 HOMIES = {
-    "health": {"cases": health_cases, "prompt": os.path.join(ROOT, "server", "household", "openwebui-health-prompt.md")},
+    "health": {"cases": health_cases, "setup": health_setup, "private": PRIVATE,
+               "prompt": os.path.join(HOUSEHOLD, "openwebui-health-prompt.md")},
+    "meals": {"cases": meals_cases, "setup": meals_setup, "private": (),
+              "prompt": os.path.join(HOUSEHOLD, "openwebui-meals-prompt.md")},
 }
 
 
@@ -162,15 +219,11 @@ def make_chat(url, key, opener=urllib.request.urlopen, timeout=600):
 
 # ---------------------------------------------------------------- one case
 
-def run_case(chat, model, case, prompt):
+def run_case(chat, model, case, prompt, homie="health"):
     """Runs one case against fresh fakes. Returns the scored row (without date/host/model/rep)."""
-    fake = fx.Fake()
+    spec = HOMIES[homie]
+    t, fake = spec["setup"]()
     try:
-        t = health.Tools()
-        v = t.valves
-        v.grocy_url, v.api_key = fake.url, fx.KEY
-        v.feed_1_person, v.feed_1_url = "Alex", fake.url + "/feed/a.ics"
-        v.feed_2_person, v.feed_2_url = "Sam", fake.url + "/feed/b.ics"
         tools = tool_specs(t)
         messages = [{"role": "system", "content": prompt}]
         calls, notes, rounds, final = [], [], 0, ""
@@ -225,12 +278,12 @@ def run_case(chat, model, case, prompt):
     tool_ok = bool(named)
     args_ok = any(a is not None and bool(case["args"](a)) for a in named)
     answer_ok = bool(final) and bool(case["answer"](final))
-    private_ok = not any(p.lower() in final.lower() for p in PRIVATE)
+    private_ok = not any(p.lower() in final.lower() for p in spec["private"])
     want = case["write"]
     if want is None or want == ():
         write_ok = writes == []
     else:
-        write_ok = writes == [want] and writes_before_last == 0
+        write_ok = writes == (want if isinstance(want, list) else [want]) and writes_before_last == 0
     checks = [tool_ok, args_ok, answer_ok, private_ok, write_ok]
     return {"case": case["id"], "pass": all(checks), "tool": tool_ok, "args": args_ok, "answer": answer_ok,
             "private": private_ok, "write": write_ok, "seconds": f"{seconds:.1f}", "rounds": rounds,
@@ -254,7 +307,7 @@ def run(chat, models, homie, host, reps=1, stop_at_first_pass=False, out=DEFAULT
             for rep in range(1, reps + 1):
                 for case in cases:
                     row = {"date": date, "host": host, "model": model, "homie": homie, "rep": rep,
-                           **run_case(chat, model, case, prompt)}
+                           **run_case(chat, model, case, prompt, homie)}
                     passed += row["pass"]
                     fh.write("\t".join(str(row[c]).replace("\t", " ").replace("\n", " ") for c in COLUMNS) + "\n")
                     fh.flush()
@@ -274,7 +327,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--url", default="http://localhost:8090", help="OpenAI-compatible server (llama-server)")
     ap.add_argument("--model", action="append", required=True, help="model id; repeat, smallest first")
-    ap.add_argument("--homie", choices=sorted(HOMIES), default="health")
+    ap.add_argument("--homie", choices=sorted(HOMIES), default="health", help="which Homie's questions")
     ap.add_argument("--host", default="", help="name of the machine serving the model, for the results")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--stop-at-first-pass", action="store_true")

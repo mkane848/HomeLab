@@ -151,8 +151,10 @@ risk the PoC measures.
    - **The area agents are one Open WebUI model each** (owner, 2026-11-17): its own prompt and only its own tools, so
      one area's data never reaches another's chat. **Health** came first: appointments per family member, from
      Grocy's "Book:" chores and each adult's calendar feed ([runbook](household/health-agent.md); built 2026-11-19,
-     the owner's live check still to do). **Next: Meals, then the overall agent** that routes a question to the
-     right one (owner, 2026-11-19).
+     the owner's live check still to do). **Meals** came second: what to cook with what is in the house, the
+     week's plan, and each store's shopping for it ([runbook](household/meals-agent.md); built 2026-11-19, the
+     recipe import and the owner's live check still to do). **Next: the overall agent** that routes a question to
+     the right one (owner, 2026-11-19).
    - **The pattern has a name, Homies** (owner, 2026-11-19), and its own page, with the rules and the system
      requirements: [homies.md](homies.md).
 4. **The hardware decision.** Apply the criteria above to the PoC's numbers. Record the decision and its evidence here.

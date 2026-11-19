@@ -266,6 +266,8 @@ Read for [homies.md](homies.md).
 
 | ID | Source | URL |
 |---|---|---|
+| grocy-migrations-meals | Grocy, migrations `0045.sql` (`recipes_pos`: recipe_id, product_id, amount, note), `0071.sql` (recipe `type`; Grocy's own `mealplan-day` and `mealplan-week` recipes), `0096.sql` (`meal_plan`: day, type, recipe_id, recipe_servings, note), `0249.sql` (view `recipes_pos_resolved`: need_fulfilled, missing_amount, amount_on_shopping_list, product_name), master at `146f73a` (read 2026-11-19, for [household/meals-agent.md](household/meals-agent.md)) | <https://github.com/grocy/grocy/tree/master/migrations> |
+| grocy-openapi-recipes | Grocy, `grocy.openapi.json` (re-read 2026-11-19) — `/recipes/fulfillment` (`need_fulfilled`, `missing_products_count`), `/stock/shoppinglist/add-product` (`product_id`, `list_id`, `product_amount`, `note`), exposed entities `recipes`, `recipes_pos`, `recipes_pos_resolved`, `meal_plan` | <https://github.com/grocy/grocy/blob/master/grocy.openapi.json> |
 | anthropic-effective-agents | Anthropic, "Building effective agents", Erik S. and Barry Zhang, 2024-12-19 (read 2026-11-19) — workflows are "LLMs and tools orchestrated through predefined code paths", agents direct their own tool use; routing "classifies an input and directs it to a specialized followup task" | <https://www.anthropic.com/engineering/building-effective-agents> |
 
 ## Engine API keys (2026-11-17)

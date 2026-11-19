@@ -158,6 +158,7 @@ class PushTest(unittest.TestCase):
                 self.assertTrue(os.path.isfile(os.path.join(here, tool_file)))
                 self.assertTrue(os.path.isfile(os.path.join(here, prompt_file)))
         self.assertTrue(push.AGENTS["health"][4], "Health must require a local base model")
+        self.assertTrue(push.AGENTS["meals"][4], "Meals runs on local models by default (owner, 2026-11-19)")
 
     def test_version_of(self):
         self.assertEqual(push.version_of(NEW), "0.2.0")
