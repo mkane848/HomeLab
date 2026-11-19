@@ -148,6 +148,10 @@ risk the PoC measures.
    agents ([runbook](household/phase2-chat.md)).
 3. **Knowledge.** Import notes, sheets and calendar exports for retrieval, and add the decision-help agents (meals,
    projects).
+   - **The area agents are one Open WebUI model each** (owner, 2026-11-17): its own prompt and only its own tools, so
+     one area's data never reaches another's chat. **Health** came first: appointments per family member, from
+     Grocy's "Book:" chores and each adult's calendar feed ([runbook](household/health-agent.md); built 2026-11-19,
+     the owner's live check still to do). Meals is the next one defined well enough to plan.
 4. **The hardware decision.** Apply the criteria above to the PoC's numbers. Record the decision and its evidence here.
 5. **Optional.** Home Assistant for devices and sensors (e.g. a filter reminder driven by the furnace's run hours) and
    voice. Fine-tuning only if tone or format is still wrong after phase 3.
@@ -158,7 +162,8 @@ A phase is done when your real phase-0 questions get correct answers, not when t
 
 - **Health is its own area** (owner, 2026-11-08). Appointment and medical entries are tagged by person and
   kept in a separate health area. They are never sent to a cloud model, including a cloud fallback. Both adults see
-  everything in it, each other's appointments included.
+  everything in it, each other's appointments included. How the Health agent enforces this:
+  [health-agent.md](household/health-agent.md) → "Privacy and safety".
 - **Imports sort before they store.** A calendar export mixes household tasks, personal plans and health entries. The
   import classifies each entry (household, personal, health) and the household agents see only the household class.
 - Everything stays on the LAN plus the VPN. No cloud model calls by default. A cloud fallback, if ever wanted, is

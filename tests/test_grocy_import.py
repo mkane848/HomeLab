@@ -24,6 +24,7 @@ class FakeGrocy:
 
     def __init__(self, users=(("alex", 1), ("sam", 2))):
         self.objects = {"users": [{"id": i, "username": u} for u, i in users]}
+        self.values = {}  # (entity ref, object id) -> {field: value}
         self.calls = []
         self.next_id = 100
         fake = self
@@ -47,6 +48,22 @@ class FakeGrocy:
                     return self._send(200, fake.objects["users"])
                 if path.startswith("/objects/"):
                     return self._send(200, fake.objects.get(path.split("/")[2], []))
+                if path.startswith("/userfields/"):
+                    _, _, ref, oid = path.split("/")
+                    return self._send(200, fake.values.get((ref, int(oid)), {}))
+                self._send(404, {"error_message": "no route"})
+
+            def do_PUT(self):
+                n = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(n) or b"null")
+                fake.calls.append(("PUT", self.path, body, self.headers.get("GROCY-API-KEY")))
+                path = self.path[len("/api"):]
+                if path.startswith("/userfields/"):
+                    _, _, ref, oid = path.split("/")
+                    fake.values[(ref, int(oid))] = body
+                    self.send_response(204)
+                    self.end_headers()
+                    return
                 self._send(404, {"error_message": "no route"})
 
             def do_POST(self):
@@ -74,6 +91,9 @@ class FakeGrocy:
     def posts(self, prefix=""):
         return [c for c in self.calls if c[0] == "POST" and c[1].startswith("/api" + prefix)]
 
+    def puts(self):
+        return [c for c in self.calls if c[0] == "PUT"]
+
 
 def write_csvs(d, chores=None, products=None):
     if chores is not None:
@@ -90,6 +110,77 @@ CHORES = ("Test task A,monthly,2026-03-17,,\n"
           "Test task D,manual,,,\n")
 PRODUCTS = ("Widget,Store One + Store Two,,a note\n"
             "Gadget,Store Two,Shelf,\n")
+
+
+KINDS = ("person,kind,provider,how_to_book,notes,match_words\n"
+         "Alex,dentist,Test Dental,phone 555-0100,,\"dentist, dental\"\n"
+         "Sam,therapy,,portal,arrive early,\n")
+
+
+class AppointmentKinds(unittest.TestCase):
+    def setUp(self):
+        self.fake = FakeGrocy()
+        self.dir = tempfile.TemporaryDirectory()
+        with open(os.path.join(self.dir.name, "appointment_kinds.csv"), "w", newline="") as f:
+            f.write(KINDS)
+
+    def tearDown(self):
+        self.fake.close()
+        self.dir.cleanup()
+
+    def run_it(self, apply):
+        out = io.StringIO()
+        n = gi.run(self.fake.url, KEY, self.dir.name, apply, out=out)
+        return n, out.getvalue()
+
+    def test_dry_run_writes_nothing(self):
+        n, out = self.run_it(False)
+        self.assertEqual(n, 0)
+        self.assertEqual(self.fake.posts() + self.fake.puts(), [])
+        self.assertIn("create  appointment_kinds: Alex dentist", out)
+        self.assertIn("2 appointment kinds read", out)
+
+    def test_apply_creates_entity_fields_and_objects_then_is_idempotent(self):
+        n, _ = self.run_it(True)
+        ents = self.fake.objects["userentities"]
+        self.assertEqual([e["name"] for e in ents], ["appointment_kinds"])
+        fields = self.fake.objects["userfields"]
+        self.assertEqual({f["entity"] for f in fields}, {"userentity-appointment_kinds"})
+        self.assertEqual([f["name"] for f in fields], list(gi.KINDS_FIELDS))
+        objs = self.fake.objects["userobjects"]
+        self.assertEqual({o["userentity_id"] for o in objs}, {ents[0]["id"]})
+        vals = sorted(self.fake.values.values(), key=lambda v: v["person"])
+        self.assertEqual(vals[0], {"person": "Alex", "kind": "dentist", "provider": "Test Dental",
+                                   "how_to_book": "phone 555-0100", "notes": "", "match_words": "dentist, dental"})
+        self.assertEqual(vals[1]["notes"], "arrive early")
+        self.assertEqual(n, 1 + len(gi.KINDS_FIELDS) + 2 * 2)
+        n2, out2 = self.run_it(True)
+        self.assertEqual(n2, 0, out2)
+        self.assertIn("keep    appointment_kinds: Sam therapy", out2)
+
+    def test_existing_entity_and_a_new_row(self):
+        self.run_it(True)
+        with open(os.path.join(self.dir.name, "appointment_kinds.csv"), "a", newline="") as f:
+            f.write("ALEX,Dentist,,,,\nSam,eye doctor,,,,\n")
+        n, out = self.run_it(True)
+        self.assertEqual(n, 2, out)  # one object + its values; the ALEX/Dentist row matches case-insensitively
+        self.assertIn("create  appointment_kinds: Sam eye doctor", out)
+
+    def test_missing_person_or_kind_is_refused(self):
+        with open(os.path.join(self.dir.name, "appointment_kinds.csv"), "a", newline="") as f:
+            f.write(",dentist,,,,\n")
+        with self.assertRaisesRegex(gi.InputError, "line 4: missing person"):
+            self.run_it(False)
+
+    def test_fields_match_what_the_health_tool_reads(self):
+        sys.modules.setdefault("pydantic", __import__("types").ModuleType("pydantic"))
+        p = sys.modules["pydantic"]
+        if not hasattr(p, "BaseModel"):
+            p.BaseModel = type("BaseModel", (), {"__init__": lambda self, **kw: None})
+            p.Field = lambda default=None, **_: default
+        import openwebui_health_tool as ht
+        self.assertEqual(tuple(gi.KINDS_FIELDS), ht.FIELDS)
+        self.assertEqual(gi.KINDS_ENTITY, ht.ENTITY)
 
 
 class Cadence(unittest.TestCase):

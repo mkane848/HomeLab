@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Push the household chat's tool code and system prompt from this repo into Open WebUI.
+"""Push a household chat agent's tool code and system prompt from this repo into Open WebUI.
 
-Runbook: docs/household/phase2-chat.md -> "Updating the tool and prompt". Replaces pasting both by hand after every
-merge. Run it on the server after `git pull`:
+Runbooks: docs/household/phase2-chat.md -> "Updating the tool and prompt" (the house agent) and
+docs/household/health-agent.md (Health). Replaces pasting both by hand after every merge. Run it on the server after
+`git pull`:
 
-  python3 -I server/household/openwebui_push.py            # dry run: says what differs, writes nothing
-  python3 -I server/household/openwebui_push.py --apply    # writes
+  python3 -I server/household/openwebui_push.py                         # dry run: says what differs, writes nothing
+  python3 -I server/household/openwebui_push.py --apply                 # writes
+  python3 -I server/household/openwebui_push.py --agent health --apply  # the same for Health
+
+--agent picks the tool file, prompt file, tool id and model id (AGENTS below). For Health the workspace model's base
+model must be one the server's own llama-server serves (--engine-url, default http://localhost:8090; its /v1/models,
+with the fleet key from ~/.config/llamacpp/api-key when that file exists). Anything else, a cloud model among them, is
+refused before anything is written: health stays on the household's own hardware.
 
 It changes exactly two things, through Open WebUI's own API (the same calls its editor makes):
   - the tool's code (POST /api/v1/tools/id/<tool>/update). Its Valves, the Grocy key among them, are kept;
@@ -26,8 +33,16 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_KEY_FILE = os.path.expanduser("~/.config/household/openwebui-api-key")
-DEFAULT_TOOL = "grocy_household_tracker"
-DEFAULT_MODEL = "household"
+DEFAULT_ENGINE = "http://localhost:8090"
+ENGINE_KEY_FILE = os.path.expanduser("~/.config/llamacpp/api-key")
+# agent -> tool file, prompt file, Open WebUI tool id, workspace model id, base model must be local
+AGENTS = {
+    "household": ("openwebui_grocy_tool.py", "openwebui-household-prompt.md", "grocy_household_tracker", "household",
+                  False),
+    "health": ("openwebui_health_tool.py", "openwebui-health-prompt.md", "health_appointments", "health", True),
+}
+DEFAULT_TOOL = AGENTS["household"][2]
+DEFAULT_MODEL = AGENTS["household"][3]
 
 
 class PushError(Exception):
@@ -67,6 +82,47 @@ def make_call(base, key, opener=urllib.request.urlopen):
     return call
 
 
+def engine_key(path=ENGINE_KEY_FILE):
+    """The fleet's llama-server key: the first line of the key file that is not blank or a # comment (as
+    server/scripts/llamacpp-auth.sh reads it). None when there is no file or no key."""
+    key = os.environ.get("LLAMACPP_API_KEY", "").strip()
+    if key:
+        return key
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return line
+    except OSError:
+        pass
+    return None
+
+
+def served_models(engine_url, key=None, opener=urllib.request.urlopen):
+    """The ids (and aliases) the llama-server at engine_url serves, from its /v1/models."""
+    req = urllib.request.Request(engine_url.rstrip("/") + "/v1/models", headers={"Accept": "application/json"})
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
+    try:
+        with opener(req, timeout=30) as r:
+            data = json.loads(r.read() or b"null") or {}
+    except urllib.error.HTTPError as e:
+        hint = " (no or wrong API key: see docs/engine-api-keys.md)" if e.code == 401 else ""
+        raise PushError(f"cannot list the local models at {engine_url}: HTTP {e.code}{hint}")
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        raise PushError(f"cannot list the local models at {engine_url}: {getattr(e, 'reason', e)}")
+    ids = set()
+    for m in data.get("data") or data.get("models") or []:
+        for k in ("id", "model", "name"):
+            if m.get(k):
+                ids.add(m[k])
+        ids.update(a for a in m.get("aliases") or [] if a)
+    if not ids:
+        raise PushError(f"the llama-server at {engine_url} lists no models")
+    return ids
+
+
 def version_of(code):
     for line in code.splitlines()[:12]:
         if line.strip().startswith("version:"):
@@ -74,9 +130,20 @@ def version_of(code):
     return "?"
 
 
-def push(call, tool_id, model_id, tool_code, prompt, apply):
-    """Returns the lines to print. Writes only with apply, and only what differs."""
+def push(call, tool_id, model_id, tool_code, prompt, apply, local=None):
+    """Returns the lines to print. Writes only with apply, and only what differs.
+    local: None, or the set of model ids the server's llama-server serves; then the model's base model must be one of
+    them, checked before anything is written."""
     out = []
+    if local is not None:
+        model = call("GET", f"/models/model?id={model_id}")
+        if not model:
+            raise PushError(f"Open WebUI has no model '{model_id}'")
+        base = model.get("base_model_id")
+        if base not in local:
+            raise PushError(f"model {model_id}: its base model '{base}' is not served by the server's llama-server; "
+                            "pick a local one in Workspace > Models. Nothing written.")
+        out.append(f"model {model_id}: base model {base} is local")
     tool = call("GET", f"/tools/id/{tool_id}")
     if not tool:
         raise PushError(f"Open WebUI has no tool '{tool_id}'")
@@ -111,6 +178,8 @@ def push(call, tool_id, model_id, tool_code, prompt, apply):
             raise PushError(f"model {model_id}: the prompt did not take")
         if after.get("base_model_id") != model.get("base_model_id"):
             raise PushError(f"model {model_id}: its base model changed; fix it in Workspace > Models")
+        if local is not None and after.get("base_model_id") not in local:
+            raise PushError(f"model {model_id}: its base model is no longer local; fix it in Workspace > Models")
         out.append(f"model {model_id}: prompt replaced")
     if not apply:
         out.append("Dry run: nothing written. Run again with --apply.")
@@ -121,16 +190,21 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--url", default="http://localhost:3000")
     ap.add_argument("--key-file", default=DEFAULT_KEY_FILE)
-    ap.add_argument("--tool", default=DEFAULT_TOOL)
-    ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--agent", choices=sorted(AGENTS), default="household")
+    ap.add_argument("--tool", help="Open WebUI tool id (default: the agent's)")
+    ap.add_argument("--model", help="workspace model id (default: the agent's)")
+    ap.add_argument("--engine-url", default=DEFAULT_ENGINE, help="the server's llama-server, for the local-base check")
     ap.add_argument("--apply", action="store_true")
     a = ap.parse_args(argv)
+    tool_file, prompt_file, tool_id, model_id, must_be_local = AGENTS[a.agent]
     try:
-        with open(os.path.join(HERE, "openwebui_grocy_tool.py"), encoding="utf-8") as f:
+        with open(os.path.join(HERE, tool_file), encoding="utf-8") as f:
             code = f.read()
-        with open(os.path.join(HERE, "openwebui-household-prompt.md"), encoding="utf-8") as f:
+        with open(os.path.join(HERE, prompt_file), encoding="utf-8") as f:
             prompt = f.read()
-        for line in push(make_call(a.url, read_key(a.key_file)), a.tool, a.model, code, prompt, a.apply):
+        local = served_models(a.engine_url, engine_key()) if must_be_local else None
+        for line in push(make_call(a.url, read_key(a.key_file)), a.tool or tool_id, a.model or model_id, code, prompt,
+                         a.apply, local=local):
             print(line)
     except PushError as e:
         print(f"openwebui_push: {e}", file=sys.stderr)
