@@ -13,6 +13,7 @@ Dated measurement logs, per-category row inventories and the era notes live in [
 | `real-tasks-public.tsv` | Opaque public mirror of the private real-prompt set | Real-task verdicts |
 | `toolcalls-summary.tsv` (+ `-llamacpp.tsv`) | Tool-call probe results by host and engine version | [docs/tool-calling.md](../../docs/tool-calling.md) |
 | `bench-speed*.tsv`, `llamacpp-soak.tsv`, `overflow-probe.tsv` | Speed, soak and overflow measurements | Hardware and engine numbers |
+| `homies-eval.tsv` | `tests/homies_eval.py`: one row per model and question (tool, args, answer, private, write, seconds) | [docs/homies.md](../../docs/homies.md) "System requirements" |
 | `compaction-nudge/`, `compaction-plugin/`, `compaction-daily/` | Assisted or plugin runs, kept apart (`ASSISTED` marker) | Never mix with unassisted rows |
 | `NOTES.md` | Dated measurement logs, row inventories, era notes | Why a row or number looks the way it does |
 

@@ -83,18 +83,41 @@ The goal is the smallest model that still answers every question right, so more 
 there is rule 1: each time a small model fails a question, the first fix to try is in the tool (a tighter input, a
 clearer refusal, one tool doing the whole job), and only then a bigger model.
 
-**The eval (next, its own PR):** `tests/homies-eval.py` sends each Homie's real questions (Health: what is due, what
-is coming up, when someone was last seen, whether a day is free, and its two writes) with the Homie's tool
-definitions to a local model server, runs the tool calls against the same fakes the unit tests use, and scores each
-question:
-- the right tool, with the right arguments;
-- the right final answer;
-- no write without the user's OK;
-- nothing from outside the area named.
+**The eval:** `tests/homies_eval.py` sends each Homie's real questions with the Homie's own prompt and tool
+definitions (built from the tool file, as Open WebUI builds them) to a local model server, runs every tool call
+against the same fakes the unit tests use, and scores each question on five checks:
+- **tool:** the expected tool was called;
+- **args:** with the expected arguments;
+- **answer:** the final answer holds the facts the tool gave (a date may be written either way, `2026-05-10` or
+  "May 10th");
+- **private:** nothing from outside the area is named;
+- **write:** a write happened only after the user's OK, and wrote exactly the expected record, or none at all.
 
-It runs one model family at four sizes (about 1B, 2B, 4B and 8B), smallest first. The first size where every question
-passes fills the "minimum" row, and that model is also run on CPU only for the "no GPU" row. Models are compared
-question by question, paired, as in [methodology.md](methodology.md). The runs need the fleet, so they happen there.
+A question passes when all five do. Health's six questions: what is due to book; what is coming up for one person;
+when someone was last seen; whether a day is free; recording a visit (a preview, then the user's OK); and recording
+a visit dated in the future, which must write nothing even after "OK". Its scoring is tested against scripted
+stand-in models in `tests/test_homies_eval.py` (in CI): a careful one passes every question, and each kind of mistake
+fails the check meant to catch it.
+
+**The ladder (owner, 2026-11-19): Qwen3 at 0.6B, 1.7B, 4B and 8B**, smallest first. The first size that passes every
+question fills the "minimum" row, and that model is then run on CPU only for the "no GPU" row. Compare models
+question by question, paired, as in [methodology.md](methodology.md); one repetition is a first look, not a result.
+
+**Running it (on the server; the fleet's step, not CI's):**
+1. **Serve the four sizes** on the server's llama-server: pull `qwen3:0.6b`, `qwen3:1.7b` and `qwen3:4b` into the
+   server's Ollama and add a section each to `server/llamacpp/models.ini`, keeping that file's contracts (exact tag
+   name plus `alias`, Ollama's blob as `model`, explicit `c`, the sampling `ollama show --parameters` gives).
+   `qwen3:8b` is already there. Check with `server/scripts/llamacpp-check.sh`.
+2. **Run the ladder** outside a test window ([unattended-window.md](unattended-window.md)):
+   ```bash
+   python3 -I tests/homies_eval.py --url http://localhost:8090 --host server --stop-at-first-pass \
+       --model qwen3:0.6b --model qwen3:1.7b --model qwen3:4b --model qwen3:8b
+   ```
+   Rows go to `tests/results/homies-eval.tsv`; the exit code is 0 when the last model run passed every question.
+3. **The "no GPU" row:** add a CPU-only section for the smallest passing size (as `qwen2.5-coder-3b-cpu` does:
+   `n-gpu-layers = 0`, `device = none`), run it alone with `--model <that section>`, and record its seconds.
+4. **Fill the tiers table above** from the TSV, with the date and the run's commit. When a size fails, read the
+   failing checks first: a wrong tool or argument points at the tool's descriptions, which may be the cheaper fix.
 
 ## Adding a Homie
 
