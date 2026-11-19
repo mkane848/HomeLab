@@ -260,6 +260,14 @@ Project pages and docs, read once for [household-assistant.md](household-assista
 | grocy-userfield-form | Grocy, `views/userfieldform.blade.php` (read 2026-11-19) — user field and entity names match `^[a-zA-Z0-9_]*$` | <https://github.com/grocy/grocy/blob/master/views/userfieldform.blade.php> |
 | ha-local-voice | Home Assistant, "Set up a fully local voice assistant", docs source (read 2026-11-07) — Whisper ~8 s on a Raspberry Pi 4, under 1 s on an Intel NUC | <https://github.com/home-assistant/home-assistant.io/blob/current/source/voice_control/voice_remote_local_assistant.markdown> |
 
+## Homies (2026-11-19)
+
+Read for [homies.md](homies.md).
+
+| ID | Source | URL |
+|---|---|---|
+| anthropic-effective-agents | Anthropic, "Building effective agents", Erik S. and Barry Zhang, 2024-12-19 (read 2026-11-19) — workflows are "LLMs and tools orchestrated through predefined code paths", agents direct their own tool use; routing "classifies an input and directs it to a specialized followup task" | <https://www.anthropic.com/engineering/building-effective-agents> |
+
 ## Engine API keys (2026-11-17)
 
 Read for [engine-api-keys.md](engine-api-keys.md), at each project's default branch on 2026-11-17 (the files were

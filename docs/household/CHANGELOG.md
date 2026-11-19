@@ -10,6 +10,11 @@ The entries from 2026-11-07 to 2026-11-12 were moved here from the repo's change
 
 ## [Unreleased]
 
+- **docs: Homies (2026-11-19).** The area agents' pattern has a name and a page, [homies.md](../homies.md): the three
+  layers, seven rules (each pointing at where Health enforces it), the system requirements with tiers left "not
+  measured yet" until the small-model eval runs, how to add a Homie, and what not to do. Order agreed with the owner:
+  Meals next, then the overall agent. A possible name clash with another project is noted.
+
 - **feat: the Health agent (2026-11-19).** The first area agent: a separate "Health" chat for each family member's
   appointments. Runbook: [health-agent.md](health-agent.md).
   - **Tool 0.2.0** (`openwebui_health_tool.py`): what is due to book, what is coming up, when someone was last seen,
