@@ -10,6 +10,22 @@ The entries from 2026-11-07 to 2026-11-12 were moved here from the repo's change
 
 ## [Unreleased]
 
+- **feat: the Health agent (2026-11-19).** The first area agent: a separate "Health" chat for each family member's
+  appointments. Runbook: [health-agent.md](health-agent.md).
+  - **Tool 0.2.0** (`openwebui_health_tool.py`): what is due to book, what is coming up, when someone was last seen,
+    whether a day is free; records a visit or a new kind only after the user's OK. Calendar events that are not
+    appointments are never named ("busy" at most). Feed times in UTC are moved to the `time_zone` Valve's zone.
+  - **Prompt** `openwebui-health-prompt.md`: appointments only, never guess, never book, no medical advice.
+  - **`openwebui_push.py --agent health`:** refuses a base model the server's llama-server does not serve, before
+    and after writing.
+  - **`grocy_import.py`:** an optional `appointment_kinds.csv` creates the `appointment_kinds` user entity, its six
+    fields and one record per person and kind; a second `--apply` writes nothing.
+  - **Tests:** `test_openwebui_health_tool.py` (27, new, in CI), `test_openwebui_push.py` (13), `test_grocy_import.py`
+    (21). **Mutation-checked nine ways**, each red and each file restored byte-identical: the OK guard, the event
+    filter, all-day dates, UTC times, the future-date refusal, the local-model check (twice), the import's matching,
+    and its dry run.
+  - **Not yet:** the owner's setup and live check (the runbook's steps 1 to 5).
+
 - **The chat's key to llama-server (2026-11-17).** Open WebUI now sends the household key
   (`LLAMACPP_HOUSEHOLD_KEY` in `server/docker/.env`; compose refuses to start without it). The running chat keeps its
   connection in its database, so the rollout sets the key once in Admin → Settings → Connections. Entered in the
