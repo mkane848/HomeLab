@@ -10,6 +10,17 @@ The entries from 2026-11-07 to 2026-11-12 were moved here from the repo's change
 
 ## [Unreleased]
 
+- **tests: the Homies small-model eval (2026-11-19).** `tests/homies_eval.py` asks a model Health's six questions with
+  Health's real prompt and tool definitions, runs its tool calls against the unit tests' fakes, and scores five checks
+  per question (tool, args, answer, private, write). Rows go to `tests/results/homies-eval.tsv`; `--stop-at-first-pass`
+  runs the owner's ladder, Qwen3 0.6B / 1.7B / 4B / 8B. How to run it on the server: [homies.md](../homies.md)
+  "Aiming small".
+  - **Tests:** `tests/test_homies_eval.py` (13, in CI) scores scripted stand-in models: a careful one passes all six;
+    a wrong tool, wrong arguments, a private event named, no answer, bad JSON and a write before the OK each fail.
+    **Mutation-checked eight ways** (each check switched off, the pass rule, hiding `__messages__`, the ladder's
+    stop), each red, the file restored byte-identical.
+  - **Not yet:** no model has been run. The three smaller sizes need adding to the server's llama-server first.
+
 - **docs: Homies (2026-11-19).** The area agents' pattern has a name and a page, [homies.md](../homies.md): the three
   layers, seven rules (each pointing at where Health enforces it), the system requirements with tiers left "not
   measured yet" until the small-model eval runs, how to add a Homie, and what not to do. Order agreed with the owner:
