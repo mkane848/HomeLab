@@ -46,6 +46,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The pins still say 1.19.5.
     - So there are still no desktop batch runs on 2.x (`docs/opencode-2-migration.md`, step 3).
 
+- **feat: the read-budget plugin for OpenCode 2.x (2026-11-21).** Step 4.2/4.4 of `docs/opencode-2-migration.md`.
+  - **Why:** since the desktop's 2.3.2 update, 2.x skips the 1.x plugin ("configured plugin path must be a
+    directory"), so daily use has had no read cap. 2.x's own `read` still returns up to 2000 lines / 50 KiB; ours is
+    about 17,300 chars at a 64k window.
+  - **What:**
+    - `opencode/plugins/read-budget/index.js`, a 2.x plugin directory (`{id, setup(ctx)}`, no dependencies). It has
+      the same behaviour, env vars (`HOMELAB_READ_MAX_CHARS`, `HOMELAB_READ_BUDGET_LOG`) and `loaded`/`clamp` log
+      lines as the 1.x plugin.
+    - The shared helpers move to `read-budget/core.js`. `read-budget.js` (1.x, still used on 1.19.5 by CI and
+      node3) imports and re-exports them, and its hooks are unchanged.
+    - The 2.x hook behaviour the plugin relies on was checked on 2.3.2 with a probe plugin, not only read in the
+      docs: input mutation, result replacement, the window from `ctx.model.list()`, the compaction hook. The
+      findings are in the migration plan.
+  - **Not done here:** the template still lists the 1.x file. At the cutover (step 5.1) its entry becomes
+    `.../opencode/plugins/read-budget` under 2.x `plugins`. The template, adapter, desktop scripts and CI are being
+    ported in another session.
+  - **Tests:** `tests/test-read-budget.ps1` accepts opencode 1.19.5 or 2.3.2.
+    - The unit checks run both entries whatever is installed: 74 for 1.x, 97 for 2.x.
+    - The live part runs the installed version's entry. On 2.x it uses the `/api/...` routes and adds a live
+      budget-reset-on-compaction check.
+    - 213 checks pass on 2.3.2.
+    - Mutation-checked on the real file: removing the 2.x clamp (`input.limit = target`) fails 28 checks, and
+      removing the reset fails 3. Both times the file was restored byte-identical (`cmp`).
+    - The 1.x live branch was exercised only with a stand-in `opencode` here. The real 1.19.5 live run is CI's.
+
 - **fix: OpenCode 2.x on the desktop: profiles take effect again, and outside paths ask first (2026-11-21).**
   - **Why:** the desktop updated itself to OpenCode v2.3.2 at 09:17 on 2026-11-21.
   - **What 2.x changed:** 2.x runs one shared background service, and `{env:...}` resolves in the service's
