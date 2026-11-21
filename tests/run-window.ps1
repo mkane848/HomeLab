@@ -463,7 +463,15 @@ function Invoke-Gate {
     if ($OpencodeConfig) {
         $parsed = $null
         if (Test-Path -LiteralPath $OpencodeConfig) { try { $parsed = Get-Content -Raw -LiteralPath $OpencodeConfig | ConvertFrom-Json -ErrorAction Stop } catch { } }
+        # OpenCode 2.x accepts compaction.prune and compaction.tail_turns but ignores them (a
+        # warning in its log; docs/opencode-2-migration.md): an arm that sets them would measure nothing.
+        $ocCfgVer = try { "$(& $OpencodeCmd --version 2>$null | Select-Object -First 1)".Trim() -replace '^opencode\s+v', '' } catch { "" }
+        $ignoredV2 = @()
+        if ($null -ne $parsed -and $ocCfgVer -match '^2\.\d+\.\d+' -and $parsed.PSObject.Properties["compaction"] -and $parsed.compaction) {
+            $ignoredV2 = @("prune", "tail_turns" | Where-Object { $parsed.compaction.PSObject.Properties[$_] } | ForEach-Object { "compaction.$_" })
+        }
         if ($null -eq $parsed) { Add-Gate "opencode config" "FAIL" "$OpencodeConfig is missing or not JSON" }
+        elseif ($ignoredV2.Count) { Add-Gate "opencode config" "FAIL" "$OpencodeConfig sets $($ignoredV2 -join ', '), which opencode $ocCfgVer ignores: the arm would measure nothing" }
         else {
             $env:OPENCODE_CONFIG = [IO.Path]::GetFullPath($OpencodeConfig)
             Add-Gate "opencode config" "PASS" ("OPENCODE_CONFIG = {0} ({1})" -f $env:OPENCODE_CONFIG, ($parsed | ConvertTo-Json -Compress -Depth 6))
@@ -509,7 +517,16 @@ function Invoke-Gate {
     }
     if ("opencode" -notin $skip) {
         $listed = $null
-        try { $listed = @(& $OpencodeCmd models ($Model -split "/", 2)[0] 2>&1 | ForEach-Object { "$_" }) } catch { }
+        # OpenCode 2.x prints its help for `models <provider>` and ignores this
+        # process's env without --standalone (measured 2026-11-21, v2.3.2): list
+        # everything and keep the seat's provider (another provider can carry the
+        # same tag). 1.x: `models <provider>`, as before.
+        $prov = ($Model -split "/", 2)[0]
+        $ocVer = try { "$(& $OpencodeCmd --version 2>$null | Select-Object -First 1)".Trim() -replace '^opencode\s+v', '' } catch { "" }
+        $oc2 = $ocVer -match '^2\.\d+\.\d+'
+        $listArgs = if ($oc2) { @("--standalone", "models") } else { @("models", $prov) }
+        try { $listed = @(& $OpencodeCmd @listArgs 2>&1 | ForEach-Object { "$_" }) } catch { }
+        if ($oc2 -and $listed) { $listed = @($listed | Where-Object { $_.Trim().StartsWith("$prov/") }) }
         if ($listed -and ($listed | Where-Object { $_ -match [regex]::Escape($seatTag) })) { Add-Gate "opencode seat" "PASS" "opencode lists $Model" }
         else { Add-Gate "opencode seat" "FAIL" "$OpencodeCmd models does not list $Model (stage the config: desktop\scripts\sync-opencode.ps1)" }
     }

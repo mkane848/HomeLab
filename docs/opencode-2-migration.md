@@ -87,14 +87,39 @@ Each step is one PR.
      session.
    - 3.2 **Done.** Events: `path` as well as `filePath`. 2.x errors keep their `type`, except an overflow, which is
      named `ContextOverflowError` by 2.x's own rule, copied from the v2.3.2 source.
-   - 3.3 **Adapter done.** `Get-AgentConfig` runs `--standalone debug config` and merges the sources
-     (`ConvertFrom-OpencodeConfigSources`), keeping the 1.x names callers read. Still to do: `sync-opencode.ps1`'s
-     plugin-path check.
-   - 3.4 Replace the ripgrep check. On 2.x it reports "not checked" for now.
-   - 3.5 Replace `opencode db` for Go spend, and fix the `models <provider>` calls (`run-tasks-batch.ps1`
-     `Get-HostedModelList`, `run-window.ps1`'s seat gate): on 2.x they print help, so the gates would see no models.
-   - 3.6 **Threshold and overflow done** (`Get-CompactionThreshold`'s 2.x branch). Still to do: drop the prune arm.
-   - Guard: `tests/test-agent-opencode-v2.ps1`. `tests/test-opencode-run.ps1` checks both command lines.
+   - 3.3 **Done.** `Get-AgentConfig` runs `--standalone debug config` and merges the sources
+     (`ConvertFrom-OpencodeConfigSources`), keeping the 1.x names callers read. `sync-opencode.ps1` reads 2.x's
+     `plugins` with `--standalone`, so it loads the staged files and not the service's copy. It warns about a file
+     plugin, which 2.x skips because it loads only directories.
+   - 3.4 **Done.** On 2.3.2, `Test-AgentTools` repeats 2.x's ripgrep lookup: `rg` on PATH, else `<bin>/rg.exe`. It
+     then runs a nonce search with the binary it found. It can no longer install ripgrep as a side effect. With
+     none found it reports "not ok" and says to put a pinned `rg` on PATH, as CI does.
+   - 3.5 **Done.** The batch's Go listing and spend go through the adapter, and the batch no longer calls `opencode`
+     at all (`test-agent-adapter` guards that). On 2.x:
+     - `Get-AgentProviderModels` filters `--standalone models`.
+     - `run-window.ps1`'s seat gate does the same, kept to the seat's provider.
+     - `Get-AgentSpendRecords` reads `session_message` read-only through Node's built-in SQLite.
+     - **2.x recorded $0 for priced Go replies.** On 2026-11-21, 482 `opencode-go/deepseek-v4.1-flash` replies
+       (catalog price $0.15/$0.60 per M tokens, about 773k tokens in and 85k out) were all recorded at $0. The 1.x
+       history that 2.x carried across keeps its costs. So the spend reader **fails closed**: a reply that used tokens
+       and recorded no cost for a catalog-priced model makes the spend "unreadable", and the batch drops hosted seats
+       with that reason. Why 2.x records $0 is not known. Finding out needs one priced Go call, which is the owner's
+       decision.
+   - 3.6 **Done.** Threshold and overflow are in `Get-CompactionThreshold`'s 2.x branch. On 2.x, `run-window`'s
+     `-OpencodeConfig` gate refuses `compaction.prune` and `tail_turns`, which 2.x ignores, so an arm built on them
+     would measure nothing.
+   - Guards:
+     - `tests/test-agent-opencode-v2.ps1`: transcripts, config, threshold, spend, listing and ripgrep.
+     - `tests/test-opencode-run.ps1`: both command lines.
+     - `tests/test-run-window.ps1`: the 2.x seat gate and the prune refusal.
+     - `tests/test-sync-opencode.ps1`: the 2.x plugin check.
+     - `tests/test-agent-adapter.ps1`: no `opencode` call in the batch.
+   - 3.7 **Waits for step 4: the cutover.** It moves the version pins and CI's install to 2.3.2. Until then, the
+     plugin guards pin 1.19.5, and `test-compaction-plugin` would go red on 2.3.2 because `compaction-continue` is not
+     ported (step 4.1 decides whether it needs to be). On the desktop, which runs 2.3.2, four guards fail on their
+     1.19.5 pin, as they already did.
+   - **Batch runs on the desktop's 2.x are possible after this step,** with three provisos: no plugins, the Go gate
+     closed, and the pins saying 1.19.5.
    - 3.7 Bump the pins 1.19.5 → 2.3.2 (`opencode.ps1:379`, `test-compaction-plugin.ps1:35`,
      `test-read-budget.ps1:47`, `test-agent-shell.ps1`, `test-agent-tools.ps1`, `checks.yml`) and update the stand-in
      shims.

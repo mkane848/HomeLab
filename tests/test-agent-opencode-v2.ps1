@@ -107,6 +107,113 @@ Check "buffer 8000 tokens"                       (T 65536 4096 8000) 57536
 Check "a buffer >= the window is ignored"        (T 65536 4096 70000) 49536
 Check "limit.input below the context is the window" (T 65536 4096 $null 40000) 24000
 
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("agent-oc2-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
+New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+$savedPath = $env:PATH
+try {
+    Write-Host "-- 5. Go spend from the 2.x message store (Get-AgentSpendRecords -DbPath -CatalogPath)"
+    # A store shaped like v2.3.2's session_message, written with node's built-in SQLite.
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+    $mk = @'
+const { DatabaseSync } = await import("node:sqlite")
+const [file, now, extra] = process.argv.slice(2)
+const d = new DatabaseSync(file)
+d.exec("CREATE TABLE session_message (id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER, time_created INTEGER, time_updated INTEGER, data TEXT)")
+const ins = d.prepare("INSERT INTO session_message VALUES (?, 's', ?, 0, ?, ?, ?)")
+const h = 3600000, n = Number(now)
+const msg = (p, m, cost, tin, tout) => JSON.stringify({ model: { id: m, providerID: p }, cost, tokens: { input: tin, output: tout } })
+const rows = [
+  ["a1", "assistant", n - 1 * h, msg("opencode-go", "priced-m", 0.5, 1000, 100)],
+  ["a2", "assistant", n - 2 * h, msg("opencode-go", "free-m", 0, 500, 50)],
+  ["a3", "assistant", n - 40 * 24 * h, msg("opencode-go", "priced-m", 0.25, 900, 90)],
+  ["a4", "assistant", n - 1 * h, msg("other-p", "x", 9, 10, 1)],
+  ["a5", "assistant", n - 1 * h, msg("local-p", "y", 0, 400, 40)],
+  ["u1", "user", n - 1 * h, JSON.stringify({ model: { providerID: "opencode-go" }, cost: 7 })],
+]
+if (extra === "unpriced") rows.push(["a6", "assistant", n - 0.5 * h, msg("opencode-go", "priced-m", 0, 800, 80)])
+for (const r of rows) ins.run(r[0], r[1], r[2], r[2], r[3])
+'@
+    $mkFile = Join-Path $tmp "mkdb.mjs"; [IO.File]::WriteAllText($mkFile, $mk, (New-Object System.Text.UTF8Encoding($false)))
+    $db1 = Join-Path $tmp "ok.db"; $db2 = Join-Path $tmp "unpriced.db"
+    & node --no-warnings $mkFile $db1 "$now" "" | Out-Null
+    & node --no-warnings $mkFile $db2 "$now" "unpriced" | Out-Null
+    $cat = Join-Path $tmp "models.json"
+    '{"opencode-go":{"models":{"priced-m":{"cost":{"input":1,"output":2}},"free-m":{"cost":{"input":0,"output":0}}}}}' | Set-Content -LiteralPath $cat
+    $since = (Get-Date).ToUniversalTime().AddDays(-35)
+    $r = Get-AgentSpendRecords -Provider "opencode-go" -Since $since -DbPath $db1 -CatalogPath $cat
+    Check 'assistant replies of the provider since -Since: 2, $0.50 (a free model''s $0 is fine; older, other-provider and user rows left out)' ("{0}|{1}" -f $r.Count, (($r | Measure-Object Usd -Sum).Sum)) "2|0.5"
+    Check "...their times are UTC from time_created" ([bool](@($r | Where-Object { $_.Time -gt (Get-Date).ToUniversalTime().AddHours(-3) }).Count -eq 2)) "True"
+    $out2 = @(Get-AgentSpendRecords -Provider "opencode-go" -Since $since -DbPath $db2 -CatalogPath $cat 3>&1)
+    $w = @($out2 | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+    $r2 = @($out2 | Where-Object { $_ -isnot [System.Management.Automation.WarningRecord] })
+    Check "a priced model's reply with tokens and no cost: fails closed (null)" ("{0}|{1}" -f $r2.Count, ($null -eq $r2[0])) "1|True"
+    Check "...and the warning says which model" ([bool]("$($w.Message)" -match 'no cost for priced opencode-go replies \(priced-m\)')) "True"
+    Check "no catalog: a zero-cost reply with tokens cannot be told free, so null" ($null -eq (Get-AgentSpendRecords -Provider "opencode-go" -Since $since -DbPath $db1 -CatalogPath (Join-Path $tmp "none.json") 3>$null)) "True"
+    $r3 = Get-AgentSpendRecords -Provider "local-p" -Since $since -DbPath $db1 -CatalogPath $cat
+    Check "a provider the catalog does not list prices nothing: read, not null" ("{0}|{1}" -f ($null -eq $r3), $r3.Count) "False|1"
+    $r4 = Get-AgentSpendRecords -Provider "nobody" -Since $since -DbPath $db1 -CatalogPath $cat
+    Check "no replies: an empty list (read, nothing spent), not null" ("{0}|{1}" -f ($null -eq $r4), $r4.Count) "False|0"
+    Check "a missing store: null" ($null -eq (Get-AgentSpendRecords -Provider "opencode-go" -Since $since -DbPath (Join-Path $tmp "nope.db") -CatalogPath $cat)) "True"
+
+    Write-Host "-- 6. listing one provider's models (Get-AgentProviderModels), 1.x and 2.x"
+    $bin = Join-Path $tmp "bin"; New-Item -ItemType Directory -Path $bin -Force | Out-Null
+    $rgBin = Join-Path $tmp "oc-bin"; New-Item -ItemType Directory -Path $rgBin -Force | Out-Null
+    @"
+@echo off
+echo %*>>"%FX_CALLS%"
+if "%~1"=="--version" (echo %FX_VER%& exit /b 0)
+if "%~1"=="--standalone" if "%~2"=="models" (echo opencode-go/alpha& echo opencode-go/beta& echo llamacpp-server/alpha& exit /b 0)
+if "%~1"=="models" if "%~2"=="opencode-go" (echo opencode-go/alpha& exit /b 0)
+if "%~1"=="debug" if "%~2"=="paths" (echo bin        $rgBin& exit /b 0)
+echo USAGE
+exit /b 0
+"@ | Set-Content -LiteralPath (Join-Path $bin "opencode.cmd") -Encoding ascii
+    $env:FX_CALLS = Join-Path $tmp "calls.txt"
+    $env:PATH = "$bin;$savedPath"
+    $env:FX_VER = "opencode v2.3.2"
+    Check "2.x: --standalone models, kept to the provider" ((Get-AgentProviderModels -Provider "opencode-go") -join ",") "opencode-go/alpha,opencode-go/beta"
+    Check "...asked as --standalone models (2.x prints help for a provider argument)" (@(Get-Content -LiteralPath $env:FX_CALLS)[-1]) "--standalone models"
+    $env:FX_VER = "1.19.5"
+    Check "1.x: models <provider>, as before" ((Get-AgentProviderModels -Provider "opencode-go") -join ",") "opencode-go/alpha"
+    Check "...asked as models opencode-go" (@(Get-Content -LiteralPath $env:FX_CALLS)[-1]) "models opencode-go"
+
+    Write-Host "-- 7. the 2.x ripgrep check (Test-AgentTools -Version 2.3.2)"
+    $errs = $null
+    $ttAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot "test-tasks.ps1"), [ref]$null, [ref]$errs)
+    foreach ($fn in $ttAst.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @("Run-Native", "Run-NativeTimed", "ConvertTo-WindowsArgument") }, $true)) { Invoke-Expression $fn.Extent.Text }
+    $env:FX_VER = "opencode v2.3.2"
+    # No rg anywhere on PATH (the CI runner puts one there), and an empty opencode bin folder.
+    $noRg = @($savedPath -split ';' | Where-Object { $_ -and -not (Test-Path -LiteralPath (Join-Path $_ "rg.exe")) -and -not (Test-Path -LiteralPath (Join-Path $_ "rg.cmd")) }) -join ';'
+    $env:PATH = "$bin;$noRg"
+    $t1 = Test-AgentTools -Version "2.3.2"
+    Check "no rg on PATH or in opencode's bin: checked, not ok" ("{0}|{1}" -f $t1.checked, $t1.ok) "True|False"
+    Check "...and the detail says where it looked" ([bool]($t1.detail -match 'ripgrep not found' -and $t1.detail.Contains($rgBin))) "True"
+    # An rg on PATH comes first, as in opencode's lookup: a stand-in that finds the probe.
+    $pathRg = Join-Path $tmp "path-rg"; New-Item -ItemType Directory -Path $pathRg -Force | Out-Null
+    "@echo off`r`necho probe.txt`r`nexit /b 0" | Set-Content -LiteralPath (Join-Path $pathRg "rg.cmd") -Encoding ascii
+    $env:PATH = "$bin;$pathRg;$noRg"
+    $t2 = Test-AgentTools -Version "2.3.2"
+    Check "rg on PATH that finds the probe: ok, and it names that rg" ("{0}|{1}" -f $t2.ok, [bool]($t2.detail -match [regex]::Escape((Join-Path $pathRg "rg.cmd")))) "True|True"
+    "@echo off`r`nexit /b 2" | Set-Content -LiteralPath (Join-Path $pathRg "rg.cmd") -Encoding ascii
+    $t3 = Test-AgentTools -Version "2.3.2"
+    Check "an rg that fails: not ok, with its exit" ("{0}|{1}" -f $t3.ok, [bool]($t3.detail -match 'exit 2')) "False|True"
+    # The real ripgrep in opencode's bin folder (if this machine has one to copy): found there and works.
+    $realRg = @((Get-Command rg.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source), (Join-Path $HOME ".cache\opencode\bin\rg.exe")) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if ($realRg) {
+        Copy-Item -LiteralPath $realRg -Destination (Join-Path $rgBin "rg.exe")
+        $env:PATH = "$bin;$noRg"
+        $t4 = Test-AgentTools -Version "2.3.2"
+        Check "a real rg.exe in opencode's bin folder: ok, and it names it" ("{0}|{1}" -f $t4.ok, [bool]($t4.detail -match [regex]::Escape((Join-Path $rgBin "rg.exe")))) "True|True"
+    } else {
+        Write-Host "SKIP a real rg.exe in opencode's bin folder (no ripgrep on this machine to copy)"
+    }
+    Check "another version is not checked" ((Test-AgentTools -Version "2.4.0").checked) "False"
+} finally {
+    $env:PATH = $savedPath
+    Remove-Item Env:FX_CALLS, Env:FX_VER -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 Write-Host ""
 if ($script:fail) { Write-Host "$($script:fail) FAILED"; exit 1 }
 Write-Host "all passed"

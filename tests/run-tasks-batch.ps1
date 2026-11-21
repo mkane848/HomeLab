@@ -757,24 +757,15 @@ function Test-HostedModelId {
 }
 
 function Get-HostedModelList {
-    # `opencode models opencode-go` -> hashtable of the full ids it lists
-    # ("opencode-go/qwen3.8-max"), or $null when the command fails, and then no
-    # hosted seat is offered. It lists; it does not call a model.
-    $prev = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $out = @(& opencode models opencode-go 2>$null)
-        if ($LASTEXITCODE -ne 0) { return $null }
-    } catch {
-        return $null
-    } finally {
-        $ErrorActionPreference = $prev
-    }
+    # The OpenCode Go model ids the agent lists -> hashtable of the full ids
+    # ("opencode-go/qwen3.8-max"), or $null when the listing fails, and then no
+    # hosted seat is offered. It lists; it does not call a model. The command
+    # behind it (`opencode models opencode-go` on 1.x; `models`, filtered, on 2.x)
+    # is the adapter's: Get-AgentProviderModels.
+    $listed = Get-AgentProviderModels -Provider "opencode-go"
+    if ($null -eq $listed) { return $null }
     $ids = @{}
-    foreach ($l in $out) {
-        $t = "$l".Trim()
-        if ($t -match '^opencode-go/\S+$') { $ids[$t] = $true }
-    }
+    foreach ($l in $listed) { $ids["$l"] = $true }
     return $ids
 }
 
@@ -1040,40 +1031,16 @@ function Get-MeterBounds {
 }
 
 function Get-GoUsageRecords {
-    # Every OpenCode Go reply opencode has recorded on this machine since
-    # $Since: { Time (UTC); Usd }, opencode's own per-message cost, read with
-    # `opencode db` (a SELECT on the message table). That covers interactive use
-    # as well as harness runs, which is what Go's meters count. Only the message
-    # table is read: the account and credential tables hold tokens and are
-    # never queried. $null when the query fails.
+    # Every OpenCode Go reply the agent has recorded on this machine since
+    # $Since: { Time (UTC); Usd }, its own per-message cost. That covers
+    # interactive use as well as harness runs, which is what Go's meters count.
+    # The read is the adapter's (Get-AgentSpendRecords: `opencode db` on 1.x,
+    # the message store read-only on 2.x). $null when it fails.
     param([datetime]$Since)
-    $ms = [DateTimeOffset]::new([datetime]::SpecifyKind($Since, [DateTimeKind]::Utc)).ToUnixTimeMilliseconds()
-    # BETWEEN rather than >=: no character cmd.exe could read as a redirect
-    # when opencode is a .cmd shim.
-    $q = "SELECT time_created AS t, json_extract(data,'$.cost') AS usd FROM message WHERE json_extract(data,'$.providerID')='opencode-go' AND json_extract(data,'$.role')='assistant' AND time_created BETWEEN $ms AND 99999999999999"
-    $prevEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $out = & opencode db $q --format json 2>$null
-        $code = $LASTEXITCODE
-    } catch {
-        return $null
-    } finally {
-        $ErrorActionPreference = $prevEap
-    }
-    if ($code -ne 0) { return $null }
-    $text = ($out | Out-String).Trim()
-    # The leading comma keeps an empty list a list: an unrolled @() would reach
-    # the caller as $null, which means "could not read".
-    $records = New-Object System.Collections.Generic.List[object]
-    if (-not $text) { return , $records }
-    # Not @($text | ConvertFrom-Json): Windows PowerShell 5.1 emits a JSON array
-    # as one object, which @() would nest. A foreach statement unrolls it on both.
-    try { $rows = $text | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
-    foreach ($r in $rows) {
-        if ($null -eq $r -or $null -eq $r.t) { continue }
-        $records.Add([pscustomobject]@{ Time = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$r.t).UtcDateTime; Usd = [double]$r.usd })
-    }
+    # Not `return (Get-AgentSpendRecords ...)`: that unrolls the list, and an empty
+    # one would reach the caller as $null ("could not read").
+    $records = Get-AgentSpendRecords -Provider "opencode-go" -Since $Since
+    if ($null -eq $records) { return $null }
     return , $records
 }
 

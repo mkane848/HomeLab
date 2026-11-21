@@ -112,6 +112,18 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
         [IO.File]::WriteAllText($ocGood, "#!/usr/bin/env bash`necho '$seatLine'`n"); & chmod +x $ocGood
         [IO.File]::WriteAllText($ocNone, "#!/usr/bin/env bash`nexit 0`n"); & chmod +x $ocNone
     }
+    # OpenCode 2.x: `--version` is "opencode v2.3.2", `models <provider>` prints help, and the
+    # gate lists everything with `--standalone models`. $ocV2 lists the seat; $ocV2Other lists
+    # the same tag under another provider only, which must not count.
+    $ocV2 = Join-Path $tmp $(if ($IsWindows) { "opencode-v2.cmd" } else { "opencode-v2" })
+    $ocV2Other = Join-Path $tmp $(if ($IsWindows) { "opencode-v2-other.cmd" } else { "opencode-v2-other" })
+    if ($IsWindows) {
+        Set-Content -LiteralPath $ocV2 -Value "@echo off`r`nif `"%~1`"==`"--version`" (echo opencode v2.3.2& exit /b 0)`r`nif `"%~1`"==`"--standalone`" if `"%~2`"==`"models`" (echo llamacpp-desktop/qwen3.6:35b-a3b-coding& echo $seatLine& exit /b 0)`r`necho USAGE: opencode models [flags]`r`nexit /b 0"
+        Set-Content -LiteralPath $ocV2Other -Value "@echo off`r`nif `"%~1`"==`"--version`" (echo opencode v2.3.2& exit /b 0)`r`nif `"%~1`"==`"--standalone`" if `"%~2`"==`"models`" (echo llamacpp-desktop/qwen3.6:35b-a3b-coding& exit /b 0)`r`necho USAGE: opencode models [flags] llamacpp-server/qwen3.6:35b-a3b-coding`r`nexit /b 0"
+    } else {
+        [IO.File]::WriteAllText($ocV2, "#!/usr/bin/env bash`n[ `"`$1`" = --version ] && { echo 'opencode v2.3.2'; exit 0; }`n[ `"`$1 `$2`" = '--standalone models' ] && { echo llamacpp-desktop/qwen3.6:35b-a3b-coding; echo '$seatLine'; exit 0; }`necho 'USAGE: opencode models [flags]'`n"); & chmod +x $ocV2
+        [IO.File]::WriteAllText($ocV2Other, "#!/usr/bin/env bash`n[ `"`$1`" = --version ] && { echo 'opencode v2.3.2'; exit 0; }`n[ `"`$1 `$2`" = '--standalone models' ] && { echo llamacpp-desktop/qwen3.6:35b-a3b-coding; exit 0; }`necho 'USAGE: opencode models [flags] $seatLine'`n"); & chmod +x $ocV2Other
+    }
 
     # llama-server, as far as the runner asks: /health, /models (router mode), /props. A bare TcpListener answering HTTP/1.1
     # with Connection: close, so it needs no URL reservation on Windows.
@@ -281,6 +293,11 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $r = Invoke-Window @{ OpencodeCmd = $ocNone }
     Check "a seat opencode does not list: exit 2" $r.Exit 2
     Has "...named in the report" $r.Report 'opencode seat'
+    $r = Invoke-Window @{ Run = @("baseline"); OpencodeCmd = $ocV2 }
+    Check "opencode 2.x: the seat is found through --standalone models, the window runs" $r.Exit 0
+    Has "...the gate says opencode lists it" $r.Report 'opencode lists llamacpp-server/qwen3\.6'
+    $r = Invoke-Window @{ Run = @("baseline"); OpencodeCmd = $ocV2Other }
+    Check "opencode 2.x: the tag under another provider only (or in a help line) is not the seat: exit 2" $r.Exit 2
     $r = Invoke-Window @{ SmokeTasks = @("real-01", "no-such-task") }
     Check "a smoke task the private manifest lacks: exit 2" $r.Exit 2
     Check "...and nothing ran" $r.Calls.Count 0
@@ -473,6 +490,11 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $r = Invoke-Window @{ Run = @("baseline"); OpencodeConfig = $ocfg }
     Check "a valid file: the window runs and points its children at it (OPENCODE_CONFIG)" ("{0}|{1}" -f $r.Exit, $env:OPENCODE_CONFIG) "0|$([IO.Path]::GetFullPath($ocfg))"
     Has "...and the report shows what it merges" $r.Report 'opencode config.*"prune":true'
+    Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
+    $r = Invoke-Window @{ Run = @("baseline"); OpencodeConfig = $ocfg; OpencodeCmd = $ocV2 }
+    Check "opencode 2.x ignores compaction.prune: no-go, nothing ran" ("{0}|{1}" -f $r.Exit, $r.Calls.Count) "2|0"
+    Has "...and the report says why" $r.Report 'compaction\.prune, which opencode 2\.3\.2 ignores'
+    Check "...and the variable was not set" ($null -eq $env:OPENCODE_CONFIG) "True"
     Remove-Item Env:OPENCODE_CONFIG -ErrorAction SilentlyContinue
     $r = Invoke-Window @{ Run = @("baseline"); OpencodeConfig = (Join-Path $tmp "no-such-config.json") }
     Check "a missing file: no-go at the gate, nothing ran" ("{0}|{1}" -f $r.Exit, $r.Calls.Count) "2|0"

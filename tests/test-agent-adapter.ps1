@@ -12,8 +12,9 @@
 #      harness and the batch call, and $script:AgentName.
 #   2. The boundary: outside comments, test-tasks.ps1 never calls `opencode` or
 #      reads its transcript format (step_finish, tool_use, part.*, sessionID),
-#      and run-tasks-batch.ps1 calls `opencode` only for the OpenCode Go
-#      provider (`opencode models opencode-go`, `opencode db`).
+#      and neither does run-tasks-batch.ps1: its OpenCode Go listing and spend
+#      go through the adapter (Get-AgentProviderModels, Get-AgentSpendRecords),
+#      whose commands differ between OpenCode 1.x and 2.x (since 2026-11-21).
 #   3. The mapping: the REAL Read-AgentEvents on a synthetic opencode transcript
 #      with one line of each kind (step start and end, with and without
 #      tokens; text and opencode's compaction continue message; tool calls with
@@ -60,7 +61,8 @@ $adapterAst = [System.Management.Automation.Language.Parser]::ParseFile($adapter
 Check "the adapter parses" $errs.Count 0
 $defined = @($adapterAst.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | ForEach-Object Name)
 $required = "Read-AgentEvents", "Get-AgentVersion", "Get-AgentConfig", "Get-AgentModelIds", "Test-AgentAutoupdatePinned",
-            "Get-AgentModelSettings", "Start-AgentRunEnv", "Stop-AgentRunEnv", "Invoke-AgentRun", "Stop-OrphanAgent", "Test-AgentTools"
+            "Get-AgentModelSettings", "Start-AgentRunEnv", "Stop-AgentRunEnv", "Invoke-AgentRun", "Stop-OrphanAgent", "Test-AgentTools",
+            "Get-AgentProviderModels", "Get-AgentSpendRecords"
 Check "every interface function is defined" (@($required | Where-Object { $defined -notcontains $_ }) -join ", ") ""
 . $adapterPath
 Check "AgentName" $script:AgentName "opencode"
@@ -71,9 +73,9 @@ $ttHits = @($tt.GetEnumerator() | Where-Object { $_.Value -cmatch '&\s+opencode\
 Check "test-tasks.ps1: no opencode call or transcript-format read outside comments" ($ttHits -join ", ") ""
 Check "...and it loads the adapter by -Agent" ([bool]($tt.Values -match 'agents\\\{0\}\.ps1')) "True"
 $bt = Get-CodeLines $BatchPath
-$btHits = @($bt.GetEnumerator() | Where-Object { $_.Value -cmatch '&\s+opencode\b|step_finish|tool_use|\.part\b|\bsessionID\b' } |
-    Where-Object { $_.Value -notmatch '&\s+opencode\s+(models\s+opencode-go|db)\b' } | ForEach-Object { "line $($_.Key)" })
-Check "run-tasks-batch.ps1: opencode called only for OpenCode Go (models, db)" ($btHits -join ", ") ""
+# Calls only (`& opencode`): the batch's messages still name the 1.x commands in text.
+$btHits = @($bt.GetEnumerator() | Where-Object { $_.Value -cmatch '&\s+opencode\b|step_finish|tool_use|\.part\b|\bsessionID\b' } | ForEach-Object { "line $($_.Key)" })
+Check "run-tasks-batch.ps1: no opencode call outside comments (Go listing and spend are the adapter's)" ($btHits -join ", ") ""
 
 Write-Host "-- Read-AgentEvents (the real adapter)"
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("agent-adapter-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
