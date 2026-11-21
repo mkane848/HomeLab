@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     unmodified args, two go red, and the file was restored byte-identical.
   - **Docs:** a gotcha in `docs/reference/gotchas.md`, two sources in `docs/references.md`, and the migration plan
     in `docs/opencode-2-migration.md`.
+  - **CI:** the guards job puts a pinned ripgrep 14.1.1 on PATH. From 2026-11-21, opencode 1.19.5's own ripgrep
+    15.1.0 download unpacked without `rg.exe` on the runner, twice, which failed `test-agent-tools`' live search.
+    Its "ripgrep unreachable" check still strips `rg.exe` from PATH.
 
 - **feat: API keys on the llama-server engines (2026-11-17; repo side, not yet rolled out).** The audit's item, and the
   precondition of a VPN for the phones. Runbook: `docs/engine-api-keys.md`.
