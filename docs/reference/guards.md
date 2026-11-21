@@ -37,7 +37,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-llamacpp-window.ps1` | server/scripts/llamacpp-window.sh (open, watchdog, deadline and close of an unattended llama.cpp window) | server/scripts/llamacpp-window.sh or the llama.cpp compose file it starts |
 | `tests/test-new-real-task.ps1` | real-work intake: a task in the real-work manifest at the repo's HEAD; nothing runs on an unconfirmed list | tests/new-real-task.ps1 |
 | `tests/test-no-push.ps1` | Set-NoPushEnv: a model cannot push or open a PR from a task checkout | How a run is launched |
-| `tests/test-opencode-profiles.ps1` | Launcher routing and env restore for opencode <profile> | desktop/scripts/opencode.ps1 or opencode-profiles.ps1 |
+| `tests/test-opencode-profiles.ps1` | Launcher routing and env restore for opencode <profile> | desktop/scripts/opencode.ps1, opencode-profiles.ps1 or opencode-standalone.ps1 |
 | `tests/test-opencode-run.ps1` | Invoke-AgentRun: normal run, non-zero exit, timeout, job dying | How a run is launched, waited for or collected |
 | `tests/test-outside-writes.ps1` | Get-OutsideWrites (writes outside the worktree) | How a transcript is read or a run JSON is built |
 | `tests/test-overflow-recovery.ps1` | Get-OverflowRecovery: recovered llama.cpp context overflows | How a run's exit is classified |

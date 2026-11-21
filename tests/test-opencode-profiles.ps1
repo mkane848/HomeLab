@@ -1,5 +1,5 @@
 # protects: Launcher routing and env restore for opencode <profile>
-# run-after: desktop/scripts/opencode.ps1 or opencode-profiles.ps1
+# run-after: desktop/scripts/opencode.ps1, opencode-profiles.ps1 or opencode-standalone.ps1
 # test-opencode-profiles.ps1 - regression guard for `opencode <profile>`
 #
 # Why this exists: desktop\scripts\opencode-profiles.ps1 puts an `opencode`
@@ -18,6 +18,9 @@
 #   3. The REAL launcher end to end (needs Git Bash) against the real
 #      dev-workflow-quality profile with -NoWarm -KeepLoaded, so nothing touches
 #      Ollama: opencode sees the profile's model, and the shell's env is restored.
+#   4. On opencode 2.x the launcher puts --standalone first (the shared service
+#      ignores the launcher's env; desktop\scripts\opencode-standalone.ps1), not
+#      on 1.x, and not when the args already pick a server.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-opencode-profiles.ps1
@@ -50,8 +53,11 @@ param([string]$Profile, [switch]$NoWarm, [switch]$KeepLoaded,
 "launcher profile=$Profile nowarm=$([bool]$NoWarm) args=$($OpenCodeArgs -join '|')" | Set-Content $env:OCP_TEST_RECORD
 '@
 # Stand-in opencode: records what reached "the real" command, and the model env it saw.
+# For --version it also prints OCP_TEST_VERSION when that is set (the launcher asks
+# the version first, then makes the real call, which overwrites the record).
 Set-Content (Join-Path $bin "opencode.ps1") @'
 "real args=$($args -join '|') model=$env:OPENCODE_MODEL" | Set-Content $env:OCP_TEST_RECORD
+if ($args.Count -gt 0 -and $args[0] -eq '--version' -and $env:OCP_TEST_VERSION) { $env:OCP_TEST_VERSION }
 '@
 
 $savedPath = $env:PATH
@@ -104,6 +110,27 @@ try {
     opencode quality -NoWarm -KeepLoaded run "x y" *> $null
     Check "opencode saw the profile's model, args intact" (Last) "real args=run|x y model=$want"
     Check "the shell's OPENCODE_MODEL is restored" $env:OPENCODE_MODEL "sentinel"
+
+    Write-Host "-- opencode 2.x: the launcher adds --standalone (opencode-standalone.ps1)"
+    $env:OCP_TEST_VERSION = "1.19.5"
+    opencode quality -NoWarm -KeepLoaded run "x y" *> $null
+    Check "1.x: no --standalone" (Last) "real args=run|x y model=$want"
+    $env:OCP_TEST_VERSION = "opencode v2.3.2"
+    opencode quality -NoWarm -KeepLoaded run "x y" *> $null
+    Check "2.x: --standalone first, before the subcommand" (Last) "real args=--standalone|run|x y model=$want"
+    opencode quality -NoWarm -KeepLoaded *> $null
+    Check "2.x bare TUI launch: --standalone" (Last) "real args=--standalone model=$want"
+    opencode quality -NoWarm -KeepLoaded --server http://127.0.0.1:1 run "x" *> $null
+    Check "2.x with --server: left alone" (Last) "real args=--server|http://127.0.0.1:1|run|x model=$want"
+    opencode quality -NoWarm -KeepLoaded --standalone run "x" *> $null
+    Check "2.x already --standalone: not doubled" (Last) "real args=--standalone|run|x model=$want"
+    Remove-Item Env:OCP_TEST_VERSION
+    . (Join-Path $repo "desktop\scripts\opencode-standalone.ps1")
+    Check "version parse: 'opencode v2.3.2' -> 2" (Get-OpencodeMajorVersion "opencode v2.3.2") "2"
+    Check "version parse: '1.19.5' -> 1"          (Get-OpencodeMajorVersion "1.19.5") "1"
+    Check "version parse: no version -> null"     ($null -eq (Get-OpencodeMajorVersion "real args=--version")) "True"
+    Check "unknown version: args unchanged"       ((Add-OpencodeStandaloneArg "" @("run", "a b")) -join '|') "run|a b"
+    Check "--server=URL form: left alone"         ((Add-OpencodeStandaloneArg "2.3.2" @("--server=http://h:1")) -join '|') "--server=http://h:1"
     Remove-Item Env:OPENCODE_MODEL
     opencode quality -NoWarm -KeepLoaded *> $null
     # Absent, not empty: on pwsh 7.5+ an empty value survives the restore unless it passes a true null.

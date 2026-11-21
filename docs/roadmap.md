@@ -14,6 +14,15 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
 
+## OpenCode 2.0 migration (opened 2026-11-21)
+
+The desktop updated itself to OpenCode v2.3.2 on 2026-11-21. The owner's decision is v2 everywhere, as a new era.
+- **Done:** step 1, desktop safety: `--standalone` profile launches and `external_directory: ask`.
+- **Blocked until the adapter is ported (step 3):** desktop batch runs.
+- **Off:** both plugins, until step 4.
+
+Plan, breakages and follow-ups: [opencode-2-migration.md](opencode-2-migration.md).
+
 ## Open after the 2026-11-09 audit (as of 2026-11-16)
 
 The audit's small fixes are merged (#235 to #238, #242, #243). What is left, in order. The findings, their status and

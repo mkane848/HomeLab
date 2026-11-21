@@ -128,6 +128,23 @@ jobs:
           npm install -g opencode-ai@1.19.5
           opencode --version
 
+      # opencode 1.19.5 runs rg from PATH, else downloads ripgrep 15.1.0 into its
+      # cache. From 2026-11-21 that download unpacks without rg.exe on the runner
+      # ("ripgrep archive did not contain executable"; failed twice, PR #250), so
+      # test-agent-tools' live search failed. A pinned rg on PATH, as on the desktop
+      # and node3. Its "ripgrep unreachable" check still strips every PATH entry
+      # that holds rg.exe, so the no-ripgrep case is still tested.
+      - name: Install ripgrep 14.1.1 (pinned) on PATH
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "rg.zip"
+          $dir = Join-Path $env:RUNNER_TEMP "ripgrep"
+          Invoke-WebRequest -Uri "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-pc-windows-msvc.zip" -OutFile $zip
+          Expand-Archive -LiteralPath $zip -DestinationPath $dir -Force
+          $rg = Get-ChildItem -LiteralPath $dir -Recurse -Filter rg.exe | Select-Object -First 1
+          if (-not $rg) { throw "rg.exe not found in the ripgrep 14.1.1 archive" }
+          Add-Content -LiteralPath $env:GITHUB_PATH -Value $rg.DirectoryName
+          & $rg.FullName --version
+
       - name: Git identity (as on a signed-in desktop)
         run: |
           git config --global user.name "homelab-ci"

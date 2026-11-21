@@ -186,9 +186,13 @@ if (-not $realOpencode) {
     Write-Host "[opencode] ERROR: opencode is not installed (not on PATH)" -ForegroundColor Red
     exit 1
 }
+# OpenCode 2.x: run a private server so the profile's env applies (opencode-standalone.ps1).
+. (Join-Path $scriptDir "opencode-standalone.ps1")
+$ocVersion = (& $realOpencode --version 2>$null | Out-String).Trim()
+$launchArgs = Add-OpencodeStandaloneArg $ocVersion $OpenCodeArgs
 $code = 1
 try {
-    & $realOpencode @OpenCodeArgs
+    & $realOpencode @launchArgs
     $code = $LASTEXITCODE
 } finally {
     foreach ($name in $savedEnv.Keys) {
