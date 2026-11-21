@@ -75,11 +75,31 @@ Each step is one PR.
 4. **Plugins.**
    - 4.1 First measure whether 2.x resumes after an automatic compaction on its own (the kane-07 case, without the
      plugin).
-   - 4.2 Port `read-budget` to `opencode/plugins/read-budget/index.js`. It is still needed: 2.x's own read cap is
-     50 KiB and 2000 lines, and ours at 64k is about 17 KB.
+   - 4.2 **Done (2026-11-21):** `read-budget` ported to `opencode/plugins/read-budget/index.js`. It is still needed:
+     2.x's own read cap is 50 KiB and 2000 lines, and ours at 64k is about 17 KB. The 1.x `read-budget.js` stays
+     for 1.19.5 (CI, node3) until the cutover. Both import `read-budget/core.js`. Checked on 2.3.2 with a probe
+     plugin inside `opencode serve`, beyond the docs:
+     - A plain `{id, setup(ctx)}` default export loads. `Plugin.define` and `@opencode/plugin` are not needed, so
+       the plugin has no dependencies.
+     - `execute.before`: mutating `event.input` changes what the tool runs with. The read argument is `path` (1.x:
+       `filePath`), and the call id is `event.id`.
+     - `execute.after`: assigning a new `event.result` (its `content` text parts) changes what the model gets.
+     - The session `context` hook carries `model: {providerID, id}` and no limit. `ctx.model.list()` has
+       `limit.context`, but lists the config's own providers only once that location's config has loaded, so the
+       plugin looks the model up from the hook, not at setup.
+     - The `compaction` hook fires on `POST /api/session/{id}/compact`.
+     - `serve` runs setup in the caller's environment.
+   - At the cutover (5.1), the template's entry `"__REPO_URL__/opencode/plugins/read-budget.js"` becomes
+     `"__REPO_URL__/opencode/plugins/read-budget"` under `plugins`. The adapter's `-match 'read-budget'` plugin test
+     matches both.
    - 4.3 Port `compaction-continue` only if 4.1 shows a stall.
    - 4.4 Port the live tests to `/api/...`, mutation-check them, and change `@opencode-ai/plugin` to
-     `@opencode/plugin`.
+     `@opencode/plugin`. **read-budget done (2026-11-21).** Neither plugin imports `@opencode-ai/plugin`, and the 2.x
+     plugin needs no import. `test-read-budget-live.mjs` drives 2.x `serve` as follows:
+     - basic auth, user `opencode`, password from `OPENCODE_PASSWORD`;
+     - the model on `POST /api/session` (`{model: {providerID, id}}`), because the prompt body (`{text}`) has none;
+     - `wait`, then `GET .../message`;
+     - its own `XDG_DATA_HOME`, because `GET /api/session` otherwise lists the owner's sessions.
 5. **Native 2.x config and host rollout.**
    - 5.1 Convert the template:
      - `providers`, `package`, `settings.baseURL` and `settings.apiKey`
