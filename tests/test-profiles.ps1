@@ -326,12 +326,22 @@ function Test-ReliableWrite {
     # Run in a job so a wedged `opencode run` can be killed on timeout instead
     # of hanging the whole harness. The child inherits this process's env, which
     # is exactly what -RoundTrip relies on for resolved BASE_URL vars.
+    # OpenCode 2.x has no `run --dir` (it works in the current directory), ignores
+    # this process's env unless --standalone, and waits on an open piped stdin
+    # (tests/agents/opencode.ps1, Invoke-AgentRun; measured 2026-11-21, v2.3.2).
+    $ocMajor = if ("$((& opencode --version 2>$null | Out-String).Trim())" -match '(\d+)\.\d+\.\d+') { [int]$matches[1] } else { 1 }
     $job = Start-Job -ScriptBlock {
-        param($RepoRoot, $ModelId, $Msg, $Out)
-        & opencode run --dir $RepoRoot --model $ModelId --format json --auto $Msg 2>$null |
-            Out-File -LiteralPath $Out -Encoding utf8
+        param($RepoRoot, $ModelId, $Msg, $Out, $Major)
+        if ($Major -eq 2) {
+            Set-Location -LiteralPath $RepoRoot
+            @() | & opencode --standalone run --model $ModelId --format json --auto --archived $Msg 2>$null |
+                Out-File -LiteralPath $Out -Encoding utf8
+        } else {
+            & opencode run --dir $RepoRoot --model $ModelId --format json --auto $Msg 2>$null |
+                Out-File -LiteralPath $Out -Encoding utf8
+        }
         return $LASTEXITCODE
-    } -ArgumentList $repoRoot, $ModelId, $msg, $tmp
+    } -ArgumentList $repoRoot, $ModelId, $msg, $tmp, $ocMajor
 
     if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
         Stop-Job $job -ErrorAction SilentlyContinue

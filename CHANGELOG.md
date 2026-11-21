@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the harness adapter runs and reads OpenCode 2.x (2026-11-21; steps 2 and 3 of the migration, in part).**
+  - **Ground truth:** transcripts from the real v2.3.2, captured against a scripted stand-in model (no GPU), are in
+    `tests/agents/fixtures/opencode-v2/`.
+  - **What 2.x changed for the adapter:**
+    - File tools take `path`, and the shell tool is `shell`.
+    - Errors are `{type, message, status}`. The overflow classification 2.x makes internally is missing from them.
+    - `run` has no `--dir`, and it waits on an open piped stdin.
+    - `debug config` lists sources.
+    - Compaction triggers at `window − max(15%, 16000)`, with no `limit.output` term. A 64k seat compacts at 49,536.
+  - **`tests/agents/opencode.ps1`** branches on the major version, so 1.19.5 (CI, node3) is unchanged:
+    - `Invoke-AgentRun` runs from the worktree with `--standalone --archived` and stdin closed. Its title carries the
+      worktree path for `Stop-OrphanAgent`.
+    - `Read-AgentEvents` reads `path`, and names a 2.x overflow `ContextOverflowError` by 2.x's own rule, copied from
+      the v2.3.2 source.
+    - `Get-AgentConfig` merges `--standalone debug config`'s sources into the 1.x names its callers read.
+    - `Get-CompactionThreshold` has a 2.x branch.
+    - `Get-AgentVersion` reads `opencode v2.3.2` as `2.3.2`.
+    - The `test-profiles.ps1 -Reliability` canary runs the same way.
+  - **Found on the way:**
+    - The session arguments were built as `$x = if (…) {…} else { @() }`, which assigns `$null`, so a run without a
+      session passed an empty argument to a script stand-in. They are now built explicitly.
+    - The 2.x branch is taken for **major 2 only**. With "2 or later", the stand-ins' `9.9.9` ("some unpinned
+      version") took it, and `test-acceptance-grading` and `test-batch-engines` went red. A later major is unread, as
+      the pins are.
+  - **Checked end to end** on v2.3.2 with the stand-in model: exit 0, one write counted, and a follow-up on the same
+    session.
+  - **Tests:**
+    - New guard `tests/test-agent-opencode-v2.ps1`, 34 checks.
+    - `tests/test-opencode-run.ps1` checks both command lines. Its stand-in now answers `--version` (before, the
+      "die" mode would have killed the test process itself).
+    - Mutation-checked four ways: no `path` paths, no overflow naming, the 1.x output term in the threshold, and no
+      plugin append. Each went red, and the file was restored byte-identical.
+  - **Not yet:**
+    - `models <provider>` prints help on 2.x, and `opencode db` is gone, so the Go gate, the spend query and
+      `run-window`'s seat gate break on 2.x.
+    - The ripgrep check reports "not checked" on 2.x.
+    - The pins still say 1.19.5.
+    - So there are still no desktop batch runs on 2.x (`docs/opencode-2-migration.md`, step 3).
+
 - **fix: OpenCode 2.x on the desktop: profiles take effect again, and outside paths ask first (2026-11-21).**
   - **Why:** the desktop updated itself to OpenCode v2.3.2 at 09:17 on 2026-11-21.
   - **What 2.x changed:** 2.x runs one shared background service, and `{env:...}` resolves in the service's

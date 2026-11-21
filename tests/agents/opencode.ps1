@@ -38,10 +38,19 @@
 #   text:      Text, CompactionContinue ($true for the message the agent itself
 #              sends after compacting a session, which is not the model's text)
 #   tool:      Tool (the agent's tool name), Status, Input (raw arguments),
-#              Paths (files it names: filePath, patch headers), OutputChars
-#   error:     Name, Message, StatusCode, Url, Line (the raw line)
-# Tool names are opencode's (read, write, edit, multiedit, patch, bash, ...);
-# another adapter maps its own names onto these.
+#              Paths (files it names: filePath (1.x), path (2.x), patch
+#              headers), OutputChars
+#   error:     Name, Message, StatusCode, Url, Line (the raw line). 1.x writes
+#              error.{name, data.{message, statusCode, metadata.url}}; 2.x writes
+#              error.{type, message, status, response.body} and drops its own
+#              "context-overflow" classification, so a 2.x overflow (a 4xx that is
+#              not a 429, overflow wording; Test-OpencodeOverflowText) is named
+#              ContextOverflowError here as 1.x named it. Other 2.x errors keep
+#              their type (provider.no-route, provider.transport, ...).
+# Tool names are opencode's (1.x: read, write, edit, multiedit, patch, bash, ...;
+# 2.x: read, write, edit, shell, ... - no patch or multiedit); another adapter
+# maps its own names onto these. 2.x shapes: tests/agents/fixtures/opencode-v2/
+# (captured 2026-11-21 against a scripted stand-in model, v2.3.2).
 
 $script:AgentName = "opencode"
 
@@ -51,6 +60,86 @@ $script:AgentName = "opencode"
 $script:CompactionContinueText = "Continue if you have next steps, or stop and ask for clarification"
 
 $script:AgentSamplingNote = "opencode run has no known per-invocation seed/temperature flag, and opencode.jsonc's model schema only supports limit/modalities/tool_call (AGENTS.md) - not pinned, not independently reproducible across runs. See the header comment and docs/review-gate/r3-runner.ps1 (which pins these by calling the Ollama API directly, outside the real opencode tool loop)."
+
+# OpenCode 2.x's own "this error is a context overflow" test: the patterns,
+# exclusions and bodiless-4xx fallback of isContextOverflow, and the status rule
+# around it (a client-scoped 4xx that is not a 429), in packages/ai/src/
+# provider-error.ts at tag v2.3.2 (read 2026-11-21). 2.x classifies such an error
+# as "context-overflow" but its `run --format json` error event carries only
+# type/message/status, so Read-AgentEvents re-applies the rule. Re-copy on upgrade.
+# (1.x's list, for probing an engine directly, is tests/probe-overflow.ps1's.)
+$script:OpencodeV2OverflowPatterns = @(
+    'prompt is too long', 'input is too long for (?:the )?(?:requested|selected) model',
+    "too large for the model'?s configured input limit", 'exceeded this model context window limit', 'exceeds the context window',
+    "exceeds (?:the )?(?:model'?s )?maximum context length(?: of [\d,]+ tokens?|\s*\([\d,]+\))", 'input token count.*exceeds the maximum',
+    'number of input tokens exceeds maximum length', 'tokens in request more than max tokens allowed', 'maximum prompt length is \d+',
+    'reduce the length of the messages', 'requested input length \d+ exceeds maximum input length', 'maximum context length is \d+ tokens',
+    'exceeds (?:the )?maximum allowed input length of [\d,]+ tokens?', "input(?: \(\d+ tokens\))? is longer than the model'?s context length",
+    'exceeds the limit of \d+', 'exceeds the available context size', 'greater than the context length',
+    '`inputs` tokens \+ `max_new_tokens` must be <= \d+', 'context window exceeds limit', 'context window exceeded', 'exceeded model token limit',
+    'context[_ ]length[_ ]exceeded', 'context length is only \d+ tokens', 'input length.*exceeds.*context length',
+    'prompt (?:too long|exceeds max length|超长)', 'too large for model with \d+ maximum context length',
+    'prompt has [\d,]+ tokens?, but the configured context size is [\d,]+ tokens?', 'model_context_window_exceeded',
+    'range of input length should be', 'too many tokens', 'token limit exceeded', 'request_too_large')
+$script:OpencodeV2OverflowExclusions = @('^(throttling error|service unavailable):', 'rate limit', 'too many requests',
+    'max[_ ]tokens must be less than', 'too many tokens(?: per day)?, please wait')
+
+function Test-OpencodeOverflowText {
+    # Would OpenCode 2.x classify this error as a context overflow? -Status is the
+    # HTTP status when known: only a 4xx other than 429 (or no status) qualifies.
+    param([string]$Text, $Status = $null)
+    if (-not $Text) { return $false }
+    if ($null -ne $Status -and "$Status" -ne "") {
+        $s = [int]$Status
+        if ($s -lt 400 -or $s -ge 500 -or $s -eq 429) { return $false }
+    }
+    foreach ($x in $script:OpencodeV2OverflowExclusions) { if ($Text -match "(?im)$x") { return $false } }
+    foreach ($p in $script:OpencodeV2OverflowPatterns) { if ($Text -match "(?i)$p") { return $true } }
+    return ($Text -match '(?im)^4(?:00|13)\s*(status code)?\s*\(no body\)')
+}
+
+function Get-OpencodeMajor {
+    # The major version of the opencode on PATH (1 or 2), or $null. Callers take
+    # the 2.x layout for major 2 ONLY: a later major is unread (as the version pins
+    # are), and the guards' stand-ins report "9.9.9" for "some unpinned version".
+    param([string]$Version = (Get-AgentVersion))
+    if ("$Version" -match '^(\d+)\.') { return [int]$matches[1] }
+    return $null
+}
+
+function ConvertFrom-OpencodeConfigSources {
+    # OpenCode 2.x's `debug config` lists config SOURCES ([{type, path, info}],
+    # each `info` normalized to 2.x keys) instead of one resolved config. This
+    # merges the `info` objects in the order listed (later wins; objects merge,
+    # arrays replace, except `plugins` and `permissions`, which append) and adds
+    # the 1.x names the harness reads, so callers keep one shape:
+    #   provider <- providers; plugin <- plugins; autoupdate <- update
+    #   ("disable" -> $false, "notify", "auto" -> $true). compaction stays 2.x
+    # (keep, buffer, background). _opencodeMajor = 2 marks the result.
+    # An approximation of opencode's own merge, recorded with each run.
+    param($Sources)
+    function Merge-Into($Dst, $Src) {
+        foreach ($k in @($Src.Keys)) {
+            $v = $Src[$k]
+            if ($Dst.Contains($k) -and $Dst[$k] -is [System.Collections.IDictionary] -and $v -is [System.Collections.IDictionary]) { Merge-Into $Dst[$k] $v }
+            elseif ($Dst.Contains($k) -and ($k -eq "plugins" -or $k -eq "permissions") -and $Dst[$k] -is [System.Collections.IList] -and $v -is [System.Collections.IList]) { $Dst[$k] = @($Dst[$k]) + @($v) }
+            else { $Dst[$k] = $v }
+        }
+    }
+    $merged = [ordered]@{}
+    foreach ($s in @($Sources)) {
+        if ($null -eq $s -or -not $s.PSObject.Properties["info"] -or $null -eq $s.info) { continue }
+        $h = $s.info | ConvertTo-Json -Depth 50 -Compress | ConvertFrom-Json -AsHashtable -Depth 50
+        if ($h -is [System.Collections.IDictionary]) { Merge-Into $merged $h }
+    }
+    if ($merged.Contains("providers")) { $merged["provider"] = $merged["providers"] }
+    if ($merged.Contains("plugins")) { $merged["plugin"] = $merged["plugins"] }
+    if ($merged.Contains("update")) {
+        $merged["autoupdate"] = switch ("$($merged["update"])") { "disable" { $false } "auto" { $true } default { "$($merged["update"])" } }
+    }
+    $merged["_opencodeMajor"] = 2
+    return ($merged | ConvertTo-Json -Depth 50 | ConvertFrom-Json -Depth 50)
+}
 
 function Read-AgentEvents {
     # opencode's `--format json` transcript (one JSON event per line, across
@@ -90,6 +179,7 @@ function Read-AgentEvents {
                     $in = if ($st) { $st.input } else { $null }
                     $paths = @()
                     if ($in -and $in.filePath) { $paths += "$($in.filePath)" }
+                    elseif ($in -and $in.PSObject.Properties["path"] -and $in.path -is [string] -and "$($p.tool)" -in @("read", "write", "edit")) { $paths += "$($in.path)" }
                     if ($in -and $in.patchText) {
                         foreach ($m in [regex]::Matches("$($in.patchText)", '(?m)^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$')) { $paths += $m.Groups[1].Value }
                     }
@@ -103,6 +193,18 @@ function Read-AgentEvents {
                 }
                 "error" {
                     $er = $e.error
+                    if ($er -and $er.PSObject.Properties["type"] -and -not $er.PSObject.Properties["name"]) {
+                        # 2.x
+                        $status = if ($er.PSObject.Properties["status"]) { $er.status } else { $null }
+                        $body = if ($er.response -and $er.response.PSObject.Properties["body"]) { [string]$er.response.body } else { "" }
+                        $name = [string]$er.type
+                        if ($name -eq "provider.invalid-request" -and (Test-OpencodeOverflowText -Text (([string]$er.message) + "`n" + $body) -Status $status)) { $name = "ContextOverflowError" }
+                        $events.Add([pscustomobject]@{
+                            Kind = "error"; SessionId = $sid; Name = $name
+                            Message = [string]$er.message; StatusCode = $status; Url = $null; Line = $line
+                        })
+                        continue
+                    }
                     $d = if ($er) { $er.data } else { $null }
                     $events.Add([pscustomobject]@{
                         Kind = "error"; SessionId = $sid
@@ -129,6 +231,8 @@ function Get-AgentVersion {
     $ErrorActionPreference = "Continue"
     try {
         $out = (& opencode --version 2>$null | Out-String).Trim()
+        # 2.x prints "opencode v2.3.2"; recorded as "2.3.2", like 1.x's "1.19.5".
+        $out = $out -replace '^opencode\s+v', ''
         if ($out -match '^\d+\.\d+\.\d+') { return $out }
     } catch {
         # fall through to $null
@@ -140,10 +244,16 @@ function Get-AgentVersion {
 
 function Get-AgentConfig {
     # The RESOLVED opencode config (`opencode debug config`, including an
-    # OPENCODE_CONFIG overlay) as an object, or $null.
+    # OPENCODE_CONFIG overlay) as an object, or $null. On 2.x through
+    # `--standalone` (the shared service ignores this process's env, so the
+    # overlays and {env:} would not apply) and ConvertFrom-OpencodeConfigSources.
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
+        if ((Get-OpencodeMajor) -eq 2) {
+            $src = (& opencode --standalone debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
+            return (ConvertFrom-OpencodeConfigSources -Sources $src)
+        }
         return ((& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop)
     } catch {
         return $null
@@ -192,7 +302,7 @@ function Get-ModelOutputLimit {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $cfg = (& opencode debug config 2>$null | Out-String) | ConvertFrom-Json -ErrorAction Stop
+        $cfg = Get-AgentConfig
         $provider, $name = $ModelId -split '/', 2
         $lim = $cfg.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit
         if ($lim -and $lim.output) { return [int]$lim.output }
@@ -217,6 +327,35 @@ function Get-CompactionThreshold {
     $lim = $null
     try { $lim = $Config.provider.PSObject.Properties[$provider].Value.models.PSObject.Properties[$name].Value.limit } catch { }
     if (-not $lim -or -not $lim.context) { return $null }
+    if ($Config.PSObject.Properties["_opencodeMajor"] -and [int]$Config._opencodeMajor -ge 2) {
+        # OpenCode 2.x, calculateCeiling in packages/core/src/session/compaction.ts
+        # at v2.3.2 (read 2026-11-21). limit.output is NOT subtracted any more:
+        #   window    = min(limit.input, limit.context), or whichever is set
+        #   threshold = window - buffer        when compaction.buffer is set
+        #               ("15%" = round(window*15/100), or a token count) and < window,
+        #   else      = window - max(floor(window*0.15), 16000 if window >= 32000 else 0)
+        $window = if ($lim.input -and $lim.context) { [Math]::Min([int]$lim.input, [int]$lim.context) } elseif ($lim.input) { [int]$lim.input } else { [int]$lim.context }
+        $buffer = $null; $keep = $null
+        if ($Config.PSObject.Properties["compaction"] -and $Config.compaction) {
+            if ($Config.compaction.PSObject.Properties["buffer"]) { $buffer = $Config.compaction.buffer }
+            if ($Config.compaction.PSObject.Properties["keep"] -and $Config.compaction.keep) { $keep = $Config.compaction.keep.tokens }
+        }
+        $tokens = $null
+        if ($buffer -is [string] -and $buffer.Trim().EndsWith("%")) { $tokens = [int][Math]::Round(($window * [double]::Parse($buffer.Trim().TrimEnd('%'), [Globalization.CultureInfo]::InvariantCulture)) / 100, [MidpointRounding]::AwayFromZero) }
+        elseif ($null -ne $buffer -and "$buffer" -ne "") { $tokens = [int]$buffer }
+        $reserve = if ($null -ne $tokens -and $tokens -lt $window) { $tokens } else { [Math]::Max([int][Math]::Floor($window * 0.15), $(if ($window -ge 32000) { 16000 } else { 0 })) }
+        return [pscustomobject]@{
+            limitContext = [int]$lim.context
+            limitInput   = $(if ($lim.input) { [int]$lim.input } else { $null })
+            limitOutput  = $(if ($lim.output) { [int]$lim.output } else { $null })
+            reserved     = $reserve
+            threshold    = $window - $reserve
+            prune        = $null
+            buffer       = $buffer
+            keepTokens   = $keep
+            formula      = "opencode 2.x calculateCeiling (v2.3.2)"
+        }
+    }
     $maxOut = if ($lim.output) { [Math]::Min([int]$lim.output, 32000) } else { 32000 }
     $cfgReserved = $null
     if ($Config.PSObject.Properties["compaction"] -and $null -ne $Config.compaction.reserved) { $cfgReserved = [int]$Config.compaction.reserved }
@@ -473,8 +612,15 @@ function Invoke-AgentRun {
         [System.IO.File]::WriteAllText($out, "")
     }
 
+    # OpenCode 2.x (measured 2026-11-21, v2.3.2): `run` has no --dir (it works in
+    # the current directory), the shared service ignores this process's env unless
+    # --standalone, and a piped stdin that stays open makes `run` wait for it.
+    # --archived keeps batch sessions out of the owner's session list. The title
+    # carries the worktree path so Stop-OrphanAgent still finds the process by its
+    # command line, as it found --dir's path on 1.x.
+    $major = Get-OpencodeMajor
     $job = Start-Job -ScriptBlock {
-        param($Dir, $ModelId, $PromptFile, $Out, $SessionId)
+        param($Dir, $ModelId, $PromptFile, $Out, $SessionId, $Major)
         # The canary pattern: run through the real opencode tool layer, JSONL
         # events on stdout, and let the (inherited) process env resolve the
         # provider baseURLs from the sourced profile.
@@ -493,14 +639,23 @@ function Invoke-AgentRun {
             # with the OEM codepage and every non-ASCII char in the transcript
             # is mojibake (an em dash became "ΓÇö" in the 2026-09-26 runs).
             [Console]::OutputEncoding = $enc
-            $sessionArgs = if ($SessionId) { @("--session", $SessionId) } else { @() }
-            & opencode run --dir $Dir --model $ModelId --format json --auto @sessionArgs $msg 2>$null |
-                ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
+            # Not `$x = if (...) {...} else { @() }`: that assigns $null, which splats
+            # as an empty argument to a script (seen with the guard's stand-in).
+            $sessionArgs = @()
+            if ($SessionId) { $sessionArgs = @("--session", $SessionId) }
+            if ($Major -eq 2) {
+                Set-Location -LiteralPath $Dir
+                @() | & opencode --standalone run --model $ModelId --format json --auto --archived --title "bench $Dir" @sessionArgs $msg 2>$null |
+                    ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
+            } else {
+                & opencode run --dir $Dir --model $ModelId --format json --auto @sessionArgs $msg 2>$null |
+                    ForEach-Object { [System.IO.File]::AppendAllText($Out, "$_`n", $enc) }
+            }
         } finally {
             $ErrorActionPreference = $prev
         }
         return $LASTEXITCODE
-    } -ArgumentList $WtPath, $ModelId, $promptFile, $out, $SessionId
+    } -ArgumentList $WtPath, $ModelId, $promptFile, $out, $SessionId, $major
 
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     # Wait in slices of up to 5 s, checking between them that the job's

@@ -3,12 +3,13 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-58 guards.
+59 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
 | `tests/test-acceptance-grading.ps1` | Real-prompt task grading: guard rails, hidden tests, private results, public mirror | How a task is graded or where results are written |
 | `tests/test-agent-adapter.ps1` | Agent adapter boundary (tests/agents/opencode.ps1): interface, no direct opencode calls in the harness | Either script's agent calls, or adding an adapter |
+| `tests/test-agent-opencode-v2.ps1` | The OpenCode adapter reading 2.x transcripts, config sources and compaction threshold | tests/agents/opencode.ps1 or tests/agents/fixtures/opencode-v2/ |
 | `tests/test-agent-shell.ps1` | The agent's shell is PowerShell 7 by full path on every host | How a run is launched or its environment, or any opencode upgrade |
 | `tests/test-agent-tools.ps1` | Pre-run check that the agent's own tools (ripgrep search) work | The check, how a run is launched, or any opencode upgrade |
 | `tests/test-batch-engines.ps1` | run-tasks-batch.ps1 engine discovery, offered seats and probes (Ollama, llama.cpp, hosted) | How the batch finds hosts, offers seats or probes |
