@@ -745,9 +745,16 @@
     }
   },
 
+  // external_directory: opencode 1.x asked before touching a path outside the
+  // project by default; 2.x ALLOWS it by default (migration guide,
+  // docs/references.md -> opencode-migrate-v1). Stated here so both
+  // behave like 1.x. 2.x reads this v1 map and turns it into its
+  // `permissions` array ({action, resource: "*", effect}); bash becomes shell.
+  // Check with `opencode debug config`.
   "permission": {
     "edit": "ask",
-    "bash": "ask"
+    "bash": "ask",
+    "external_directory": "ask"
   },
 
   // ---------------------------------------------------------------------

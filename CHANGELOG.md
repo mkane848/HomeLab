@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **fix: OpenCode 2.x on the desktop: profiles take effect again, and outside paths ask first (2026-11-21).**
+  - **Why:** the desktop updated itself to OpenCode v2.3.2 at 09:17 on 2026-11-21.
+  - **What 2.x changed:** 2.x runs one shared background service, and `{env:...}` resolves in the service's
+    environment. So `opencode <profile>` ran on the User-level default model (`ollama-desktop/qwen3:8b`) whatever the
+    profile said. This was measured with `opencode debug config`, with and without `--standalone`. 2.x also allows
+    `external_directory` by default.
+  - **Fix:**
+    - `desktop/scripts/opencode.ps1` puts `--standalone` before the subcommand on 2.x
+      (`desktop/scripts/opencode-standalone.ps1`), not on 1.x, and not when the args pick a server.
+    - The template sets `permission.external_directory: "ask"`, which 2.x normalizes to its `permissions` array.
+  - **Known and not fixed here:**
+    - Both plugins (`read-budget`, `compaction-continue`) are skipped by 2.x ("configured plugin path must be a
+      directory").
+    - The harness adapter is not ported, so there are no desktop batch runs until it is. The plan is in
+      `docs/opencode-2-migration.md`.
+  - **Tests:** `tests/test-opencode-profiles.ps1` gains 10 checks. Mutation-checked: with the launcher calling the
+    unmodified args, two go red, and the file was restored byte-identical.
+  - **Docs:** a gotcha in `docs/reference/gotchas.md`, two sources in `docs/references.md`, and the migration plan
+    in `docs/opencode-2-migration.md`.
+
 - **feat: API keys on the llama-server engines (2026-11-17; repo side, not yet rolled out).** The audit's item, and the
   precondition of a VPN for the phones. Runbook: `docs/engine-api-keys.md`.
   - **Servers:** `--api-key-file` on the server's llama-server (a compose secret) and node3's
