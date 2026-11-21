@@ -275,6 +275,143 @@ function Get-AgentModelIds {
     return $ids
 }
 
+function Get-AgentProviderModels {
+    # The full model ids ("opencode-go/qwen3.8-max") the agent lists for one
+    # provider, or $null when the listing fails. It lists; it calls no model.
+    # 1.x: `opencode models <provider>`. 2.x prints its help for a provider
+    # argument (measured 2026-11-21, v2.3.2), so: `opencode --standalone models`
+    # (the caller's env and overlays apply) and keep that provider's lines.
+    param([string]$Provider)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if ((Get-OpencodeMajor) -eq 2) {
+            $out = @(& opencode --standalone models 2>$null)
+        } else {
+            $out = @(& opencode models $Provider 2>$null)
+        }
+        if ($LASTEXITCODE -ne 0) { return $null }
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    $pat = '^' + [regex]::Escape($Provider) + '/\S+$'
+    return , @($out | ForEach-Object { "$_".Trim() } | Where-Object { $_ -match $pat })
+}
+
+# Reads OpenCode 2.x's message store for Get-AgentSpendRecords. Node's built-in
+# SQLite (Node 22.13+/24, the version opencode's npm install needs anyway),
+# opened READ-ONLY; only session_message is read (the account and credential
+# tables hold tokens). Prints {rows: [{t, usd}], unpriced: [model ids]}, where
+# unpriced lists models with a reply that used tokens and recorded no cost although
+# the catalog (argv 4, opencode's cached models.json) prices them; with no catalog,
+# every such reply's model counts (a free model cannot be told from a lost cost).
+$script:OpencodeV2SpendJs = @'
+const { DatabaseSync } = await import("node:sqlite")
+const { readFileSync, existsSync } = await import("node:fs")
+const [db, provider, since, catalog] = process.argv.slice(2)
+const d = new DatabaseSync(db, { readOnly: true })
+const rows = d.prepare("SELECT time_created AS t, json_extract(data,'$.cost') AS usd, json_extract(data,'$.model.id') AS model, json_extract(data,'$.tokens.input') AS tin, json_extract(data,'$.tokens.output') AS tout FROM session_message WHERE type = 'assistant' AND json_extract(data,'$.model.providerID') = ? AND time_created >= ?").all(provider, Number(since))
+let prices = null
+// A provider the catalog does not list (a local or custom one) prices nothing: {}.
+try { if (catalog && existsSync(catalog)) prices = JSON.parse(readFileSync(catalog, "utf8"))?.[provider]?.models ?? {} } catch { prices = null }
+const unpriced = new Set()
+for (const r of rows) {
+  const used = Number(r.tin || 0) + Number(r.tout || 0)
+  if (Number(r.usd || 0) > 0 || used === 0) continue
+  const c = prices ? prices[r.model]?.cost : undefined
+  if (!prices || (c && (Number(c.input || 0) > 0 || Number(c.output || 0) > 0))) unpriced.add(r.model)
+}
+process.stdout.write(JSON.stringify({ rows: rows.map((r) => ({ t: Number(r.t), usd: r.usd == null ? 0 : Number(r.usd) })), unpriced: [...unpriced] }))
+'@
+
+function Get-OpencodeCatalogPath {
+    # The model catalog opencode caches (<cache>/models.json; `opencode debug paths`), or $null.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        foreach ($l in @(& opencode debug paths 2>$null)) { if ("$l" -match '^\s*cache\s+(.+?)\s*$') { return (Join-Path $matches[1] "models.json") } }
+    } catch { } finally { $ErrorActionPreference = $prev }
+    return $null
+}
+
+function Get-OpencodeDbPath {
+    # OpenCode 2.x's database path (`opencode debug paths`: "db  <path>"), or $null.
+    # `debug paths` runs in this process's env (XDG_*, OPENCODE_DB) and rejects --standalone.
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        foreach ($l in @(& opencode debug paths 2>$null)) { if ("$l" -match '^\s*db\s+(.+?)\s*$') { return $matches[1] } }
+    } catch { } finally { $ErrorActionPreference = $prev }
+    return $null
+}
+
+function Get-AgentSpendRecords {
+    # Every reply from -Provider the agent has recorded on this machine since
+    # -Since: a list of { Time (UTC); Usd }, the agent's own per-message cost.
+    # That covers interactive use as well as harness runs. $null when it cannot
+    # be read (an empty list means "read, nothing spent").
+    # 1.x: `opencode db` (a SELECT on the message table).
+    # 2.x: `opencode db` is gone; replies are session_message rows of type
+    # "assistant" with data.model.providerID and data.cost (v2.3.2, 2026-11-21),
+    # read from the database `opencode debug paths` names, read-only, through
+    # node (-DbPath and -CatalogPath override the lookups; a guard passes fixtures).
+    # 2.x fails closed: if a reply used tokens and recorded no cost although the
+    # catalog prices its model, the result is $null ("could not read"), with a
+    # warning. Measured 2026-11-21 on v2.3.2: 482 opencode-go/deepseek-v4.1-flash
+    # replies (catalog $0.15/$0.60 per M tokens, ~773k in, ~85k out) recorded $0,
+    # where 1.x had priced every Go model. A meter that read them as free would
+    # never stop a batch.
+    param([string]$Provider, [datetime]$Since, [string]$DbPath = "", [string]$CatalogPath = "")
+    $ms = [DateTimeOffset]::new([datetime]::SpecifyKind($Since, [DateTimeKind]::Utc)).ToUnixTimeMilliseconds()
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $jsFile = $null
+    $v2 = $false
+    try {
+        if ($DbPath -or (Get-OpencodeMajor) -eq 2) {
+            if (-not $DbPath) { $DbPath = Get-OpencodeDbPath }
+            if (-not $DbPath -or -not (Test-Path -LiteralPath $DbPath)) { return $null }
+            $jsFile = Join-Path ([IO.Path]::GetTempPath()) ("oc-spend-" + [guid]::NewGuid().ToString("N") + ".mjs")
+            [IO.File]::WriteAllText($jsFile, $script:OpencodeV2SpendJs, (New-Object System.Text.UTF8Encoding($false)))
+            $catalog = if ($CatalogPath) { $CatalogPath } else { Get-OpencodeCatalogPath }
+            $out = & node --no-warnings $jsFile $DbPath $Provider "$ms" "$catalog" 2>$null
+            $v2 = $true
+        } else {
+            # BETWEEN rather than >=: no character cmd.exe could read as a redirect
+            # when opencode is a .cmd shim.
+            $q = "SELECT time_created AS t, json_extract(data,'$.cost') AS usd FROM message WHERE json_extract(data,'$.providerID')='$Provider' AND json_extract(data,'$.role')='assistant' AND time_created BETWEEN $ms AND 99999999999999"
+            $out = & opencode db $q --format json 2>$null
+        }
+        $code = $LASTEXITCODE
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $prevEap
+        if ($jsFile) { Remove-Item -LiteralPath $jsFile -ErrorAction SilentlyContinue }
+    }
+    if ($code -ne 0) { return $null }
+    $text = ($out | Out-String).Trim()
+    # The leading comma keeps an empty list a list: an unrolled @() would reach
+    # the caller as $null, which means "could not read".
+    $records = New-Object System.Collections.Generic.List[object]
+    if (-not $text) { return , $records }
+    try { $rows = $text | ConvertFrom-Json -ErrorAction Stop } catch { return $null }
+    if ($v2) {
+        if (@($rows.unpriced | Where-Object { $_ }).Count -gt 0) {
+            Write-Warning ("opencode recorded no cost for priced $Provider replies ($(@($rows.unpriced) -join ', ')): its spend cannot be read")
+            return $null
+        }
+        $rows = @($rows.rows)
+    }
+    foreach ($r in $rows) {
+        if ($null -eq $r -or $null -eq $r.t) { continue }
+        $records.Add([pscustomobject]@{ Time = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$r.t).UtcDateTime; Usd = [double]$r.usd })
+    }
+    return , $records
+}
+
 function Test-AgentAutoupdatePinned {
     # True when opencode will not upgrade itself: the global config sets
     # autoupdate to false or "notify", or OPENCODE_DISABLE_AUTOUPDATE is "1" or
@@ -516,6 +653,11 @@ function Stop-AgentRunEnv {
 # v1.18.34; re-checked at v1.19.5 (2026-10-31): those files unchanged, and shell.ts with it).
 # On another version re-read that file, then move this.
 $script:AgentToolsCheckedVersion = "1.19.5"
+# 2.x has no `debug rg`. Its lookup (packages/core/src/ripgrep/binary.ts at v2.3.2,
+# read 2026-11-21): rg on PATH, else <bin>/rg.exe (`opencode debug paths` "bin"),
+# else download ripgrep 15.1.0 (hash-pinned) and unpack it with System32's tar.exe.
+# The 2.x check runs that lookup and a nonce search with the binary it finds.
+$script:AgentToolsCheckedVersionV2 = "2.3.2"
 
 function Test-AgentTools {
     # Do the agent's search tools work on this machine? opencode's grep and glob
@@ -535,9 +677,9 @@ function Test-AgentTools {
     # 7 (edition Core). Since 2026-10-26 the result also carries shell (path)
     # and shellVersion ("Core 7.6.7").
     param([string]$Version = (Get-AgentVersion), [int]$TimeoutSec = 180)
-    if ($Version -ne $script:AgentToolsCheckedVersion) {
+    if ($Version -ne $script:AgentToolsCheckedVersion -and $Version -ne $script:AgentToolsCheckedVersionV2) {
         return [pscustomobject]@{ checked = $false; ok = $null; seconds = $null; shell = $null; shellVersion = $null
-            detail = "not checked: opencode $(if ($Version) { $Version } else { '(no version)' }) is not $script:AgentToolsCheckedVersion, the version this check was written against" }
+            detail = "not checked: opencode $(if ($Version) { $Version } else { '(no version)' }) is not $script:AgentToolsCheckedVersion or $script:AgentToolsCheckedVersionV2, the versions this check was written against" }
     }
     $shell = Get-AgentShellPath
     $shellVersion = $null
@@ -556,6 +698,32 @@ function Test-AgentTools {
     try {
         Set-Content -LiteralPath (Join-Path $dir "probe.txt") -Value "x $nonce y"
         $sw = [Diagnostics.Stopwatch]::StartNew()
+        if ($Version -eq $script:AgentToolsCheckedVersionV2) {
+            $rg = Get-Command rg -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            $rgPath = if ($rg) { $rg.Source } else { $null }
+            if (-not $rgPath) {
+                $binDir = $null
+                $pr = Run-NativeTimed "opencode" @("debug", "paths") $dir 60
+                foreach ($l in @($pr.Output)) { if ("$l" -match '^\s*bin\s+(.+?)\s*$') { $binDir = $matches[1] } }
+                $cand = if ($binDir) { Join-Path $binDir $(if ($IsWindows) { "rg.exe" } else { "rg" }) } else { $null }
+                if ($cand -and (Test-Path -LiteralPath $cand -PathType Leaf)) { $rgPath = $cand }
+            }
+            if (-not $rgPath) {
+                return [pscustomobject]@{ checked = $true; ok = $false; seconds = [math]::Round($sw.Elapsed.TotalSeconds, 1); shell = $shell; shellVersion = $shellVersion
+                    detail = "ripgrep not found: no rg on PATH and none in opencode's bin folder ($(if ($binDir) { $binDir } else { 'unknown' })); opencode 2.x would download and unpack it at the first search. Put a pinned rg on PATH" }
+            }
+            $r = Run-NativeTimed $rgPath @("--no-config", "-l", $nonce, ".") $dir $TimeoutSec
+            $secs = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+            $out = ($r.Output | Out-String)
+            if ($r.ExitCode -eq 0 -and $out.Contains("probe.txt")) {
+                return [pscustomobject]@{ checked = $true; ok = $true; seconds = $secs; shell = $shell; shellVersion = $shellVersion
+                    detail = "ripgrep search works ($rgPath, the rg opencode 2.x uses, found the probe file); shell $shellVersion" }
+            }
+            $tail = (@($r.Output | Where-Object { "$_".Trim() } | Select-Object -Last 3) -join " | ")
+            $why = if ($r.TimedOut) { "timed out after $TimeoutSec s" } elseif ($r.ExitCode -ne 0) { "exit $($r.ExitCode)" } else { "exit 0 but the probe file was not found" }
+            return [pscustomobject]@{ checked = $true; ok = $false; seconds = $secs; shell = $shell; shellVersion = $shellVersion
+                detail = "ripgrep search does not work ($rgPath, $why): $tail" }
+        }
         $r = Run-NativeTimed "opencode" @("debug", "rg", "search", $nonce) $dir $TimeoutSec
         $secs = [math]::Round($sw.Elapsed.TotalSeconds, 1)
         $out = ($r.Output | Out-String)

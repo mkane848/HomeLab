@@ -121,8 +121,16 @@ foreach ($d in @(@{ Src = Join-Path $REPO_ROOT "opencode/agents"; Name = "agents
 
 # --- Does it load, and do the plugin paths exist? ---
 if (Get-Command opencode -ErrorAction SilentlyContinue) {
+    # OpenCode 2.x (since 2026-11-21): `debug config` lists config SOURCES
+    # ([{type, path, info}], info in 2.x keys: `plugins`), and is read with
+    # --standalone so it loads the files just staged, not the running background
+    # service's copy. 2.x loads a local plugin only from a DIRECTORY; a file path
+    # is skipped with a log warning ("configured plugin path must be a directory").
     $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-    $raw = (& opencode debug config 2>&1 | Out-String)
+    $ocVer = ("$(& opencode --version 2>$null | Select-Object -First 1)".Trim() -replace '^opencode\s+v', '')
+    $oc2 = $ocVer -match '^2\.\d+\.\d+'
+    $dcArgs = if ($oc2) { @("--standalone", "debug", "config") } else { @("debug", "config") }
+    $raw = (& opencode @dcArgs 2>&1 | Out-String)
     $code = $LASTEXITCODE
     $ErrorActionPreference = $eap
     $cfg = $null
@@ -131,10 +139,13 @@ if (Get-Command opencode -ErrorAction SilentlyContinue) {
         Write-Host "[sync] WARNING: 'opencode debug config' did not load cleanly (exit $code). Run it by hand." -ForegroundColor Yellow
     } else {
         Write-Host "[sync] opencode debug config: loads." -ForegroundColor Green
-        foreach ($p in @($cfg.plugin | Where-Object { $_ -is [string] -and $_ -match '^file:' })) {
+        $plugins = if ($oc2) { @(@($cfg) | Where-Object { $_.info -and $_.info.PSObject.Properties["plugins"] } | ForEach-Object { $_.info.plugins }) } else { @($cfg.plugin) }
+        $plugins = @($plugins | ForEach-Object { if ($_ -is [string]) { $_ } elseif ($_ -and $_.PSObject.Properties["package"]) { "$($_.package)" } })
+        foreach ($p in @($plugins | Where-Object { $_ -match '^file:' })) {
             $path = try { ([Uri]$p).LocalPath } catch { $null }
-            if ($path -and (Test-Path -LiteralPath $path)) { Write-Host "[sync]   plugin ok: $path" -ForegroundColor Green }
-            else { Write-Host "[sync] WARNING: plugin path does not exist: $p" -ForegroundColor Yellow }
+            if (-not $path -or -not (Test-Path -LiteralPath $path)) { Write-Host "[sync] WARNING: plugin path does not exist: $p" -ForegroundColor Yellow }
+            elseif ($oc2 -and -not (Test-Path -LiteralPath $path -PathType Container)) { Write-Host "[sync] WARNING: opencode $ocVer skips this plugin, a file, not a directory: $p" -ForegroundColor Yellow }
+            else { Write-Host "[sync]   plugin ok: $path" -ForegroundColor Green }
         }
     }
 } else {

@@ -93,7 +93,7 @@ try {
     $shim = @{
         "ssh.cmd"      = "@echo off`r`n>> `"%FIXTURE_LOG%`" echo ssh %*`r`nif defined FIXTURE_SSH_EXIT exit /b %FIXTURE_SSH_EXIT%`r`nexit /b 0"
         "scp.cmd"      = "@echo off`r`n>> `"%FIXTURE_LOG%`" echo scp %*`r`nif /i `"%~x1`"==`".jsonc`" copy /y `"%~1`" `"%FIXTURE_LOG%.cfg`" >nul`r`nexit /b 0"
-        "opencode.cmd" = "@echo off`r`n>> `"%FIXTURE_LOG%`" echo opencode %*`r`nif exist `"%FIXTURE_DEBUG%`" type `"%FIXTURE_DEBUG%`"`r`nexit /b 0"
+        "opencode.cmd" = "@echo off`r`n>> `"%FIXTURE_LOG%`" echo opencode %*`r`nif `"%~1`"==`"--version`" if defined FIXTURE_VER (echo %FIXTURE_VER%& exit /b 0)`r`nif exist `"%FIXTURE_DEBUG%`" type `"%FIXTURE_DEBUG%`"`r`nexit /b 0"
     }
     foreach ($k in $shim.Keys) { Set-Content -LiteralPath (Join-Path $bin $k) -Value $shim[$k] -Encoding ascii }
     $env:USERPROFILE = $homeDir
@@ -151,6 +151,19 @@ try {
     $r = Run-Sync $co
     Check "missing plugin path: exit 0" $r.Code 0
     Check "...WARNING names it" ($r.Out -match 'WARNING: plugin path does not exist: file:///no/such/place/plugin.js') "True"
+
+    Write-Host "-- OpenCode 2.x: debug config lists sources; a file plugin is skipped (2.x loads directories)"
+    $env:FIXTURE_VER = "opencode v2.3.2"
+    $dirPlugin = Join-Path $co "opencode/plugins/fx-dir"; New-Item -ItemType Directory -Path $dirPlugin -Force | Out-Null
+    ConvertTo-Json -Depth 6 @(
+        [ordered]@{ type = "document"; path = "global"; info = [ordered]@{ plugins = @("$url/opencode/plugins/compaction-continue.js", [ordered]@{ package = "$url/opencode/plugins/fx-dir"; options = @{} }) } },
+        [ordered]@{ type = "directory"; path = "dir" }) | Set-Content -LiteralPath $env:FIXTURE_DEBUG
+    $r = Run-Sync $co
+    Check "2.x: exit 0" $r.Code 0
+    Check "...debug config read with --standalone (the staged files, not the service's copy)" (@($r.Calls | Where-Object { $_ -like 'opencode --standalone debug config*' }).Count) 1
+    Check "...a file plugin: WARNING that 2.x skips it" ($r.Out -match 'WARNING: opencode 2\.3\.2 skips this plugin, a file, not a directory: .*compaction-continue\.js') "True"
+    Check "...a directory plugin (package form): ok" ([regex]::Matches($r.Out, 'plugin ok:.*fx-dir').Count) 1
+    Remove-Item Env:FIXTURE_VER -ErrorAction SilentlyContinue
     $env:PATH = "$bin\no-opencode;$env:SystemRoot\System32"
     New-Item -ItemType Directory -Path (Join-Path $bin "no-opencode") -Force | Out-Null
     $r = Run-Sync $co

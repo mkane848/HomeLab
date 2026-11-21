@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the rest of step 3, the Go gate, the window, sync and ripgrep on OpenCode 2.x (2026-11-21).**
+  - **Go listing and spend move into the adapter.** `run-tasks-batch.ps1` no longer calls `opencode`, and
+    `test-agent-adapter` now enforces that.
+    - `Get-AgentProviderModels`: on 2.x, `models <provider>` prints help, so this filters `--standalone models`.
+    - `Get-AgentSpendRecords`: on 2.x, `opencode db` is gone, so this reads `session_message` read-only through
+      Node's built-in SQLite.
+  - **Found: 2.x recorded $0 for priced Go replies.** On 2026-11-21, 482 `opencode-go/deepseek-v4.1-flash` replies
+    (catalog price $0.15/$0.60 per M tokens) were all recorded at $0. 1.x priced every Go model. So the 2.x reader
+    **fails closed**: such a reply makes spend unreadable, and the batch drops hosted seats with that reason instead
+    of reading them as free. The cause is not known; finding it needs one priced Go call, which is the owner's
+    decision.
+  - **`run-window.ps1`:**
+    - On 2.x the seat gate lists with `--standalone models` and keeps the seat's provider.
+    - `-OpencodeConfig` refuses `compaction.prune`/`tail_turns` on 2.x, which ignores them.
+  - **`sync-opencode.ps1`** reads 2.x's `plugins` with `--standalone`, and warns about a file plugin, which 2.x skips.
+  - **`Test-AgentTools`** on 2.3.2 repeats 2.x's ripgrep lookup (PATH, then `<bin>/rg.exe`) and runs a nonce search.
+  - **Tests:**
+    - `test-agent-opencode-v2` grows to 52 checks: a fixture store and catalog for spend, the listing, and the
+      ripgrep check.
+    - New 2.x checks in `test-run-window`, `test-sync-opencode` and `test-agent-adapter`.
+    - Mutation-checked eight ways, each red and restored byte-identical:
+      - no fail-closed
+      - no provider filter, in the adapter and in `run-window`
+      - no PATH lookup for rg
+      - an uncatalogued provider treated as no catalog
+      - no prune refusal
+      - no directory rule in `sync-opencode`
+      - a direct `opencode` call put back in the batch
+  - **Not yet:** the cutover itself (pins and CI to 2.3.2, step 3.7), which waits for step 4's
+    `compaction-continue` decision.
+
 - **tests: the harness adapter runs and reads OpenCode 2.x (2026-11-21; steps 2 and 3 of the migration, in part).**
   - **Ground truth:** transcripts from the real v2.3.2, captured against a scripted stand-in model (no GPU), are in
     `tests/agents/fixtures/opencode-v2/`.
