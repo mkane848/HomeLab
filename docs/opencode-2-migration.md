@@ -22,7 +22,7 @@ Each row was checked on the desktop's v2.3.2 unless it says "docs".
 | Plugins | `plugin: [file:///…/compaction-continue.js, …/read-budget.js]`; 1.x `{id, server()}` with `experimental.*` hooks | **Both are skipped.** The log says `configured plugin path must be a directory`, so daily use has had no read cap and no continue nudge since 09:17. The 2.x API is `Plugin.define({id, setup(ctx)})`, with `ctx.tool.hook("execute.before"/"execute.after")`, `ctx.session.hook("context"/"compaction")` and `ctx.event.subscribe()`. `experimental.compaction.autocontinue` has no equivalent (docs). | `opencode/plugins/` |
 | Shared service | Each `opencode` process stood alone | One background service per machine. **`{env:}`, `OPENCODE_CONFIG` and `OPENCODE_CONFIG_CONTENT` resolve in the service's env, not the caller's.** Measured: without `--standalone`, `OPENCODE_MODEL` from the shell was ignored. | The launcher (fixed in step 1) and the adapter |
 | `opencode run` | `--dir $Dir --model --format json --auto --session` | **`--dir` removed.** It has `--model p/m#variant`, `--agent`, `--format json`, `--session`, `--auto`, `--worktree`, `--archived`, `--standalone` and `--server`. | `tests/agents/opencode.ps1:497`, `tests/test-profiles.ps1:331` |
-| JSON transcript | `step_start/step_finish/text/tool_use/error`, `part.tokens.*`, `part.state.*` | Not yet seen; capture one (step 2) | `Read-AgentEvents`, the write-tool list in `test-tasks.ps1` |
+| JSON transcript | `step_start/step_finish/text/tool_use/error`, `part.tokens.*`, `part.state.*` | The same events. Tools take `path`; errors are `{type, message, status}`; there is a new `retry` event (step 2) | `Read-AgentEvents`, the write-tool list in `test-tasks.ps1` |
 | `opencode debug config` | The resolved, merged config | A **list of sources** `[{type, path, info}]`, each `info` normalized to 2.x keys (`providers`, `plugins`, `permissions`, `agents.title`, `update`) | `opencode.ps1:147,195`, `sync-opencode.ps1`, `test-agent-shell.ps1` |
 | `opencode debug rg search` | The ripgrep pre-run check | **Gone.** `debug` now has `agents`, `config`, `heap-dump` and `paths`. | `opencode.ps1:389-425`, `test-agent-tools.ps1` |
 | `opencode db "<SQL>"` | The Go spend query | **Gone.** `session export`, `stats` and `opencode api` exist. | `run-tasks-batch.ps1:1057`, `test-hosted-seats`, `test-run-cost` |
@@ -53,22 +53,48 @@ Each step is one PR.
    - Done: 1.2 the profile launcher adds `--standalone` on 2.x (`desktop/scripts/opencode-standalone.ps1`). Guard:
      `tests/test-opencode-profiles.ps1`. The owner re-stages the config with `sync-opencode.ps1` from the main
      checkout after the merge.
-2. **Capture 2.x ground truth** (short probes, no batch; check GW2 is not running first).
-   - 2.1 One `opencode run --standalone --format json --auto --model <small seat>` in a scratch git repo, doing one
-     read, one edit and one shell call. Save it as `tests/fixtures/opencode-v2-transcript.jsonl` and diff it against
-     `Read-AgentEvents`.
-   - 2.2 A `--session` follow-up, a bad model (the error event), and a forced overflow (`tests/probe-overflow.ps1`).
-   - 2.3 Confirm that `run` uses the cwd, the `models` filter, per-message tokens and cost in `session export`, and
-     the env vars listed above.
-3. **Port the adapter** (`tests/agents/opencode.ps1` and its guards).
-   - 3.1 Drop `--dir` and set the job's working directory. Add `--standalone` and `--archived`.
-   - 3.2 Update the event mapping from the 2.1 fixture.
-   - 3.3 Write a config helper that merges `debug config`'s source list and reads `providers.<p>.models.<m>.limit`.
-     Update `sync-opencode.ps1`'s plugin-path check.
-   - 3.4 Replace the ripgrep check.
-   - 3.5 Replace `opencode db` for Go spend.
-   - 3.6 Re-derive the compaction threshold and the overflow regexes from 2.x source at the pinned tag, and drop the
-     prune arm.
+2. **Capture 2.x ground truth. Done on 2026-11-21, against a scripted stand-in model (no GPU, no real model).**
+   The transcripts are in `tests/agents/fixtures/opencode-v2/`: a read, write, edit and shell run; a `--session`
+   follow-up; an overflow 400 in llama-server's wording; and an unknown model.
+
+   **Unchanged:**
+   - The events are still `step_start`, `step_finish`, `text` and `tool_use`.
+   - `part.tokens` and `part.state` are still there, and so is `part.reason`.
+   - `--session` continues the same session.
+   - `run` works in the current directory.
+
+   **Changed:**
+   - **File tools take `path`, not `filePath`.** The shell tool is `shell`. There is no `patch` or `multiedit`.
+     `execute`, `subagent` and `question` are new.
+   - **Error events are `{type, message, status, response.body}`.** 1.x wrote `{name, data.{message, statusCode}}`.
+     2.x classifies an overflow internally (`classification: "context-overflow"` in `packages/ai/src/provider-error.ts`
+     at v2.3.2), but the event shows only `provider.invalid-request`.
+   - **`run` waits on an open piped stdin.** Under a Node child with a pipe it hung for its full timeout. Closing stdin
+     fixes it.
+   - **An unreachable engine is retried rather than failing.** It shows as a new `retry` event with
+     `provider.transport`, and the run sits until the harness timeout instead of exiting fast.
+   - **Compaction now triggers at `window − max(15%, 16000)`** (`calculateCeiling` in
+     `packages/core/src/session/compaction.ts`), with no `limit.output` term. A 64k seat compacts at 49,536 whatever
+     its output limit. On 1.x, the 8192-output seats compacted at 57,344.
+   - **`opencode models <provider>` prints help.** Plain `models` lists every `provider/model`.
+   - **`opencode db` is gone.**
+   - Not checked yet: `session export` for tokens and cost.
+3. **Port the adapter** (`tests/agents/opencode.ps1` and its guards). The adapter branches on the major version, so
+   1.19.5 (CI, node3) keeps working until the cutover.
+   - 3.1 **Done.** On 2.x: run from the worktree, `--standalone`, `--archived`, stdin closed, and a title that carries
+     the worktree path so `Stop-OrphanAgent` still matches it. The `test-profiles.ps1` canary got the same change.
+     Checked end to end on v2.3.2 with the stand-in model: exit 0, one write counted, and a follow-up on the same
+     session.
+   - 3.2 **Done.** Events: `path` as well as `filePath`. 2.x errors keep their `type`, except an overflow, which is
+     named `ContextOverflowError` by 2.x's own rule, copied from the v2.3.2 source.
+   - 3.3 **Adapter done.** `Get-AgentConfig` runs `--standalone debug config` and merges the sources
+     (`ConvertFrom-OpencodeConfigSources`), keeping the 1.x names callers read. Still to do: `sync-opencode.ps1`'s
+     plugin-path check.
+   - 3.4 Replace the ripgrep check. On 2.x it reports "not checked" for now.
+   - 3.5 Replace `opencode db` for Go spend, and fix the `models <provider>` calls (`run-tasks-batch.ps1`
+     `Get-HostedModelList`, `run-window.ps1`'s seat gate): on 2.x they print help, so the gates would see no models.
+   - 3.6 **Threshold and overflow done** (`Get-CompactionThreshold`'s 2.x branch). Still to do: drop the prune arm.
+   - Guard: `tests/test-agent-opencode-v2.ps1`. `tests/test-opencode-run.ps1` checks both command lines.
    - 3.7 Bump the pins 1.19.5 → 2.3.2 (`opencode.ps1:379`, `test-compaction-plugin.ps1:35`,
      `test-read-budget.ps1:47`, `test-agent-shell.ps1`, `test-agent-tools.ps1`, `checks.yml`) and update the stand-in
      shims.

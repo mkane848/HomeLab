@@ -51,6 +51,10 @@ New-Item -ItemType Directory -Force $bin, $wt | Out-Null
 # Stand-in opencode. It runs inside the job's PowerShell process (an
 # ExternalScript runs in-process), so "die" can kill that process for real.
 Set-Content (Join-Path $bin "opencode.ps1") @'
+# --version answers first (the adapter asks it before a run; 2.x branches on it).
+if ($args.Count -gt 0 -and $args[0] -eq '--version') { if ($env:OCR_TEST_VERSION) { $env:OCR_TEST_VERSION } else { '1.19.5' }; exit 0 }
+# Records the arguments and the working directory a run got.
+if ($env:OCR_TEST_ARGS) { ($args -join '|') | Set-Content -LiteralPath $env:OCR_TEST_ARGS; (Get-Location).Path | Add-Content -LiteralPath $env:OCR_TEST_ARGS }
 switch ($env:OCR_TEST_MODE) {
     "ok" {
         '{"type":"step_start"}'
@@ -121,12 +125,30 @@ try {
     Check "ExitCode -1 (TIMEOUT)"        $r.ExitCode -1
     Check "Detail says timed out"        ($r.Detail -like "*timed out after 3 s*") "True"
 
+    Write-Host "-- the command line: 1.x (--dir) and 2.x (cwd, --standalone, --archived, the worktree in the title)"
+    $argsFile = Join-Path $tmp "args.txt"
+    $env:OCR_TEST_ARGS = $argsFile
+    $r = Run "ok"
+    $rec = @(Get-Content -LiteralPath $argsFile)
+    Check "1.x: run --dir <wt> --model ... --format json --auto <prompt>" $rec[0] "run|--dir|$wt|--model|ollama-desktop/stand-in|--format|json|--auto|p"
+    $env:OCR_TEST_VERSION = "opencode v2.3.2"
+    $r = Run "ok"
+    $rec = @(Get-Content -LiteralPath $argsFile)
+    Check "2.x: exit 0" $r.ExitCode 0
+    Check "2.x: --standalone first, no --dir, --archived, title names the worktree" $rec[0] "--standalone|run|--model|ollama-desktop/stand-in|--format|json|--auto|--archived|--title|bench $wt|p"
+    Check "2.x: runs in the worktree" $rec[1] $wt
+    $env:OCR_TEST_MODE = "ok"
+    $r = Invoke-AgentRun -WtPath $wt -ModelId "ollama-desktop/stand-in" -Prompt "p2" -PromptHash "abc123" -TimeoutSec 60 -SessionId "ses_x"
+    if ($r.TranscriptPath) { Remove-Item -LiteralPath $r.TranscriptPath -Force -ErrorAction SilentlyContinue }
+    Check "2.x follow-up: --session before the prompt" (@(Get-Content -LiteralPath $argsFile)[0]) "--standalone|run|--model|ollama-desktop/stand-in|--format|json|--auto|--archived|--title|bench $wt|--session|ses_x|p2"
+    Remove-Item Env:OCR_TEST_VERSION, Env:OCR_TEST_ARGS -ErrorAction SilentlyContinue
+
     Write-Host "-- a run after a dead job still works"
     $r = Run "ok"
     Check "exit 0 again"                 $r.ExitCode 0
 } finally {
     $env:PATH = $savedPath
-    Remove-Item Env:OCR_TEST_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:OCR_TEST_MODE, Env:OCR_TEST_VERSION, Env:OCR_TEST_ARGS -ErrorAction SilentlyContinue
     Get-Job | Where-Object { $_.State -ne "Running" } | Remove-Job -Force -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
