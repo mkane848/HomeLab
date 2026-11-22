@@ -6,6 +6,7 @@ Moved out of [README.md](README.md) 2026-10-26 to keep it a short how-to-read pa
 |---|---|
 | Speed baselines, CPU contention, node3, three hosts | `bench-speed*.tsv` logs |
 | Assisted and plugin runs | `compaction-nudge/`, `compaction-plugin/`, `compaction-daily/` |
+| OpenCode 2.x: does a session go on after compacting? | `oc2-compaction/` (2026-11-21) |
 | Era confound | harness changes by date |
 | Not every row is a run | infra, truncated, liar-mode, prompt-truncated rows |
 | Gradable coverage, decision-test files | corpus inventory (2026-09-29) |
@@ -506,3 +507,35 @@ the easiest cell in the corpus (9/15 full-pass across seats); `kane-02` and
   script on seats no live profile seats yet. PASS is `writes = 1` and
   `fileOk = True`. `sec` is wall clock per `opencode run`, including any
   model load.
+
+## OpenCode 2.x compaction check: `oc2-compaction/`
+
+Step 4.1 of `docs/opencode-2-migration.md`, on 2026-11-21. The question was whether OpenCode 2.x keeps a session working
+after an automatic compaction on its own. On 1.x it often did not, which is why `opencode/plugins/compaction-continue.js`
+exists.
+
+**Setup:** one `kane-07` run with `test-tasks.ps1` on the desktop, which ran the client:
+- **Model:** `llamacpp-server/qwen3.6:35b-a3b-coding` on the server (llama.cpp b11561), so the desktop's GPU was idle.
+- **Client:** OpenCode 2.3.2, which skips both 1.x plugins, so there was no `compaction-continue` and no `read-budget`.
+- **Overlay:** an `OPENCODE_CONFIG` overlay set the providers' `npm` field (PR #254).
+
+It is the first run of a new era: a new client major version, plus the llama.cpp engine. Do not pool it with the 1.x rows.
+
+**Files:**
+- `…_INFRA_20261121-185614.jsonl`: the first attempt, without the overlay. Its single error is
+  `provider.no-route: Unsupported package`, the bug PR #254 fixes.
+- `…_TIMEOUT_20261121-194454.jsonl`: the measured run. It timed out at `-RunTimeout 2700`, so it was not graded.
+
+**Result: it kept working.**
+- **Compactions:** five, at 4, 6, 17, 29 and 38 minutes, counted from the session's `compaction` rows in OpenCode's
+  database. The transcript has no compaction event.
+- **After each one:** the session went on with tool calls and no nudge, for 71 steps, 93 tool calls (50 reads, 24 greps,
+  14 shell, 4 edits) and 0 errors.
+- **At the end:** it was mid-step when the timeout killed it, and the session never went idle.
+
+So **2.x does not stall after compacting, at least here, and `compaction-continue` is not ported** (step 4.3).
+
+**Caveats:**
+- n = 1 on one task and one seat.
+- It did not finish in 45 minutes. A compaction every few minutes on a read-heavy run, with no read cap, looks like
+  context churn; re-measure with the 2.x `read-budget` plugin loaded.

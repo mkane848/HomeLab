@@ -140,6 +140,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       yet rolled out), so it goes with that rollout (`docs/engine-api-keys.md`).
     - **node3:** a `git pull` of its checkout and a restart of its llama-server.
 
+- **tests: OpenCode 2.x goes on after an automatic compaction by itself (2026-11-21; migration step 4.1).**
+  - **The run:** one `kane-07` run on the server's `llamacpp-server/qwen3.6` (the desktop's GPU stayed idle), with the
+    desktop's OpenCode 2.3.2 and no plugins.
+  - **Result:** five compactions, and after each one the session kept making tool calls with no nudge (71 steps,
+    93 tool calls, 0 errors) until the 45-minute timeout. So `compaction-continue` is not ported (step 4.3).
+  - **Files:** the transcripts are in `tests/results/oc2-compaction/`, a new era kept out of the main summary. The
+    first attempt's `INFRA` transcript is the evidence for PR #254.
+  - **Caveats:** n = 1, not graded (timeout), and frequent compactions with no read cap. Re-measure with the 2.x
+    `read-budget`.
+
 - **fix: OpenCode 2.x can reach the local engines again (2026-11-21).** Every Ollama and llama.cpp provider in
   `opencode/global/opencode.jsonc` now states `"npm": "@ai-sdk/openai-compatible"`.
   - **Why:** 1.x gave a config-defined provider without the field that package by itself. 2.x normalizes the missing
