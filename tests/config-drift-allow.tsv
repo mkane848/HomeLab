@@ -5,7 +5,6 @@
 # host only, local-GGUF imports with no catalog row; plus derived/alias tags and the one
 # uncatalogued small model.
 check	key	reason
-seat-not-on-desktop	gpt-oss:20b	llama.cpp seat only (models/server-seats.tsv note); the desktop has no copy
 server-limit	gpt-oss:20b	the Ollama entry is unbaked and serves the 16384 default; 65536 applies to llama.cpp
 uncatalogued	ollama-server/qwen2.5-coder-3b-cpu	derived model built by bake-models.sh / startup.ps1, not a pull target
 uncatalogued	ollama-desktop/qwen2.5-coder-3b-cpu	derived model built by startup.ps1 ($derivedModels)
