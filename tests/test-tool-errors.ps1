@@ -155,7 +155,7 @@ function Read-AgentEvents {
     $harness = Join-Path $e2e "tests/test-tasks.ps1"
     function Invoke-Fixture([string]$Grep) {
         $env:FX_GREP = $Grep
-        try { $log = & $harness -Agent fixture -Task fx-toolerr -Model fixture/m -SkipInstall -RunTimeout 60 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String }
+        try { $log = & $harness -Agent fixture -Task fx-toolerr -Model fixture/m -SkipInstall -RunTimeout 60 *>&1 | Out-String }
         finally { Remove-Item Env:FX_GREP -ErrorAction SilentlyContinue }
         $json = Get-ChildItem (Join-Path $e2e "tests/results") -Filter "tasks-fx-toolerr-*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
         $j = if ($json) { Get-Content -Raw -LiteralPath $json.FullName | ConvertFrom-Json } else { $null }

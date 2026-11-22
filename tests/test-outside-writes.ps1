@@ -123,7 +123,7 @@ exit 0
     $env:PATH = "$bin;$env:PATH"
     $env:FIXTURE_OUTSIDE = $outDir
     try {
-        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-outside, fx-inside -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-outside, fx-inside -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
         Remove-Item Env:FIXTURE_OUTSIDE -ErrorAction SilentlyContinue

@@ -171,15 +171,15 @@ exit 0
         Remove-Item Env:HOMELAB_READ_MAX_CHARS -ErrorAction SilentlyContinue
         try {
             $env:FIXTURE_PLUGINS = "1"
-            $withOut = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
+            $withOut = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
             $leaked = [Environment]::GetEnvironmentVariable("HOMELAB_READ_BUDGET_LOG")
             $env:HOMELAB_READ_MAX_CHARS = "off"
-            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "off") *>&1 | Out-String
+            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "off") *>&1 | Out-String
             Remove-Item Env:HOMELAB_READ_MAX_CHARS
             $env:FIXTURE_NO_LOADED = "1"
-            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "noloaded") *>&1 | Out-String
+            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "noloaded") *>&1 | Out-String
             Remove-Item Env:FIXTURE_NO_LOADED, Env:FIXTURE_PLUGINS
-            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
+            $null = & $tt -Task fx-readbudget -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
         } finally {
             $env:PATH = $origPath
             Remove-Item Env:FIXTURE_SEEN, Env:FIXTURE_PLUGINS, Env:FIXTURE_NO_LOADED, Env:HOMELAB_READ_MAX_CHARS -ErrorAction SilentlyContinue

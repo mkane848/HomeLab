@@ -115,17 +115,16 @@
 # ambient environment). asohav-02 needs it: see that task's `testEnvNote`.
 #
 # Usage (PowerShell, from anywhere; source a profile first so OPENCODE_MODEL/
-# OLLAMA_*_BASE_URL are set, or pass -Model):
-#   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model ollama-desktop/qwen3:14b
-#   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model ollama-desktop/qwen3:8b
-#   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model ollama-desktop/devstral:24b
+# LLAMACPP_*_BASE_URL are set, or pass -Model):
+#   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model llamacpp-server/qwen3.6:35b-a3b-coding
+#   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Model llamacpp-server/qwen3:8b
 #   .\tests\test-tasks.ps1                                  # every manifest task (default model = $env:OPENCODE_MODEL)
 #   .\tests\test-tasks.ps1 -Task kane-01-background-pair -NoReset   # debug: keep worktree as the model left it
 #   .\tests\test-tasks.ps1 -Task kane-01-background-pair -Cleanup   # remove the worktree after grading
 #
 # Options:
 #   -Task <id[,id]>     tasks from tests/tasks/manifest.json (default: all).
-#   -Model <id>         opencode model id, e.g. ollama-desktop/qwen3:14b.
+#   -Model <id>         opencode model id, e.g. llamacpp-server/qwen3:8b.
 #   -ModelLabel <text>  short label for the results table/filenames (default: model id).
 #   -RunTimeout         seconds per opencode run before it is killed (default 900).
 #   -CommandTimeout     seconds per grading command (tests/typecheck, default 300).
@@ -155,10 +154,6 @@ param(
     [switch]$SkipInstall,
     [switch]$DryRun,
     [switch]$Cleanup,
-    # Where the serving Ollama writes server.log, for the prompt-truncation
-    # check. Default: %LOCALAPPDATA%\Ollama when the model's provider points at
-    # localhost; any other host is not checked (its log is on that machine).
-    [string]$OllamaLogDir = "",
     # Run a task the manifest marks `retired` (see Resolve-TaskSelection).
     [switch]$IncludeRetired,
     [ValidateSet("write", "edit", "")]
@@ -1989,10 +1984,10 @@ Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor Da
 # (the 64k context trial, docs/roadmap.md -> "Context budget").
 $providerId = ($Model -split '/', 2)[0]
 $modelTag = ($Model -split '/', 2)[1]
-# The engine adapter (tests/engines/<engine>.ps1, chosen by the provider prefix;
-# a provider that is neither ollama-* nor llamacpp-* loads the Ollama one, which
-# finds no base URL for it and so records "not checked").
-$engineKind = if ($providerId -like 'llamacpp-*') { "llamacpp" } else { "ollama" }
+# The engine adapter (tests/engines/<engine>.ps1). llama.cpp is the only local engine since Ollama was
+# removed on 2026-11-21; a provider that is not llamacpp-* (a hosted one, a fixture) finds no base URL in it
+# and so records "not checked" / engine "unknown".
+$engineKind = "llamacpp"
 $engineAdapter = Join-Path $PSScriptRoot ("engines\{0}.ps1" -f $engineKind)
 if (-not (Test-Path -LiteralPath $engineAdapter)) {
     Write-Host "ERROR: no adapter for engine '$engineKind' (expected $engineAdapter)." -ForegroundColor Red
@@ -2008,8 +2003,8 @@ if ($engineRoot) {
     $numCtx = Get-EngineServedContext -Root $engineRoot -Tag $modelTag
 }
 $engineVersionText = Format-EngineVersion -ProviderId $providerId -Root $engineRoot -Version $engineVersionRaw
-# `ollamaVersion` keeps its Ollama-shaped text for Ollama runs (older result files
-# compare); a run on another engine has no Ollama version.
+# `ollamaVersion` is kept in the run JSON so older result files (Ollama runs, before 2026-11-21) compare;
+# no engine since writes it.
 $ollamaVersion = if ($script:EngineName -eq "ollama") { $engineVersionText } else { $null }
 # What served the model, engine-neutral: Ollama is being replaced (owner,
 # 2026-10-03), and a run under a different engine is a new era, so the engine is
@@ -2046,7 +2041,7 @@ try {
 # is local; llama-server refuses explicitly instead, so there is nothing to read.
 # Every graded run records which it was, so an engine without one records "not
 # checked" or "not applicable", not a clean.
-$promptLoss = Get-EnginePromptLossSetup -Root $engineRoot -LogDir $OllamaLogDir -ProviderId $providerId
+$promptLoss = Get-EnginePromptLossSetup -Root $engineRoot -ProviderId $providerId
 $truncLogDir = $promptLoss.LogDir
 $truncCheck = $promptLoss.Description
 
@@ -2403,7 +2398,7 @@ foreach ($tk in $tasksToRun) {
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked (-NoGpuCheck)" }
     } elseif (-not $engineRoot) {
         # No root for one of two reasons: not an engine provider, or its base URL is unset.
-        $noRootWhy = if ($engineBaseVar) { "$engineBaseVar is unset" } else { "$providerId is not an Ollama provider" }
+        $noRootWhy = if ($engineBaseVar) { "$engineBaseVar is unset" } else { "$providerId is not a llama.cpp provider" }
         $gpuPlacement = [ordered]@{ checked = $false; note = "not checked ($noRootWhy)" }
     } elseif ($run.ExitCode -eq 0) {
         $gp = Get-EngineGpuPlacement -ProviderId $providerId -Root $engineRoot -Tag $modelTag

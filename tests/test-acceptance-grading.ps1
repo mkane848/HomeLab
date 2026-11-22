@@ -149,7 +149,7 @@ exit 2
         $refusedExit = $LASTEXITCODE
         $worktreeAfterRefusal = Test-Path (Join-Path $tmp "tests/.worktrees/fx-pass")
         Write-Host "   (graded runs)"
-        $out = & $tt -TaskManifest (Join-Path $priv "manifest.json") -ResultsDir $privResults -Task fx-pass, fx-wrong, fx-lockfile, fx-big, fx-reqtest -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $priv "no-log") *>&1 | Out-String
+        $out = & $tt -TaskManifest (Join-Path $priv "manifest.json") -ResultsDir $privResults -Task fx-pass, fx-wrong, fx-lockfile, fx-big, fx-reqtest -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
         Write-Host "   (dry run)"
         $dryOut = & $tt -TaskManifest (Join-Path $priv "manifest.json") -ResultsDir $privResults -Task fx-dry -Model fixture/m -SkipInstall -DryRun *>&1 | Out-String
     } finally {

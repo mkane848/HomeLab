@@ -180,7 +180,7 @@ exit 2
     $env:PATH = "$ebin;$savedPath"
     Remove-Item Env:OPENCODE_CONFIG_CONTENT -ErrorAction SilentlyContinue
     try {
-        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-shell -Model fixture/m -SkipInstall -RunTimeout 60 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-shell -Model fixture/m -SkipInstall -RunTimeout 60 *>&1 | Out-String
         $exit = $LASTEXITCODE
     } finally {
         $env:PATH = $savedPath

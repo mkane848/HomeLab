@@ -169,7 +169,7 @@ exit 2
         $origPath = $env:PATH
         $env:PATH = "$bin;$env:PATH"
         try {
-            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task fx-recovered, fx-dead, fx-other, fx-clean -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $root "no-log") *>&1 | Out-String
+            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task fx-recovered, fx-dead, fx-other, fx-clean -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
         } finally {
             $env:PATH = $origPath
         }

@@ -120,7 +120,7 @@ exit 2
     $env:PATH = "$bin;$env:PATH"
     $env:FIXTURE_CALLS = Join-Path $tmp "calls.txt"
     try {
-        $out = & (Join-Path $tmp "tests/test-tasks.ps1") -Task fx-twoturn, fx-single, fx-nosession, fx-turn2fails -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") *>&1 | Out-String
+        $out = & (Join-Path $tmp "tests/test-tasks.ps1") -Task fx-twoturn, fx-single, fx-nosession, fx-turn2fails -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
         Remove-Item Env:FIXTURE_CALLS -ErrorAction SilentlyContinue

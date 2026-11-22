@@ -121,7 +121,7 @@ exit 0
     $env:PATH = "$bin;$env:PATH"
     $t0 = Get-Date
     try {
-        $out = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-hang -Model fixture/m -SkipInstall -RunTimeout 120 -CommandTimeout 5 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $out = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-hang -Model fixture/m -SkipInstall -RunTimeout 120 -CommandTimeout 5 *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
     }
