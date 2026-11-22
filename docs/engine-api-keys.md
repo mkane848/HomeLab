@@ -15,8 +15,9 @@ checks the key and starts its children without one, on loopback
 ([server-models.cpp](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/server-models.cpp)). **The pinned
 builds (b11561 on the server, b11562 on node3) are older than that read:** step 6 is what proves them.
 
-**Ollama has no API key.** It stays LAN-only behind the firewall rules ([network-topology.md](network-topology.md)) and
-must never be reachable over a VPN.
+**llama-server is the only engine** since Ollama, which had no API key, was removed from the fleet on 2026-11-21. Until
+its uninstall ([roadmap.md](roadmap.md) → "Ollama removed (2026-11-21)") nothing may start it again, and it must never be
+reachable over a VPN.
 
 ## Two keys
 

@@ -6,9 +6,12 @@ The fleet that runs the local LLM setup. Refresh the VRAM budget when any node's
 
 | Node | OS | CPU | GPU | VRAM | RAM | IP | Role |
 |------|----|-----|-----|------|-----|----|------|
-| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (llama.cpp in Docker; Ollama stopped and kept) |
-| Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | 32 GB | `DESKTOP_IP` | Model host, OpenCode client, tool-run host (native Ollama, Vulkan) |
-| Third node | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Model host, OpenCode client, tool-run host (onboarded 2026-09-20). Also a gaming PC |
+| Server | Ubuntu | Ryzen 7 3700X (8c/16t) | **RTX 4070 Ti Super** (CUDA) | **16 GB** | **32 GB** (Corsair Vengeance LPX) | `SERVER_IP` | Model host: main seat (llama.cpp in Docker, the only engine) |
+| Desktop | Windows 11 | Ryzen 7 5800X3D | RX 6800 XT (Vulkan) | 16 GB | 32 GB | `DESKTOP_IP` | OpenCode client, tool-run host; runs no models since 2026-11-21 |
+| Third node | Windows 11 | Ryzen 9 5950X | RTX 3080 FE (CUDA) | 10 GB | 32 GB | `NODE3_IP` | Model host (llama.cpp), OpenCode client, tool-run host (onboarded 2026-09-20). Also a gaming PC |
+
+**Ollama was removed from the fleet on 2026-11-21.** Measurements below that name Ollama, the desktop's Vulkan backend
+or `catalog.tsv` are dated history; on llama-server, budget VRAM from the running server.
 | GTX 1070 | — | — | GTX 1070 | 8 GB | — | — | Retired from server Sep 2026; backup / spare candidate |
 
 **Sep 2026 upgrade:** the server switched GPU (GTX 1070 8 GB → RTX 4070 Ti Super 16 GB) and RAM (16 → 32 GB). Everything below assumes the new hardware.
@@ -108,7 +111,7 @@ GGUF weights are roughly `params × 0.6` GB at Q4, plus KV cache and ~1–2 GB r
 | 20–22B dense/MoE-4B | 13–14 GB | ✗ | ✗ | **edge** (`offload`) |
 | 32B | 20 GB | ✗ | ✗ | ✗ (needs system RAM offload) |
 
-`class` in `models/catalog.tsv`:
+`class` in the former `models/catalog.tsv` (deleted with Ollama on 2026-11-21):
 - `fit` — comfortable on 16 GB VRAM.
 - `edge` — fits on 16 GB but tight (~14 GB weights); watch context/KV.
 - `offload` — too big for 16 GB VRAM; needs CPU/RAM offload, slow but usable.
@@ -144,8 +147,8 @@ Candidate executor models, upgrade ideas and disk budgets (2026-09-22, not sched
 
 1. `nvidia-smi` on the server shows `RTX 4070 Ti SUPER 16 GB`.
 2. Free VRAM should be ~14 GB with nothing loaded.
-3. `./server/scripts/status.sh` → GPU section + `api/ps` shows loaded context/VRAM per model.
-4. Pull a 14B coder and confirm it runs fully in GPU: `install-model.sh coder`.
+3. `./server/scripts/status.sh` → the engine, the GPU as the container sees it, the seats.
+4. Load a seat (any request to it) and confirm its VRAM with `nvidia-smi`; adding one: [reference/config.md](reference/config.md) → "Adding a model".
 
 If the server won't POST (solid CPU EZ Debug LED), see the recovery log:
 [`docs/server-recovery-cpu-led.md`](server-recovery-cpu-led.md).

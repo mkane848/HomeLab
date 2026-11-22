@@ -1,7 +1,8 @@
 # Server (Ubuntu)
 
-Scripts and configs for the Ubuntu server: the fleet's model host. llama.cpp's `llama-server` is its primary engine since 2026-11-01; the
-Ollama container is stopped and kept. The server has no OpenCode client, and the tools run on node3 or the desktop.
+Scripts and configs for the Ubuntu server: the fleet's model host. llama.cpp's `llama-server` is its only engine: the
+primary since 2026-11-01, and the only one since Ollama was removed from the fleet on 2026-11-21. The server has no
+OpenCode client, and the tools run on node3 or the desktop.
 
 ## Hardware
 
@@ -13,30 +14,38 @@ Ollama container is stopped and kept. The server has no OpenCode client, and the
 
 ## What Runs Here
 
-- **`qwen3.6:35b-a3b-coding`**: the main seat, on `llama-server` in Docker (`docker/docker-compose.llamacpp.yml`, presets in
-  `llamacpp/models.ini`). It reaches OpenCode through the `dev-workflow-server-llamacpp` profile, the default.
-- **Other seats in the same presets**, such as `qwen2.5-coder-3b-cpu` for small jobs, on the CPU.
-- Older seats and the Ollama setup below are kept for the Ollama profile (`dev-workflow-server`), not in daily use.
+- **`qwen3.6:35b-a3b-coding`**: the main seat, on `llama-server` in Docker (`docker/docker-compose.llamacpp.yml`, port
+  8090, router mode, presets in `llamacpp/models.ini`). It reaches OpenCode through the `dev-workflow-server-llamacpp`
+  profile, the default.
+- **Other seats in the same preset**, such as `qwen2.5-coder-3b-cpu` (OpenCode's small model, on the CPU) and
+  `qwen3:8b`; the full list, each with its context and weights `sha256`, is `../models/server-seats.tsv`.
+- The weights are GGUF files in `~/models` (the container's `/models`).
+- The household stack (`docker/docker-compose.household.yml`, `household/`): [docs/household-assistant.md](../docs/household-assistant.md).
 
 ## Quick Start
 
-This is the Ollama path. For the current engine: `docker compose -f server/docker/docker-compose.llamacpp.yml up -d`, and
-[docs/llamacpp-trial.md](../docs/llamacpp-trial.md) has the runbook.
-
 ```bash
-# 1. Pick a profile (from the dev-docs root — .env is auto-sourced)
-cd /path/to/dev-docs
-source profiles/dev-workflow-server.sh
-
-# 2. Install the profile's model groups (uses models/catalog.tsv)
-./server/scripts/install-model.sh --profile
-
-# 3. Start services
-./server/scripts/startup.sh
-
-# 4. Check status (GPU + API + catalog installed-vs-planned)
-./server/scripts/status.sh
+cd ~/HomeLab
+./server/scripts/startup.sh        # start llama-server (systemd unit if installed, else docker compose)
+./server/scripts/status.sh         # the engine, its container and restart policy, the GPU, the seats
+./server/scripts/llamacpp-check.sh --url http://localhost:8090 --weights-container llamacpp-server
+                                   # the preset against models/server-seats.tsv, the live server, the weights
+./server/scripts/stop.sh           # stop it
 ```
+
+The API key on the engine (`--api-key-file`) and how each client finds it: [docs/engine-api-keys.md](../docs/engine-api-keys.md).
+
+## Adding a model
+
+Copy the GGUF into `~/models`, add a section to `llamacpp/models.ini` and a row (its `sha256`, source `import-server`)
+to `../models/server-seats.tsv`, register it in `opencode/global/opencode.jsonc`, restart, run `llamacpp-check.sh`, then
+probe it from the desktop or node3:
+
+```powershell
+.\tests\test-toolcalls.ps1 -Engine llamacpp -EngineHost http://SERVER_IP:8090 -Model <tag>
+```
+
+Each step in full: [docs/reference/config.md](../docs/reference/config.md) → "Adding a model".
 
 ## Startup Methods
 
@@ -45,39 +54,39 @@ source profiles/dev-workflow-server.sh
 | `docker compose` | Default. Good for dev, easy to tear down. |
 | `systemd` | Persistent across reboots, auto-restart on crash. |
 
-`startup.sh` auto-detects: if the systemd unit is installed (`ollama-server.service`),
-it uses `systemctl`; otherwise it falls back to `docker compose up -d`.
+`startup.sh` auto-detects: if the systemd unit is installed (`llamacpp-server.service`), it uses `systemctl`; otherwise
+it falls back to `docker compose up -d`. The container's own policy is `restart: unless-stopped`.
 
 ## Files
 
-- `docker/docker-compose.yml` — Ollama container stack, pinned to 0.34.3 and aligned with the desktop's measured setup
-  (flash attention, `q8_0` KV cache, NUM_PARALLEL=1, MAX_LOADED_MODELS=2, keep-alive 4h, default CONTEXT_LENGTH=16384)
+- `docker/docker-compose.llamacpp.yml` — the llama-server stack: CUDA image pinned to a build, the five `/dev/nvidia*`
+  nodes listed explicitly, a healthcheck that fails when the container loses the GPU, `--api-key-file`
+- `docker/docker-compose.household.yml` — the household stack
 - `docker/.env.example` — copy to `.env` and fill in values
-- `systemd/ollama-server.service` — systemd unit (optional install; E2E via stop/startup)
-- `scripts/install-model.sh` — catalog-aware model installer (`--list`, `--info`, `--ctx`, `--profile`, `--dry-run`)
+- `llamacpp/models.ini` — the router preset: one section per seat, with its contracts in the header; `llamacpp/templates/` — chat templates it loads
+- `systemd/llamacpp-server.service` — systemd unit (optional install)
+- `systemd/model-ports-firewall.service`, `scripts/model-ports-firewall.sh` — let only named LAN hosts reach the model ports
 - `../models/server-seats.tsv` — the seats this server serves: `num_ctx`, `num_gpu`, the base of a derived model, and
-  the desktop copy's weights `sha256`. Candidate seats are commented out until they are probed on this host.
-- `scripts/llamacpp-check.sh` — checks `llamacpp/models.ini` against that list (pinned blob, `c` equal to `num_ctx`,
-  one slot, the CPU seat). `--url http://localhost:8090` checks the running server; `--weights-container
-  llamacpp-server` checks that each seat's blob is really in Ollama's volume (`--hash` re-hashes it: about 30 s for all
-  four seats) and says how to pull a missing one. Run it after changing the list or the preset. Since Phase 3
-  (2026-11-01) it replaces `bake-models.sh` on the live path.
-- `scripts/bake-models.sh` — the Ollama engine only (its container is stopped): pulls a missing seat, bakes `num_ctx`
-  into the desktop's tag (plus the CPU-pinned 3b companion), reads the value back and compares the weights blob with
-  the desktop's (`--dry-run`, `--only <tag>`, `--no-pull`). Kept for a rollback until Phase 6.
-- `scripts/startup.sh` — bring services online
-- `scripts/stop.sh` — stop services
-- `scripts/status.sh` — GPU (`nvidia-smi`), API, loaded-model context, catalog gaps
+  the GGUF's `sha256`. Candidate seats are commented out until they are probed on this host.
+- `scripts/llamacpp-check.sh` (+ `llamacpp_check.py`) — checks `llamacpp/models.ini` against that list (pinned file,
+  `c` equal to `num_ctx`, one slot, the CPU seat). `--url http://localhost:8090` checks the running server;
+  `--weights-container llamacpp-server` checks that each seat's GGUF is under `/models` (`--hash` re-hashes it). Run it
+  after changing the list or the preset.
+- `scripts/llamacpp-auth.sh` — the API-key helper the other scripts source
+- `scripts/llamacpp-window.sh` — open, watch and close an unattended window ([docs/unattended-window.md](../docs/unattended-window.md))
+- `scripts/llamacpp-soak.sh` — the llama.cpp trial's soak
+- `scripts/startup.sh`, `scripts/stop.sh`, `scripts/status.sh` — start, stop, and check the engine
+
+The Ollama-era files (`docker/docker-compose.yml`, `systemd/ollama-server.service`, `scripts/install-model.sh`,
+`scripts/bake-models.sh`, `models/catalog.tsv` and `catalog.sh`) were deleted on 2026-11-21; they are in git history.
 
 ## Notes
 
-- Under Ollama (the rollback engine since Phase 3): the server honors `OLLAMA_CONTEXT_LENGTH` (unlike the Windows Ollama app), so
-  un-baked tags serve at the env default (16384). Seats get their own `num_ctx` from
-  `bake-models.sh` under the **same tag** as on the desktop, so one `opencode.jsonc`
-  limit and one `tests/run-tasks-models.tsv` row hold on both hosts. Change a number
-  in `bake-models.sh`, `desktop/scripts/startup.ps1` (`$contextModels`) and the
-  `limit.context` of both OpenCode provider blocks together.
-- Tool-calling on this host was first probed 2026-10-12 on Ollama 0.34.3
-  (`tests/results/toolcalls-summary.tsv`, host `server`). Re-probe after any version change.
+- Context: each section of `llamacpp/models.ini` sets `c` explicitly, and it must equal `num_ctx` in
+  `../models/server-seats.tsv` and `limit.context` in `opencode/global/opencode.jsonc` (`llamacpp-check.sh` and
+  `tests/check_config_drift.py` check it).
+- Tool-calling on this host was first probed 2026-10-12 on Ollama 0.34.3 (`tests/results/toolcalls-summary.tsv`, host
+  `server`); the llama.cpp probes are hypothesis H3 in [docs/llamacpp-trial.md](../docs/llamacpp-trial.md). Re-probe
+  after any llama.cpp build change.
 - Access, the `sudo` rule and the `~/HomeLab` layout: [docs/network-topology.md](../docs/network-topology.md) → "SSH access".
 - Files copied from Windows lose the exec bit — run `./make-executable.sh` after any scp.

@@ -123,39 +123,38 @@ all five commented and ready: `opencode/project-override/opencode.jsonc`.
 
 ## Provider Endpoints
 
-One provider **per Ollama host** (a single ollama provider can only reach one
-`baseURL`). Endpoints come from the active profile's `OLLAMA_*_BASE_URL` env
-vars via `{env:...}` substitution:
+One provider **per llama-server host** (a provider has one `baseURL`). llama.cpp
+is the only local engine since Ollama was removed on 2026-11-21 (the `ollama-*`
+providers and `llamacpp-desktop` went with it; the desktop runs no models).
+Endpoints come from the active profile's `LLAMACPP_*_BASE_URL` env vars via
+`{env:...}` substitution:
 
 | Provider | Endpoint (default) | Auth | Models |
 |----------|--------------------|------|--------|
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | `{file:.secrets/opencode-go-api-key}` | any, via `opencode-go/<model-id>` |
-| `ollama-server` | `{env:OLLAMA_SERVER_BASE_URL}` | None | Qwen3.6 35B-A3B, Qwen2.5 Coder 3B CPU, Qwen Coder 7B/14B, DeepSeek-R1 14B, Qwen3 8B/14B, GLM4 9B, Gemma3 12B, Codestral, GPT-OSS 20B, QwQ 32B |
-| `ollama-desktop` | `{env:OLLAMA_DESKTOP_BASE_URL}` | None | Qwen3 14B/8B (baked 32k), Qwen Coder 14B/7B/3B (+ `-16k` bake), DeepSeek-R1 16k/32k (baked) + base 14b, Devstral 24B, Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B |
-| `ollama-node3` | `{env:OLLAMA_NODE3_BASE_URL}` | None | Qwen3 8B (tool-capable seat), GLM4 9B (no-tools) |
-| `llamacpp-server` | `{env:LLAMACPP_SERVER_BASE_URL}` (port 8090) | None | Qwen3.6 35B-A3B, Qwen3 8B, Qwen2.5 Coder 3B CPU (text only), North Mini Code, GPT-OSS 20B (the llama.cpp twin of `ollama-server`, the server's engine since 2026-11-01) |
-| `llamacpp-desktop`, `llamacpp-node3` | `{env:LLAMACPP_DESKTOP_BASE_URL}`, `{env:LLAMACPP_NODE3_BASE_URL}` | None | same three seats, registered ahead of Phases 4 and 5: no llama-server runs on those hosts yet |
+| `llamacpp-server` | `{env:LLAMACPP_SERVER_BASE_URL}` (port 8090) | `{file:.secrets/llamacpp-api-key}` ([engine-api-keys.md](../docs/engine-api-keys.md)) | Qwen3.6 35B-A3B, Qwen3 8B, Qwen2.5 Coder 3B CPU (text only), North Mini Code, GPT-OSS 20B — the sections of `server/llamacpp/models.ini` |
+| `llamacpp-node3` | `{env:LLAMACPP_NODE3_BASE_URL}` (port 8090) | `{file:.secrets/llamacpp-api-key}` | Qwen3.6 35B-A3B, Qwen3 8B — the sections of `node3/llamacpp/models.ini` |
 
 > **No `:-default` fallbacks.** OpenCode's `{env:...}` substitution does not
 > support shell-style defaults — `{env:VAR:-foo}` resolves to an empty string,
 > breaking the provider with `"/chat/completions" cannot be parsed as a URL`.
 > Values always come from the active profile's exported vars. On Windows the
-> desktop has User-level defaults (`OPENCODE_MODEL`, `OPENCODE_SMALL_MODEL`,
-> `OLLAMA_DESKTOP_BASE_URL`) so OpenCode works without sourcing a profile.
+> desktop can carry User-level defaults (`OPENCODE_MODEL`, `OPENCODE_SMALL_MODEL`,
+> `LLAMACPP_SERVER_BASE_URL`) so a bare `opencode` works without a profile.
 
 ## Model ID Format
 
-In `opencode.jsonc`, model IDs use the format `provider/model-id`. The
-registered IDs mirror `models/catalog.tsv` (context windows baked in so the
-client never over-promises vs the served context):
+In `opencode.jsonc`, model IDs use the format `provider/model-id`, and the
+model id is the section name in that host's llama-server preset, with
+`limit.context` equal to the section's `c` so the client never over-promises
+vs the served context:
 
 - `opencode-go/deepseek-v4-flash` — DeepSeek via Go subscription
-- `ollama-server/qwen2.5-coder:14b` — Qwen Coder 14B on the server
-- `ollama-desktop/deepseek-r1-16k` — the desktop bake with num_ctx 16384
-  (use this, NOT `deepseek-r1:14b`, for desktop reasoning)
+- `llamacpp-server/qwen3.6:35b-a3b-coding` — the main seat on the server
+- `llamacpp-node3/qwen3:8b` — node3's agent seat
 
-After adding a model to the catalog, register it in the appropriate provider
-block so it appears in OpenCode's `/models`.
+Adding a model (GGUF, preset section, `models/server-seats.tsv` row, this
+registration, the probe): [docs/reference/config.md](../docs/reference/config.md) → "Adding a model".
 
 ## Reference Files
 

@@ -25,7 +25,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-context-exceeded.ps1` | contextExceeded outcome (exit -6, _CTXEXCEEDED_) | How a run's exit is classified |
 | `tests/test-deliver-attempt.ps1` | fleet delivery: the best allowed attempt becomes a fleet/<task> branch; main, the working copy and remotes untouched | tests/deliver-attempt.ps1, tests/record-verdict.ps1, or the patch saving / Get-AttemptVerdict they read |
 | `tests/test-doc-integrity.ps1` | the owner's standing hard blocks for Markdown (integrity gate: nothing lost, nothing wrong) | tests/checks/doc-integrity.ps1, or the integrity gate in test-tasks.ps1 / run-retries.ps1 |
-| `tests/test-engine-adapter.ps1` | Engine adapter boundary (tests/engines/ollama.ps1, llamacpp.ps1) | Either adapter or an engine call in test-tasks.ps1 |
+| `tests/test-engine-adapter.ps1` | Engine adapter boundary (tests/engines/llamacpp.ps1, the only engine since 2026-11-21) | The adapter or an engine call in test-tasks.ps1 |
 | `tests/test-fails-on-old.ps1` | When failsOnOld is measured (PASS, FAIL, SKIP) | How the gates are graded |
 | `tests/test-failure-detail.ps1` | What a failing test command's FAIL line says (Get-FailureDetail, Get-TestSummaryText, Remove-AnsiCodes) | How the harness summarises or quotes a test command's output |
 | `tests/test-follow-ups.ps1` | Multi-turn tasks (followUps) continued in the same session | How a run is launched or continued |

@@ -21,8 +21,8 @@ Neither half needs the other to be started first: the runner waits up to 30 minu
    is public and needs no credentials, if that checkout's `origin` is the GitHub URL). The checkout needs `run-retries.ps1`
    (2026-10-24) as well as the new script, and must be clean (`git status`), or the report warns.
 2. **Nothing else on the machines**: nobody gaming on node3, Windows Update unable to reboot it (a reboot ends the run;
-   there is no resume), no CPU-heavy job on the server's 3700X, and the owner not using Ollama on the server: the window
-   stops Ollama's resident seat to free the card.
+   there is no resume), and no CPU-heavy job on the server's 3700X. (Until Ollama was removed on 2026-11-21 the window
+   also stopped Ollama's resident seat to free the card.)
 3. **Start the server's half**, on the server, from the repo checkout:
 
    ```bash
@@ -31,7 +31,7 @@ Neither half needs the other to be started first: the runner waits up to 30 minu
 
    It prints `window OPEN until <time>` when the stack is healthy, the seat is loaded and `llamacpp-check.sh --url` passes.
    If any step fails it takes the stack down again, says why, and exits non-zero (exit codes in the script's header), so a
-   failed start leaves Ollama free. `bash server/scripts/llamacpp-window.sh status` answers "is it ready?" later (exit 0 or 1).
+   failed start leaves the GPU free. `bash server/scripts/llamacpp-window.sh status` answers "is it ready?" later (exit 0 or 1).
 4. **Start the runner**, on node3, from the repo checkout. First look at what it would do (it changes nothing and waits
    for nothing):
 
@@ -135,12 +135,11 @@ when a file named `STOP` appears in `~/llamacpp-window/`, it takes the stack dow
 the GPU into the morning. Its log is `~/llamacpp-window/window.log`.
 
 **Since Phase 3 (2026-11-01) the stack is usually up already**, because llama.cpp is the server's primary engine
-(`restart: unless-stopped`). `up` then adopts it: it does not stop Ollama, check the GPU or start anything, but it still
+(`restart: unless-stopped`). `up` then adopts it: it does not check the GPU or start anything, but it still
 loads the seat, runs the contract check, sets the deadline and starts the watchdog. A window that adopted the stack leaves
 it running when it closes (deadline, `STOP`, give-up or `down`); only a stack the window itself started is taken down.
 
-**What neither half does:** merge or push anything, edit the repo or the task repos, touch Ollama's stack beyond
-`ollama stop` of the resident seat, use `sudo`, or retry a run the harness already graded.
+**What neither half does:** merge or push anything, edit the repo or the task repos, use `sudo`, or retry a run the harness already graded.
 
 ## Reading it in the morning
 

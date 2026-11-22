@@ -13,6 +13,26 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context budget | [Context budget: 32k vs 64k](#context-budget-32k-vs-64k-per-seat-measured-and-trialled-2026-09-27-adopted-for-six-seats-by-merging-the-trial-pr) |
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
+| Ollama removed (2026-11-21) | [Ollama removed](#ollama-removed-2026-11-21) |
+
+## Ollama removed (2026-11-21)
+
+The owner's decision: Ollama is removed from the whole fleet, and the desktop runs no models (it is the OpenCode client
+and the harness run host; its GPU has unresolved crashes). llama.cpp (`llama-server`, router mode) is the only local
+engine, on the server (port 8090, `server/llamacpp/models.ini`, seats in `models/server-seats.tsv`, GGUF files in
+`~/models`) and on node3 (`node3/llamacpp/models.ini`, 127.0.0.1:8090 until its LAN firewall rule). Hosted OpenCode Go
+stays. This closes "Replacing Ollama" Phase 6 below; Phase 4 (a desktop llama-server) is dropped.
+- **Done in the repo:** the weights copied off Ollama's blobs and sha256-checked (PR #255); OpenCode config, profiles,
+  desktop scripts and the drift check llama.cpp-only (#257; live profiles `dev-workflow-server-llamacpp` and
+  `dev-node3`, parked `dev-go-only`); the server and node3 scripts (#258); the harness; the current docs.
+- **Left, in order:**
+  1. **Uninstall Ollama on each machine** (server container, image and the `docker_ollama_data` volume; the desktop
+     and node3 native installs, their model stores, `OLLAMA_*` User env vars and the desktop's updater firewall rule).
+     The owner confirms what is deleted on each machine before anything is; dry run and hash-compare first.
+  2. **Redeploy the server** (pull `main`, recreate `llamacpp-server`), together with the engine API-key rollout:
+     [engine-api-keys.md](engine-api-keys.md) → "Rollout".
+  3. **node3: `git pull`**, then restart its llama-server (`Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
+     HomeLab-llamacpp`) so the router reads the preset's new `model` paths ([node3/README.md](../node3/README.md)).
 
 ## OpenCode 2.0 migration (opened 2026-11-21)
 
@@ -3502,6 +3522,7 @@ across engines as if nothing changed); `ollama-*` provider ids are never renamed
   history), parked-profile references and the VS Code BYOK Ollama entry; then update AGENTS.md, README,
   `docs/hardware.md`, `docs/profiles.md`, `docs/troubleshooting.md`, `docs/network-topology.md` and `docs/vscode.md`.
   Delete the Ollama model stores only on the owner's say-so. Old results stay as written.
+  **Ollama was removed on 2026-11-21** (owner); what is left: [Ollama removed (2026-11-21)](#ollama-removed-2026-11-21).
 
 Planned end state: **server** `server-cuda` container (digest-pinned, explicit GPU devices) on `0.0.0.0:8090`, preset
 `server/llamacpp/models.ini`; **desktop** Vulkan zip on `127.0.0.1:8090`; **node3** CUDA zip on `0.0.0.0:8090`; providers

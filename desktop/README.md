@@ -1,74 +1,41 @@
 # Desktop (Windows 11)
 
-Scripts and configs for the personal desktop machine — the native-Vulkan Ollama node.
+Scripts and configs for the personal desktop machine: the daily **OpenCode client** and the **harness run host**.
+**It runs no models** (since 2026-11-21): Ollama was removed from the fleet that day, and the desktop's GPU has
+unresolved crashes. Models are served by llama.cpp (`llama-server`) on the server and node3.
 
 ## Hardware
 
 - AMD Ryzen 7 5800X3D
-- AMD Radeon RX 6800 XT (16 GB VRAM, **Vulkan** — gfx1030 is unsupported by the Windows HIP SDK, so ROCm is permanently unavailable; see `docs/hardware.md`)
+- AMD Radeon RX 6800 XT (16 GB VRAM; not used for models)
 - Windows 11
 
-## What Runs Here
-
-- **Qwen3 14B / 8B** — the tool-capable agent seats (baked 32k ctx), driven via OpenCode
-- **Qwen 2.5 Coder 3B/7B/14B, DeepSeek-R1 14B** — no-tools models for code text, explanation and review (derived `-16k`/`-32k` bakes, `num_ctx` baked in)
-- **Qwen3-Coder 30B A3B, Qwen3.5 9B, DeepSeek-R1 0528 8B** — imported from local GGUF files (not in `models/catalog.tsv`)
-- **Ollama** — host for desktop-side model serving (native install, Vulkan backend)
+It is also the gaming PC: check that no game is running before heavy work here.
 
 ## Quick Start
 
 ```powershell
-# Pick a profile (from the dev-docs root)
-#   bash profiles/select-model.sh   -- or source one (dev-desktop-only, dev-workflow-quality, ...)
-
-# Install the profile's model groups (uses models/catalog.tsv)
-.\desktop\scripts\models.ps1 -Profile
-
-# Start services (skips itself if DEV_TIERS_DESKTOP is false)
-.\desktop\scripts\startup.ps1
-
-# Or double-click startup.bat
+cd <path-to-HomeLab-checkout>
+.\desktop\scripts\opencode.ps1                     # default profile: qwen3.6 on the server's llama-server
+.\desktop\scripts\opencode.ps1 -Profile dev-node3  # qwen3:8b on node3's llama-server
 ```
 
-## Model installer
-
-`.\desktop\scripts\models.ps1` mirrors the server's `install-model.sh`, driven by `models/catalog.tsv`:
-
-```powershell
-.\desktop\scripts\models.ps1 -List                 # catalog summary
-.\desktop\scripts\models.ps1 -List embed           # just one group
-.\desktop\scripts\models.ps1 -Info glm4:9b         # one model detail
-.\desktop\scripts\models.ps1 -Group reasoner       # install a group
-.\desktop\scripts\models.ps1 -Profile              # install DEV_DESKTOP_MODELS
-.\desktop\scripts\models.ps1 -Pull deepseek-r1:14b -Context 16384   # bake a <tag>-Nk derived model
-.\desktop\scripts\models.ps1 -All -DryRun          # preview what "all" would install
-```
+After `.\desktop\scripts\install-opencode-profiles.ps1` runs once, `opencode server-llamacpp` and `opencode node3`
+work from any PowerShell window. Step-by-step first run: [docs/start-here.md](../docs/start-here.md).
 
 ## Files
 
-- `scripts/startup.ps1` — start desktop Ollama + models, bake `deepseek-r1-16k`, honor `DEV_TIERS_DESKTOP`
-- `scripts/startup.bat` — double-click launcher wrapper
-- `scripts/status.ps1` — check what's running
 - `scripts/opencode.ps1` — launch OpenCode with a profile's models (`-Profile <name>`)
 - `scripts/opencode-profiles.ps1` + `scripts/install-opencode-profiles.ps1` — `opencode <profile>` from any PowerShell
-- `scripts/models.ps1` — catalog-aware model installer (see above)
-- `scripts/sync-wezterm.ps1` — deploy the WezTerm config (`..\..\wezterm\wezterm.lua`) to `C:\Users\<you>\.wezterm.lua`
+- `scripts/opencode-standalone.ps1` — dot-sourced by `opencode.ps1`: OpenCode 2.x needs `--standalone` for a profile's env to reach it
+- `scripts/opencode-template.ps1` — shared helpers for staging the config template
 - `scripts/sync-opencode.ps1` — stage `opencode/global/opencode.jsonc` (+ agents, commands) into `~/.config/opencode/` on this machine, with a backup and a diff; `-Push <machine>` copies to another `opencode-client` machine (`machines.tsv`)
-- `scripts/pin-ollama-desktop.ps1` — **stop the native Ollama from silently
-  auto-upgrading.** The server's Ollama is pinned by its image tag; the desktop
-  is a native Inno Setup install whose tray app auto-updates, and upstream
-  refused a switch to disable it (ollama/ollama#9404), so this adds a Windows
-  Firewall outbound block on the updater. **Status: unverified — the desktop
-  auto-updated 0.34.0 → 0.34.1 on 2026-09-19 anyway**, so either the rule was
-  never applied or it did not hold. Check before relying on it, and re-run
-  `tests\test-toolcalls.ps1` after any version move.
-- `ollama/config.example.json` — Ollama config template (copy to `config.json`)
+- `scripts/sync-skills.ps1` — deploy vendored skills to OpenCode
+- `scripts/sync-wezterm.ps1` — deploy the WezTerm config (`..\..\wezterm\wezterm.lua`) to `C:\Users\<you>\.wezterm.lua`
+- `scripts/import-claude-skills.ps1` — vendor Claude plugin skills into this repo
+- `scripts/docker-stack.ps1`, `docker-base.ps1`, `docker-sandbox.ps1` — the CPU-only dev stack (Postgres + Redis), the shared dev base image and throwaway sandboxes ([docs/reference/config.md](../docs/reference/config.md) → "Desktop Docker")
+- `scripts/run-planner.ps1`, `run-planner-local.ps1`, `make-planner-packs.py`, `planner_done.py` — experiment 3's planner step ([docs/planner-tests-experiment.md](../docs/planner-tests-experiment.md))
+- `scripts/pull-household-backup.ps1` — copy the newest household tracker backup off the server
 
-## Notes
-
-- Per-model context is baked into each tag by `scripts/startup.ps1`
-  (`$contextModels`) via a Modelfile — `OLLAMA_CONTEXT_LENGTH` is honoured on
-  Windows since Ollama 0.34.0, but it is a single global default and cannot
-  give per-model control. Keep `limit.context` in `opencode.jsonc` in sync
-  with the bake.
-- Vulkan only: no vLLM/TensorRT/CUDA tooling; use the server (CUDA) for those experiments.
+The Ollama-era scripts (`startup.ps1`, `startup.bat`, `models.ps1`, `status.ps1`, `pin-ollama-desktop.ps1`) and the
+Ollama config template were deleted on 2026-11-21; they are in git history.

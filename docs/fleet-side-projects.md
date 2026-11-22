@@ -67,8 +67,9 @@ overlap a benchmark round.
 - **Cameras:** Frigate recording with GPU object detection.
 - **Media:** Jellyfin with NVENC hardware transcoding.
 - **Voice:** a local assistant from Home Assistant, Whisper, Piper and one of the fleet's LLMs.
-- **Document search:** RAG over local documents with the embedding models already in `models/catalog.tsv`
-  (`nomic-embed-text`, `mxbai-embed-large`).
+- **Document search:** RAG over local documents with an embedding model. `nomic-embed-text` and `mxbai-embed-large`
+  were Ollama-only and went with it on 2026-11-21; it would need a llama-server `--embedding` seat
+  ([reference/config.md](reference/config.md) → "What each host serves").
 - **Household assistant:** chat agents over a chore and maintenance tracker, for running the house. Planned on its
   own in [household-assistant.md](household-assistant.md) (2026-11-07).
 

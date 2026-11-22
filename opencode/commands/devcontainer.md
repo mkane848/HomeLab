@@ -7,7 +7,7 @@ description: Enter or run tooling inside a project's devcontainer (pinned Node 2
 Enter a project's dev environment without leaving OpenCode. Each project has a
 `.devcontainer/` that pins a Node 22 toolchain (built on the shared `dev-base:1`
 image from `dev/docker/dev.dockerfile` - node:22-bookworm + python3.12 + build
-tools). CPU-only; Ollama never runs in-container (desktop `.wslconfig` has
+tools). CPU-only; no model runs in-container (desktop `.wslconfig` has
 `gpuSupport=false`).
 
 ## Known projects

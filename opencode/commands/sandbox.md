@@ -5,8 +5,8 @@ description: Run a disposable scratch container for quick experiments (runtimes,
 # Docker Sandbox
 
 Spin up a throwaway container to experiment without touching the host. CPU-only
-(desktop `.wslconfig` has `gpuSupport=false` - no GPU passthrough - so Ollama
-stays native (Vulkan) and never runs here). Run via the regular **Bash tool with
+(desktop `.wslconfig` has `gpuSupport=false` - no GPU passthrough - and no
+model ever runs here; models are served by llama-server on the server and node3). Run via the regular **Bash tool with
 `docker` CLI** (gives us `--rm`/`--memory`/`--cpus`, which the docker MCP tools
 don't expose). The docker MCP is for managing the compose stack / inspection.
 
@@ -14,7 +14,7 @@ don't expose). The docker MCP is for managing the compose stack / inspection.
 
 - Always pass `--rm` - the container must self-destruct when done.
 - Always pass `--memory` (default `1g`) and `--cpus` (default `2`) so a runaway
-  sandbox can't starve host Ollama (32 GB RAM, ~7 GB free when loaded).
+  sandbox can't starve the host (32 GB RAM; OpenCode and the harness run there).
 - **Never mount sensitive host paths.** Default is no mount. If the user asks
   for a workdir, mount only that explicit path at `/workspace`. Never mount
   `~/.config/opencode/.secrets`, `desktop/docker/.env`, git-ignored env files,

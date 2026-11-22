@@ -126,6 +126,9 @@ with the acceptance test already written, and grade it mechanically.
 
 ## Machine roles
 
+**Since 2026-11-21 the desktop runs no models** (owner: Ollama removed, and its GPU has unresolved crashes); its
+model-host seats in the table below are not in use. The server and node3 serve everything, on llama-server.
+
 | Machine | Role | Seats (provisional) | Why |
 |---|---|---|---|
 | **Server** (4070 Ti Super 16 GB CUDA, 32 GB, always on) | **Main executor model host** (since 2026-10-12; the daily default since 2026-10-13; the llama.cpp twin `dev-workflow-server-llamacpp` since 2026-10-22). Serves the best executor model to every worker 24/7. In mode C it is also the local planner. **Not the dispatcher** (2026-10-13): the queue runs where the tools run, per the routing rule below. | `qwen3.6:35b-a3b-coding` @64k (13.6 of 22.7 GB in VRAM), with the CPU 3b for titles; `qwen3:8b` @32k. The llama.cpp trial ([llamacpp-trial.md](llamacpp-trial.md)) may change the engine, not the seat | The only machine built to be a server. CUDA opens llama.cpp-CUDA/vLLM. 32 GB RAM with no WSL cap or desktop apps is the best host for MoE spill. **CPU asymmetry:** its 3700X (8c/16t) is the weakest CPU in the fleet — it serves models and runs the queue, but CPU-bound work (worktrees, `pnpm install`, vitest) defaults to node3/desktop. |
@@ -157,11 +160,14 @@ routing between.
 
 ## Current build (2026-10-13)
 
+Ollama was removed from the fleet on 2026-11-21: llama-server is the only local engine and the desktop runs no models
+(it is the OpenCode client and the harness run host). Seats below that ran on Ollama are history.
+
 | Position | Seat | Evidence |
 |---|---|---|
 | Planner | Claude Code (mode B) in practice; the hosted orchestrator test waits for a Go budget | roadmap → "Hosted seats on the real tasks" |
 | Executor | `qwen3.6:35b-a3b-coding` @64k on the **server's llama-server** since 2026-10-22 (Ollama before), `-NudgeOnStop` | llama.cpp 54 of 60 on the 15 real tasks over four reps, Ollama 47 (read-budget plugin on); on Ollama, 9 of 15 tasks pass every run |
-| Executor fallback | the same seat on the desktop (`dev-workflow-quality`) | same weights; about half the speed |
+| Executor fallback | `qwen3.6:35b-a3b-coding` on node3's llama-server (on demand), or `qwen3:8b` there (`dev-node3`) | the desktop fallback (`dev-workflow-quality`) went with Ollama on 2026-11-21: the desktop runs no models |
 | Small / fast seat | `qwen3:8b` on node3 (and on the server) | probe PASS on both; its task record predates node3's settings fix ([roadmap → After the trial](roadmap.md#after-the-trial)) |
 | Run host | node3 or the desktop, whichever is free (both game PCs; since 2026-10-21) | the routing rule under "Machine roles"; node3's control round, 12 of 15 against the desktop's 47 of 60 (roadmap → step 5) |
 | Retired as executors | `qwen3.5:9b` (overflow crashes in half its work-package runs, 2026-10-13); `ministral-3:8b`, `lfm2.5:8b`, `ornith:9b` (below) | roadmap → "Next up" step 7 |
