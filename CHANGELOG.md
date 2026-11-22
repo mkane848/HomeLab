@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: OpenCode 2.x goes on after an automatic compaction by itself (2026-11-21; migration step 4.1).**
+  - **The run:** one `kane-07` run on the server's `llamacpp-server/qwen3.6` (the desktop's GPU stayed idle), with the
+    desktop's OpenCode 2.3.2 and no plugins.
+  - **Result:** five compactions, and after each one the session kept making tool calls with no nudge (71 steps,
+    93 tool calls, 0 errors) until the 45-minute timeout. So `compaction-continue` is not ported (step 4.3).
+  - **Files:** the transcripts are in `tests/results/oc2-compaction/`, a new era kept out of the main summary. The
+    first attempt's `INFRA` transcript is the evidence for PR #254.
+  - **Caveats:** n = 1, not graded (timeout), and frequent compactions with no read cap. Re-measure with the 2.x
+    `read-budget`.
 - **tests: the rest of step 3, the Go gate, the window, sync and ripgrep on OpenCode 2.x (2026-11-21).**
   - **Go listing and spend move into the adapter.** `run-tasks-batch.ps1` no longer calls `opencode`, and
     `test-agent-adapter` now enforces that.
