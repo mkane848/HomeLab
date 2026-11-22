@@ -82,7 +82,7 @@ $out = & $psExe -NoProfile -File $tt -Task asohav-05-library-write-validation -D
 Check "test-tasks.ps1 exits 1"                    $LASTEXITCODE 1
 Check "...saying the task is retired and why"     ($out -match 'asohav-05-library-write-validation is retired \(2026-10-03\)') "True"
 Check "...and how to override"                    ($out -match '-IncludeRetired') "True"
-$out = & $psExe -NoProfile -File $rb -SkipSetup -Mode Tasks -Tasks asohav-06-bond-cap-setting -Models ollama-desktop/none -Reps 1 -Yes 2>&1 | Out-String
+$out = & $psExe -NoProfile -File $rb -SkipSetup -Mode Tasks -Tasks asohav-06-bond-cap-setting -Models llamacpp-server/none -Reps 1 -Yes 2>&1 | Out-String
 Check "run-tasks-batch.ps1 exits 1"               $LASTEXITCODE 1
 Check "...saying the task is retired"             ($out -match 'asohav-06-bond-cap-setting is retired') "True"
 Check "...before starting any run"                ($out -match '>>> \[') "False"

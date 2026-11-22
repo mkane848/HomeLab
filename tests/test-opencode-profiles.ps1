@@ -93,8 +93,8 @@ try {
 
     opencode quality
     Check "opencode quality -> launcher" (Last) "launcher profile=dev-workflow-quality nowarm=False args="
-    opencode resident run "fix the bug in a.ts" --model ollama-desktop/qwen3:8b
-    Check "args after the name pass through intact" (Last) "launcher profile=dev-workflow-resident nowarm=False args=run|fix the bug in a.ts|--model|ollama-desktop/qwen3:8b"
+    opencode resident run "fix the bug in a.ts" --model llamacpp-server/qwen3:8b
+    Check "args after the name pass through intact" (Last) "launcher profile=dev-workflow-resident nowarm=False args=run|fix the bug in a.ts|--model|llamacpp-server/qwen3:8b"
     opencode quality -NoWarm
     Check "launcher switches still bind" (Last) "launcher profile=dev-workflow-quality nowarm=True args="
     $env:OPENCODE_MODEL = "sentinel"

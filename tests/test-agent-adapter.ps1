@@ -178,7 +178,7 @@ function Read-AgentEvents {
 '@ | Set-Content -LiteralPath (Join-Path $e2e "tests/agents/fixture.ps1")
     $env:FIXTURE_AGENT_CALLS = Join-Path $tmp "calls.txt"
     try {
-        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Agent fixture -Task fx-agent -Model fixture/m -SkipInstall -RunTimeout 60 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $log = & (Join-Path $e2e "tests/test-tasks.ps1") -Agent fixture -Task fx-agent -Model fixture/m -SkipInstall -RunTimeout 60 *>&1 | Out-String
         $missing = & (Join-Path $e2e "tests/test-tasks.ps1") -Agent nosuch -Task fx-agent -Model fixture/m -SkipInstall *>&1 | Out-String
         $missingExit = $LASTEXITCODE
     } finally {

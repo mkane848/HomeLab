@@ -22,8 +22,8 @@ gpt-oss:20b	65536	-	-	sha256:8ecb5d4ad6172c63f9cbf1a07a04e525985a8a11a6e516da02b
 north-mini-code	65536	-	-	sha256:86ba9cf324a1cf53687872abdda3861e3304bfd25d1f606f92a6641017ecbc6e	import	candidate (2026-11-02): Cohere North Mini Code 1.0, unsloth UD-Q4_K_XL GGUF in ~/models (not an Ollama blob); llama.cpp seat only, not resident beside qwen3.6
 #
 # Candidates, NOT installed on the server yet. Uncomment a row only after probing that tag on this host
-# (tests/test-toolcalls.ps1 -OllamaHost http://SERVER_IP:11434 -HostLabel server). Weights hashes were read from
-# the desktop copies on 2026-10-10.
+# (tests/test-toolcalls.ps1 -EngineHost http://SERVER_IP:8090 -HostLabel server). Weights hashes were read from
+# the desktop copies on 2026-10-10 (Ollama blobs then; put the GGUF in ~/models before seating one).
 # qwen3:14b	32768	-	-	sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e	pull	former main seat; control runs
 # qwen3.5:9b	65536	-	-	sha256:096a84703a334662086e4b46b6a4dd896bad10a46f67cd84a53cfe1420b24717	import	fast executor (Q8_0); half its work-package runs crash on overflow
 # qwen3-coder:30b-a3b	65536	-	-	sha256:79ad15a5ee3caddc3f4ff0db33a14454a5a3eb503d7fa1c1e35feafc579de486	import	review-gate auditor seat

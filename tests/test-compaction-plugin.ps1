@@ -115,11 +115,11 @@ exit 0
     $tt = Join-Path $tmp "tests/test-tasks.ps1"
     try {
         $env:FIXTURE_PLUGINS = "1"
-        $withOut = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
+        $withOut = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "with") *>&1 | Out-String
         Remove-Item Env:FIXTURE_PLUGINS
         $leaked = [Environment]::GetEnvironmentVariable("HOMELAB_COMPACTION_PLUGIN_LOG")
         $leakedIdle = [Environment]::GetEnvironmentVariable("HOMELAB_COMPACTION_IDLE_CONTINUE")
-        $null = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $tmp "no-log") -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
+        $null = & $tt -Task fx-plugin -Model fixture/m -SkipInstall -RunTimeout 120 -ResultsDir (Join-Path $tmp "without") *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
         Remove-Item Env:FIXTURE_SEEN, Env:FIXTURE_PLUGINS -ErrorAction SilentlyContinue

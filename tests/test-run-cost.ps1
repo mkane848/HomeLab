@@ -117,8 +117,8 @@ exit 0
     $origPath = $env:PATH
     $env:PATH = "$bin;$env:PATH"
     try {
-        $out = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-cost -Model opencode-go/full -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
-        $null = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-cost -Model fixture/local -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $out = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-cost -Model opencode-go/full -SkipInstall -RunTimeout 120 *>&1 | Out-String
+        $null = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-cost -Model fixture/local -SkipInstall -RunTimeout 120 *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
     }

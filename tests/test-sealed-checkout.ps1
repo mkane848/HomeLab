@@ -142,7 +142,7 @@ function Read-AgentEvents {
     function Invoke-Run([string]$Prev) {
         $env:FX_PROBE = Join-Path $tmp ("probe-" + [guid]::NewGuid().ToString("N") + ".json")
         $env:FX_PREV = $Prev
-        $log = & $harness -Agent fixture -Task fx-seal -Model fixture/m -SkipInstall -RunTimeout 60 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $log = & $harness -Agent fixture -Task fx-seal -Model fixture/m -SkipInstall -RunTimeout 60 *>&1 | Out-String
         $probe = if (Test-Path -LiteralPath $env:FX_PROBE) { Get-Content -Raw -LiteralPath $env:FX_PROBE | ConvertFrom-Json } else { $null }
         $json = Get-ChildItem (Join-Path $e2e "tests/results") -Filter "tasks-fx-seal-*.json" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
         $j = if ($json) { Get-Content -Raw -LiteralPath $json.FullName | ConvertFrom-Json } else { $null }

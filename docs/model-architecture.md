@@ -1,134 +1,54 @@
 # Model Architecture
 
-> **⚠ STALE — written before the 2026-09-17 tool-calling finding. Do not use
-> this page to choose a seat.**
+> **Rewritten 2026-11-22** for a llama.cpp-only fleet: Ollama was removed on 2026-11-21, and the desktop runs no
+> models. The earlier three-tier page (Qwen Coder on the server, DeepSeek-R1 on the desktop, catalog groups) predated
+> the 2026-09-17 tool-calling finding and was marked stale; it is in git history.
 >
-> This page predates the 2026-09-17 tool-calling measurement (`qwen2.5-coder`
-> and `deepseek-r1` cannot emit parseable tool calls; the passing set has since
-> grown; see [tool-calling.md](tool-calling.md)). It still presents
-> `deepseek-r1-16k` and the `qwen2.5-coder` family as working seats; none of
-> them can call a tool, and an agent seated on one will claim edits it never
-> made. It also never mentions `qwen3:14b` (the default main seat 2026-09-17 to
-> 2026-10-03) or `qwen3.6:35b-a3b-coding` (the default since).
->
-> Current sources of truth:
-> - **Which models can be agent seats** → [start-here.md](start-here.md) →
->   "not every model can use tools", and `tests/results/toolcalls-0.34.1.txt`
-> - **What each live profile seats** → [profiles.md](profiles.md)
-> - **Measured runtime VRAM** → [hardware.md](hardware.md)
->
-> Kept for the host/tier layout and the cloud tier, which are still accurate.
-> Rewriting it is tracked in [roadmap.md](roadmap.md).
-
-Three-tier LLM deployment across server, desktop, and (optionally) cloud. After the Sep 2026 server upgrade the fleet gained a second capable GPU host.
+> Sources of truth: which models can be agent seats → [tool-calling.md](tool-calling.md); what each live profile
+> seats → [profiles.md](profiles.md); measured runtime VRAM → [hardware.md](hardware.md).
 
 ## Overview
 
 ```
-                     ┌────────────────────────────────────────┐
-                     │    WezTerm Terminal UI (OpenCode CLI)  │
-                     └────┬───────────────────────┬───────────┘
-                          │                       │
-          Local LAN (X4)  │        Local Server   │           Cloud API
-                          ▼                       ▼               ▼
-┌──────────────────────────────┐ ┌───────────────────┐ ┌───────────────┐
-│    DESKTOP (Vulkan, 6800XT)  │ │  SERVER (CUDA,     │ │  CLOUD AGENT  │
-│   native Windows Ollama      │ │   4070 Ti Super)   │ │  OpenCode Go  │
-│   DeepSeek-R1 14B (16k ctx)  │ │  Qwen Coder 7B/14B │ │  (open models)│
-│   + qwen2.5-coder:7b         │ │  DeepSeek-R1 14B   │ │ (Low-cost,    │
-│   + glm4:9b                  │ │  Qwen3 8B/14B      │ │  reliable)    │
-│   + embed models             │ │  + general/creative│ │               │
-└──────────────────────────────┘ └───────────────────┘ └───────────────┘
-                   ┌───────────────────────────┐
-                   │   THIRD NODE (live)        │
-                   │   RTX 3080 FE, CUDA 10GB  │
-                   │   qwen3:8b + glm4:9b      │
-                   └───────────────────────────┘
+                 ┌─────────────────────────────────────────────┐
+                 │  DESKTOP: OpenCode client, harness run host │
+                 │  (runs no models since 2026-11-21)          │
+                 └──────┬──────────────────┬───────────────┬───┘
+                        │ LAN              │ LAN           │ internet
+                        ▼                  ▼               ▼
+┌─────────────────────────────┐ ┌──────────────────────┐ ┌───────────────┐
+│ SERVER (CUDA, 4070 Ti Super)│ │ NODE3 (CUDA, 3080 FE)│ │  OpenCode Go  │
+│ llama-server, Docker, :8090 │ │ llama-server, :8090  │ │ hosted models │
+│ qwen3.6:35b-a3b-coding      │ │ qwen3:8b             │ │               │
+│ + qwen2.5-coder-3b-cpu      │ │ + qwen3.6 on demand  │ │               │
+│ + qwen3:8b, gpt-oss, ...    │ │                      │ │               │
+└─────────────────────────────┘ └──────────────────────┘ └───────────────┘
 ```
 
-Every Ollama-capable machine is a node, reachable by OpenCode through a per-host `ollama-*` provider (`ollama-server`, `ollama-desktop`, `ollama-node3`). Which node runs what is decided by the active **profile** — see `docs/profiles.md`.
+Every model host runs llama.cpp's `llama-server` in router mode, and OpenCode reaches each through one provider per
+host (`llamacpp-server`, `llamacpp-node3`); the hosted tier is the `opencode-go` provider. Which host runs what is
+decided by the active **profile** — see [profiles.md](profiles.md).
 
 ## Nodes
 
-| Tier | Host | GPU | Models (catalog groups) | Default via profile |
-|------|------|-----|--------------------------|---------------------|
-| Local coder | Server (Docker Ollama, CUDA) | 4070 Ti Super 16 GB | `autocomplete` (Qwen 7B) · `coder` (Qwen 14B) · `reasoner` (DeepSeek 14B, Qwen3) · `general creative embed` | `dev-coder`, `dev-server-all` |
-| Local reasoner | Desktop (native Ollama, Vulkan) | RX 6800 XT 16 GB | `reasoner` (DeepSeek-R1 14B via `deepseek-r1-16k` bake) · Qwen Coder 7B · GLM4 9B · embeddings | `dev-local-only` |
-| Third node | node3 (CUDA, onboarded 2026-09-20) | RTX 3080 FE 10 GB | `general embed` (Qwen3 8B, GLM4 9B) | `dev-node3` |
-| Cloud | OpenCode Go API | N/A | DeepSeek V4, Qwen3.x, Kimi, GLM + more | `dev-go-only`, `dev-full` |
+| Host | Engine | GPU | Seats | Profile |
+|------|--------|-----|-------|---------|
+| Server | llama-server in Docker (`server/docker/docker-compose.llamacpp.yml`), preset `server/llamacpp/models.ini` | RTX 4070 Ti Super 16 GB (+ CPU for `qwen3.6`'s experts and the 3b) | `qwen3.6:35b-a3b-coding` (main seat), `qwen2.5-coder-3b-cpu` (small model), `qwen3:8b`, `gpt-oss:20b`, `north-mini-code`, the household vision seats — `models/server-seats.tsv` | `dev-workflow-server-llamacpp` (default) |
+| node3 | native llama-server (b11562), preset `node3/llamacpp/models.ini`; 127.0.0.1 until its LAN firewall rule | RTX 3080 FE 10 GB | `qwen3:8b`, `qwen3.6:35b-a3b-coding` on demand | `dev-node3` |
+| Desktop | none | RX 6800 XT 16 GB, not used for models | — (OpenCode client, harness run host) | — |
+| Cloud | OpenCode Go API (`opencode.ai/zen/go/v1`) | N/A | DeepSeek V4, Qwen3.x, Kimi, GLM and more | `dev-go-only` (parked) |
 
-## Tier Details
+## Model selection
 
-### Tier 1: Local Coder (Server — Qwen 2.5 Coder 7B / 14B)
+| Task | Seat | Why |
+|------|------|-----|
+| Everyday coding, `/plan` → execute | `qwen3.6:35b-a3b-coding` on the server | the main seat; leads the real-repo task benchmark ([roadmap.md](roadmap.md) → "Executor standings") |
+| Lighter or second seat | `qwen3:8b` on node3 (or the server) | tool-capable, fits 10 GB |
+| Session titles | `qwen2.5-coder-3b-cpu` | on the CPU, so it never competes with the main seat for VRAM; cannot call tools |
+| A model you can't host locally | OpenCode Go | hosted; ask before sending repos or spending usage |
+| Embeddings | none today | `nomic-embed-text` / `mxbai-embed-large` were Ollama-only and went with it; a future llama-server `--embedding` seat ([reference/config.md](reference/config.md)) |
 
-| Property | Value |
-|----------|-------|
-| Models | `qwen2.5-coder:7b`, `qwen2.5-coder:14b` |
-| Host | Ubuntu server, Docker container |
-| GPU | RTX 4070 Ti Super (16 GB VRAM) — was GTX 1070 |
-| Purpose | Fast, free, infinite autocomplete + mid-weight coding |
-| Cost | $0 |
-| Latency | ~50–150ms (7B); ~150–400ms (14B) |
-
-**Best for**: Code completion, quick suggestions, autocomplete, straightforward edits.
-The 14B does most single-file work comfortably at full 16k context.
-
-### Tier 2: Local Reasoner (Desktop — DeepSeek-R1 14B)
-
-| Property | Value |
-|----------|-------|
-| Model | `deepseek-r1-16k` (derived from `deepseek-r1:14b` via Modelfile) |
-| Host | Windows 11, native Ollama on the Vulkan backend (not ROCm - see docs/hardware.md) |
-| GPU | RX 6800 XT (16 GB VRAM) |
-| Purpose | Deep chain-of-thought, multi-file editing |
-| Cost | $0 |
-| Latency | ~200–500ms |
-| Context | 16384 (baked in via `PARAMETER num_ctx`; created by `desktop/scripts/startup.ps1`) |
-
-**Best for**: Architectural decisions, debugging complex issues, planning multi-file refactors.
-Since the server upgrade, `dev-server-all` can run this same model on the server instead (CUDA), freeing the desktop.
-
-### Tier 3: Cloud Agent (OpenCode Go)
-
-| Property | Value |
-|----------|-------|
-| Models | DeepSeek V4, Qwen3.x, Kimi, GLM, and more |
-| Host | OpenCode Go API (`opencode.ai/zen/go/v1`) |
-| GPU | N/A |
-| Purpose | Test models you can't run locally + reliable cloud coding |
-| Cost | Subscription |
-| Latency | ~1–3s |
-
-**Best for**: Evaluating a model before pulling it locally, large feature generation,
-complex refactors, final review.
-
-## Model Selection Guide
-
-| Task | Recommended Tier | Why |
-|------|------------------|-----|
-| Autocomplete | Qwen 7B (server) | Fast, free, no latency |
-| Single-file coding at 16k | Qwen 14B (server) | Deep context, fast on CUDA |
-| Bug investigation | DeepSeek (Tier 2) | Good reasoning, local, free |
-| Testing a new model | OpenCode Go (Tier 3) | Run models you can't host locally |
-| Multi-file refactor | Go models (Tier 3) | High quality open models |
-| Semantic search / embeddings | Server embed group | `nomic-embed-text`, `mxbai-embed-large` |
-| Architecture planning | DeepSeek (Tier 2) or Go | Deep thinking |
-| Code review | Go models (Tier 3) | Thorough analysis |
-
-## Switching Between Tiers
-
-Use profiles to select which tiers are active (see `docs/profiles.md`):
-
-```bash
-bash profiles/select-model.sh          # menu-driven
-source profiles/parked/dev-server-all.sh      # coder + reasoner on the server
-source profiles/parked/dev-local-only.sh      # Qwen server + DeepSeek desktop, zero cloud
-source profiles/parked/dev-embeddings.sh      # autocomplete + embeddings for search work
-source profiles/parked/dev-go-only.sh         # Qwen + OpenCode Go for cloud testing
-```
-
-These four are parked (`profiles/parked/README.md`); the live profiles are in [profiles.md](profiles.md).
-
-The active profile sets environment variables that the startup scripts and
-OpenCode config use to determine which models are available. OpenCode model IDs
-follow `<host>/<tag>`: `ollama-server/qwen2.5-coder:14b`, `ollama-desktop/deepseek-r1-16k`.
+Only a seat that passes the tool-call probe (`.\tests\test-toolcalls.ps1 -Engine llamacpp -EngineHost
+http://SERVER_IP:8090 -Model <tag>`) and shows task-loop evidence may be an agent seat. OpenCode model IDs follow
+`<provider>/<tag>`: `llamacpp-server/qwen3.6:35b-a3b-coding`, `llamacpp-node3/qwen3:8b`. Adding a model:
+[reference/config.md](reference/config.md) → "Adding a model".

@@ -1,5 +1,5 @@
-# protects: Get-OverflowRecovery: recovered llama.cpp context overflows
-# run-after: How a run's exit is classified
+# protects: Get-OverflowRecovery: recovered llama.cpp context overflows; adapter-reported prompt loss (_TRUNCATED_) and GPU device loss (gpuResets)
+# run-after: How a run's exit is classified or an engine adapter's log check changes
 # test-overflow-recovery.ps1 - regression guard for runs that recovered from an
 # explicit context overflow (Get-OverflowRecovery, Resolve-RecoveredOverflow in
 # test-tasks.ps1)
@@ -18,11 +18,20 @@
 #   2. the real C2 transcript, when this machine has the private results;
 #   3. the REAL test-tasks.ps1 end to end against a fixture repo with a stand-in
 #      opencode: a recovered run (graded, row, overflowRecovery, a context WARN
-#      that names the explicit refusals and not an Ollama drop), an overflow the
+#      that names the explicit refusals and no silent drop), an overflow the
 #      session never finished after (_CTXEXCEEDED_, says so; tests/test-context-exceeded.ps1), another error (_INFRA_), and a
 #      clean run (no overflowRecovery);
 #   4. a control: the same run with the hook removed must leave the recovered run
-#      ungraded, or this guard is not testing the hook.
+#      ungraded, or this guard is not testing the hook;
+#   5. the outcomes an engine adapter reports from its own log (moved here from
+#      test-prompt-truncation.ps1 and test-gpu-device-loss.ps1 when Ollama, whose
+#      server.log fed both, was removed on 2026-11-21). llama.cpp's adapter has
+#      neither (prompt loss "not applicable", device loss "not checked"), and the
+#      clean run in 3 records that. The harness paths stay engine-neutral, so a
+#      fixture adapter (the real llamacpp.ps1 with three functions overridden to
+#      read a fixture log) drives them: a silently cut prompt is a _TRUNCATED_
+#      FAIL with no row; a GPU device loss is a WARN, the run still graded and
+#      `gpuResets` recorded; an old event in the log is blamed on no run.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-overflow-recovery.ps1 [-ScriptPath <a test-tasks.ps1>]
@@ -108,12 +117,16 @@ try {
     }
 
     # --- 3. and 4. the real harness, end to end -----------------------------------
-    function Invoke-Harness([string]$harnessPath, [string]$root) {
-        foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
+    function Invoke-Harness([string]$harnessPath, [string]$root, [string[]]$TaskIds = @("fx-recovered", "fx-dead", "fx-other", "fx-clean"), [string]$EngineOverride = "") {
+        foreach ($d in @("tests/tasks", "bin", "repo", "engine-log")) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
         Copy-Item -LiteralPath $harnessPath -Destination (Join-Path $root "tests/test-tasks.ps1")
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "agents") -Destination (Join-Path $root "tests") -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "engines") -Destination (Join-Path $root "tests") -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination (Join-Path $root "tests") -Recurse -Force
+        # The fixture's copy of the adapter only: later definitions win when it is dot-sourced.
+        if ($EngineOverride) { Add-Content -LiteralPath (Join-Path $root "tests/engines/llamacpp.ps1") -Value $EngineOverride }
+        # Events from before the run, which no run may be blamed for.
+        Set-Content -LiteralPath (Join-Path $root "engine-log/engine.log") -Value @("2026-10-03T16:41:00.0000000-04:00 truncated prompt=83886 limit=32770", "2026-10-24T20:53:40.0000000-04:00 device lost on Vulkan0")
         $repo = Join-Path $root "repo"
         git -C $repo init -q
         git -C $repo config user.email "t@example.invalid"
@@ -129,7 +142,7 @@ Write-Host "Tests  1 passed (1)"; exit 0
         git -C $repo commit -q -m base
         $base = (git -C $repo rev-parse HEAD).Trim()
         $psExe = (Get-Process -Id $PID).Path
-        $tasks = foreach ($id in "fx-recovered", "fx-dead", "fx-other", "fx-clean") {
+        $tasks = foreach ($id in $TaskIds) {
             [ordered]@{
                 id = $id; title = $id; repo = $repo; branch = "bench/$id"; benchBaseCommit = $base
                 baselineExpect = @{ testsTotal = 1; testsPass = 1 }
@@ -155,6 +168,10 @@ if ($a[0] -eq 'run') {
     $stop = '{"type":"step_finish","part":{"reason":"stop","tokens":{"output":5}}}'
     $over = '{"type":"error","sessionID":"s1","error":{"name":"ContextOverflowError","data":{"message":"request (70000 tokens) exceeds the available context size (65536 tokens), try increasing it"}}}'
     $api  = '{"type":"error","sessionID":"s1","error":{"name":"APIError","data":{"message":"Cannot connect to API"}}}'
+    # What the fixture engine logs during the run, stamped now (section 5).
+    $log = Join-Path $env:FIXTURE_ENGINELOG 'engine.log'
+    if ($id -eq 'fx-truncated') { Add-Content -LiteralPath $log -Value "$([DateTimeOffset]::Now.ToString('o')) truncated prompt=83886 limit=32770" }
+    if ($id -eq 'fx-reset')     { Add-Content -LiteralPath $log -Value "$([DateTimeOffset]::Now.ToString('o')) device lost on Vulkan0" }
     switch ($id) {
         'fx-recovered' { $over; $over; $start; $edits; $stop; exit 1 }
         'fx-dead'      { $start; $edits; $over; exit 1 }
@@ -168,10 +185,12 @@ exit 2
         "@echo off`r`n`"$psExe`" -NoProfile -File `"$bin\standin.ps1`" %*" | Set-Content -LiteralPath (Join-Path $bin "opencode.cmd") -Encoding ascii
         $origPath = $env:PATH
         $env:PATH = "$bin;$env:PATH"
+        $env:FIXTURE_ENGINELOG = Join-Path $root "engine-log"
         try {
-            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task fx-recovered, fx-dead, fx-other, fx-clean -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $root "no-log") *>&1 | Out-String
+            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task $TaskIds -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
         } finally {
             $env:PATH = $origPath
+            Remove-Item Env:FIXTURE_ENGINELOG -ErrorAction SilentlyContinue
         }
         $results = Join-Path $root "tests/results"
         [pscustomobject]@{
@@ -205,6 +224,12 @@ exit 2
     Write-Host "-- end to end: a clean run"
     Check "graded"                                                     ([bool](Row $h "fx-clean")) "True"
     Check "overflowRecovery is null"                                   ($null -eq (Json $h "fx-clean").overflowRecovery) "True"
+    # The real llama.cpp adapter: no engine log to read, and a run says so rather than "none".
+    $cj = Json $h "fx-clean"
+    Check "the llama.cpp adapter: promptTruncation not applicable"     ($cj.promptTruncation -like "not applicable: refused explicitly*") "True"
+    Check "...gpuResets not checked, no events"                        ("{0} {1} {2}" -f $cj.gpuResets.checked, @($cj.gpuResets.events | Where-Object { $_ }).Count, ($cj.gpuResets.note -like "not checked*")) "False 0 True"
+    Check "...a fixture provider's engine record is 'unknown', nothing borrowed" ("{0} {1} {2}" -f $cj.engine.name, ($null -eq $cj.engine.version), $cj.servingEngine.provider) "unknown True fixture"
+    Check "...and ollamaVersion is null (kept so older files compare)" ($null -eq $cj.ollamaVersion) "True"
 
     Write-Host "-- control: the same harness with the hook removed"
     $noHook = Join-Path $tmp "no-hook.ps1"
@@ -214,6 +239,50 @@ exit 2
     [IO.File]::WriteAllText($noHook, $stripped)
     $c = Invoke-Harness $noHook (Join-Path $tmp "control")
     Check "without the hook the recovered run gets no row (guard bites)" ([bool](Row $c "fx-recovered")) "False"
+
+    # --- 5. outcomes an engine adapter reports from its own log ------------------
+    $override = @'
+
+# --- fixture override (tests/test-overflow-recovery.ps1): an engine whose log shows a
+# silently cut prompt and a lost GPU device, as Ollama's server.log did until 2026-11-21.
+function Read-FixtureEngineLog([string]$Dir, [string]$What, [DateTimeOffset]$Since, [DateTimeOffset]$Until) {
+    @(Get-Content -LiteralPath (Join-Path $Dir 'engine.log') -ErrorAction SilentlyContinue | Where-Object {
+        $_ -match "^(\S+) $What" -and [DateTimeOffset]::Parse($Matches[1]) -ge $Since -and [DateTimeOffset]::Parse($Matches[1]) -le $Until })
+}
+function Get-EnginePromptLossSetup {
+    param([string]$Root, [string]$ProviderId)
+    [pscustomobject]@{ Enabled = $true; LogDir = $env:FIXTURE_ENGINELOG; Description = "checked the fixture engine log" }
+}
+function Get-EnginePromptLoss {
+    param($Setup, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    Read-FixtureEngineLog $Setup.LogDir 'truncated' $Since $Until
+}
+function Get-EnginePromptLossText {
+    param($Hits)
+    "the fixture engine cut {0} prompt(s) silently" -f @($Hits).Count
+}
+function Get-EngineDeviceLoss {
+    param($Setup, [DateTimeOffset]$Since, [DateTimeOffset]$Until)
+    $e = Read-FixtureEngineLog $Setup.LogDir 'device lost' $Since $Until
+    [pscustomobject]@{ Checked = $true; Events = @($e); Note = "checked the fixture engine log" }
+}
+'@
+    $a = Invoke-Harness $ScriptPath (Join-Path $tmp "adapter-log") -TaskIds @("fx-truncated", "fx-reset", "fx-clean") -EngineOverride $override
+    Write-Host "-- adapter log: a prompt the engine cut silently"
+    Check "no summary row"                                             ([bool](Row $a "fx-truncated")) "False"
+    Check "a _TRUNCATED_ transcript, not _INFRA_"                      ("{0} {1}" -f @(Get-ChildItem $a.Results -Filter "tasks-fx-truncated-*_TRUNCATED_*.jsonl").Count, (Infra $a "fx-truncated")) "1 0"
+    Check "no graded run JSON"                                         @(Get-ChildItem $a.Results -Filter "tasks-fx-truncated-*.json").Count 0
+    Check "the FAIL names the adapter's text and says it is not graded" ($a.Output -match 'the fixture engine cut 1 prompt\(s\) silently: the model did not see the whole system prompt.*not graded, no summary row') "True"
+    Write-Host "-- adapter log: a GPU device lost during the run"
+    Check "still graded (one summary row)"                             ([bool](Row $a "fx-reset")) "True"
+    Check "a gpu device WARN naming one loss"                          ($a.Output -match '(?s)\[WARN\]\s+gpu device\s+->\s*the GPU device was lost 1 time\(s\) during the run') "True"
+    $rj = Json $a "fx-reset"
+    Check "gpuResets records it, as checked"                           ("{0} {1}" -f $rj.gpuResets.checked, @($rj.gpuResets.events | Where-Object { $_ -like "*device lost*" }).Count) "True 1"
+    Write-Host "-- adapter log: a clean run beside an old event of each kind"
+    Check "graded (one summary row)"                                   ([bool](Row $a "fx-clean")) "True"
+    $cj = Json $a "fx-clean"
+    Check "gpuResets checked, no event (the old one is not blamed)"     ("{0} {1}" -f $cj.gpuResets.checked, @($cj.gpuResets.events | Where-Object { $_ }).Count) "True 0"
+    Check "promptTruncation records the check and none during the run" $cj.promptTruncation "checked the fixture engine log - none during the run"
 } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

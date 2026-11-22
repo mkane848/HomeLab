@@ -123,7 +123,7 @@ check("a tool part is not it", isContinuePart({ type: "tool", tool: "read" }), f
 // --- the idle continue: when a stopped session gets CONTINUE_TEXT ---
 const { idleDecision, asksOwner, isIdleContinueMessage, IDLE_CONTINUE_MAX } = mod
 const U = (text, extra = {}) => ({ info: { role: "user", agent: "build", model: { providerID: "p", modelID: "m" } }, parts: [{ type: "text", text, ...extra }] })
-const CONT = () => ({ info: { role: "user", agent: "build", model: { providerID: "ollama-desktop", modelID: "qwen3.6" } },
+const CONT = () => ({ info: { role: "user", agent: "build", model: { providerID: "llamacpp-server", modelID: "qwen3.6" } },
   parts: [{ type: "text", synthetic: true, metadata: { compaction_continue: true }, text: "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed." }] })
 const SUMMARY = () => ({ info: { role: "assistant", summary: true, finish: "stop" }, parts: [{ type: "text", text: "## Goal ..." }] })
 const A = (text, extra = {}) => ({ info: { role: "assistant", finish: "stop", ...extra }, parts: text === null ? [] : [{ type: "text", text }] })

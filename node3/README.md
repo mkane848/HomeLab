@@ -1,12 +1,14 @@
 # node3: llama-server
 
 node3 (RTX 3080 FE 10 GB, Ryzen 9 5950X) is the fleet's run host first. This folder is its model-host half on
-llama.cpp: "Replacing Ollama" Phase 5 in [`docs/roadmap.md`](../docs/roadmap.md), started 2026-10-31. Ollama keeps
-running beside it until Phase 6.
+llama.cpp: "Replacing Ollama" Phase 5 in [`docs/roadmap.md`](../docs/roadmap.md), started 2026-10-31. Since Ollama was
+removed from the fleet on 2026-11-21, llama-server is node3's only engine. (Ollama is still installed on node3 until the
+owner confirms its uninstall; nothing uses it. After that change lands, node3 needs a `git pull` and a llama-server
+restart: [`docs/roadmap.md`](../docs/roadmap.md) → "Ollama removed (2026-11-21)".)
 
 | File | What |
 |---|---|
-| [`llamacpp/models.ini`](llamacpp/models.ini) | the router preset: `qwen3:8b` (same weights and sampling as node3's Ollama copy and the server's seat) and, since 2026-11-03, `qwen3.6:35b-a3b-coding` as a second agent seat loaded on demand (below) |
+| [`llamacpp/models.ini`](llamacpp/models.ini) | the router preset: `qwen3:8b` (same weights and sampling as the server's seat) and, since 2026-11-03, `qwen3.6:35b-a3b-coding` as a second agent seat loaded on demand (below) |
 | [`scripts/start-llama-server.ps1`](scripts/start-llama-server.ps1) | registers the scheduled task `HomeLab-llamacpp` (starts at boot) and starts it; `-Lan` to listen on the LAN, `-Stop` to remove it |
 
 ## Install
@@ -23,16 +25,18 @@ checking them against the digests GitHub publishes for them:
 
 Then, from this checkout on node3: `pwsh -File node3\scripts\start-llama-server.ps1`.
 
-The preset's `model` path is node3's own Ollama blob (`C:\Users\<user>\.ollama\models\blobs\sha256-a3de86…`, with the real profile name in `node3/llamacpp/models.ini`): the same
-bytes as the server's `qwen3:8b` seat (`models/server-seats.tsv`), so a difference in results is the engine, not the
-weights.
+The preset's `model` path is `C:\HomeLab\models\qwen3-8b.gguf`, a byte copy of node3's former Ollama blob made on
+2026-11-21 (sha256 `a3de86…`, checked): the same bytes as the server's `qwen3:8b` seat (`models/server-seats.tsv`), so
+a difference in results is the engine, not the weights. To add a model here, copy its GGUF into `C:\HomeLab\models`,
+add a section to `llamacpp/models.ini` (explicit `c`), restart the task (below), and probe it on node3:
+`.\tests\test-toolcalls.ps1 -Engine llamacpp -EngineHost http://127.0.0.1:8090 -Model <tag>`.
 
 ## `qwen3.6` as a second seat, on demand (2026-11-03)
 
 The server's main seat also runs here, on the 3080: same weights, sampling and thinking budget, with `n-cpu-moe 32`
 and a 4,096 batch, measured best (987 to 1,227 tok/s prefill, 64 to 68 decode; `docs/roadmap.md`). The GGUF is the
 server's Ollama blob copied to `C:\HomeLab\models\qwen3.6-35b-a3b-coding.gguf` (21.7 GB; sha256 `d372de8e…`, checked
-at both ends), because node3's Ollama has no `qwen3.6`.
+at both ends), because node3's Ollama never had `qwen3.6`.
 
 Nothing holds the card between uses: the router loads the seat at a window's first request (about 7 s) and the
 window unloads it when it ends. node3 is also the family's gaming PC, and their use wins: a window started with

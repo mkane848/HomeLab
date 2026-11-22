@@ -6,7 +6,7 @@ An agent reads and edits files by emitting a **tool call**, a structured block t
 
 | Rule | Why |
 |---|---|
-| Probe before seating: `.\tests\test-toolcalls.ps1 -Model <tag>` | Tool-calling is decided by chat template and weights, not model family or catalog `class` |
+| Probe before seating: `.\tests\test-toolcalls.ps1 -Engine llamacpp -EngineHost http://SERVER_IP:8090 -Model <tag>` | Tool-calling is decided by chat template and weights, not model family or size |
 | A probe PASS is necessary, not sufficient | `lfm2.5:8b` passes in seconds and made 0 writes on 8 of 8 real tasks. Which seat lands edits is measured by the task benchmark ([roadmap](roadmap.md) → Executor standings) |
 | Failing models carry `"tool_call": false` in `opencode.jsonc` | OpenCode then offers them no tools |
 | `tests/test-profiles.ps1` FAILs a profile whose main seat is not tool-capable | Enforces the above |
@@ -14,7 +14,7 @@ An agent reads and edits files by emitting a **tool call**, a structured block t
 
 ## What the probe measured
 
-Results are rows in [`tests/results/toolcalls-summary.tsv`](../tests/results/toolcalls-summary.tsv) (host, Ollama version, model, status). A result is stale on host + engine + engine version, so it is re-run on every update. The 2026-09-22/23 sweep (desktop on Ollama 0.34.3, node3 on 0.34.2) found 13 of 22 models passing.
+Results are rows in [`tests/results/toolcalls-summary.tsv`](../tests/results/toolcalls-summary.tsv) (host, Ollama version, model, status; the Ollama era, which ended when Ollama was removed on 2026-11-21) and `tests/results/toolcalls-summary-llamacpp.tsv` (llama-server). A result is stale on host + engine + engine version, so it is re-run on every update. The 2026-09-22/23 sweep (desktop on Ollama 0.34.3, node3 on 0.34.2) found 13 of 22 models passing.
 
 | Family | Can call tools? | Notes |
 |---|---|---|

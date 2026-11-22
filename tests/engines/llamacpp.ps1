@@ -1,7 +1,45 @@
-# tests/engines/llamacpp.ps1 - the llama.cpp (llama-server, router mode) adapter
-# for the task harness. Same interface as tests/engines/ollama.ps1 (see its
-# header); what differs is what llama-server can and cannot say, measured in the
-# engine trial (docs/llamacpp-trial.md -> Results):
+# tests/engines/llamacpp.ps1 - the llama.cpp (llama-server, router mode) adapter for the task
+# harness, and its only engine adapter since Ollama was removed on 2026-11-21.
+#
+# Everything test-tasks.ps1 needs to know about the engine that serves a model lives in one
+# file per engine. The grading and the analysis of a run are engine-neutral; the harness loads
+# this file for every run, and a provider that is not llamacpp-* (a hosted one, a fixture)
+# finds no base URL here, so it records "not checked" / engine "unknown". Mirrors
+# tests/agents/opencode.ps1. Results from another engine are a new era (the run JSON records
+# `engine`).
+#
+# The interface an engine adapter provides (dot-sourced; functions and $script: variables
+# land in the caller's scope; tests/test-engine-adapter.ps1 holds the list):
+#   $script:EngineName                  "llamacpp"
+#   Get-EngineBaseUrlVar -ProviderId    the env var that holds this provider's base URL, or $null
+#                                       when the provider is not this engine's
+#   Get-EngineBaseUrl -ProviderId       the host's root URL from that variable (a trailing
+#                                       /v1 and slashes stripped), or $null when it is unset
+#   Test-EngineAlive -Root              $true when the host answers
+#   Get-EngineVersion -Root             the engine's version string, or $null
+#   Format-EngineVersion -ProviderId -Root -Version
+#                                       the human line the console carries
+#                                       ("llamacpp b11561-...", "unknown (...)", "n/a (...)")
+#   Get-EngineServedModels -Root        ids the host serves, or $null when it does not answer
+#   Get-EngineSeatTags -Root            one tag per served model, as a client addresses it
+#                                       (the alias when it has one), or $null
+#   Get-EngineServedContext -Root -Tag  the context window the host serves the model with:
+#                                       an [int], or a string saying why not
+#   Get-EnginePromptLossSetup -Root -ProviderId
+#                                       { Enabled; LogDir; Description }: whether and how a prompt
+#                                       the engine cut silently can be detected after a run
+#   Get-EnginePromptLoss -Setup -Since -Until
+#                                       the log lines that show a silent loss in that window
+#   Get-EnginePromptLossText -Hits      one sentence naming the loss, for the FAIL line
+#   Get-EngineGpuPlacement -ProviderId -Root -Tag
+#                                       { Verdict gpu|cpu-only|not-loaded|unchecked; Model;
+#                                         TotalBytes; VramBytes; Share; Detail }
+#   Get-EngineDeviceLoss -Setup -Since -Until
+#                                       { Checked; Events; Note }: the engine's own record of
+#                                       the GPU device lost (a driver reset) in that window
+#
+# What llama-server can and cannot say, measured in the engine trial (docs/llamacpp-trial.md
+# -> Results):
 #   - version: the router's /props carries build_info ("b11561-abcdef0").
 #   - served models: GET /models (router mode: id, aliases, status.value).
 #   - served context: the seat's `--ctx-size` in GET /models (loaded or not), else
@@ -14,7 +52,7 @@
 #   - GPU placement: no HTTP signal (trial E2). `nvidia-smi --query-compute-apps`
 #     over ssh lists the processes on the GPU, and `ps -eo pid,args` maps a child's
 #     `--alias <seat>` to its pid; a loaded seat missing from the GPU list is on the
-#     CPU, the same verdict as Ollama's size_vram 0. The ssh host is the optional
+#     CPU (Ollama's adapter called that size_vram 0). The ssh host is the optional
 #     env var LLAMACPP_<HOST>_SSH (a ~/.ssh/config alias, e.g. `server`); unset gives
 #     verdict "unchecked" and a note naming it. ssh never prompts (BatchMode).
 
@@ -156,7 +194,7 @@ function Get-EngineServedContext {
 }
 
 function Get-EnginePromptLossSetup {
-    param([string]$Root, [string]$LogDir, [string]$ProviderId)
+    param([string]$Root, [string]$ProviderId)
     return [pscustomobject]@{
         Enabled = $false; LogDir = $null
         Description = "not applicable: refused explicitly (llama-server answers HTTP 400 exceed_context_size_error; the transcript's ContextOverflowError handling covers it)"
@@ -180,7 +218,7 @@ function Get-EngineDeviceLoss {
 }
 
 function Get-EngineGpuPlacement {
-    # Verdicts as Get-OllamaGpuPlacement's (tests/engines/ollama.ps1). TotalBytes
+    # Verdicts: gpu | cpu-only | not-loaded | unchecked (the interface above). TotalBytes
     # and Share are not known (nvidia-smi reports the GPU part only).
     param([string]$ProviderId, [string]$Root, [string]$Tag, [int]$TimeoutSec = 8)
     $want = $Tag

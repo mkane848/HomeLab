@@ -224,7 +224,7 @@ exit 0
     $env:FIXTURE_CALLS = Join-Path $tmp "calls.jsonl"
     $tt = Join-Path $h "tests/test-tasks.ps1"
     $manifest = Join-Path $priv "manifest.json"
-    $common = @{ Model = "fixture/m"; SkipInstall = $true; RunTimeout = 120; OllamaLogDir = (Join-Path $tmp "no-log"); TaskManifest = $manifest }
+    $common = @{ Model = "fixture/m"; SkipInstall = $true; RunTimeout = 120; TaskManifest = $manifest }
     $publicTsv = Join-Path $h "tests/results/real-tasks-public.tsv"
     $nudged = Join-Path $priv "results-nudged"
     $plain = Join-Path $priv "results-plain"

@@ -1,31 +1,27 @@
-# protects: Engine adapter boundary (tests/engines/ollama.ps1, llamacpp.ps1)
-# run-after: Either adapter or an engine call in test-tasks.ps1
+# protects: Engine adapter boundary (tests/engines/llamacpp.ps1, the only engine since 2026-11-21)
+# run-after: The adapter or an engine call in test-tasks.ps1
 # test-engine-adapter.ps1 - regression guard for the engine adapter boundary
-# (tests/engines/ollama.ps1, tests/engines/llamacpp.ps1; Phase 2 of the
-# Ollama-replacement program, docs/roadmap.md)
+# (tests/engines/llamacpp.ps1; Ollama's adapter was removed with Ollama on 2026-11-21)
 #
 # Why this exists: the harness used to ask Ollama's own endpoints (/api/version,
 # /api/show, /api/ps) and read its server.log inline, so a second engine meant
-# editing the grading script. Everything engine-specific now sits behind one
-# interface per engine, chosen by the provider prefix of -Model (ollama-* /
-# llamacpp-*), the way tests/agents/opencode.ps1 isolates the agent.
+# editing the grading script. Everything engine-specific sits behind one
+# interface, the way tests/agents/opencode.ps1 isolates the agent; the harness
+# loads the llama.cpp adapter for every run.
 #
 # What it does:
-#   1. The interface: both adapters define every function, and $script:EngineName.
+#   1. The interface: the adapter defines every function, and $script:EngineName.
 #   2. The boundary: outside comments, test-tasks.ps1 names no /api/ endpoint,
-#      no server.log and no Ollama-only function, and loads the adapter by provider.
-#   3. The REAL Ollama functions against a stand-in Invoke-RestMethod: base URL,
-#      liveness, version, served models, served context, the prompt-loss setup and
-#      its log reader, and the GPU placement verdicts.
-#   4. The REAL llama.cpp functions the same way (/health, /props, /props?model=,
-#      /models), and its placement over ssh with a stand-in `ssh` first on PATH that
-#      prints canned nvidia-smi / ps output: GPU, CPU-only, not loaded, a seat
-#      beside it, ssh failing, the env var unset.
-#   5. The real test-tasks.ps1 end to end for one Ollama and one llama.cpp provider
-#      (a stand-in opencode, host and ssh): the run JSON's `engine`, `ollamaVersion`,
-#      `servingEngine`, `numCtx`, `promptTruncation` and `gpuPlacement`.
-#   6. Controls: an adapter with one function removed fails the interface check; a
-#      harness with a /api/ call put back fails the boundary check.
+#      no server.log and no Ollama-only function, and loads the llama.cpp adapter.
+#   3. The REAL llama.cpp functions against a stand-in Invoke-RestMethod (/health,
+#      /props, /props?model=, /models), and its placement over ssh with a stand-in
+#      `ssh` first on PATH that prints canned nvidia-smi / ps output: GPU, CPU-only,
+#      not loaded, a seat beside it, ssh failing, the env var unset.
+#   4. The real test-tasks.ps1 end to end for a llama.cpp provider and a hosted one
+#      (a stand-in opencode, host and ssh): the run JSON's `engine`, `ollamaVersion`
+#      (null), `servingEngine`, `numCtx`, `promptTruncation` and `gpuPlacement`.
+#   5. Controls: an adapter with one function removed fails the interface check; a
+#      harness with a /api/ call or an Ollama function put back fails the boundary check.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-engine-adapter.ps1 [-ScriptPath <a test-tasks.ps1>]
@@ -40,7 +36,6 @@ function Check([string]$name, $actual, $expected) {
 }
 function Has([string]$name, [string]$text, [string]$pattern) { Check $name ($text -match $pattern) "True" }
 
-$ollamaPath = Join-Path $PSScriptRoot "engines\ollama.ps1"
 $llamaPath  = Join-Path $PSScriptRoot "engines\llamacpp.ps1"
 $interface = @("Get-EngineBaseUrlVar", "Get-EngineBaseUrl", "Test-EngineAlive", "Get-EngineVersion", "Format-EngineVersion",
                "Get-EngineServedModels", "Get-EngineSeatTags", "Get-EngineServedContext", "Get-EnginePromptLossSetup", "Get-EnginePromptLoss",
@@ -107,87 +102,15 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 
 try {
     # ---------------------------------------------------------------- 1. interface
-    Write-Host "-- the interface (both adapters)"
-    Check "ollama.ps1 defines every function and EngineName"   ((Get-MissingFunctions $ollamaPath) -join ",") ""
+    Write-Host "-- the interface"
     Check "llamacpp.ps1 defines every function and EngineName" ((Get-MissingFunctions $llamaPath) -join ",") ""
 
     # ---------------------------------------------------------------- 2. boundary
     Write-Host "-- the boundary (test-tasks.ps1)"
     $src = [IO.File]::ReadAllText($ScriptPath)
     Check "no /api/ endpoint, server.log or Ollama-only call outside comments" ((Get-BoundaryViolations $src) -join " | ") ""
-    Check "the adapter is loaded by provider prefix"           ($src -match 'engines\\\{0\}\.ps1') "True"
-    Check "...llamacpp-* picks llamacpp, anything else ollama" ($src -match "(?s)-like 'llamacpp-\*'.{0,40}\`"llamacpp\`".{0,20}\`"ollama\`"") "True"
-
-    # ---------------------------------------------------------------- 3. ollama
-    Write-Host "-- Ollama adapter (real functions, canned replies)"
-    & {
-        . $ollamaPath
-        Check "engine name"                                    $script:EngineName "ollama"
-        Check "var: ollama-desktop"                            (Get-EngineBaseUrlVar -ProviderId "ollama-desktop") "OLLAMA_DESKTOP_BASE_URL"
-        Check "var: ollama-server"                             (Get-EngineBaseUrlVar -ProviderId "ollama-server") "OLLAMA_SERVER_BASE_URL"
-        Check "var: ollama-node3"                              (Get-EngineBaseUrlVar -ProviderId "ollama-node3") "OLLAMA_NODE3_BASE_URL"
-        Check "var: a hosted provider has none"                ($null -eq (Get-EngineBaseUrlVar -ProviderId "opencode-go")) "True"
-        Check "var: an unknown ollama-* host has none"         ($null -eq (Get-EngineBaseUrlVar -ProviderId "ollama-lab")) "True"
-        Check "var: a llamacpp provider is not Ollama's"       ($null -eq (Get-EngineBaseUrlVar -ProviderId "llamacpp-server")) "True"
-        Set-Env "OLLAMA_SERVER_BASE_URL" "http://fx.invalid:11434/v1/"
-        Check "base URL: /v1 and the slash stripped"           (Get-EngineBaseUrl -ProviderId "ollama-server") "http://fx.invalid:11434"
-        Set-Env "OLLAMA_SERVER_BASE_URL" $null
-        Check "base URL: unset is null"                        ($null -eq (Get-EngineBaseUrl -ProviderId "ollama-server")) "True"
-        Restore-Env
-
-        Reset-Routes; Route '/api/tags$' ([pscustomobject]@{ models = @([pscustomobject]@{ name = "qwen3:8b" }, [pscustomobject]@{ name = "qwen3.6:35b-a3b-coding" }) })
-        Check "alive: /api/tags answers"                       (Test-EngineAlive -Root "http://fx.invalid") "True"
-        Check "served models"                                  ((Get-EngineServedModels -Root "http://fx.invalid") -join ",") "qwen3:8b,qwen3.6:35b-a3b-coding"
-        Check "seat tags: the served names themselves"         ((Get-EngineSeatTags -Root "http://fx.invalid") -join ",") "qwen3:8b,qwen3.6:35b-a3b-coding"
-        Reset-Routes; Route '/api/tags$' "THROW"
-        Check "alive: unreachable"                             (Test-EngineAlive -Root "http://fx.invalid") "False"
-        Check "served models: unreachable is null"             ($null -eq (Get-EngineServedModels -Root "http://fx.invalid")) "True"
-
-        Reset-Routes; Route '/api/version$' ([pscustomobject]@{ version = "0.34.3" })
-        Check "version"                                        (Get-EngineVersion -Root "http://fx.invalid") "0.34.3"
-        Reset-Routes; Route '/api/version$' "THROW"
-        Check "version: unreachable is null"                   ($null -eq (Get-EngineVersion -Root "http://fx.invalid")) "True"
-        Check "text: a version"                                (Format-EngineVersion -ProviderId "ollama-server" -Root "http://h" -Version "0.34.3") "ollama version is 0.34.3"
-        Check "text: unreachable"                              (Format-EngineVersion -ProviderId "ollama-server" -Root "http://h" -Version "") "unknown (http://h/api/version unreachable)"
-        Check "text: base URL unset"                           (Format-EngineVersion -ProviderId "ollama-node3" -Root "" -Version "") "unknown (OLLAMA_NODE3_BASE_URL is unset)"
-        Check "text: not an Ollama provider"                   (Format-EngineVersion -ProviderId "opencode-go" -Root "" -Version "") "n/a (opencode-go is not an Ollama provider)"
-
-        Reset-Routes; Route '/api/show$' ([pscustomobject]@{ parameters = "temperature 0.6`nnum_ctx    65536`ntop_k 20" })
-        Check "served context: num_ctx from /api/show"         (Get-EngineServedContext -Root "http://h" -Tag "qwen3.6:35b-a3b-coding") 65536
-        Reset-Routes; Route '/api/show$' ([pscustomobject]@{ parameters = "temperature 0.6" })
-        Check "served context: none baked"                     (Get-EngineServedContext -Root "http://h" -Tag "x") "unset (server default)"
-        Reset-Routes; Route '/api/show$' "THROW"
-        Check "served context: /api/show failed"               (Get-EngineServedContext -Root "http://h" -Tag "x") "unknown (/api/show failed)"
-
-        $logDir = Join-Path $tmp "ollama-log"; New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-        $hit = 'time=2026-10-03T16:41:00.123-04:00 level=WARN source=llama_server.go:318 msg="truncating input prompt" limit=32770 prompt=83886 keep=4 new=32770'
-        [IO.File]::WriteAllText((Join-Path $logDir "server.log"), "$hit`n", $utf8)
-        $s = Get-EnginePromptLossSetup -Root "http://remote.invalid:11434" -LogDir $logDir -ProviderId "ollama-server"
-        Check "prompt loss: a log directory enables it"        $s.Enabled "True"
-        Check "...and says so"                                 $s.Description "checked Ollama server.log in $logDir"
-        $hits = @(Get-EnginePromptLoss -Setup $s -Since ([DateTimeOffset]::Parse("2026-10-03T16:40:30-04:00")) -Until ([DateTimeOffset]::Parse("2026-10-03T16:45:00-04:00")))
-        Check "...a hit inside the window"                     $hits.Count 1
-        Check "...outside the window none"                     @(Get-EnginePromptLoss -Setup $s -Since ([DateTimeOffset]::Parse("2026-10-03T16:50:00-04:00")) -Until ([DateTimeOffset]::Parse("2026-10-03T16:55:00-04:00"))).Count 0
-        Check "...the FAIL text names it"                      (Get-EnginePromptLossText -Hits $hits) "Ollama truncated the prompt 1 time(s) during the run (limit=32770 prompt=83886 keep=4 new=32770)"
-        $s = Get-EnginePromptLossSetup -Root "http://remote.invalid:11434" -LogDir "" -ProviderId "ollama-server"
-        Check "prompt loss: a remote Ollama is not checked"    $s.Description "not checked (http://remote.invalid:11434 is not local; its server.log is on that host)"
-        Check "...and not enabled"                             $s.Enabled "False"
-        $s = Get-EnginePromptLossSetup -Root "" -LogDir "" -ProviderId "opencode-go"
-        Check "prompt loss: no engine at all"                  $s.Description "not checked (no truncation detector for engine 'unknown', provider opencode-go)"
-        Check "...no lines from a disabled setup"              @(Get-EnginePromptLoss -Setup $s -Since ([DateTimeOffset]::Now.AddHours(-1)) -Until ([DateTimeOffset]::Now)).Count 0
-
-        $seat = "qwen3.6:35b-a3b-coding"
-        Reset-Routes; Route '/api/ps$' ([pscustomobject]@{ models = @([pscustomobject]@{ name = $seat; model = $seat; size = 22.68e9; size_vram = 13.59e9 }, [pscustomobject]@{ name = "qwen2.5-coder-3b-cpu:latest"; model = "qwen2.5-coder-3b-cpu:latest"; size = 2.44e9; size_vram = 0 }) })
-        $p = Get-EngineGpuPlacement -ProviderId "ollama-server" -Root "http://h" -Tag $seat
-        Check "placement: a split model is gpu"                "$($p.Verdict) $($p.Share)" "gpu 0.599"
-        $p = Get-EngineGpuPlacement -ProviderId "ollama-server" -Root "http://h" -Tag "qwen2.5-coder-3b-cpu"
-        Check "placement: the CPU-pinned seat is cpu-only"     $p.Verdict "cpu-only"
-        $p = Get-EngineGpuPlacement -ProviderId "ollama-server" -Root "http://h" -Tag "absent"
-        Check "placement: absent is not-loaded"                $p.Verdict "not-loaded"
-        Reset-Routes; Route '/api/ps$' "THROW"
-        $p = Get-EngineGpuPlacement -ProviderId "ollama-server" -Root "http://h" -Tag $seat
-        Check "placement: unreachable is unchecked"            $p.Verdict "unchecked"
-    }
+    Check "the adapter is loaded from tests/engines"            ($src -match 'engines\\\{0\}\.ps1') "True"
+    Check "...and it is the llama.cpp one, for every run"       ($src -match '(?m)^\$engineKind = "llamacpp"\s*$') "True"
 
     # ---------------------------------------------------------------- 4. llama.cpp
     Write-Host "-- llama.cpp adapter (real functions, canned replies)"
@@ -368,7 +291,7 @@ exit 0
     }
 
     # ---------------------------------------------------------------- 5. end to end
-    Write-Host "-- end to end: the real test-tasks.ps1 for an Ollama and a llama.cpp provider"
+    Write-Host "-- end to end: the real test-tasks.ps1 for a llama.cpp and a hosted provider"
     function Invoke-Harness([string]$harnessPath, [string]$root, [string]$model, [hashtable]$envVars) {
         foreach ($d in @("tests/tasks", "bin", "repo")) { New-Item -ItemType Directory -Path (Join-Path $root $d) -Force | Out-Null }
         Copy-Item -LiteralPath $harnessPath -Destination (Join-Path $root "tests/test-tasks.ps1")
@@ -418,26 +341,22 @@ param([string]$Script, [string[]]$Rest)
 function Invoke-RestMethod {
     param($Uri, $TimeoutSec, $Method, $Body, $ContentType)
     $u = "$Uri"
-    if ($u -match '/api/version$') { return [pscustomobject]@{ version = '0.34.3' } }
-    if ($u -match '/api/show$') { return [pscustomobject]@{ parameters = 'num_ctx    65536' } }
-    if ($u -match '/api/ps$') { return [pscustomobject]@{ models = @([pscustomobject]@{ name = 'fx:latest'; model = 'fx:latest'; size = 10e9; size_vram = 6e9 }) } }
     if ($u -match '/props\?model=fx%3Atag&autoload=false$') { return [pscustomobject]@{ default_generation_settings = [pscustomobject]@{ n_ctx = 49152 } } }
     if ($u -match '/props$') { return [pscustomobject]@{ build_info = 'b11561-abcdef0' } }
     throw "fixture: no endpoint $u"
 }
-& $Script -Task fx-ok -Model $env:FIXTURE_MODEL -SkipInstall -RunTimeout 120 -OllamaLogDir $env:FIXTURE_NOLOG
+& $Script -Task fx-ok -Model $env:FIXTURE_MODEL -SkipInstall -RunTimeout 120
 exit $LASTEXITCODE
 '@ | Set-Content -LiteralPath (Join-Path $root "driver.ps1")
         $saved = $env:PATH
         $env:PATH = "$bin;$sshBin;$env:PATH"
         $env:FIXTURE_MODEL = $model
-        $env:FIXTURE_NOLOG = Join-Path $root "no-log"
         foreach ($k in $envVars.Keys) { Set-Env $k $envVars[$k] }
         try {
             $out = & $psExe -NoProfile -File (Join-Path $root "driver.ps1") -Script (Join-Path $root "tests/test-tasks.ps1") 2>&1 | Out-String
         } finally {
             $env:PATH = $saved
-            Remove-Item Env:FIXTURE_MODEL, Env:FIXTURE_NOLOG -ErrorAction SilentlyContinue
+            Remove-Item Env:FIXTURE_MODEL -ErrorAction SilentlyContinue
             Restore-Env
         }
         $json = Get-ChildItem (Join-Path $root "tests/results") -Filter "tasks-fx-ok-*.json" -ErrorAction SilentlyContinue | Select-Object -First 1 | Get-Content -Raw | ConvertFrom-Json
@@ -446,18 +365,6 @@ exit $LASTEXITCODE
 
     $env:FIXTURE_SSH_DIR = $sshDir
     try {
-        $r = Invoke-Harness $ScriptPath (Join-Path $tmp "e2e-ollama") "ollama-server/fx" @{ OLLAMA_SERVER_BASE_URL = "http://fx-ollama.invalid:11434/v1" }
-        Check "ollama: the run was graded"                     ([bool]$r.Json) "True"
-        Check "ollama: engine.name"                            $r.Json.engine.name "ollama"
-        Check "ollama: engine.version"                         $r.Json.engine.version "0.34.3"
-        Check "ollama: engine.baseUrl (no /v1)"                $r.Json.engine.baseUrl "http://fx-ollama.invalid:11434"
-        Check "ollama: ollamaVersion keeps its shape"          $r.Json.ollamaVersion "ollama version is 0.34.3"
-        Check "ollama: servingEngine unchanged"                "$($r.Json.servingEngine.name) $($r.Json.servingEngine.version) $($r.Json.servingEngine.endpoint) $($r.Json.servingEngine.provider)" "ollama 0.34.3 http://fx-ollama.invalid:11434 ollama-server"
-        Check "ollama: numCtx from /api/show"                  $r.Json.numCtx 65536
-        Check "ollama: gpuPlacement from /api/ps"              "$($r.Json.gpuPlacement.verdict) $($r.Json.gpuPlacement.share)" "gpu 0.6"
-        Has   "ollama: promptTruncation not checked (no log directory)"  $r.Json.promptTruncation '^not checked \(no Ollama log directory'
-        Has   "ollama: the console line is 'ollama: ...'"      $r.Output 'ollama: ollama version is 0\.34\.3 \| opencode:'
-
         Set-Ssh "4242, 14930 MiB`n" "  4242 /app/llama-server --port 5001 --alias fx:tag --ctx-size 49152`n"
         $r = Invoke-Harness $ScriptPath (Join-Path $tmp "e2e-llama") "llamacpp-server/fx:tag" @{ LLAMACPP_SERVER_BASE_URL = "http://fx-llama.invalid:8090/v1"; LLAMACPP_SERVER_SSH = "server" }
         Check "llamacpp: the run was graded"                   ([bool]$r.Json) "True"
@@ -485,7 +392,7 @@ exit $LASTEXITCODE
         $r = Invoke-Harness $ScriptPath (Join-Path $tmp "e2e-hosted") "opencode-go/fx" @{}
         Check "hosted provider: engine 'unknown', nothing borrowed" "$($r.Json.engine.name) $($null -eq $r.Json.engine.version) $($null -eq $r.Json.engine.baseUrl)" "unknown True True"
         Check "hosted provider: numCtx stays null"             ($null -eq $r.Json.numCtx) "True"
-        Has   "hosted provider: placement not checked, as before" $r.Json.gpuPlacement.note '^not checked \(opencode-go is not an Ollama provider\)$'
+        Has   "hosted provider: placement not checked, as before" $r.Json.gpuPlacement.note '^not checked \(opencode-go is not a llama\.cpp provider\)$'
     } finally {
         Remove-Item Env:FIXTURE_SSH_DIR -ErrorAction SilentlyContinue
         Restore-Env

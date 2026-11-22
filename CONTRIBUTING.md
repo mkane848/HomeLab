@@ -10,7 +10,7 @@ let a model tell you a change works without seeing it run.
 - Bugs and typos: open an issue with the exact command/output. "It doesn't
   work" with no reproduction is not actionable.
 - Hardware-specific numbers (VRAM, throughput, tool-call results) should name
-  the engine (Ollama or llama.cpp), its version and the model they were measured
+  the engine (llama.cpp today; Ollama for results before 2026-11-21), its version and the model they were measured
   on. Results measured on one version do not transfer to another — the
   tool-calling probe is re-run on every update for exactly this reason.
 

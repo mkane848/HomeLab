@@ -12,7 +12,7 @@
 #   .\desktop\scripts\opencode.ps1 -Profile dev-node3              # qwen3:8b on node3's llama-server
 #   .\desktop\scripts\opencode.ps1 run "do the thing"     # args pass through
 # Or, once desktop\scripts\install-opencode-profiles.ps1 has run, from anywhere:
-#   opencode quality | opencode resident run "do the thing"   (opencode-profiles.ps1)
+#   opencode server-llamacpp | opencode node3 run "do the thing"   (opencode-profiles.ps1)
 #
 # The profile's env lasts for this launch only: the shell's previous values are
 # restored when opencode exits, so a later bare `opencode` is not silently on

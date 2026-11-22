@@ -2,11 +2,12 @@
 # run-after: probe-overflow.ps1 or an opencode upgrade
 # test-probe-overflow.ps1 - regression guard for tests/probe-overflow.ps1.
 #
-# Why this exists: probe-overflow.ps1 turns "Ollama silently cuts an oversized
-# prompt, llama-server rejects it" from a belief into a measurement, and that
-# measurement decides whether the engine trial is worth continuing. A verdict that
-# calls a truncation an error (or the reverse), or an error message OpenCode would
-# not recognise as an overflow, would send the decision the wrong way.
+# Why this exists: probe-overflow.ps1 turns "llama-server rejects an oversized
+# prompt, and OpenCode recognises the error" from a belief into a measurement on
+# a given build (the reason Ollama, which cut such a prompt silently, was left;
+# removed 2026-11-21). A verdict that calls a truncation an error (or the
+# reverse), or an error message OpenCode would not recognise as an overflow,
+# would hide the failure the move was made to avoid.
 #
 # What it does:
 #   1. Pulls the REAL Test-OpenCodeOverflowText, Get-OverflowVerdict,
@@ -16,11 +17,12 @@
 #      400/413 is. The verdict: error -> EXPLICIT-ERROR, under 90% of the tokens
 #      evaluated -> SILENT-TRUNCATION, the 90% line itself -> ACCEPTED-FULL. The
 #      prompt starts with its needle and ends with the question.
-#   2. Runs the REAL script as a child process against a stand-in
-#      Invoke-RestMethod (a driver defines it): Ollama cutting silently, llama-server
-#      refusing with the explicit error, an Ollama that refuses (what 0.40.x might
-#      do), an engine that takes the whole prompt, a host that is down, -NoLog, and
-#      bad arguments.
+#   2. Runs the REAL script as a child process against a stand-in llama-server
+#      (a driver defines Invoke-RestMethod): refusing with its explicit error,
+#      refusing with a text OpenCode would not recognise, cutting the prompt
+#      silently, taking the whole prompt, a host that is down, -NoLog, llamacpp
+#      as the default engine, and bad arguments (-Engine ollama and the removed
+#      -OllamaHost among them). No Ollama endpoint (/api/*) is ever asked.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-probe-overflow.ps1 [-ScriptPath <a probe-overflow.ps1>]
@@ -108,35 +110,33 @@ try {
     $psExe = (Get-Process -Id $PID).Path
     [IO.File]::WriteAllText("$tmp/driver.ps1", @'
 param([string]$Script, [string]$ArgsFile)
-# A stand-in engine with a served context of 4096 tokens and 3.2 characters per
-# token. FIXTURE_MODE: truncate (Ollama's silent cut) | error400 (llama-server's
-# explicit refusal) | ollamaerror (an Ollama that refuses) | full (takes it all) | down.
+# A stand-in llama-server with a served context of 4096 tokens and 3.2 characters
+# per token. FIXTURE_MODE: error400 (its explicit refusal) | othererror (a refusal
+# OpenCode would not call an overflow) | truncate (a silent cut, what Ollama did) |
+# full (takes it all) | down. Any other endpoint (/api/* included) throws.
 function Throw-Http([int]$Status, [string]$Body) {
-    $ex = New-Object System.Exception "Response status code does not indicate success: $Status (Bad Request)."
+    $ex = New-Object System.Exception "Response status code does not indicate success: $Status (Error)."
     $er = New-Object System.Management.Automation.ErrorRecord $ex, "HttpError", ([System.Management.Automation.ErrorCategory]::InvalidOperation), $null
     if ($Body) { $er.ErrorDetails = New-Object System.Management.Automation.ErrorDetails $Body }
     throw $er
 }
 function Invoke-RestMethod {
-    param($Uri, $TimeoutSec, $Method, $Body, $ContentType)
+    param($Uri, $TimeoutSec, $Method, $Body, $ContentType, $Headers)
     $u = "$Uri"
     Add-Content -LiteralPath $env:FIXTURE_HITS -Value $u
-    if ($env:FIXTURE_MODE -eq 'down' -and $u -match '/(api/chat|v1/chat/completions)$') { throw "fixture: connection refused" }
-    if ($u -match '/api/version$') { return [pscustomobject]@{ version = '0.40.3' } }
+    if ($env:FIXTURE_MODE -eq 'down' -and $u -match '/v1/chat/completions$') { throw "fixture: connection refused" }
     if ($u -match '/props$') { return [pscustomobject]@{ build_info = 'b11561-abcdef0' } }
-    if ($u -match '/api/chat$|/v1/chat/completions$') {
+    if ($u -match '/v1/chat/completions$') {
         $b = $Body | ConvertFrom-Json
         $text = [string]$b.messages[0].content
         $count = [int]([math]::Round($text.Length / 3.2))
         $big = $count -gt 4096
         $needle = if ($text -match 'MAGENTA-\d+') { $Matches[0] } else { '' }
-        $isLlama = $u -match 'v1/chat'
         if ($big -and $env:FIXTURE_MODE -eq 'error400') { Throw-Http 400 ('{"error":{"code":400,"message":"request (' + $count + ' tokens) exceeds the available context size (4096 tokens), try increasing it","type":"exceed_context_size_error"}}') }
-        if ($big -and $env:FIXTURE_MODE -eq 'ollamaerror') { Throw-Http 400 '{"error":"prompt too long; exceeded max context length by 1200 tokens"}' }
+        if ($big -and $env:FIXTURE_MODE -eq 'othererror') { Throw-Http 500 '{"error":{"code":500,"message":"failed to allocate the KV cache","type":"server_error"}}' }
         $evaluated = if ($big -and $env:FIXTURE_MODE -eq 'truncate') { 4096 - 64 } else { $count }
         $reply = if ($env:FIXTURE_MODE -eq 'full' -and $big) { "The secret word is $needle." } else { "I was not given a secret word." }
-        if ($isLlama) { return [pscustomobject]@{ usage = [pscustomobject]@{ prompt_tokens = $evaluated }; choices = @([pscustomobject]@{ message = [pscustomobject]@{ content = $reply } }) } }
-        return [pscustomobject]@{ prompt_eval_count = $evaluated; message = [pscustomobject]@{ content = $reply } }
+        return [pscustomobject]@{ usage = [pscustomobject]@{ prompt_tokens = $evaluated }; choices = @([pscustomobject]@{ message = [pscustomobject]@{ content = $reply } }) }
     }
     throw "fixture: no endpoint $u"
 }
@@ -149,6 +149,12 @@ exit $LASTEXITCODE
     $script:scn = 0
     function Invoke-Probe([hashtable]$Params, [hashtable]$Env = @{}) {
         $script:scn++
+        # Never the repo's tests/results/overflow-probe.tsv: a scenario that names no
+        # results file gets a scratch one, so a broken refusal cannot log into the real
+        # record (a mutation run did, 2026-11-22).
+        if (-not $Params.ContainsKey("ResultsFile") -and -not $Params.ContainsKey("NoLog")) {
+            $Params = $Params.Clone(); $Params.ResultsFile = Join-Path $tmp "default-$($script:scn).tsv"
+        }
         $argsFile = Join-Path $tmp "args-$($script:scn).json"
         [IO.File]::WriteAllText($argsFile, ($Params | ConvertTo-Json -Depth 4), $utf8)
         $hits = Join-Path $tmp "hits-$($script:scn).log"
@@ -174,67 +180,79 @@ exit $LASTEXITCODE
         [pscustomobject]$o
     }
 
-    $obase = @{ Engine = "ollama"; Endpoint = "http://fixture.invalid:11500"; Model = "qwen3:8b"; NumCtx = 4096; HostLabel = "server" }
     $lbase = @{ Engine = "llamacpp"; Endpoint = "http://fixture.invalid:8090"; Model = "qwen3.6:35b-a3b-coding"; NumCtx = 4096; HostLabel = "server" }
-
-    Write-Host "   scenario: Ollama cuts the prompt silently"
-    $tsv = Join-Path $tmp "o1.tsv"
-    $r = Invoke-Probe ($obase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "truncate" }
-    $row = LastRow $tsv
-    Check "exit 0 (a verdict is a finding, not a failure)"   $r.Exit 0
-    Check "verdict SILENT-TRUNCATION, HTTP status blank"     ("{0}|{1}" -f $row.verdict, $row.httpStatus) "SILENT-TRUNCATION|"
-    Check "row: host, engine, version, model, served context" ("{0}|{1}|{2}|{3}|{4}" -f $row.host, $row.engine, $row.engineVersion, $row.model, $row.numCtx) "server|ollama|0.40.3|qwen3:8b|4096"
-    Check "the engine evaluated 4032 tokens, far fewer than were sent (~1.3 x 4096)" ("{0}|{1}" -f $row.reportedPromptTokens, ([int]$row.sentTokensEst -gt 5000)) "4032|True"
-    Check "the needle was lost with the front of the prompt" $row.needleFound "False"
-    Check "opencodeOverflow is blank (there was no error to classify)" $row.opencodeOverflow ""
-    Has   "the console says SILENT-TRUNCATION"                $r.Out 'VERDICT: SILENT-TRUNCATION'
-    Check "Ollama endpoints only: /api/version, then /api/chat twice (calibration, probe)" (($r.Hits | ForEach-Object { $_ -replace '^http://fixture.invalid:11500', '' }) -join ",") "/api/version,/api/chat,/api/chat"
+    $calls = "/props,/v1/chat/completions,/v1/chat/completions"
 
     Write-Host "   scenario: llama-server refuses with the explicit error"
     $tsv = Join-Path $tmp "l1.tsv"
     $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "error400" }
     $row = LastRow $tsv
-    Check "exit 0"                                           $r.Exit 0
+    Check "exit 0 (a verdict is a finding, not a failure)"   $r.Exit 0
     Check "verdict EXPLICIT-ERROR with HTTP 400"             ("{0}|{1}" -f $row.verdict, $row.httpStatus) "EXPLICIT-ERROR|400"
-    Check "row: engine and build from /props"                ("{0}|{1}" -f $row.engine, $row.engineVersion) "llamacpp|b11561-abcdef0"
+    Check "row: host, engine, build, model, served context"  ("{0}|{1}|{2}|{3}|{4}" -f $row.host, $row.engine, $row.engineVersion, $row.model, $row.numCtx) "server|llamacpp|b11561-abcdef0|qwen3.6:35b-a3b-coding|4096"
     Check "OpenCode would classify the text as an overflow"  $row.opencodeOverflow "True"
     Has   "the error text is kept in the note"               $row.note 'exceeds the available context size'
     Check "no count reported, no needle verdict"             ("{0}|{1}" -f $row.reportedPromptTokens, $row.needleFound) "|"
-    Check "llama-server endpoints only: /props, then /v1/chat/completions twice" (($r.Hits | ForEach-Object { $_ -replace '^http://fixture.invalid:8090', '' }) -join ",") "/props,/v1/chat/completions,/v1/chat/completions"
+    Has   "the console says EXPLICIT-ERROR"                   $r.Out 'VERDICT: EXPLICIT-ERROR'
+    Check "llama-server endpoints only: /props, then /v1/chat/completions twice (calibration, probe)" (($r.Hits | ForEach-Object { $_ -replace '^http://fixture.invalid:8090', '' }) -join ",") $calls
 
-    Write-Host "   scenario: an Ollama that refuses (what a newer one might do)"
-    $tsv = Join-Path $tmp "o2.tsv"
-    $r = Invoke-Probe ($obase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "ollamaerror" }
+    Write-Host "   scenario: a refusal OpenCode would not recognise"
+    $tsv = Join-Path $tmp "l2.tsv"
+    $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "othererror" }
     $row = LastRow $tsv
-    Check "verdict EXPLICIT-ERROR, and OpenCode would recognise 'prompt too long; exceeded max context length'" ("{0}|{1}" -f $row.verdict, $row.opencodeOverflow) "EXPLICIT-ERROR|True"
+    Check "verdict EXPLICIT-ERROR with HTTP 500, and opencodeOverflow False" ("{0}|{1}|{2}" -f $row.verdict, $row.httpStatus, $row.opencodeOverflow) "EXPLICIT-ERROR|500|False"
+    Has   "...the console says OpenCode would not classify it" $r.Out 'OpenCode would classify it as a context overflow: False'
+
+    Write-Host "   scenario: the engine cuts the prompt silently (what Ollama did)"
+    $tsv = Join-Path $tmp "l3.tsv"
+    $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "truncate" }
+    $row = LastRow $tsv
+    Check "exit 0"                                           $r.Exit 0
+    Check "verdict SILENT-TRUNCATION, HTTP status blank"     ("{0}|{1}" -f $row.verdict, $row.httpStatus) "SILENT-TRUNCATION|"
+    Check "the engine evaluated 4032 tokens, far fewer than were sent (~1.3 x 4096)" ("{0}|{1}" -f $row.reportedPromptTokens, ([int]$row.sentTokensEst -gt 5000)) "4032|True"
+    Check "the needle was lost with the front of the prompt" $row.needleFound "False"
+    Check "opencodeOverflow is blank (there was no error to classify)" $row.opencodeOverflow ""
+    Has   "the console says SILENT-TRUNCATION"                $r.Out 'VERDICT: SILENT-TRUNCATION'
+    Check "the same endpoints"                               (($r.Hits | ForEach-Object { $_ -replace '^http://fixture.invalid:8090', '' }) -join ",") $calls
 
     Write-Host "   scenario: the engine takes the whole prompt"
-    $tsv = Join-Path $tmp "o3.tsv"
-    $r = Invoke-Probe ($obase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "full" }
+    $tsv = Join-Path $tmp "l4.tsv"
+    $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "full" }
     $row = LastRow $tsv
     Check "verdict ACCEPTED-FULL, and the needle was found"  ("{0}|{1}" -f $row.verdict, $row.needleFound) "ACCEPTED-FULL|True"
     Has   "...with a note to check -NumCtx"                   $row.note 'check -NumCtx'
 
     Write-Host "   scenario: the host is down"
-    $tsv = Join-Path $tmp "o4.tsv"
-    $r = Invoke-Probe ($obase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "down" }
+    $tsv = Join-Path $tmp "l5.tsv"
+    $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "down" }
     Check "exit 1, no row"                                   ("{0} {1}" -f $r.Exit, (Test-Path -LiteralPath $tsv)) "1 False"
     Has   "...says the host is not answering"                 $r.Out 'host is not answering'
 
-    Write-Host "   scenario: -NoLog, and bad arguments"
-    $tsv = Join-Path $tmp "o5.tsv"
-    $r = Invoke-Probe ($obase + @{ ResultsFile = $tsv; NoLog = $true }) @{ FIXTURE_MODE = "truncate" }
-    Check "-NoLog: exit 0, no file"                          ("{0} {1}" -f $r.Exit, (Test-Path -LiteralPath $tsv)) "0 False"
-    $bad = $obase.Clone(); $bad.Engine = "vllm"
-    $r = Invoke-Probe $bad
-    Check "an unknown engine: exit 2, nothing sent"          ("{0} {1}" -f $r.Exit, $r.Hits.Count) "2 0"
-    Has   "...says what is supported"                         $r.Out 'supports -Engine ollama or llamacpp'
-    $bad = $obase.Clone(); $bad.NumCtx = 512
+    Write-Host "   scenario: -NoLog, the default engine, and bad arguments"
+    $tsv = Join-Path $tmp "l6.tsv"
+    $r = Invoke-Probe ($lbase + @{ ResultsFile = $tsv; NoLog = $true }) @{ FIXTURE_MODE = "truncate" }
+    Check "-NoLog: exit 0, requests sent, no file"           ("{0} {1} {2}" -f $r.Exit, $r.Hits.Count, (Test-Path -LiteralPath $tsv)) "0 3 False"
+    $tsv = Join-Path $tmp "l7.tsv"
+    $noEngine = $lbase.Clone(); $noEngine.Remove("Engine")
+    $r = Invoke-Probe ($noEngine + @{ ResultsFile = $tsv }) @{ FIXTURE_MODE = "error400" }
+    $row = LastRow $tsv
+    Check "no -Engine: llamacpp is the default (row engine, endpoints)" ("{0}|{1}|{2}" -f $r.Exit, $row.engine, (($r.Hits | ForEach-Object { $_ -replace '^http://fixture.invalid:8090', '' }) -join ",")) "0|llamacpp|$calls"
+    foreach ($eng in "ollama", "vllm") {
+        $bad = $lbase.Clone(); $bad.Engine = $eng
+        $r = Invoke-Probe $bad
+        Check "-Engine ${eng}: exit 2, nothing sent"           ("{0} {1}" -f $r.Exit, $r.Hits.Count) "2 0"
+        Has   "...says llamacpp is the only engine"             $r.Out 'supports only -Engine llamacpp'
+    }
+    $bad = $noEngine.Clone(); $bad.Remove("Endpoint"); $bad.OllamaHost = "http://fixture.invalid:11434"; $bad.NoLog = $true
+    $r = Invoke-Probe $bad @{ FIXTURE_MODE = "error400" }
+    Check "-OllamaHost is no longer a parameter: nothing sent" $r.Hits.Count 0
+    Has   "...refused by PowerShell's parameter binding"     $r.Out "parameter name 'OllamaHost'"
+    $bad = $lbase.Clone(); $bad.NumCtx = 512
     $r = Invoke-Probe $bad
     Check "-NumCtx under 1024: exit 2, nothing sent"          ("{0} {1}" -f $r.Exit, $r.Hits.Count) "2 0"
-    $bad = $obase.Clone(); $bad.Endpoint = "http://fixture.invalid:11500/v1/"; $bad.NoLog = $true
+    $bad = $lbase.Clone(); $bad.Endpoint = "http://fixture.invalid:8090/v1/"; $bad.NoLog = $true
     $r = Invoke-Probe $bad @{ FIXTURE_MODE = "truncate" }
-    Check "a trailing /v1/ is accepted (no doubled /v1)"     (@($r.Hits | Where-Object { $_ -like "*/v1/v1/*" }).Count) 0
+    Check "a trailing /v1/ is accepted (no doubled /v1)"     ("{0} {1}" -f $r.Hits.Count, @($r.Hits | Where-Object { $_ -like "*/v1/v1/*" }).Count) "3 0"
 } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

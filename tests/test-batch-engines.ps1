@@ -1,33 +1,32 @@
-# protects: run-tasks-batch.ps1 engine discovery, offered seats and probes (Ollama, llama.cpp, hosted)
+# protects: run-tasks-batch.ps1 engine discovery, offered seats and probes (llama.cpp hosts, hosted)
 # run-after: How the batch finds hosts, offers seats or probes
-# test-batch-engines.ps1 - regression guard for run-tasks-batch.ps1 driving BOTH
-# engines through the adapters (tests/engines/<engine>.ps1; Phase 2b of the
-# Ollama-replacement program, docs/roadmap.md "Phase 2, engine adapter").
+# test-batch-engines.ps1 - regression guard for run-tasks-batch.ps1 driving its
+# llama.cpp hosts through the adapter (tests/engines/llamacpp.ps1), the only engine
+# since Ollama was removed (2026-11-21; docs/roadmap.md "Phase 2, engine adapter").
 #
 # Why this exists: the batch used to know Ollama alone (OLLAMA_<HOST>_BASE_URL,
-# /api/tags, /api/version, `ollama-` id prefixes, one probe log), so a
-# llamacpp-<host> provider could not be discovered, checked, listed, probed or
-# stopped. It now asks the adapters, loaded one module each so the two adapters'
-# same-named functions cannot clobber each other, and the registry
-# (run-tasks-models.tsv) has an `engine` column. The probe log is read from both
-# files (the Ollama log: ollamaVersion, engine implied; the llama.cpp log: engine,
-# engineVersion) and a probe PASS goes stale on host + engine + engine version.
+# /api/tags, /api/version, `ollama-` id prefixes, one probe log). It now asks the
+# adapter, loaded as a module so nothing lands in the batch's scope, and the
+# registry (run-tasks-models.tsv) has an `engine` column. A probe PASS goes stale
+# on host + engine + engine version, and each host keeps its own build.
 #
-# What it does (stand-in hosts are real HttpListeners on 127.0.0.1: an Ollama host
-# and a llama.cpp router; stand-in opencode, test-tasks.ps1 and test-toolcalls.ps1;
-# no real host, no model, never the repo's .env):
+# What it does (stand-in hosts are real HttpListeners on 127.0.0.1: two llama.cpp
+# routers, the server's and node3's, plus a port nothing listens on; stand-in
+# opencode, test-tasks.ps1 and test-toolcalls.ps1; no real host, no model, never
+# the repo's .env):
 #   1. The real functions of the batch against those hosts: provider endpoints,
-#      id splitting, host discovery for both engines (liveness, version, tags,
-#      llama.cpp aliases, a down host, /v1 stripped), the probe-log reader for both
-#      shapes, the probe state (PASS, FAIL, NONE, STALE on a changed llama.cpp
-#      build, the two engines independent), the registry reader (new and old
-#      shape) and writer (tag + engine rows), and the offered seats.
-#   2. The real run-tasks-batch.ps1 end to end in a scratch tree: both engines'
-#      seats offered and run, a down llama.cpp host refused by the preflight (and
-#      an unset variable, and as the small model), STALE and the Both-mode drop,
-#      the probe invoked with each engine's own arguments and the registry row
-#      written with its engine, -OnlyMissing, the CPU-only stop for a llamacpp
-#      provider while the other engine's host carries on, and a hosted seat.
+#      id splitting (a removed ollama-* id is no engine), host discovery
+#      (liveness, version, tags, llama.cpp aliases, a down host, /v1 stripped),
+#      the probe-log reader, the probe state (PASS, FAIL, NONE, STALE on a changed
+#      build, each host independent), the registry reader (new and old shape) and
+#      writer (tag + engine rows), and the offered seats (an old ollama row skipped
+#      as an unknown engine).
+#   2. The real run-tasks-batch.ps1 end to end in a scratch tree: both hosts' seats
+#      offered and run, a down host refused by the preflight (and an unset
+#      variable, and as the small model), STALE and the Both-mode drop, the probe
+#      invoked once per host with -Engine llamacpp -EngineHost <root> and the
+#      registry row written with its engine, -OnlyMissing, the CPU-only stop for one
+#      host while the other carries on, and a hosted seat.
 #   3. Controls: the batch with one piece removed fails named checks.
 # Exit 1 on any failure.
 #
@@ -65,6 +64,7 @@ function Restore-Env {
     $script:SavedEnv = @{}
 }
 # Every variable the batch or an adapter reads about a host, set by each scenario, never inherited.
+# The OLLAMA_* ones are cleared too, so a leftover one in the caller's shell cannot leak in.
 $hostVars = "OLLAMA_DESKTOP_BASE_URL", "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL",
             "LLAMACPP_DESKTOP_BASE_URL", "LLAMACPP_NODE3_BASE_URL", "LLAMACPP_SERVER_BASE_URL",
             "LLAMACPP_SERVER_SSH", "LLAMACPP_NODE3_SSH", "LLAMACPP_DESKTOP_SSH", "OPENCODE_SMALL_MODEL", "OPENCODE_MODEL"
@@ -106,10 +106,7 @@ function Start-FakeHost([hashtable]$Routes) {
 }
 function Stop-FakeHost($H) { try { $H.Listener.Stop(); $H.Listener.Close() } catch { }; try { $H.Shell.Dispose() } catch { } }
 
-$ollamaRoutes = @{
-    "/api/tags"    = '{"models":[{"name":"qwen3:8b"},{"name":"nomic-embed-text:latest"}]}'
-    "/api/version" = '{"version":"0.34.3"}'
-}
+# The server's router: three models (ids differ from their aliases), build b11561.
 $llamaModels = '{"data":[{"id":"qwen3.6:CODING","aliases":["qwen3.6:35b-a3b-coding"],"status":{"value":"loaded"}},' +
                '{"id":"qwen3:8B","aliases":["qwen3:8b"],"status":{"value":"unloaded"}},' +
                '{"id":"qwen3.7:NEW","aliases":["qwen3.7:new"],"status":{"value":"unloaded"}}]}'
@@ -118,14 +115,20 @@ $llamaRoutes = @{
     "/models" = $llamaModels
     "/props"  = '{"build_info":"b11561-abcdef0"}'
 }
-$ollamaHost = Start-FakeHost $ollamaRoutes
-$llamaHost  = Start-FakeHost $llamaRoutes
-$deadPort   = Get-FreePort    # nothing listens: a llama.cpp host that is down
-$deadUrl    = "http://127.0.0.1:$deadPort"
+# node3's router: one model, its own (older) build.
+$node3Routes = @{
+    "/health" = '{"status":"ok"}'
+    "/models" = '{"data":[{"id":"qwen3:8B","aliases":["qwen3:8b"],"status":{"value":"loaded"}}]}'
+    "/props"  = '{"build_info":"b11000-1234567"}'
+}
+$llamaHost = Start-FakeHost $llamaRoutes
+$node3Host = Start-FakeHost $node3Routes
+$deadPort  = Get-FreePort    # nothing listens: a llama.cpp host that is down
+$deadUrl   = "http://127.0.0.1:$deadPort"
 
 # --- the real batch functions, from a script text (a control passes a changed one) ---
 $script:EngineModules = @{}
-foreach ($k in "ollama", "llamacpp") {
+foreach ($k in @("llamacpp")) {
     $script:EngineModules[$k] = [psmoduleinfo]::new([scriptblock]::Create([IO.File]::ReadAllText((Join-Path $PSScriptRoot "engines\$k.ps1"))))
 }
 $batchFunctions = @("Invoke-Engine", "Get-EngineKind", "Get-ProviderEndpoint", "Split-ModelId", "Get-EngineHosts", "Get-EngineDisplayName",
@@ -160,128 +163,128 @@ function Invoke-UnitChecks([string]$ScriptText) {
 
     Section "-- provider endpoints and ids"
     Clear-HostEnv
-    Set-Env "OLLAMA_NODE3_BASE_URL" "http://n3:11434/v1/"
+    Set-Env "LLAMACPP_NODE3_BASE_URL" "http://n3:8080/v1/"
     Set-Env "LLAMACPP_SERVER_BASE_URL" "http://srv:8090/v1"
-    $p = Get-ProviderEndpoint -ModelId "ollama-node3/qwen3:8b"
-    Check "ollama provider: variable, engine, root (/v1 and slash stripped)" ("{0} {1} {2}" -f $p.VarName, $p.Engine, $p.Root) "OLLAMA_NODE3_BASE_URL ollama http://n3:11434"
-    Check "...BaseUrl is the variable as set"                          $p.BaseUrl "http://n3:11434/v1/"
+    $p = Get-ProviderEndpoint -ModelId "llamacpp-node3/qwen3:8b"
+    Check "node3 provider: variable, engine, root (/v1 and slash stripped)" ("{0} {1} {2}" -f $p.VarName, $p.Engine, $p.Root) "LLAMACPP_NODE3_BASE_URL llamacpp http://n3:8080"
+    Check "...BaseUrl is the variable as set"                          $p.BaseUrl "http://n3:8080/v1/"
     $p = Get-ProviderEndpoint -ModelId "llamacpp-server/qwen3.6:35b-a3b-coding"
-    Check "llamacpp provider: variable, engine, root"                  ("{0} {1} {2}" -f $p.VarName, $p.Engine, $p.Root) "LLAMACPP_SERVER_BASE_URL llamacpp http://srv:8090"
-    $p = Get-ProviderEndpoint -ModelId "llamacpp-node3/x"
-    Check "llamacpp provider, variable unset: named, no root"          ("{0} [{1}]" -f $p.VarName, $p.Root) "LLAMACPP_NODE3_BASE_URL []"
+    Check "server provider: variable, engine, root"                    ("{0} {1} {2}" -f $p.VarName, $p.Engine, $p.Root) "LLAMACPP_SERVER_BASE_URL llamacpp http://srv:8090"
+    $p = Get-ProviderEndpoint -ModelId "llamacpp-desktop/x"
+    Check "a provider whose variable is unset: named, no root"         ("{0} [{1}]" -f $p.VarName, $p.Root) "LLAMACPP_DESKTOP_BASE_URL []"
     $p = Get-ProviderEndpoint -ModelId "llamacpp-lab/x"
     Check "a host the adapter does not know: PREFIX_HOST_BASE_URL"     $p.VarName "LLAMACPP_LAB_BASE_URL"
     Check "a hosted provider has no endpoint"                          ($null -eq (Get-ProviderEndpoint -ModelId "opencode-go/alpha")) "True"
-    Check "Get-EngineKind: ollama, llamacpp, hosted, bare provider"    ("{0} {1} [{2}] {3}" -f (Get-EngineKind "ollama-server/x"), (Get-EngineKind "llamacpp-node3/y"), (Get-EngineKind "opencode-go/z"), (Get-EngineKind "llamacpp-server")) "ollama llamacpp [] llamacpp"
+    Check "Get-EngineKind: llamacpp, removed ollama, hosted, bare provider" ("{0} [{1}] [{2}] {3}" -f (Get-EngineKind "llamacpp-node3/y"), (Get-EngineKind "ollama-server/x"), (Get-EngineKind "opencode-go/z"), (Get-EngineKind "llamacpp-server")) "llamacpp [] [] llamacpp"
     $m = Split-ModelId "llamacpp-server/qwen3:8b"
     Check "Split-ModelId: llamacpp"                                    ("{0} {1} {2} {3}" -f $m.Provider, $m.Engine, $m.Host, $m.Tag) "llamacpp-server llamacpp server qwen3:8b"
-    $m = Split-ModelId "ollama-desktop/laguna-xs-2.1:latest"
-    Check "Split-ModelId: ollama, :latest dropped"                     ("{0} {1} {2} {3}" -f $m.Provider, $m.Engine, $m.Host, $m.Tag) "ollama-desktop ollama desktop laguna-xs-2.1"
+    $m = Split-ModelId "llamacpp-node3/laguna-xs-2.1:latest"
+    Check "Split-ModelId: :latest dropped"                             ("{0} {1} {2} {3}" -f $m.Provider, $m.Engine, $m.Host, $m.Tag) "llamacpp-node3 llamacpp node3 laguna-xs-2.1"
+    $m = Split-ModelId "ollama-desktop/qwen3:8b"
+    Check "Split-ModelId: a removed ollama id has no engine and no host" ("[{0}] [{1}]" -f $m.Engine, $m.Host) "[] []"
     $m = Split-ModelId "opencode-go/alpha"
     Check "Split-ModelId: hosted has no engine and no host"            ("[{0}] [{1}] {2}" -f $m.Engine, $m.Host, $m.Tag) "[] [] alpha"
 
-    Section "-- host discovery (stand-in Ollama and llama.cpp router)"
+    Section "-- host discovery (stand-in llama.cpp routers)"
     Clear-HostEnv
-    Set-Env "OLLAMA_DESKTOP_BASE_URL" "$($ollamaHost.Url)/v1"
     Set-Env "LLAMACPP_SERVER_BASE_URL" "$($llamaHost.Url)/v1"
-    Set-Env "LLAMACPP_NODE3_BASE_URL" "$deadUrl/v1"
-    $ollamaHost.Hits.Clear(); $llamaHost.Hits.Clear()
+    Set-Env "LLAMACPP_NODE3_BASE_URL" "$($node3Host.Url)/v1"
+    Set-Env "LLAMACPP_DESKTOP_BASE_URL" "$deadUrl/v1"
+    Set-Env "OLLAMA_SERVER_BASE_URL" "$($llamaHost.Url)/v1"    # a leftover Ollama variable finds nothing
+    $node3Host.Hits.Clear(); $llamaHost.Hits.Clear()
     $hosts = @(Get-EngineHosts)
-    Check "three hosts found (one per variable set)"                   (($hosts | ForEach-Object Provider) -join ",") "ollama-desktop,llamacpp-node3,llamacpp-server"
-    $d = $hosts | Where-Object Provider -eq "ollama-desktop"
-    Check "ollama: up, version, tags (embed model included here)"      ("{0} {1} {2}" -f $d.Up, $d.Version, ($d.Tags -join ",")) "True 0.34.3 qwen3:8b,nomic-embed-text"
-    Check "ollama: root has no /v1"                                    $d.Root $ollamaHost.Url
+    Check "three hosts found (one per LLAMACPP_ variable set, none for OLLAMA_)" (($hosts | ForEach-Object Provider) -join ",") "llamacpp-desktop,llamacpp-node3,llamacpp-server"
     $s = $hosts | Where-Object Provider -eq "llamacpp-server"
-    Check "llamacpp: up, version is the router's build"                ("{0} {1}" -f $s.Up, $s.Version) "True b11561-abcdef0"
-    Check "llamacpp: tags are ids plus aliases"                        ($s.Tags -join ",") "qwen3.6:CODING,qwen3.6:35b-a3b-coding,qwen3:8B,qwen3:8b,qwen3.7:NEW,qwen3.7:new"
-    Check "llamacpp: seat tags are one per model, the alias"           ($s.SeatTags -join ",") "qwen3.6:35b-a3b-coding,qwen3:8b,qwen3.7:new"
+    Check "server: up, version is the router's build"                  ("{0} {1}" -f $s.Up, $s.Version) "True b11561-abcdef0"
+    Check "server: root has no /v1"                                    $s.Root $llamaHost.Url
+    Check "server: tags are ids plus aliases"                          ($s.Tags -join ",") "qwen3.6:CODING,qwen3.6:35b-a3b-coding,qwen3:8B,qwen3:8b,qwen3.7:NEW,qwen3.7:new"
+    Check "server: seat tags are one per model, the alias"             ($s.SeatTags -join ",") "qwen3.6:35b-a3b-coding,qwen3:8b,qwen3.7:new"
     $n = $hosts | Where-Object Provider -eq "llamacpp-node3"
-    Check "llamacpp: a host that does not answer is down, with no tags" ("{0} [{1}] {2}" -f $n.Up, $n.Version, @($n.Tags).Count) "False [] 0"
-    Check "llamacpp liveness asked /health, not Ollama's endpoint"     (@($llamaHost.Hits | Where-Object { $_ -eq "GET /health" }).Count -ge 1 -and @($llamaHost.Hits | Where-Object { $_ -like "*/api/*" }).Count -eq 0) "True"
-    Check "ollama liveness asked /api/tags"                            (@($ollamaHost.Hits | Where-Object { $_ -eq "GET /api/tags" }).Count -ge 1) "True"
-    Check "...and neither host was asked the other engine's endpoints" (@($ollamaHost.Hits | Where-Object { $_ -match '/health|/props|/models' }).Count) 0
+    Check "node3: up, its own build and tags"                          ("{0} {1} {2}" -f $n.Up, $n.Version, ($n.Tags -join ",")) "True b11000-1234567 qwen3:8B,qwen3:8b"
+    $d = $hosts | Where-Object Provider -eq "llamacpp-desktop"
+    Check "a host that does not answer is down, with no tags"          ("{0} [{1}] {2}" -f $d.Up, $d.Version, @($d.Tags).Count) "False [] 0"
+    Check "liveness asked /health on both hosts"                       ((@($llamaHost.Hits | Where-Object { $_ -eq "GET /health" }).Count -ge 1) -and (@($node3Host.Hits | Where-Object { $_ -eq "GET /health" }).Count -ge 1)) "True"
+    Check "...and no host was asked an Ollama /api/ endpoint"          (@(@($llamaHost.Hits) + @($node3Host.Hits) | Where-Object { $_ -like "*/api/*" }).Count) 0
     $e = Test-EngineEndpoint -Provider "llamacpp-server" -Root $llamaHost.Url
-    Check "Test-EngineEndpoint: llamacpp up, counts model ids"         ("{0} {1}" -f $e.Ok, $e.Detail) "True 6 model id(s)"
-    $e = Test-EngineEndpoint -Provider "llamacpp-node3" -Root $deadUrl
-    Check "Test-EngineEndpoint: llamacpp down"                         ("{0} {1}" -f $e.Ok, ($e.Detail -match 'llama\.cpp not answering')) "False True"
-    $e = Test-EngineEndpoint -Provider "ollama-desktop" -Root $ollamaHost.Url
-    Check "Test-EngineEndpoint: ollama up, counts tags (as before)"    ("{0} {1}" -f $e.Ok, $e.Detail) "True 2 model tag(s)"
+    Check "Test-EngineEndpoint: up, counts model ids"                  ("{0} {1}" -f $e.Ok, $e.Detail) "True 6 model id(s)"
+    $e = Test-EngineEndpoint -Provider "llamacpp-desktop" -Root $deadUrl
+    Check "Test-EngineEndpoint: down"                                  ("{0} {1}" -f $e.Ok, ($e.Detail -match 'llama\.cpp not answering')) "False True"
 
-    Section "-- probe log: both shapes, and STALE on host + engine + version"
-    $ollamaLog = Join-Path $tmp "unit-ollama-log.tsv"
-    $llamaLog  = Join-Path $tmp "unit-llama-log.tsv"
-    Write-Fixture $ollamaLog ("timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n" +
-        "2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tx`n" +
-        "2026-10-06T09:01:00`tdesktop`t0.34.3`tbadmodel`tFAIL`t10`tx`n" +
-        "2026-10-06T09:02:00`tdesktop`t0.34.2`told:latest`tPASS`t10`tx`n")
+    Section "-- probe log, and STALE on host + engine + version"
+    $llamaLog = Join-Path $tmp "unit-llama-log.tsv"
     Write-Fixture $llamaLog ("timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n" +
         "2026-10-16T09:00:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3.6:35b-a3b-coding`tPASS`t30`ty`n" +
-        "2026-10-16T09:05:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3:8b`tFAIL`t30`ty`n")
-    $probeLogPaths = @{ ollama = $ollamaLog; llamacpp = $llamaLog }
+        "2026-10-16T09:05:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3:8b`tFAIL`t30`ty`n" +
+        "2026-10-17T09:00:00`tnode3`tllamacpp`tb11000-1234567`tqwen3:8b`tPASS`t20`ty`n" +
+        "2026-10-17T09:01:00`tnode3`tllamacpp`tb10999-0000000`told:latest`tPASS`t20`ty`n")
+    $probeLogPaths = @{ llamacpp = $llamaLog }
     $probeLog = Get-ProbeLog
     $probeKeys = [string[]]@($probeLog.Keys); [Array]::Sort($probeKeys, [StringComparer]::Ordinal)
-    Check "reader: keys are provider/model, :latest dropped"           ($probeKeys -join " ") "llamacpp-server/qwen3.6:35b-a3b-coding llamacpp-server/qwen3:8b ollama-desktop/badmodel ollama-desktop/old ollama-desktop/qwen3:8b"
-    Check "reader: an Ollama row reads engine ollama and its ollamaVersion as engineVersion" ("{0} {1}" -f $probeLog["ollama-desktop/qwen3:8b"].engine, $probeLog["ollama-desktop/qwen3:8b"].engineVersion) "ollama 0.34.3"
-    Check "reader: a llama.cpp row keeps its engine and build"         ("{0} {1}" -f $probeLog["llamacpp-server/qwen3:8b"].engine, $probeLog["llamacpp-server/qwen3:8b"].engineVersion) "llamacpp b11561-abcdef0"
-    $hostVersions = @{ "ollama-desktop" = "0.34.3"; "llamacpp-server" = "b11561-abcdef0"; "llamacpp-node3" = "b11561-abcdef0" }
-    Check "state: ollama PASS on the current version"                  (Get-ProbeState "ollama-desktop/qwen3:8b") "PASS"
-    Check "state: ollama FAIL on the current version"                  (Get-ProbeState "ollama-desktop/badmodel") "FAIL"
-    Check "state: ollama PASS on an older version is STALE"            (Get-ProbeState "ollama-desktop/old") "STALE"
-    Check "state: llamacpp PASS on the current build"                  (Get-ProbeState "llamacpp-server/qwen3.6:35b-a3b-coding") "PASS"
-    Check "state: llamacpp FAIL on the current build"                  (Get-ProbeState "llamacpp-server/qwen3:8b") "FAIL"
-    Check "state: same tag and host label on the other engine is NONE" (Get-ProbeState "llamacpp-desktop/qwen3:8b") "NONE"
-    Check "state: ollama-server/qwen3:8b has no row: NONE"             (Get-ProbeState "ollama-server/qwen3:8b") "NONE"
+    Check "reader: keys are provider/model, :latest dropped"           ($probeKeys -join " ") "llamacpp-node3/old llamacpp-node3/qwen3:8b llamacpp-server/qwen3.6:35b-a3b-coding llamacpp-server/qwen3:8b"
+    Check "reader: a row keeps its engine and build"                   ("{0} {1}" -f $probeLog["llamacpp-node3/qwen3:8b"].engine, $probeLog["llamacpp-node3/qwen3:8b"].engineVersion) "llamacpp b11000-1234567"
+    $hostVersions = @{ "llamacpp-server" = "b11561-abcdef0"; "llamacpp-node3" = "b11000-1234567" }
+    Check "state: PASS on the current build"                           (Get-ProbeState "llamacpp-server/qwen3.6:35b-a3b-coding") "PASS"
+    Check "state: FAIL on the current build"                           (Get-ProbeState "llamacpp-server/qwen3:8b") "FAIL"
+    Check "state: the same tag on node3 has its own result"            (Get-ProbeState "llamacpp-node3/qwen3:8b") "PASS"
+    Check "state: PASS on an older build is STALE"                     (Get-ProbeState "llamacpp-node3/old") "STALE"
+    Check "state: same tag on a host with no row is NONE"              (Get-ProbeState "llamacpp-desktop/qwen3:8b") "NONE"
+    Check "state: a removed ollama id is NONE"                         (Get-ProbeState "ollama-desktop/qwen3:8b") "NONE"
     $hostVersions["llamacpp-server"] = "b12000-0000000"
-    Check "state: the llama.cpp build changed: STALE"                  (Get-ProbeState "llamacpp-server/qwen3.6:35b-a3b-coding") "STALE"
-    Check "state: ...and the Ollama result is untouched by it"         (Get-ProbeState "ollama-desktop/qwen3:8b") "PASS"
+    Check "state: the server's build changed: STALE"                   (Get-ProbeState "llamacpp-server/qwen3.6:35b-a3b-coding") "STALE"
+    Check "state: ...and node3's result is untouched by it"            (Get-ProbeState "llamacpp-node3/qwen3:8b") "PASS"
     Has   "note: names the old build and the host's now"               (Format-ProbeNote "llamacpp-server/qwen3.6:35b-a3b-coding") 'probe: PASS on b11561-abcdef0, 2026-10-16; host now b12000-0000000'
-    Has   "note: an ollama row keeps its shape"                        (Format-ProbeNote "ollama-desktop/qwen3:8b") '^\[probe: PASS on 0\.34\.3, 2026-10-06\]$'
-    Check "state: a host not answering has no current version: not STALE" ((Get-ProbeState "llamacpp-node3/qwen3.6:35b-a3b-coding") -eq "NONE") "True"
+    Has   "note: a current row has no 'host now'"                      (Format-ProbeNote "llamacpp-node3/qwen3:8b") '^\[probe: PASS on b11000-1234567, 2026-10-17\]$'
+    Check "state: a host not answering has no current version: not STALE" ((Get-ProbeState "llamacpp-desktop/qwen3.6:35b-a3b-coding") -eq "NONE") "True"
     $hostVersions.Remove("llamacpp-server")
     Check "state: no current version known: the row's status"          (Get-ProbeState "llamacpp-server/qwen3.6:35b-a3b-coding") "PASS"
 
     Section "-- registry: reader and writer"
     $registryPath = Join-Path $tmp "unit-registry.tsv"
     Write-Fixture $registryPath ("# fixture`ntag`tengine`thosts`tdesc`n" +
-        "qwen3:8b`tollama`tdesktop node3`tlight`n" +
-        "qwen3:8b`tllamacpp`tserver`tsame tag, other engine`n" +
+        "qwen3:8b`tllamacpp`tnode3`tlight`n" +
+        "qwen3.6:35b-a3b-coding`tllamacpp`tserver`tmain seat`n" +
         "alpha`topencode-go`topencode-go`thosted`n")
     $rows = @(Get-RegistryRows)
-    Check "reader: rows with engine, hosts, desc"                      (($rows | ForEach-Object { "{0}/{1}/{2}" -f $_.Tag, $_.Engine, ($_.Hosts -join "+") }) -join " ") "qwen3:8b/ollama/desktop+node3 qwen3:8b/llamacpp/server alpha/opencode-go/opencode-go"
-    Add-RegistrySeat -Tag "qwen3:8b" -Engine "llamacpp" -HostLabel "node3" -Version "b1" 6>$null
-    Add-RegistrySeat -Tag "qwen3:8b" -Engine "ollama" -HostLabel "server" -Version "0.34.3" 6>$null
+    Check "reader: rows with engine, hosts, desc"                      (($rows | ForEach-Object { "{0}/{1}/{2}" -f $_.Tag, $_.Engine, ($_.Hosts -join "+") }) -join " ") "qwen3:8b/llamacpp/node3 qwen3.6:35b-a3b-coding/llamacpp/server alpha/opencode-go/opencode-go"
+    Add-RegistrySeat -Tag "qwen3:8b" -Engine "llamacpp" -HostLabel "server" -Version "b1" 6>$null
+    Add-RegistrySeat -Tag "qwen3:8b" -Engine "llamacpp" -HostLabel "server" -Version "b1" 6>$null
+    Add-RegistrySeat -Tag "qwen3:8b" -Engine "vllm" -HostLabel "server" -Version "1" 6>$null
     Add-RegistrySeat -Tag "qwen3.7:new" -Engine "llamacpp" -HostLabel "server" -Version "b1" 6>$null
     Add-RegistrySeat -Tag "qwen3.7:new" -Engine "llamacpp" -HostLabel "server" -Version "b1" 6>$null
     $lines = @(Get-Content -LiteralPath $registryPath | Where-Object { $_ -and -not $_.StartsWith("#") })
-    Check "writer: llamacpp row gains the host (tag + engine match)"    ((($lines[2] -split "`t")[0..2]) -join "|") "qwen3:8b|llamacpp|server node3"
-    Check "writer: the ollama row gains its own host"                  ((($lines[1] -split "`t")[0..2]) -join "|") "qwen3:8b|ollama|desktop node3 server"
+    Check "writer: the row gains the host once (tag + engine match)"   ((($lines[1] -split "`t")[0..2]) -join "|") "qwen3:8b|llamacpp|node3 server"
+    Check "writer: the same tag on another engine is a row of its own" (@($lines | Where-Object { $_ -like "qwen3:8b`tvllm`tserver`t*" }).Count) 1
     Check "writer: a new tag is a new row with its engine, once"       (@($lines | Where-Object { $_ -like "qwen3.7:new`tllamacpp`tserver`t*" }).Count) 1
     Check "writer: the file ends with one newline, LF only"            (([IO.File]::ReadAllText($registryPath) -match "`n$") -and ([IO.File]::ReadAllText($registryPath) -notmatch "`r")) "True"
     Write-Fixture $registryPath "tag`thosts`tdesc`nqwen3:8b`tdesktop`told shape`nalpha`topencode-go`thosted`n"
     $rows = @(Get-RegistryRows)
-    Check "reader: the old tag/hosts/desc shape reads as ollama, or opencode-go" (($rows | ForEach-Object { "{0}/{1}" -f $_.Tag, $_.Engine }) -join " ") "qwen3:8b/ollama alpha/opencode-go"
+    Check "reader: the old tag/hosts/desc shape reads as unknown, or opencode-go" (($rows | ForEach-Object { "{0}/{1}" -f $_.Tag, $_.Engine }) -join " ") "qwen3:8b/unknown alpha/opencode-go"
     $threw = $false
-    try { Add-RegistrySeat -Tag "x" -Engine "ollama" -HostLabel "desktop" -Version "1" 6>$null } catch { $threw = $true }
+    try { Add-RegistrySeat -Tag "x" -Engine "llamacpp" -HostLabel "server" -Version "1" 6>$null } catch { $threw = $true }
     Check "writer: a registry with no engine column is refused, not corrupted" ($threw -and ([IO.File]::ReadAllText($registryPath) -notmatch "`tx`t")) "True"
 
     Section "-- offered seats (the real Get-AvailableModelSeats)"
     $registryPath = Join-Path $tmp "unit-registry2.tsv"
     Write-Fixture $registryPath ("tag`tengine`thosts`tdesc`n" +
-        "qwen3:8b`tollama`tdesktop node3`tlight`n" +
+        "qwen3:8b`tllamacpp`tnode3 server`tlight`n" +
         "qwen3.6:35b-a3b-coding`tllamacpp`tserver node3`tmain seat`n" +
-        "qwen3:14b`tllamacpp`tserver`tnot served there`n" +
+        "qwen3:14b`tllamacpp`tserver desktop`tnot served there`n" +
+        "qwen3:4b`tllamacpp`tlab`ta host with no variable`n" +
+        "qwen3:8b`tollama`tdesktop`ta row left from Ollama`n" +
         "weird`tvllm`tserver`tunknown engine`n" +
         "alpha`topencode-go`topencode-go`thosted`n")
     $engineHosts = $hosts
     $hostedState = $null
     $out = (@(Get-AvailableModelSeats 6>&1) | ForEach-Object { "$_" })
-    $seats = @($out | Where-Object { $_ -match '^(ollama|llamacpp)-[a-z0-9]+/' })
-    Check "seats: served on an up host of the registry's engine only"  ($seats -join " ") "llamacpp-server/qwen3.6:35b-a3b-coding ollama-desktop/qwen3:8b"
-    Has   "skip: a down llamacpp host"                                 ($out -join "`n") '\[skip\] llamacpp-node3 - host not answering'
-    Has   "skip: an ollama host whose variable is unset names it"      ($out -join "`n") '\[skip\] ollama-node3 - OLLAMA_NODE3_BASE_URL is not set in this shell'
-    Has   "skip: a tag the llamacpp host does not serve"               ($out -join "`n") "\[skip\] llamacpp-server - tag 'qwen3:14b' not served there yet"
+    $seats = @($out | Where-Object { $_ -match '^llamacpp-[a-z0-9]+/' })
+    Check "seats: served on an up host only"                           ($seats -join " ") "llamacpp-node3/qwen3:8b llamacpp-server/qwen3:8b llamacpp-server/qwen3.6:35b-a3b-coding"
+    Has   "skip: a down host"                                          ($out -join "`n") '\[skip\] llamacpp-desktop - host not answering'
+    Has   "skip: a host whose variable is unset names it"              ($out -join "`n") '\[skip\] llamacpp-lab - LLAMACPP_LAB_BASE_URL is not set in this shell'
+    Has   "skip: a tag the host does not serve"                        ($out -join "`n") "\[skip\] llamacpp-server - tag 'qwen3:14b' not served there yet"
+    Has   "skip: ...on node3 too (it serves only qwen3:8b)"             ($out -join "`n") "\[skip\] llamacpp-node3 - tag 'qwen3\.6:35b-a3b-coding' not served there yet"
+    Has   "skip: an old ollama row is an unknown engine, not a seat"   ($out -join "`n") "\[skip\] qwen3:8b - unknown engine 'ollama'"
     Has   "skip: an unknown engine"                                    ($out -join "`n") "unknown engine 'vllm'"
-    Check "a registry tag served by the OTHER engine is not offered on this one" (($seats -join " ") -notmatch 'ollama-desktop/qwen3\.6') "True"
+    Lacks "no ollama-* seat is ever offered"                           ($out -join "`n") '(?m)^ollama-'
 }
 
 try {
@@ -298,9 +301,9 @@ try {
     Write-Fixture $keyFile "not a real key"
 
     $registryText = "# fixture registry`ntag`tengine`thosts`tdesc`n" +
-        "qwen3:8b`tollama`tdesktop`tlocal ollama seat`n" +
+        "qwen3:8b`tllamacpp`tnode3`tnode3 seat`n" +
         "qwen3.6:35b-a3b-coding`tllamacpp`tserver`tllama.cpp main seat`n" +
-        "qwen3:8b`tllamacpp`tnode3`tllama.cpp seat on a host that is down`n" +
+        "qwen3:4b`tllamacpp`tdesktop`ta seat on a host that is down`n" +
         "alpha`topencode-go`topencode-go`thosted`n"
     $ratesText = "model`tplan`ttier`tinputPerM`toutputPerM`tcacheReadPerM`tcacheWritePerM`tmonthlyLimitUsd`tchecked`tsource`n" +
         "opencode-go/alpha`tgo`t`t2.00`t4.00`t0.50`t`t10`t2026-10-06`tfixture`n"
@@ -309,11 +312,13 @@ try {
         "go`twindow`t900`t5h`t`t2026-10-07`tfixture`n" +
         ("go`tweek`t900`t7d`t{0}`t2026-10-07`tfixture`n" -f $now.AddDays(-3).ToString("yyyy-MM-ddTHH:mm:ssZ")) +
         ("go`tmonth`t900`t1mo`t{0}`t2026-10-07`tfixture`n" -f $now.AddDays(-12).ToString("yyyy-MM-ddTHH:mm:ssZ"))
-    $configJson = '{"autoupdate":"notify","provider":{"ollama-desktop":{"models":{"qwen3:8b":{}}},' +
-                  '"llamacpp-server":{"models":{"qwen3.6:35b-a3b-coding":{},"qwen3:8b":{},"qwen3.7:new":{}}},' +
-                  '"llamacpp-node3":{"models":{"qwen3:8b":{}}}}}'
-    $ollamaLogText = "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
-    $llamaLogText  = "timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n2026-10-16T09:00:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3.6:35b-a3b-coding`tPASS`t30`tfixture`n"
+    $configJson = '{"autoupdate":"notify","provider":{"llamacpp-server":{"models":{"qwen3.6:35b-a3b-coding":{},"qwen3:8b":{},"qwen3.7:new":{}}},' +
+                  '"llamacpp-node3":{"models":{"qwen3:8b":{}}},"llamacpp-desktop":{"models":{"qwen3:4b":{}}}}}'
+    # The Ollama-era log: history the batch no longer reads (its seats are gone).
+    $ollamaLogText = "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tnode3`t0.34.3`tqwen3:8b`tFAIL`t10`tfixture`n"
+    $llamaLogText  = "timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n" +
+                     "2026-10-16T09:00:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3.6:35b-a3b-coding`tPASS`t30`tfixture`n" +
+                     "2026-10-17T09:00:00`tnode3`tllamacpp`tb11000-1234567`tqwen3:8b`tPASS`t20`tfixture`n"
 
     Write-Fixture "$bin\opencode.cmd" ((@'
 @echo off
@@ -358,24 +363,25 @@ $base = Join-Path $ResultsDir ("tasks-{0}-{1}_{2}" -f $t, $label, $stamp)
 [IO.File]::WriteAllText("$base.json", ('{"taskId":"' + $t + '"}'), $enc)
 exit 0
 '@
-    # Stand-in test-toolcalls.ps1: records how it was called, and logs one row per
-    # model in the shape the real script writes for the engine it was asked for
-    # (PASS, or FAIL for a tag containing "bad"; nothing at all when told not to).
+    # Stand-in test-toolcalls.ps1: the real script's parameters (llama.cpp only since
+    # 2026-11-21), records how it was called, and logs one row per model in the real
+    # log's shape (PASS, or FAIL for a tag containing "bad"; nothing when told not to).
+    # The build it logs is the one the probed host reports.
     $stubProbe = @'
-param([string[]]$Model, [Alias("EngineHost")][string]$OllamaHost, [string]$HostLabel,
-      [string]$Engine = "ollama", [string]$LogFile, [switch]$NoLog, [int]$TimeoutSec, [switch]$KeepLoaded)
-Add-Content -LiteralPath $env:FIXTURE_PROBES -Value ("{0}|{1}|{2}|{3}" -f $Engine, $OllamaHost, $HostLabel, ($Model -join ","))
+[CmdletBinding()]
+param([string[]]$Model, [string]$EngineHost, [string]$HostLabel,
+      [string]$Engine = "llamacpp", [string]$LogFile, [switch]$NoLog, [int]$TimeoutSec, [switch]$KeepLoaded)
+Add-Content -LiteralPath $env:FIXTURE_PROBES -Value ("{0}|{1}|{2}|{3}" -f $Engine, $EngineHost, $HostLabel, ($Model -join ","))
+if ($Engine -ne "llamacpp") { exit 2 }
 if ($env:FIXTURE_PROBE_NOLOG) { exit 0 }
 $enc = New-Object System.Text.UTF8Encoding $false
-$ver = if ($Engine -eq "llamacpp") { $env:FIXTURE_PROBE_LLAMA_BUILD } else { "0.34.3" }
+$ver = (Invoke-RestMethod -Uri "$EngineHost/props" -TimeoutSec 5).build_info
 if (-not (Test-Path -LiteralPath $LogFile)) {
-    $hdr = if ($Engine -eq "llamacpp") { "timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n" } else { "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n" }
-    [IO.File]::WriteAllText($LogFile, $hdr, $enc)
+    [IO.File]::WriteAllText($LogFile, "timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n", $enc)
 }
 foreach ($m in $Model) {
     $st = if ($m -like "*bad*") { "FAIL" } else { "PASS" }
-    $row = if ($Engine -eq "llamacpp") { "2026-10-16T12:00:00`t$HostLabel`t$Engine`t$ver`t$m`t$st`t1`tfixture`n" } else { "2026-10-16T12:00:00`t$HostLabel`t$ver`t$m`t$st`t1`tfixture`n" }
-    [IO.File]::AppendAllText($LogFile, $row, $enc)
+    [IO.File]::AppendAllText($LogFile, "2026-10-18T12:00:00`t$HostLabel`t$Engine`t$ver`t$m`t$st`t1`tfixture`n", $enc)
 }
 exit 0
 '@
@@ -428,16 +434,15 @@ exit $LASTEXITCODE
         $argsFile = Join-Path $tmp "args-$($script:scn).json"
         Write-Fixture $argsFile ($all | ConvertTo-Json -Depth 4)
         Clear-HostEnv
-        # the defaults: the Ollama desktop and the llama.cpp server up, llama.cpp node3 down
-        Set-Env "OLLAMA_DESKTOP_BASE_URL" "$($ollamaHost.Url)/v1"
+        # the defaults: the server and node3 up, the desktop's variable pointing at a dead port
         Set-Env "LLAMACPP_SERVER_BASE_URL" "$($llamaHost.Url)/v1"
-        Set-Env "LLAMACPP_NODE3_BASE_URL" "$deadUrl/v1"
+        Set-Env "LLAMACPP_NODE3_BASE_URL" "$($node3Host.Url)/v1"
+        Set-Env "LLAMACPP_DESKTOP_BASE_URL" "$deadUrl/v1"
         foreach ($k in $Env.Keys) { Set-Env $k $Env[$k] }
         Set-Env "PATH" "$bin;$origPath"
         Set-Env "FIXTURE_DIR" $fx
         Set-Env "FIXTURE_CALLS" $calls
         Set-Env "FIXTURE_PROBES" $probes
-        Set-Env "FIXTURE_PROBE_LLAMA_BUILD" $(if ($Env.ContainsKey("FIXTURE_PROBE_LLAMA_BUILD")) { $Env["FIXTURE_PROBE_LLAMA_BUILD"] } else { "b11561-abcdef0" })
         Set-Env "FIXTURE_PROBE_NOLOG" $(if ($Env.ContainsKey("FIXTURE_PROBE_NOLOG")) { $Env["FIXTURE_PROBE_NOLOG"] } else { $null })
         $prevEap = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
@@ -459,80 +464,82 @@ exit $LASTEXITCODE
     }
 
     $tree = New-BatchTree "tree" $realText
-    $ollamaSeat = "ollama-desktop/qwen3:8b"
-    $llamaSeat  = "llamacpp-server/qwen3.6:35b-a3b-coding"
+    $node3Seat = "llamacpp-node3/qwen3:8b"
+    $llamaSeat = "llamacpp-server/qwen3.6:35b-a3b-coding"
 
-    Write-Host "   scenario: -Models all, Tasks mode: both engines' seats, a down llama.cpp host skipped"
-    $llamaHost.Hits.Clear(); $ollamaHost.Hits.Clear()
+    Write-Host "   scenario: -Models all, Tasks mode: both hosts' seats, a down host skipped"
+    $llamaHost.Hits.Clear(); $node3Host.Hits.Clear()
     $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @("all") }
     Check "exit 0"                                      $r.Exit 0
-    Check "the Ollama seat and the llama.cpp seat ran (alias served; node3 down; hosted not in 'all')" $r.Calls "t1|$llamaSeat t1|$ollamaSeat"
-    Has   "skip: llamacpp-node3 not answering"           $r.Out '\[skip\] llamacpp-node3 - host not answering'
-    Has   "preflight: ollama host passes with its tag count" $r.Out '\[PASS\] ollama-desktop\s+http://127\.0\.0\.1:\d+/v1 - 2 model tag\(s\)'
-    Has   "preflight: llamacpp host passes with its id count (the /v1 surface kept in the line)" $r.Out '\[PASS\] llamacpp-server\s+http://127\.0\.0\.1:\d+/v1 - 6 model id\(s\)'
-    Check "the llama.cpp host was asked /health, never an /api/ endpoint" ((@($llamaHost.Hits | Where-Object { $_ -eq "GET /health" }).Count -ge 1) -and (@($llamaHost.Hits | Where-Object { $_ -like "*/api/*" }).Count -eq 0)) "True"
-    Check "the Ollama host was never asked a llama.cpp endpoint" (@($ollamaHost.Hits | Where-Object { $_ -match '/health|/props|/models' }).Count) 0
+    Check "the server seat and the node3 seat ran (alias served; desktop down; hosted not in 'all')" $r.Calls "t1|$node3Seat t1|$llamaSeat"
+    Has   "skip: llamacpp-desktop not answering"         $r.Out '\[skip\] llamacpp-desktop - host not answering'
+    Has   "preflight: the server passes with its id count (the /v1 surface kept in the line)" $r.Out '\[PASS\] llamacpp-server\s+http://127\.0\.0\.1:\d+/v1 - 6 model id\(s\)'
+    Has   "preflight: node3 passes with its own count"   $r.Out '\[PASS\] llamacpp-node3\s+http://127\.0\.0\.1:\d+/v1 - 2 model id\(s\)'
+    Check "the hosts were asked /health, never an /api/ endpoint" ((@($llamaHost.Hits | Where-Object { $_ -eq "GET /health" }).Count -ge 1) -and (@(@($llamaHost.Hits) + @($node3Host.Hits) | Where-Object { $_ -like "*/api/*" }).Count -eq 0)) "True"
+    Lacks "the Ollama-era probe log's FAIL for qwen3:8b on node3 is not read" $r.Out "$([regex]::Escape($node3Seat)) - probe FAIL"
 
-    Write-Host "   scenario: a down llama.cpp host is refused by the endpoint preflight"
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @("llamacpp-node3/qwen3:8b") }
+    Write-Host "   scenario: a down host is refused by the endpoint preflight"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @("llamacpp-desktop/qwen3:4b") }
     Check "exit 1, no run started"                       ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
-    Has   "[FAIL] names the provider and the engine"     $r.Out '\[FAIL\] llamacpp-node3\s+http://127\.0\.0\.1:\d+/v1 - llama\.cpp not answering at'
+    Has   "[FAIL] names the provider and the engine"     $r.Out '\[FAIL\] llamacpp-desktop\s+http://127\.0\.0\.1:\d+/v1 - llama\.cpp not answering at'
     Has   "...and the batch is not started"              $r.Out '1 endpoint\(s\) not answering - not starting the batch'
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @("llamacpp-node3/qwen3:8b") } @{ LLAMACPP_NODE3_BASE_URL = $null }
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($node3Seat) } @{ LLAMACPP_NODE3_BASE_URL = $null }
     Check "an unset variable: exit 1, no run"            ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
     Has   "...the FAIL names the variable"               $r.Out '\[FAIL\] llamacpp-node3\s+LLAMACPP_NODE3_BASE_URL is not set'
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($ollamaSeat) } @{ OPENCODE_SMALL_MODEL = "llamacpp-node3/qwen3:8b" }
-    Check "a dead llama.cpp host as the small model also stops the batch" ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
-    Has   "...[FAIL] llamacpp-node3"                     $r.Out '\[FAIL\] llamacpp-node3'
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($llamaSeat) } @{ OPENCODE_SMALL_MODEL = "llamacpp-desktop/qwen3:4b" }
+    Check "a dead host as the small model also stops the batch" ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
+    Has   "...[FAIL] llamacpp-desktop"                   $r.Out '\[FAIL\] llamacpp-desktop'
 
-    Write-Host "   scenario: the llama.cpp build changed (STALE)"
+    Write-Host "   scenario: the server's llama.cpp build changed (STALE)"
     $llamaHost.Routes["/props"] = '{"build_info":"b12000-1111111"}'
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($llamaSeat, $ollamaSeat) }
-    Check "Tasks mode: both run, with a WARN for the llama.cpp seat" ("{0} {1}" -f $r.Exit, $r.Calls) "0 t1|$llamaSeat t1|$ollamaSeat"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($llamaSeat, $node3Seat) }
+    Check "Tasks mode: both run, with a WARN for the server seat" ("{0} {1}" -f $r.Exit, $r.Calls) "0 t1|$node3Seat t1|$llamaSeat"
     Has   "...WARN says STALE on the host's current version"  $r.Out "WARN: $([regex]::Escape($llamaSeat)) - probe STALE on this host's current version"
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($llamaSeat, $ollamaSeat); Mode = "Both" } @{ FIXTURE_PROBE_NOLOG = "1" }
-    Check "Both mode, the probe logged nothing new: the stale llama.cpp seat is dropped, the Ollama seat runs" ("{0} {1}" -f $r.Exit, $r.Calls) "0 t1|$ollamaSeat"
+    Lacks "...and none for node3, whose build did not move"   $r.Out "WARN: $([regex]::Escape($node3Seat))"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($llamaSeat, $node3Seat); Mode = "Both" } @{ FIXTURE_PROBE_NOLOG = "1" }
+    Check "Both mode, the probe logged nothing new: the stale server seat is dropped, node3 runs" ("{0} {1}" -f $r.Exit, $r.Calls) "0 t1|$node3Seat"
     Has   "...[drop] names STALE and the engine version"      $r.Out "\[drop\] $([regex]::Escape($llamaSeat)) - probe STALE on this host's current engine version"
     $llamaHost.Routes["/props"] = '{"build_info":"b11561-abcdef0"}'
 
-    Write-Host "   scenario: Probe mode calls each engine's probe its own way and writes the registry row with its engine"
+    Write-Host "   scenario: Probe mode probes each host once and writes the registry row with its engine"
     function Scenario-Probe($Tree) {
-        $models = @($ollamaSeat, "llamacpp-server/qwen3:8b", "llamacpp-server/qwen3.7:new")
+        $models = @($node3Seat, "llamacpp-server/qwen3:8b", "llamacpp-server/qwen3.7:new")
         $r = Invoke-Batch $Tree @{ Mode = "Probe"; Models = $models; Tasks = @("t1") }
         Check "exit 0"                                       $r.Exit 0
-        Check "two probe calls, one per provider"            $r.Probes.Count 2
-        $ol = @($r.Probes | Where-Object { $_ -like "ollama|*" })
-        $ll = @($r.Probes | Where-Object { $_ -like "llamacpp|*" })
-        Check "the Ollama probe: engine ollama, the host root, its label, its tag"  (($ol -replace ':\d+\|', ':PORT|') -join ";") "ollama|http://127.0.0.1:PORT|desktop|qwen3:8b"
-        Check "the llama.cpp probe: -Engine llamacpp -EngineHost <root>, label, both tags" (($ll -replace ':\d+\|', ':PORT|') -join ";") "llamacpp|http://127.0.0.1:PORT|server|qwen3:8b,qwen3.7:new"
-        Has   "the llama.cpp probe got the router root (no /v1)" ($ll -join ";") '^llamacpp\|http://127\.0\.0\.1:\d+\|server\|'
+        Check "two probe calls, one per host"                $r.Probes.Count 2
+        Check "the probes: -Engine llamacpp -EngineHost <root>, label, tags" ((@($r.Probes -replace ':\d+\|', ':PORT|') | Sort-Object) -join ";") "llamacpp|http://127.0.0.1:PORT|node3|qwen3:8b;llamacpp|http://127.0.0.1:PORT|server|qwen3:8b,qwen3.7:new"
+        Check "each probe got its own host's router root (no /v1)" ((@($r.Probes | Where-Object { $_ -like "*|server|*" }) -join "") -like "llamacpp|$($llamaHost.Url)|server|*" -and (@($r.Probes | Where-Object { $_ -like "*|node3|*" }) -join "") -like "llamacpp|$($node3Host.Url)|node3|*") "True"
         $reg = @($r.Registry -split "`n" | Where-Object { $_ -and -not $_.StartsWith("#") })
-        Check "registry: the new llama.cpp tag is a row with engine llamacpp and host server" (@($reg | Where-Object { $_ -like "qwen3.7:new`tllamacpp`tserver`t*" }).Count) 1
-        Check "registry: qwen3:8b llamacpp row gains server (tag + engine match), the ollama row is untouched" ((@($reg | Where-Object { $_ -like "qwen3:8b`t*" }) | ForEach-Object { ($_ -split "`t")[0..2] -join "|" }) -join " ; ") "qwen3:8b|ollama|desktop ; qwen3:8b|llamacpp|node3 server"
-        Check "registry: the existing llama.cpp main seat row is unchanged" (@($reg | Where-Object { $_ -like "qwen3.6:35b-a3b-coding`tllamacpp`tserver`tllama.cpp main seat" }).Count) 1
+        Check "registry: the new tag is a row with engine llamacpp and host server" (@($reg | Where-Object { $_ -like "qwen3.7:new`tllamacpp`tserver`t*" }).Count) 1
+        Check "registry: the qwen3:8b row gains server (tag + engine match)" ((@($reg | Where-Object { $_ -like "qwen3:8b`t*" }) | ForEach-Object { ($_ -split "`t")[0..2] -join "|" }) -join " ; ") "qwen3:8b|llamacpp|node3 server"
+        Check "registry: the existing main seat row is unchanged" (@($reg | Where-Object { $_ -like "qwen3.6:35b-a3b-coding`tllamacpp`tserver`tllama.cpp main seat" }).Count) 1
         return $r
     }
     $r = Scenario-Probe $tree
-    Has   "summary: PASS lines for the three probed seats" $r.Out '(?s)\[PASS \] llamacpp-server/qwen3:8b.*'
-    Check "a 'new' probe menu offers one entry per llama.cpp model, not its id and alias" ((Invoke-Batch $tree @{ Mode = "Probe"; Models = @("new"); Tasks = @("t1") } @{ FIXTURE_PROBE_NOLOG = "1" }).Probes -join ";" -replace ':\d+\|', ':PORT|') "llamacpp|http://127.0.0.1:PORT|server|qwen3:8b,qwen3.7:new"
+    Has   "summary: PASS lines for the probed seats"     $r.Out '(?s)\[PASS \] llamacpp-server/qwen3:8b.*'
+    Check "a 'new' probe menu offers one entry per model, not its id and alias" ((Invoke-Batch $tree @{ Mode = "Probe"; Models = @("new"); Tasks = @("t1") } @{ FIXTURE_PROBE_NOLOG = "1" }).Probes -join ";" -replace ':\d+\|', ':PORT|') "llamacpp|http://127.0.0.1:PORT|server|qwen3:8b,qwen3.7:new"
 
     Write-Host "   scenario: -OnlyMissing, unchanged"
-    $summary = "taskId`tmodel`topencodeExit`nt1`t$llamaSeat`t0`nt2`t$ollamaSeat`t1`n"
-    $r = Invoke-Batch $tree @{ Tasks = @("t1", "t2"); Models = @($llamaSeat, $ollamaSeat); OnlyMissing = $true } @{} $summary
-    Check "a graded llama.cpp pair is skipped, a non-graded (exit 1) Ollama pair is not" $r.Calls "t1|$ollamaSeat t2|$llamaSeat t2|$ollamaSeat"
+    $summary = "taskId`tmodel`topencodeExit`nt1`t$llamaSeat`t0`nt2`t$node3Seat`t1`n"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1", "t2"); Models = @($llamaSeat, $node3Seat); OnlyMissing = $true } @{} $summary
+    Check "a graded server pair is skipped, a non-graded (exit 1) node3 pair is not" $r.Calls "t1|$node3Seat t2|$node3Seat t2|$llamaSeat"
 
-    Write-Host "   scenario: a llama.cpp seat found on the CPU stops that provider; the Ollama host carries on"
-    $r = Invoke-Batch $tree @{ Tasks = @("t1", "fx-cpu", "t2"); Models = @($llamaSeat, $ollamaSeat) }
-    Check "runs"                                          (($r.Seen -split ",") -join " ") "t1@llamacpp-server fx-cpu@llamacpp-server t1@ollama-desktop fx-cpu@ollama-desktop t2@ollama-desktop"
+    Write-Host "   scenario: a seat found on the CPU stops that host; the other host carries on"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1", "fx-cpu", "t2"); Models = @($llamaSeat, $node3Seat) }
+    Check "runs"                                          (($r.Seen -split ",") -join " ") "t1@llamacpp-node3 fx-cpu@llamacpp-node3 t2@llamacpp-node3 t1@llamacpp-server fx-cpu@llamacpp-server"
     Check "exit 1 (a host was stopped)"                  $r.Exit 1
-    Has   "the stop names the run and the engine"        $r.Out "run 2 of 6 \(fx-cpu x $([regex]::Escape($llamaSeat))\): llama\.cpp had the seat entirely in system RAM after the run"
+    Has   "the stop names the run and the engine"        $r.Out "run 5 of 6 \(fx-cpu x $([regex]::Escape($llamaSeat))\): llama\.cpp had the seat entirely in system RAM after the run"
     Has   "...says one run was not started on llamacpp-server" $r.Out '1 run\(s\) not started on llamacpp-server'
-    Lacks "...and nothing is stopped on the Ollama host" $r.Out 'not started on ollama-desktop'
+    Lacks "...and nothing is stopped on node3"           $r.Out 'not started on llamacpp-node3'
+    Has   "...and says the other hosts carry on"         $r.Out '\[GPU\] llamacpp-server:.*Other hosts carry on'
+    $r = Invoke-Batch $tree @{ Tasks = @("t1", "t2", "t3"); Models = @($llamaSeat, $node3Seat) }
+    Check "no CPU-only run: everything runs, exit 0"     ("{0} {1}" -f $r.Exit, @($r.Seen -split ",").Count) "0 6"
+    Lacks "...and the batch is not STOPPED"              $r.Out 'Batch STOPPED'
 
-    Write-Host "   scenario: a hosted seat beside both engines"
-    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($ollamaSeat, $llamaSeat, "hosted") }
+    Write-Host "   scenario: a hosted seat beside both hosts"
+    $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @($node3Seat, $llamaSeat, "hosted") }
     Check "exit 0"                                       $r.Exit 0
-    Check "all three ran, the hosted one as opencode-go/alpha" $r.Calls "t1|$llamaSeat t1|$ollamaSeat t1|opencode-go/alpha"
+    Check "all three ran, the hosted one as opencode-go/alpha" $r.Calls "t1|$node3Seat t1|$llamaSeat t1|opencode-go/alpha"
     Has   "hosted: smoke-tested, not probed (the probe covers local engines only)" $r.Out 'opencode-go/alpha is hosted - smoke-tested .* not probed: test-toolcalls\.ps1 probes local engines only'
     Check "...and no endpoint check for it"              ($r.Out -match '\[PASS\] opencode-go\s+key file present') "True"
     $r = Invoke-Batch $tree @{ Tasks = @("t1"); Models = @("all") }
@@ -550,18 +557,18 @@ exit $LASTEXITCODE
         Check "control: $Name -> at least $Min check(s) fail" ($failed -ge $Min) "True"
         Write-Host ("     ({0} failed)" -f $failed)
     }
-    Invoke-Control "no llamacpp host discovery" '$hosts = foreach ($kind in "ollama", "llamacpp") {' '$hosts = foreach ($kind in "ollama") {' { param($t) Invoke-UnitChecks $t } 8
+    Invoke-Control "no host discovery" '$hosts = foreach ($kind in @("llamacpp")) {' '$hosts = foreach ($kind in @()) {' { param($t) Invoke-UnitChecks $t } 8
     Invoke-Control "the probe state ignores the engine version (no STALE)" 'if ($cur -and $row.engineVersion -ne $cur) { return "STALE" }' '' { param($t) Invoke-UnitChecks $t } 2
-    Invoke-Control "the probe log is read from the Ollama file only" '$path = $probeLogPaths[$kind]' '$path = $probeLogPaths["ollama"]' { param($t) Invoke-UnitChecks $t } 4
-    Invoke-Control "the probe key leaves the engine out" '$last["$engine-$($row.host)/' '$last["ollama-$($row.host)/' { param($t) Invoke-UnitChecks $t } 3
+    Invoke-Control "the probe key leaves the host out" '$last["$engine-$($row.host)/' '$last["$engine-server/' { param($t) Invoke-UnitChecks $t } 3
     Invoke-Control "the registry writer ignores the engine" ' -or $cols[1].Trim() -ne $Engine' '' { param($t) Invoke-UnitChecks $t } 1
+    Invoke-Control "an old ollama row is offered as a seat" '            if (@("llamacpp") -notcontains $r.Engine) {' '            if (@("llamacpp", "ollama") -notcontains $r.Engine) {' { param($t) Invoke-UnitChecks $t } 1
     Invoke-Control "liveness always passes" 'if (-not (Invoke-Engine $kind "Test-EngineAlive" @{ Root = $Root; TimeoutSec = 5 })) {' 'if ($false) {' {
         param($t)
         $ctl = New-BatchTree "ctl-live" $t
-        $r = Invoke-Batch $ctl @{ Tasks = @("t1"); Models = @("llamacpp-node3/qwen3:8b") }
-        Check "ctl: a down llama.cpp host is refused" ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
+        $r = Invoke-Batch $ctl @{ Tasks = @("t1"); Models = @("llamacpp-desktop/qwen3:4b") }
+        Check "ctl: a down host is refused" ("{0} [{1}]" -f $r.Exit, $r.Calls) "1 []"
     } 1
-    Invoke-Control "the probe is always called the Ollama way" 'if ($h.Engine -eq "llamacpp") {' 'if ($false) {' {
+    Invoke-Control "the probe is called the Ollama way" '& $toolcallsPs1 -Engine $h.Engine -EngineHost $h.Root' '& $toolcallsPs1 -Engine ollama -EngineHost $h.Root' {
         param($t)
         $ctl = New-BatchTree "ctl-probe" $t
         $null = Scenario-Probe $ctl
@@ -573,8 +580,8 @@ exit $LASTEXITCODE
     } 2
 } finally {
     Restore-Env
-    Stop-FakeHost $ollamaHost
     Stop-FakeHost $llamaHost
+    Stop-FakeHost $node3Host
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
 

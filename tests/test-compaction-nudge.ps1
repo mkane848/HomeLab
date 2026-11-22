@@ -132,7 +132,7 @@ exit 0
     $env:PATH = "$bin;$env:PATH"
     $env:FIXTURE_CALLS = Join-Path $tmp "calls.txt"
     $tt = Join-Path $tmp "tests/test-tasks.ps1"
-    $common = @{ Model = "fixture/m"; SkipInstall = $true; RunTimeout = 120; OllamaLogDir = (Join-Path $tmp "no-log") }
+    $common = @{ Model = "fixture/m"; SkipInstall = $true; RunTimeout = 120 }
     try {
         Write-Host "-- refused into tests/results/"
         $refused = & $tt -Task fx-stop @common -NudgeAfterCompaction *>&1 | Out-String

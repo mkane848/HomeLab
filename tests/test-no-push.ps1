@@ -127,7 +127,7 @@ exit 0
     $env:PATH = "$bin;$env:PATH"
     $env:FIXTURE_SEEN = Join-Path $e2e "seen.txt"
     try {
-        $null = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-nopush -Model fixture/m -SkipInstall -RunTimeout 120 -OllamaLogDir (Join-Path $e2e "no-log") *>&1 | Out-String
+        $null = & (Join-Path $e2e "tests/test-tasks.ps1") -Task fx-nopush -Model fixture/m -SkipInstall -RunTimeout 120 *>&1 | Out-String
     } finally {
         $env:PATH = $origPath
         Remove-Item Env:FIXTURE_SEEN -ErrorAction SilentlyContinue

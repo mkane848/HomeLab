@@ -20,10 +20,13 @@
 #   - real transcripts committed under tests/results/ that the 2026-10-04 audit
 #     classified;
 #   - Get-CompactionThreshold against opencode 1.18.34's formula;
-#   - Format-ContextOverflowWarning, the console WARN: Ollama's silent-drop
-#     wording only for Ollama, explicit refusals (llama-server) named as such,
-#     and a llama.cpp estimate with no refusal called an over-estimate (the
-#     2026-10-19 llama.cpp rounds printed "Ollama dropped" for 42 refusals).
+#   - Format-ContextOverflowWarning, the console WARN: explicit refusals
+#     (llama-server) named as such, and an estimate with no refusal called an
+#     over-estimate (the 2026-10-19 llama.cpp rounds printed "Ollama dropped"
+#     for 42 refusals). Ollama's silent-drop wording went with Ollama on
+#     2026-11-21; no wording may say a message was dropped.
+#   The real transcripts are Ollama runs (ollama-desktop_* file names) because
+#   that is where the front-drops happened; they are history, kept as is.
 # Exit 1 on any failure; a missing fixture is a failure, not a skip.
 #
 # Usage:  .\tests\test-context-events.ps1 [-ScriptPath <a test-tasks.ps1>] [-ResultsDir <tests/results>]
@@ -184,38 +187,36 @@ try {
 
     Write-Host "-- Get-CompactionThreshold (opencode 1.18.34 session/overflow.ts)"
     function Cfg([hashtable]$limit, $reserved) {
-        $c = @{ provider = @{ "ollama-desktop" = @{ models = @{ "m" = @{ limit = $limit } } } } }
+        $c = @{ provider = @{ "llamacpp-server" = @{ models = @{ "m" = @{ limit = $limit } } } } }
         if ($null -ne $reserved) { $c.compaction = @{ reserved = $reserved } }
         return ($c | ConvertTo-Json -Depth 8 | ConvertFrom-Json)
     }
-    CheckValue "no limit.input: context - output"             (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/m").threshold 61440
-    CheckValue "no limit.input: reserved is ignored"          (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 8192 } 16000) -ModelId "ollama-desktop/m").threshold 57344
-    CheckValue "limit.input, default reserved = min(20k, out)" (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } $null) -ModelId "ollama-desktop/m").threshold 57344
-    CheckValue "limit.input with reserved 16000"              (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } 16000) -ModelId "ollama-desktop/m").threshold 45440
-    CheckValue "unknown model: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/other")) $true
-    CheckValue "prune not set: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "ollama-desktop/m").prune) $true
-    $pc = @{ provider = @{ "ollama-desktop" = @{ models = @{ "m" = @{ limit = @{ context = 65536; output = 16384 } } } } }; compaction = @{ prune = $true } } | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    CheckValue "compaction.prune true is recorded"            (Get-CompactionThreshold -Config $pc -ModelId "ollama-desktop/m").prune $true
-    CheckValue "...and does not move the threshold"           (Get-CompactionThreshold -Config $pc -ModelId "ollama-desktop/m").threshold 49152
+    CheckValue "no limit.input: context - output"             (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "llamacpp-server/m").threshold 61440
+    CheckValue "no limit.input: reserved is ignored"          (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 8192 } 16000) -ModelId "llamacpp-server/m").threshold 57344
+    CheckValue "limit.input, default reserved = min(20k, out)" (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } $null) -ModelId "llamacpp-server/m").threshold 57344
+    CheckValue "limit.input with reserved 16000"              (Get-CompactionThreshold -Config (Cfg @{ context = 65536; input = 61440; output = 4096 } 16000) -ModelId "llamacpp-server/m").threshold 45440
+    CheckValue "unknown model: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "llamacpp-server/other")) $true
+    CheckValue "prune not set: null"                          ($null -eq (Get-CompactionThreshold -Config (Cfg @{ context = 65536; output = 4096 } $null) -ModelId "llamacpp-server/m").prune) $true
+    $pc = @{ provider = @{ "llamacpp-server" = @{ models = @{ "m" = @{ limit = @{ context = 65536; output = 16384 } } } } }; compaction = @{ prune = $true } } | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    CheckValue "compaction.prune true is recorded"            (Get-CompactionThreshold -Config $pc -ModelId "llamacpp-server/m").prune $true
+    CheckValue "...and does not move the threshold"           (Get-CompactionThreshold -Config $pc -ModelId "llamacpp-server/m").threshold 49152
 
-    Write-Host "-- Format-ContextOverflowWarning (the console WARN, worded per engine)"
+    Write-Host "-- Format-ContextOverflowWarning (the console WARN)"
     $drops = @([pscustomobject]@{ step = 1; estimatedRequest = 67195 }, [pscustomobject]@{ step = 3; estimatedRequest = 70463 })
-    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 0 -NumCtx 65536 -AgentName "opencode"
     CheckValue "nothing over the context: no warning"                    ($null -eq $w) $true
-    $w = Format-ContextOverflowWarning -FrontDrops $null -OverflowErrors $null -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
+    $w = Format-ContextOverflowWarning -FrontDrops $null -OverflowErrors $null -NumCtx 65536 -AgentName "opencode"
     CheckValue "no context events at all (null): no warning"             ($null -eq $w) $true
-    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "ollama" -NumCtx 65536 -AgentName "opencode"
-    CheckValue "Ollama front-drops: the silent-drop wording"             ($w -match '^a request overflowed num_ctx 2 time\(s\) \(first before step 1: ~67195 tokens against 65536\); Ollama dropped the oldest messages') $true
-    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 42 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 42 -NumCtx 65536 -AgentName "opencode"
     CheckValue "llama.cpp refusals: says refused explicitly, with count" ($w -match '^the engine refused 42 over-long request\(s\) explicitly \(ContextOverflowError against a 65536-token context\); opencode handled each one') $true
     CheckValue "...and never says Ollama dropped anything"               ($w -match 'Ollama|dropped the oldest') $false
     CheckValue "...and points at overflowRecovery"                       ($w -match 'Recorded in overflowRecovery, not graded\.$') $true
-    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 3 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
+    $w = Format-ContextOverflowWarning -FrontDrops @() -OverflowErrors 3 -NumCtx 65536 -AgentName "opencode"
     CheckValue "refusals with no front-drop estimate still warn"         ($w -match '^the engine refused 3 ') $true
-    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "llamacpp" -NumCtx 65536 -AgentName "opencode"
-    CheckValue "llama.cpp estimate with no refusal: an over-estimate"    ($w -match 'refused none in this run: the estimate ran high, nothing was dropped') $true
-    CheckValue "...and never says Ollama dropped anything"               ($w -match 'Ollama') $false
-    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -EngineName "ollama" -NumCtx $null -AgentName "opencode"
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -NumCtx 65536 -AgentName "opencode"
+    CheckValue "estimate with no refusal: an over-estimate, with count and first step" ($w -match '^a request overflowed num_ctx 2 time\(s\) \(first before step 1: ~67195 tokens against 65536\) by the 3-characters-a-token estimate.*refused none in this run: the estimate ran high, nothing was dropped') $true
+    CheckValue "...and never says Ollama dropped anything"               ($w -match 'Ollama|dropped the oldest') $false
+    $w = Format-ContextOverflowWarning -FrontDrops $drops -OverflowErrors 0 -NumCtx $null -AgentName "opencode"
     CheckValue "num_ctx unknown: says so"                                ($w -match 'against unknown\)') $true
 } finally {
     Remove-Item -LiteralPath $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue

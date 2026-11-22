@@ -108,7 +108,7 @@ exit 2
         $origPath = $env:PATH
         $env:PATH = "$bin;$env:PATH"
         try {
-            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task fx-exceeded, fx-recovered, fx-other, fx-timeout, fx-clean -Model fixture/m -SkipInstall -RunTimeout 15 -OllamaLogDir (Join-Path $root "no-log") *>&1 | Out-String
+            $out = & (Join-Path $root "tests/test-tasks.ps1") -Task fx-exceeded, fx-recovered, fx-other, fx-timeout, fx-clean -Model fixture/m -SkipInstall -RunTimeout 15 *>&1 | Out-String
             $code = $LASTEXITCODE
         } finally {
             $env:PATH = $origPath

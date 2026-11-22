@@ -1,15 +1,14 @@
 # probe-overflow.ps1 - what does an engine do with a prompt longer than its context?
 #
-# The case for leaving Ollama (docs/llamacpp-trial.md) rests on one behaviour:
-# Ollama silently drops the front of a prompt that outgrows num_ctx, the task
-# brief first, and the model carries on without it; llama-server rejects the
-# request with an explicit error instead. This sends ONE oversized chat request
-# and says which happened, so the claim is a measurement on a given engine and
-# version rather than a belief. It serves two steps of the trial:
-#   - the premise check: does Ollama 0.40.x still cut silently? (a scratch
-#     container, a small model, a small num_ctx);
-#   - measurement C, first half: does llama-server answer with an error, and is
-#     it one OpenCode would recognise as a context overflow?
+# The move to llama.cpp (docs/llamacpp-trial.md) rested on one behaviour: Ollama
+# silently dropped the front of a prompt that outgrew num_ctx, the task brief
+# first, and the model carried on without it; llama-server rejects the request
+# with an explicit error instead. This sends ONE oversized chat request to
+# llama-server and says which happened, so the claim stays a measurement on a
+# given build rather than a belief: does it answer with an error, and is it one
+# OpenCode would recognise as a context overflow? llama.cpp is the only local
+# engine since Ollama was removed (2026-11-21); the Ollama-era rows in the
+# results file keep engine "ollama" and still read.
 #
 # How it decides. A needle ("The secret word is MAGENTA-nnnn") is the FIRST line
 # of the prompt, filler follows, and the question is last. After a calibration
@@ -25,20 +24,19 @@
 #                       the engine grew the window
 # needleFound is information, not the verdict (a model can guess).
 #
-# Pass -NumCtx as the context the engine SERVES for this model: an Ollama tag's
-# baked num_ctx (or OLLAMA_CONTEXT_LENGTH for an un-baked tag), llama-server's
-# `c` in the preset (check /props). The probe does not set it.
+# Pass -NumCtx as the context llama-server SERVES for this model: `c` in the
+# preset (check /props). The probe does not set it.
 #
 # Rows go to tests/results/overflow-probe.tsv (-NoLog skips); no prompt text.
 #
 # Usage:
-#   .\tests\probe-overflow.ps1 -Engine ollama   -Endpoint http://SERVER_IP:11500 -Model qwen3:8b -NumCtx 4096 -HostLabel server
-#   .\tests\probe-overflow.ps1 -Engine llamacpp -Endpoint http://SERVER_IP:8090  -Model qwen3.6:35b-a3b-coding -NumCtx 65536 -HostLabel server
+#   .\tests\probe-overflow.ps1 -Endpoint http://SERVER_IP:8090 -Model qwen3.6:35b-a3b-coding -NumCtx 65536 -HostLabel server
+# -Engine is accepted for symmetry with the other tools; llamacpp is its only value.
 # Exit 0 whatever the verdict (each is a finding); 1 if the host does not answer
 # the calibration request; 2 on bad arguments.
 param(
-    [string]$Engine = "ollama",
-    [Parameter(Mandatory)][Alias("EngineHost", "OllamaHost")][string]$Endpoint,
+    [string]$Engine = "llamacpp",
+    [Parameter(Mandatory)][Alias("EngineHost")][string]$Endpoint,
     [Parameter(Mandatory)][string]$Model,
     [Parameter(Mandatory)][int]$NumCtx,
     [string]$HostLabel = "host",
@@ -137,38 +135,29 @@ function Add-OverflowRow {
     [IO.File]::AppendAllText($Path, $text, (New-Object System.Text.UTF8Encoding($false)))
 }
 
-if (@("ollama", "llamacpp") -notcontains $Engine) {
-    Write-Host "probe-overflow.ps1 supports -Engine ollama or llamacpp, not '$Engine'." -ForegroundColor Red
+if ($Engine -ne "llamacpp") {
+    Write-Host "probe-overflow.ps1 supports only -Engine llamacpp, not '$Engine'." -ForegroundColor Red
     exit 2
 }
 if ($NumCtx -lt 1024 -or $Over -le 1.0) { Write-Host "-NumCtx must be at least 1024 and -Over above 1.0" -ForegroundColor Red; exit 2 }
 $root = $Endpoint.TrimEnd('/') -replace '/v1$', ''
 
-# llama-server's API key (docs/engine-api-keys.md); Ollama needs none, so it gets no header.
+# llama-server's API key (docs/engine-api-keys.md).
 . (Join-Path $PSScriptRoot "engines/llamacpp-auth.ps1")
-$llamaHeaders = if ($Engine -eq "llamacpp") { Get-LlamacppHeaders } else { @{} }
+$llamaHeaders = Get-LlamacppHeaders
 
 $version = "unknown"
 try {
-    if ($Engine -eq "llamacpp") {
-        $bi = (Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/props" -TimeoutSec 10).build_info
-        if ($bi) { $version = [string]$bi }
-    } else {
-        $version = [string](Invoke-RestMethod -Uri "$root/api/version" -TimeoutSec 10).version
-    }
+    $bi = (Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/props" -TimeoutSec 10).build_info
+    if ($bi) { $version = [string]$bi }
 } catch { }
 
 function Invoke-Chat([string]$Prompt, [int]$Predict) {
     # One chat request; returns @{ Reported = <prompt tokens the engine says it evaluated>; Reply = <text> }.
-    if ($Engine -eq "llamacpp") {
-        $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); max_tokens = $Predict; temperature = 0; stream = $false; cache_prompt = $false } | ConvertTo-Json -Depth 6
-        $r = Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
-        $msg = @($r.choices)[0].message
-        return @{ Reported = $r.usage.prompt_tokens; Reply = ("$($msg.content) $($msg.reasoning_content)") }
-    }
-    $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); stream = $false; options = @{ num_predict = $Predict; temperature = 0 } } | ConvertTo-Json -Depth 6
-    $r = Invoke-RestMethod -Uri "$root/api/chat" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
-    return @{ Reported = $r.prompt_eval_count; Reply = ("$($r.message.content) $($r.message.thinking)") }
+    $body = @{ model = $Model; messages = @(@{ role = "user"; content = $Prompt }); max_tokens = $Predict; temperature = 0; stream = $false; cache_prompt = $false } | ConvertTo-Json -Depth 6
+    $r = Invoke-RestMethod -Headers $llamaHeaders -Uri "$root/v1/chat/completions" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec
+    $msg = @($r.choices)[0].message
+    return @{ Reported = $r.usage.prompt_tokens; Reply = ("$($msg.content) $($msg.reasoning_content)") }
 }
 
 Write-Host ("probe-overflow: {0} on {1} ({2}) | {3} {4} | served context {5}, sending ~{6}x" -f $Model, $HostLabel, $root, $Engine, $version, $NumCtx, $Over) -ForegroundColor DarkGray

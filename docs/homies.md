@@ -105,10 +105,12 @@ question fills the "minimum" row, and that model is then run on CPU only for the
 question by question, paired, as in [methodology.md](methodology.md); one repetition is a first look, not a result.
 
 **Running it (on the server; the fleet's step, not CI's):**
-1. **Serve the four sizes** on the server's llama-server: pull `qwen3:0.6b`, `qwen3:1.7b` and `qwen3:4b` into the
-   server's Ollama and add a section each to `server/llamacpp/models.ini`, keeping that file's contracts (exact tag
-   name plus `alias`, Ollama's blob as `model`, explicit `c`, the sampling `ollama show --parameters` gives).
-   `qwen3:8b` is already there. Check with `server/scripts/llamacpp-check.sh`.
+1. **Serve the four sizes** on the server's llama-server: copy GGUF files of `qwen3:0.6b`, `qwen3:1.7b` and
+   `qwen3:4b` into the server's `~/models` and add a section each to `server/llamacpp/models.ini` and a row each to
+   `models/server-seats.tsv`, keeping that file's contracts (exact tag name plus `alias`, the GGUF as `model`, explicit
+   `c`, the sampling the model card gives); [reference/config.md](reference/config.md) → "Adding a model". (Ollama, the
+   earlier source of the weights, was removed on 2026-11-21.) `qwen3:8b` is already there. Check with
+   `server/scripts/llamacpp-check.sh`.
 2. **Run the ladder** outside a test window ([unattended-window.md](unattended-window.md)):
    ```bash
    python3 -I tests/homies_eval.py --url http://localhost:8090 --host server --stop-at-first-pass \

@@ -137,7 +137,7 @@ function Read-AgentEvents {
     function Invoke-Fx([string]$Mode, [string]$Planner = "") {
         $dir = Join-Path $tmp ("r-" + [guid]::NewGuid().ToString("N").Substring(0, 8))
         $env:FX_MODE = $Mode
-        $a = @{ Agent = "fixture"; Task = "fx"; Model = "fixture/m"; RunTimeout = 60; OllamaLogDir = (Join-Path $e2e "no-log"); TaskManifest = $manifest; ResultsDir = $dir }
+        $a = @{ Agent = "fixture"; Task = "fx"; Model = "fixture/m"; RunTimeout = 60; TaskManifest = $manifest; ResultsDir = $dir }
         if ($Planner) { $a.AcceptanceDir = $Planner; $a.ShowAcceptance = $true }
         $o = & $harness @a *>&1 | ForEach-Object { "$_" }
         $file = Get-ChildItem -LiteralPath $dir -Filter "tasks-fx-*.json" -ErrorAction SilentlyContinue | Select-Object -First 1

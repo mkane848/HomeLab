@@ -161,20 +161,20 @@ try {
 } finally { Remove-Item -Recurse -Force $ct -ErrorAction SilentlyContinue }
 
 Write-Host "-- a timed-out transcript's task and model (from its name, against the run JSONs seen)"
-$kn = @{ "lfc-01-ollama-desktop_qwen3.6_35b" = [pscustomobject]@{ taskId = "lfc-01"; model = "ollama-desktop/qwen3.6:35b" } }
-$lb = @{ "ollama-desktop_qwen3.6_35b" = "ollama-desktop/qwen3.6:35b"; "desktop_qwen3.6_35b" = "wrong/shorter-label"; "llamacpp-server_qwen3.6_35b" = "llamacpp-server/qwen3.6:35b" }
-$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
-Check "the exact task and label pair: that run's task and model, a FAIL" ("{0}|{1}|{2}" -f $t.taskId, $t.model, (Get-RunVerdict $t)) "lfc-01|ollama-desktop/qwen3.6:35b|FAIL"
-$t = Resolve-TimeoutRun -FileName "tasks-kane-08-big-task-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
-Check "a task with no run JSON for that model: split at the LONGEST known label (dashes in both parts)" ("{0}|{1}" -f $t.taskId, $t.model) "kane-08-big-task|ollama-desktop/qwen3.6:35b"
+$kn = @{ "lfc-01-llamacpp-desktop_qwen3.6_35b" = [pscustomobject]@{ taskId = "lfc-01"; model = "llamacpp-desktop/qwen3.6:35b" } }
+$lb = @{ "llamacpp-desktop_qwen3.6_35b" = "llamacpp-desktop/qwen3.6:35b"; "desktop_qwen3.6_35b" = "wrong/shorter-label"; "llamacpp-server_qwen3.6_35b" = "llamacpp-server/qwen3.6:35b" }
+$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-llamacpp-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
+Check "the exact task and label pair: that run's task and model, a FAIL" ("{0}|{1}|{2}" -f $t.taskId, $t.model, (Get-RunVerdict $t)) "lfc-01|llamacpp-desktop/qwen3.6:35b|FAIL"
+$t = Resolve-TimeoutRun -FileName "tasks-kane-08-big-task-llamacpp-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
+Check "a task with no run JSON for that model: split at the LONGEST known label (dashes in both parts)" ("{0}|{1}" -f $t.taskId, $t.model) "kane-08-big-task|llamacpp-desktop/qwen3.6:35b"
 $t = Resolve-TimeoutRun -FileName "tasks-kane-08-llamacpp-server_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb
 Check "another seat of the same model is kept apart" ("{0}|{1}" -f $t.taskId, $t.model) "kane-08|llamacpp-server/qwen3.6:35b"
-Check "a label no run JSON has: null, never guessed" ($null -eq (Resolve-TimeoutRun -FileName "tasks-kane-08-ollama-node3_qwen3_8b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
-Check "an _INFRA_ transcript is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_INFRA_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
-Check "a run JSON's name is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_20261101-010203.json" -Known $kn -Labels $lb)) "True"
-$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-ollama-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb -Gradings @{ "lfc-01" = "checklist" }
+Check "a label no run JSON has: null, never guessed" ($null -eq (Resolve-TimeoutRun -FileName "tasks-kane-08-llamacpp-node3_qwen3_8b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
+Check "an _INFRA_ transcript is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-llamacpp-desktop_qwen3.6_35b_INFRA_20261101-010203.jsonl" -Known $kn -Labels $lb)) "True"
+Check "a run JSON's name is not a timeout: null" ($null -eq (Resolve-TimeoutRun -FileName "tasks-lfc-01-llamacpp-desktop_qwen3.6_35b_20261101-010203.json" -Known $kn -Labels $lb)) "True"
+$t = Resolve-TimeoutRun -FileName "tasks-lfc-01-llamacpp-desktop_qwen3.6_35b_TIMEOUT_20261101-010203.jsonl" -Known $kn -Labels $lb -Gradings @{ "lfc-01" = "checklist" }
 Check "a checklist task's timeout stays the owner's to rate (MANUAL)" (Get-RunVerdict $t) "MANUAL"
-Check "the file label is test-tasks.ps1's: every character outside [a-zA-Z0-9._-] becomes _" (ConvertTo-FileLabel "ollama-desktop/qwen3.6:35b-a3b coding") "ollama-desktop_qwen3.6_35b-a3b_coding"
+Check "the file label is test-tasks.ps1's: every character outside [a-zA-Z0-9._-] becomes _" (ConvertTo-FileLabel "llamacpp-desktop/qwen3.6:35b-a3b coding") "llamacpp-desktop_qwen3.6_35b-a3b_coding"
 $mix = @((Run m t1 acceptance PASS), (Run m t1 acceptance PASS), (Resolve-TimeoutRun -FileName "tasks-t1-m_TIMEOUT_20261101-010203.jsonl" -Known @{ "t1-m" = [pscustomobject]@{ taskId = "t1"; model = "m" } } -Labels @{ m = "m" }))
 $sm = Get-RoundSummary -Runs $mix
 Check "in a summary: 2 passes and 1 timeout are 2 of 3, pass^3 0, 1 timeout" ("{0}/{1}|{2}|{3}" -f $sm[0].passes, $sm[0].runs, (R3 $sm[0].passHatK), $sm[0].timeouts) "2/3|0|1"

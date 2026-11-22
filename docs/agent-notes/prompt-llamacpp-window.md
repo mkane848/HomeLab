@@ -1,5 +1,8 @@
 # Handoff prompt: GitHub housekeeping and the llama.cpp trial window (desktop session, 2026-10-13)
 
+> **Do not use this prompt: the trial is complete, and Ollama was removed on 2026-11-21.** Kept for the record; see
+> [`docs/llamacpp-trial.md`](../llamacpp-trial.md) and [`docs/roadmap.md`](../roadmap.md) → "Ollama removed (2026-11-21)".
+
 Paste everything below the line into a fresh Claude Code session **on the desktop**, started in the desktop's
 HomeLab checkout. The desktop can reach the server over SSH (`ssh server`, key auth); the cloud session that wrote
 this cannot. The owner chose this route on 2026-10-13.

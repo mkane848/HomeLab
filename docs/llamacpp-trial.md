@@ -1,5 +1,13 @@
 # llama.cpp engine trial on the server: protocol and runbook
 
+> **Trial complete: Ollama was removed from the fleet on 2026-11-21.** llama.cpp (`llama-server`, router mode) won
+> Gate G1 (2026-10-16), became the server's default engine on 2026-10-22 and its primary on 2026-11-01 (Phase 3), ran on
+> node3 from 2026-10-31 (Phase 5), and is now the only local engine; the desktop runs no models. This page is the dated
+> record of the trial: its runbook steps that stop, start or compare against Ollama are history, not instructions.
+> Operating the engine today: [server/README.md](../server/README.md) (start, stop, status), adding a model:
+> [reference/config.md](reference/config.md) → "Adding a model", what is left of the removal:
+> [roadmap.md](roadmap.md) → "Ollama removed (2026-11-21)".
+
 **Pre-registered 2026-10-12.** The owner approved Phases 0 and 1 of the Ollama replacement the same day
 ([roadmap](roadmap.md) → "Next up" step 4, "Replacing Ollama"). This file is written before any measurement so the
 bar can't move afterwards. It is the trial only: **no seat moves, no profile changes, Ollama is not touched**, and the

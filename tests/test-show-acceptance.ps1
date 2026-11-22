@@ -168,7 +168,7 @@ function Read-AgentEvents {
     $manifest = Join-Path $priv "tasks/manifest.json"
     function Invoke-Fx([string]$TaskId, [string]$Dir, [string]$Mode, [switch]$Show, [switch]$ReadOnly, [int]$PromptVersion = 0, [string]$Planner = "", [switch]$Dry) {
         $env:FX_PROBE = Join-Path $tmp ("probe-" + [guid]::NewGuid().ToString("N") + ".json"); $env:FX_MODE = $Mode
-        $a = @{ Agent = "fixture"; Task = $TaskId; Model = "fixture/m"; SkipInstall = $true; RunTimeout = 60; OllamaLogDir = (Join-Path $e2e "no-log"); TaskManifest = $manifest; ResultsDir = $Dir }
+        $a = @{ Agent = "fixture"; Task = $TaskId; Model = "fixture/m"; SkipInstall = $true; RunTimeout = 60; TaskManifest = $manifest; ResultsDir = $Dir }
         if ($Show) { $a.ShowAcceptance = $true }
         if ($ReadOnly) { $a.ReadOnlyAcceptance = $true }
         if ($PromptVersion) { $a.ShownPrompt = $PromptVersion }

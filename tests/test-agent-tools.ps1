@@ -186,7 +186,7 @@ function Read-AgentEvents {
         $env:FX_TOOLS = $Tools
         $env:FX_CALLS = Join-Path $tmp ("calls-" + [guid]::NewGuid().ToString("N") + ".txt")
         try {
-            $log = & $harness -Agent fixture -Task fx-tools -Model fixture/m -SkipInstall -RunTimeout 60 -OllamaLogDir (Join-Path $e2e "no-log") @Extra *>&1 | Out-String
+            $log = & $harness -Agent fixture -Task fx-tools -Model fixture/m -SkipInstall -RunTimeout 60 @Extra *>&1 | Out-String
             $exit = $LASTEXITCODE
         } finally {
             Remove-Item Env:FX_TOOLS -ErrorAction SilentlyContinue

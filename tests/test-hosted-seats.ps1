@@ -23,7 +23,7 @@
 #      stand-in `opencode` first on PATH (lists models and prints a config; any
 #      other call is logged and fails), a stand-in test-tasks.ps1 that writes run
 #      JSONs and transcripts the way the real one names them, and a stand-in
-#      Ollama /api/tags for the one local seat. No model is ever called.
+#      llama-server /health, /props and /models for the one local seat. No model is ever called.
 # Exit 1 on any failure.
 #
 # Usage:  .\tests\test-hosted-seats.ps1 [-ScriptPath <a run-tasks-batch.ps1>]
@@ -57,7 +57,7 @@ foreach ($text in (Get-Functions $ScriptPath @("Test-HostedModelId", "Get-Hosted
 }
 # The engine adapters, loaded as the batch loads them (one module each).
 $script:EngineModules = @{}
-foreach ($k in "ollama", "llamacpp") {
+foreach ($k in @("llamacpp")) {
     $script:EngineModules[$k] = [psmoduleinfo]::new([scriptblock]::Create([IO.File]::ReadAllText((Join-Path $PSScriptRoot "engines\$k.ps1"))))
 }
 # The run JSON's estimate comes from test-tasks.ps1; the batch's transcript
@@ -92,8 +92,8 @@ function Step([hashtable]$Tokens) {
 $registryFixture = @"
 # fixture registry
 tag`tengine`thosts`tdesc
-qwen3:8b`tollama`tdesktop node3`tlocal seat
-qwen3:14b`tollama`tdesktop`tlocal seat
+qwen3:8b`tllamacpp`tserver node3`tlocal seat
+qwen3:14b`tllamacpp`tserver`tlocal seat
 alpha`topencode-go`topencode-go`thosted
 beta`topencode-go`topencode-go`thosted
 gamma`topencode-go`topencode-go`thosted, not listed by opencode
@@ -179,16 +179,16 @@ try {
     Has   "opencode models failed: refused"           (Get-HostedSeatGate -ModelId "opencode-go/alpha" -State ([pscustomobject]@{ Listed = $null; KeyExists = $true; KeyFile = "k"; ConfigOk = $true })) 'failed'
     Has   "config does not resolve: refused"          (Get-HostedSeatGate -ModelId "opencode-go/alpha" -State ([pscustomobject]@{ Listed = $listed; KeyExists = $true; KeyFile = "k"; ConfigOk = $false })) 'does not resolve'
     Check "Test-HostedModelId: opencode-go/x"         (Test-HostedModelId "opencode-go/qwen3.8-max") "True"
-    Check "Test-HostedModelId: a local seat is not"   (Test-HostedModelId "ollama-desktop/qwen3:8b") "False"
+    Check "Test-HostedModelId: a local seat is not"   (Test-HostedModelId "llamacpp-server/qwen3:8b") "False"
 
     Write-Host "-- offered seats (the real Get-AvailableModelSeats; local rows unchanged)"
     $registryPath = Join-Path $tmp "registry.tsv"
     Write-Fixture $registryPath $registryFixture
     $engineHosts = @(
-        [pscustomobject]@{ Provider = "ollama-desktop"; Engine = "ollama"; Label = "desktop"; Root = "http://d"; Up = $true; Version = "0.34.3"; Tags = @("qwen3:8b", "qwen3:14b") },
-        [pscustomobject]@{ Provider = "ollama-node3"; Engine = "ollama"; Label = "node3"; Root = "http://n"; Up = $false; Version = $null; Tags = @() }
+        [pscustomobject]@{ Provider = "llamacpp-server"; Engine = "llamacpp"; Label = "server"; Root = "http://s"; Up = $true; Version = "b11561-abcdef0"; Tags = @("qwen3:8b", "qwen3:14b") },
+        [pscustomobject]@{ Provider = "llamacpp-node3"; Engine = "llamacpp"; Label = "node3"; Root = "http://n"; Up = $false; Version = $null; Tags = @() }
     )
-    $localExpected = "ollama-desktop/qwen3:14b ollama-desktop/qwen3:8b"
+    $localExpected = "llamacpp-server/qwen3:14b llamacpp-server/qwen3:8b"
     $hostedState = [pscustomobject]@{ Listed = @{ "opencode-go/alpha" = $true; "opencode-go/beta" = $true; "opencode-go/delta" = $true }; KeyExists = $true; KeyFile = "k"; ConfigOk = $true }
     $seats = @(Get-AvailableModelSeats 6>$null)
     Check "listed + key: alpha, beta, delta offered; gamma (unlisted) not" (@($seats | Where-Object { Test-HostedModelId $_ }) -join " ") "opencode-go/alpha opencode-go/beta opencode-go/delta"
@@ -218,7 +218,7 @@ try {
     Check "nothing spent yet: runs"                   ($null -eq (Get-CapStatus -ModelId "opencode-go/alpha" -Caps $caps -Spend @{})) "True"
     Check "at the cap: stopped, says how much"        (Get-CapStatus -ModelId "opencode-go/alpha" -Caps $caps -Spend @{ "opencode-go/alpha" = 2.0 }) 'spent about $2.0000 of its $2.00 cap (20% of $10.00 monthly)'
     Check "uncapped model (-NoSpendCap): never stopped" ($null -eq (Get-CapStatus -ModelId "opencode-go/beta" -Caps $caps -Spend @{ "opencode-go/beta" = 999 })) "True"
-    Check "a local seat: never stopped"               ($null -eq (Get-CapStatus -ModelId "ollama-desktop/qwen3:8b" -Caps $caps -Spend @{ "ollama-desktop/qwen3:8b" = 999 })) "True"
+    Check "a local seat: never stopped"               ($null -eq (Get-CapStatus -ModelId "llamacpp-server/qwen3:8b" -Caps $caps -Spend @{ "llamacpp-server/qwen3:8b" = 999 })) "True"
 
     Write-Host "-- transcript tokens and cost (Get-TranscriptTokenUsage, Get-UsageCostUsd)"
     $tf = Join-Path $tmp "infra.jsonl"
@@ -360,7 +360,7 @@ try {
     }
 
     # --- end to end ---------------------------------------------------------
-    Write-Host "-- end to end: the real run-tasks-batch.ps1, stand-in opencode, test-tasks.ps1 and Ollama"
+    Write-Host "-- end to end: the real run-tasks-batch.ps1, stand-in opencode, test-tasks.ps1 and llama-server"
     $tree = Join-Path $tmp "tree"
     $bin  = Join-Path $tmp "bin"
     $fx   = Join-Path $tmp "fixture"
@@ -371,7 +371,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "checks") -Destination "$tree\tests" -Recurse -Force
     Write-Fixture "$tree\tests\run-tasks-models.tsv" (($registryFixture -split "`n" | Where-Object { $_ -notmatch '^qwen3:14b' }) -join "`n")
     Write-Fixture "$tree\costs\go-rates.tsv" $ratesFixture
-    Write-Fixture "$tree\tests\results\toolcalls-summary.tsv" "timestamp`thost`tollamaVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tdesktop`t0.34.3`tqwen3:8b`tPASS`t10`tfixture`n"
+    Write-Fixture "$tree\tests\results\toolcalls-summary-llamacpp.tsv" "timestamp`thost`tengine`tengineVersion`tmodel`tstatus`tsec`tdetail`n2026-10-06T09:00:00`tserver`tllamacpp`tb11561-abcdef0`tqwen3:8b`tPASS`t10`tfixture`n"
     $manifest = @{ tasks = @(foreach ($id in "fx-infra", "t1", "t2", "t3", "t4") { [ordered]@{ id = $id; title = "fixture $id" } }) }
     Write-Fixture "$tree\tests\tasks\manifest.json" ($manifest | ConvertTo-Json -Depth 5)
 
@@ -432,14 +432,15 @@ if not exist "%FIXTURE_DIR%\usage.json" exit /b 1
 type "%FIXTURE_DIR%\usage.json"
 exit /b 0
 '@) -replace "`r?`n", "`r`n")
-    # Driver: a stand-in Invoke-RestMethod for the local seat's Ollama (the
+    # Driver: a stand-in Invoke-RestMethod for the local seat's llama-server (the
     # function shadows the cmdlet inside the script), then the real batch.
     Write-Fixture "$tmp\driver.ps1" @'
 param([string]$Script, [string]$ArgsFile)
 function global:Invoke-RestMethod {
-    param($Uri, $TimeoutSec)
-    if ("$Uri" -match '/api/tags$') { return [pscustomobject]@{ models = @([pscustomobject]@{ name = "qwen3:8b" }) } }
-    if ("$Uri" -match '/api/version$') { return [pscustomobject]@{ version = "0.34.3" } }
+    param($Uri, $TimeoutSec, $Headers, $Method)
+    if ("$Uri" -match '/health$') { return [pscustomobject]@{ status = "ok" } }
+    if ("$Uri" -match '/props$') { return [pscustomobject]@{ build_info = "b11561-abcdef0" } }
+    if ("$Uri" -match '/models$') { return [pscustomobject]@{ data = @([pscustomobject]@{ id = "qwen3:8b"; aliases = @() }) } }
     throw "fixture: no endpoint $Uri"
 }
 $a = Get-Content -LiteralPath $ArgsFile -Raw | ConvertFrom-Json
@@ -453,13 +454,13 @@ exit $LASTEXITCODE
 '@
     $keyFile = Join-Path $fx "opencode-go-api-key"
     Write-Fixture $keyFile "not a real key"
-    $configJson = '{"autoupdate":"notify","provider":{"ollama-desktop":{"models":{"qwen3:8b":{}}}}}'
+    $configJson = '{"autoupdate":"notify","provider":{"llamacpp-server":{"models":{"qwen3:8b":{}}}}}'
     $psExe = (Get-Process -Id $PID).Path
 
     $saved = @{}
     foreach ($v in "PATH", "FIXTURE_DIR", "FIXTURE_CALLS", "FIXTURE_INFRA_TRANSCRIPT", "FIXTURE_GRADED_TRANSCRIPT",
-                   "FIXTURE_REFUSED_TRANSCRIPT", "FIXTURE_REFUSE_MODEL", "OLLAMA_DESKTOP_BASE_URL",
-                   "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") {
+                   "FIXTURE_REFUSED_TRANSCRIPT", "FIXTURE_REFUSE_MODEL", "LLAMACPP_SERVER_BASE_URL",
+                   "LLAMACPP_NODE3_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") {
         $saved[$v] = [Environment]::GetEnvironmentVariable($v)
     }
     $script:scn = 0
@@ -486,8 +487,8 @@ exit $LASTEXITCODE
         $env:FIXTURE_GRADED_TRANSCRIPT = $gradedTranscript
         $env:FIXTURE_REFUSED_TRANSCRIPT = $refusedTranscript
         $env:FIXTURE_REFUSE_MODEL = $RefuseModel
-        $env:OLLAMA_DESKTOP_BASE_URL = "http://fixture.invalid:11434/v1"
-        foreach ($v in "OLLAMA_NODE3_BASE_URL", "OLLAMA_SERVER_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") { [Environment]::SetEnvironmentVariable($v, $null) }
+        $env:LLAMACPP_SERVER_BASE_URL = "http://fixture.invalid:8090/v1"
+        foreach ($v in "LLAMACPP_NODE3_BASE_URL", "OPENCODE_SMALL_MODEL", "MANAPOOL_API_KEY") { [Environment]::SetEnvironmentVariable($v, $null) }
         $prevEap = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         try {
@@ -504,7 +505,7 @@ exit $LASTEXITCODE
     function RunsOf($r, [string]$model) { (@($r.Calls | Where-Object { $_.EndsWith("|$model") } | ForEach-Object { ($_ -split '\|')[0] })) -join "," }
 
     Write-Host "   scenario: a local seat and every hosted seat; alpha's cap is `$2.00"
-    $r = Invoke-Batch @{ Tasks = @("fx-infra", "t1", "t2", "t3"); Models = @("ollama-desktop/qwen3:8b", "hosted") }
+    $r = Invoke-Batch @{ Tasks = @("fx-infra", "t1", "t2", "t3"); Models = @("llamacpp-server/qwen3:8b", "hosted") }
     Check "exit 0"                                    $r.Exit 0
     Has   "gamma (not listed by opencode) is not offered" $r.Out '\[skip\] opencode-go/gamma - not listed by `opencode models opencode-go`'
     Has   "delta (no rate row) is refused, and why"   $r.Out '\[drop\] opencode-go/delta - no row in costs/go-rates\.tsv.*-NoSpendCap'
@@ -518,10 +519,10 @@ exit $LASTEXITCODE
     Has   "summary: alpha's spend against its cap"    $r.Out 'opencode-go/alpha\s+\$2\.2000 of its \$2\.00 cap .* 2 run\(s\); 2 skipped at the cap'
     Has   "summary: beta 0.415 + 1 + 1 + 1 (t3's JSON has no estimate: its transcript)" $r.Out 'opencode-go/beta\s+\$3\.4150 of its \$20\.00 cap .* 4 run\(s\)'
     Has   "the capped runs are reported as not started" $r.Out '2 run\(s\) not started: their hosted model reached its spend cap'
-    Check "local seat: every run, as before"          (RunsOf $r "ollama-desktop/qwen3:8b") "fx-infra,t1,t2,t3"
-    Lacks "local seat: no spend line"                 $r.Out 'so far.*ollama-desktop|ollama-desktop/qwen3:8b so far'
-    Lacks "local seat: no cap line"                   $r.Out '\[CAP\]\s+ollama-desktop'
-    Lacks "local seat: not in the hosted summary"     ($r.Out -replace '(?s)^.*=== Hosted spend', '') 'ollama-desktop'
+    Check "local seat: every run, as before"          (RunsOf $r "llamacpp-server/qwen3:8b") "fx-infra,t1,t2,t3"
+    Lacks "local seat: no spend line"                 $r.Out 'so far.*llamacpp-server|llamacpp-server/qwen3:8b so far'
+    Lacks "local seat: no cap line"                   $r.Out '\[CAP\]\s+llamacpp-server'
+    Lacks "local seat: not in the hosted summary"     ($r.Out -replace '(?s)^.*=== Hosted spend', '') 'llamacpp-server'
     Check "opencode was never asked to run a model"   (@($r.OpencodeCalls | Where-Object { $_ -match '^\s*run' }).Count) 0
 
     Write-Host "   scenario: -SpendCapShare 0.5 (alpha's cap `$5.00)"
@@ -531,12 +532,12 @@ exit $LASTEXITCODE
     Has   "summary: `$5.20, one run's overshoot is possible" $r.Out 'opencode-go/alpha\s+\$5\.2000 of its \$5\.00 cap'
 
     Write-Host "   scenario: the provider refuses beta (HTTP 402) from t2 on"
-    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3", "t4"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -RefuseModel "opencode-go/beta"
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3", "t4"); Models = @("llamacpp-server/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -RefuseModel "opencode-go/beta"
     Check "exit 0"                                    $r.Exit 0
     Check "beta: t1, then the refused t2, then nothing" (RunsOf $r "opencode-go/beta") "t1,t2"
     Has   "...the stop names the provider's message"  $r.Out '\[REFUSED\] opencode-go/beta: the provider refused the request \(HTTP 402: Upstream request failed: Insufficient account funds\) - skipping its remaining 2 run\(s\)'
     Check "alpha carries on: every run"               (RunsOf $r "opencode-go/alpha") "t1,t2,t3,t4"
-    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2,t3,t4"
+    Check "local seat: every run"                     (RunsOf $r "llamacpp-server/qwen3:8b") "t1,t2,t3,t4"
     Has   "summary: beta's refused run still counts as spend (1 + 0.1)" $r.Out 'opencode-go/beta\s+\$1\.1000 of its .* 2 run\(s\); refused by the provider, 2 skipped after'
     Lacks "summary: alpha was not refused"            $r.Out 'opencode-go/alpha\s+[^\r\n]*refused'
     Has   "the skipped runs are reported, with how to fill them" $r.Out '1 hosted model\(s\) refused by the provider \(HTTP 402\); 2 run\(s\) not started\. Re-run them later with -OnlyMissing'
@@ -545,14 +546,14 @@ exit $LASTEXITCODE
     Check "...it runs everything"                     (RunsOf $r "opencode-go/beta") "fx-infra,t1,t2"
 
     Write-Host "   scenario: the plan's week has `$1.50 left (`$8.50 of `$10.00 used); each run costs `$1.00"
-    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha"); SpendCapShare = 1 } -Plan (LivePlanTsv 900 10 900) -Usage (UsageJson @(@(30, 8.0), @(2, 0.5), @(2000, 50)))
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2", "t3"); Models = @("llamacpp-server/qwen3:8b", "opencode-go/alpha"); SpendCapShare = 1 } -Plan (LivePlanTsv 900 10 900) -Usage (UsageJson @(@(30, 8.0), @(2, 0.5), @(2000, 50)))
     Check "exit 0"                                    $r.Exit 0
     Has   "preflight: each meter, from opencode's records" $r.Out '\[PLAN\] opencode-go  week \$8\.5000 of \$10\.00, resets '
     Has   "...the month leaves out last month's use"  $r.Out '\[PLAN\] opencode-go  month \$8\.5000 of \$900\.00'
     Has   "...the window counts the trailing 5 hours" $r.Out '\[PLAN\] opencode-go  window \$0\.5000 of \$900\.00 \(the trailing 5h\)'
     Check "alpha: t1 runs, then the week is full"     (RunsOf $r "opencode-go/alpha") "t1"
     Has   "...the stop names the meter"               $r.Out '\[PLAN\] opencode-go: plan week \$9\.5000 of \$10\.00, resets .* - within \$0\.50 of the limit - skipping the 2 remaining hosted run\(s\)'
-    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2,t3"
+    Check "local seat: every run"                     (RunsOf $r "llamacpp-server/qwen3:8b") "t1,t2,t3"
     Has   "summary: the week after this batch"        $r.Out 'plan: week \$9\.5000 of \$10\.00, resets .* \(estimated after this batch\)'
     Has   "summary: the skipped runs, and when to fill them" $r.Out '2 hosted run\(s\) not started: a plan meter was within \$0\.50 of its limit'
     $q = @($r.OpencodeCalls | Where-Object { $_ -match '^\s*db ' }) -join "`n"
@@ -560,31 +561,31 @@ exit $LASTEXITCODE
     Lacks "...and never from the account or credential tables" $q '(?i)account|credential'
 
     Write-Host "   scenario: the 5-hour window is already full"
-    $r = Invoke-Batch @{ Tasks = @("t1", "t2"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -Plan (LivePlanTsv 4.46 900 900) -Usage (UsageJson @(, @(1, 5.0)))
+    $r = Invoke-Batch @{ Tasks = @("t1", "t2"); Models = @("llamacpp-server/qwen3:8b", "opencode-go/alpha", "opencode-go/beta"); SpendCapShare = 1 } -Plan (LivePlanTsv 4.46 900 900) -Usage (UsageJson @(, @(1, 5.0)))
     Has   "preflight warns before anything runs"      $r.Out '\[WARN\] opencode-go  plan window \$5\.0000 of \$4\.46 .* every hosted run in this batch will be skipped'
     Check "no hosted run starts"                      (@($r.Calls | Where-Object { $_ -match 'opencode-go/' }).Count) 0
-    Check "local seat: every run"                     (RunsOf $r "ollama-desktop/qwen3:8b") "t1,t2"
+    Check "local seat: every run"                     (RunsOf $r "llamacpp-server/qwen3:8b") "t1,t2"
 
     Write-Host "   scenario: no plan file / no usage records"
-    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha") } -NoPlan
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("llamacpp-server/qwen3:8b", "opencode-go/alpha") } -NoPlan
     Has   "no plan file: hosted seats dropped, and why" $r.Out '\[drop\] opencode-go/alpha - no usable costs/go-plan\.tsv'
-    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
-    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "opencode-go/alpha") } -DbFails
+    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|llamacpp-server/qwen3:8b"
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("llamacpp-server/qwen3:8b", "opencode-go/alpha") } -DbFails
     Has   "opencode db fails: hosted seats dropped, and why" $r.Out '\[drop\] opencode-go/alpha - `opencode db` could not read'
-    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    Check "...only the local seat runs"               ($r.Calls -join ";") "t1|llamacpp-server/qwen3:8b"
     $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("opencode-go/alpha"); NoSpendCap = $true } -DbFails -NoPlan
     Has   "-NoSpendCap: the plan is not checked, and says so" $r.Out '\[WARN\] opencode-go  -NoSpendCap: the plan''s 5-hour, weekly and monthly limits are NOT checked'
     Check "...and alpha runs"                         (RunsOf $r "opencode-go/alpha") "t1"
 
     Write-Host "   scenario: no key file"
-    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("ollama-desktop/qwen3:8b", "hosted", "opencode-go/beta"); GoKeyFile = (Join-Path $fx "missing-key") }
+    $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("llamacpp-server/qwen3:8b", "hosted", "opencode-go/beta"); GoKeyFile = (Join-Path $fx "missing-key") }
     Has   "listed seats are not offered without the key" $r.Out '\[skip\] opencode-go/alpha - no OpenCode Go API key file'
     Has   "a named hosted seat is dropped without the key" $r.Out '\[drop\] opencode-go/beta - no OpenCode Go API key file'
-    Check "only the local seat runs"                  ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    Check "only the local seat runs"                  ($r.Calls -join ";") "t1|llamacpp-server/qwen3:8b"
 
     Write-Host "   scenario: 'all' is local only"
     $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("all") }
-    Check "-Models all never picks a paid seat"       ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    Check "-Models all never picks a paid seat"       ($r.Calls -join ";") "t1|llamacpp-server/qwen3:8b"
     Lacks "...and prints no hosted preflight"         $r.Out '\[CAP\]'
 
     Write-Host "   scenario: opencode models fails"
@@ -615,7 +616,7 @@ exit $LASTEXITCODE
     Write-Host "   scenario: Both mode leaves hosted seats out"
     $r = Invoke-Batch @{ Mode = "Both"; Tasks = @("t1"); Models = @("none") }
     Has   "says hosted seats are left out"            $r.Out 'hosted seat\(s\) left out: Both mode runs probed seats only'
-    Check "only the probed local seat runs"           ($r.Calls -join ";") "t1|ollama-desktop/qwen3:8b"
+    Check "only the probed local seat runs"           ($r.Calls -join ";") "t1|llamacpp-server/qwen3:8b"
 
     Write-Host "   scenario: a bad -SpendCapShare"
     $r = Invoke-Batch @{ Tasks = @("t1"); Models = @("opencode-go/alpha"); SpendCapShare = 0 }
