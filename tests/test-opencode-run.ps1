@@ -82,7 +82,7 @@ $env:PATH = "$bin;$savedPath"
 try {
     function Run([string]$mode, [int]$timeout = 60) {
         $env:OCR_TEST_MODE = $mode
-        $r = Invoke-AgentRun -WtPath $wt -ModelId "ollama-desktop/stand-in" -Prompt "p" -PromptHash "abc123" -TimeoutSec $timeout
+        $r = Invoke-AgentRun -WtPath $wt -ModelId "llamacpp-server/stand-in" -Prompt "p" -PromptHash "abc123" -TimeoutSec $timeout
         if ($r.TranscriptPath) { Remove-Item -LiteralPath $r.TranscriptPath -Force -ErrorAction SilentlyContinue }
         return $r
     }
@@ -130,17 +130,17 @@ try {
     $env:OCR_TEST_ARGS = $argsFile
     $r = Run "ok"
     $rec = @(Get-Content -LiteralPath $argsFile)
-    Check "1.x: run --dir <wt> --model ... --format json --auto <prompt>" $rec[0] "run|--dir|$wt|--model|ollama-desktop/stand-in|--format|json|--auto|p"
+    Check "1.x: run --dir <wt> --model ... --format json --auto <prompt>" $rec[0] "run|--dir|$wt|--model|llamacpp-server/stand-in|--format|json|--auto|p"
     $env:OCR_TEST_VERSION = "opencode v2.3.2"
     $r = Run "ok"
     $rec = @(Get-Content -LiteralPath $argsFile)
     Check "2.x: exit 0" $r.ExitCode 0
-    Check "2.x: --standalone first, no --dir, --archived, title names the worktree" $rec[0] "--standalone|run|--model|ollama-desktop/stand-in|--format|json|--auto|--archived|--title|bench $wt|p"
+    Check "2.x: --standalone first, no --dir, --archived, title names the worktree" $rec[0] "--standalone|run|--model|llamacpp-server/stand-in|--format|json|--auto|--archived|--title|bench $wt|p"
     Check "2.x: runs in the worktree" $rec[1] $wt
     $env:OCR_TEST_MODE = "ok"
-    $r = Invoke-AgentRun -WtPath $wt -ModelId "ollama-desktop/stand-in" -Prompt "p2" -PromptHash "abc123" -TimeoutSec 60 -SessionId "ses_x"
+    $r = Invoke-AgentRun -WtPath $wt -ModelId "llamacpp-server/stand-in" -Prompt "p2" -PromptHash "abc123" -TimeoutSec 60 -SessionId "ses_x"
     if ($r.TranscriptPath) { Remove-Item -LiteralPath $r.TranscriptPath -Force -ErrorAction SilentlyContinue }
-    Check "2.x follow-up: --session before the prompt" (@(Get-Content -LiteralPath $argsFile)[0]) "--standalone|run|--model|ollama-desktop/stand-in|--format|json|--auto|--archived|--title|bench $wt|--session|ses_x|p2"
+    Check "2.x follow-up: --session before the prompt" (@(Get-Content -LiteralPath $argsFile)[0]) "--standalone|run|--model|llamacpp-server/stand-in|--format|json|--auto|--archived|--title|bench $wt|--session|ses_x|p2"
     Remove-Item Env:OCR_TEST_VERSION, Env:OCR_TEST_ARGS -ErrorAction SilentlyContinue
 
     Write-Host "-- a run after a dead job still works"

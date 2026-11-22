@@ -50,5 +50,5 @@ foreach ($t in $targets) {
 }
 
 if (-not $Uninstall) {
-    Write-Host "[install] open a new terminal, then: opencode quality | opencode resident | opencode desktop-only | opencode node3"
+    Write-Host "[install] open a new terminal, then: opencode server-llamacpp | opencode node3"
 }

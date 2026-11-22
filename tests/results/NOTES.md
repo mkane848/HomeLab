@@ -379,7 +379,8 @@ expansion II" has the way back), so no new rows will join these. Since
 2026-10-03 `test-tasks.ps1` reads
 the local Ollama log for each run's window (`Get-OllamaPromptTruncation`) and
 turns a hit into a FAILed run with a `_TRUNCATED_` transcript and no row; each
-graded run JSON records the check in `promptTruncation` (`tests/test-prompt-truncation.ps1`).
+graded run JSON records the check in `promptTruncation` (`tests/test-prompt-truncation.ps1`;
+deleted with Ollama on 2026-11-21, its engine-neutral scenarios moved to `tests/test-overflow-recovery.ps1`).
 Only a local Ollama is checked; a node3 or server run records "not checked".
 Before that date the check did not exist, so an older exit-0, zero-write,
 one-step row against a large repo is worth a look at the Ollama log before it

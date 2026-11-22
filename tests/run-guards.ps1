@@ -27,10 +27,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Not guards: each needs live Ollama hosts, a live model or the owner's live OpenCode
+# Not guards: each needs live llama.cpp hosts, a live model or the owner's live OpenCode
 # config, so they stay desktop-side checks and a PR lists them as not run.
 $Excluded = [ordered]@{
-    "test-profiles"  = "live Ollama hosts and the live OpenCode config"
+    "test-profiles"  = "live llama.cpp hosts and the live OpenCode config"
     "test-tasks"     = "the task harness itself (real opencode runs against real repos)"
     "test-toolcalls" = "the tool-call probe, against a live model"
 }

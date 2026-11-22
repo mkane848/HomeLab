@@ -85,16 +85,17 @@
 # (Get-OverflowRecovery; tests/test-overflow-recovery.ps1). The same overflows with no
 # such recovery are not infrastructure either: exit -6, a `_CTXEXCEEDED_` transcript, no
 # summary row (the request outgrew the served context; tests/test-context-exceeded.ps1).
-# The engine behind a provider (ollama-*, llamacpp-*) is an adapter,
+# The engine behind a provider (llamacpp-*; ollama-* until 2026-11-21) is an adapter,
 # tests/engines/<engine>.ps1 (tests/test-engine-adapter.ps1).
 #
 # Which model/setting combos to compare is the whole point - run the same task
 # on each seat and the pass/fail table is the tuning signal. No config or
 # seat change until ~3 graded runs across >=2 tasks (the agreed gate).
 #
-# Reproducibility, and its current limit: every run records `ollamaVersion`/
-# `opencodeVersion` (the serving host's /api/version - "n/a" for a hosted
-# provider - and `opencode --version`) and the
+# Reproducibility, and its current limit: every run records `engine`/
+# `opencodeVersion` (the serving host's engine and build - "unknown" for a hosted
+# provider - and `opencode --version`; `ollamaVersion` is null since Ollama was
+# removed on 2026-11-21) and the
 # raw JSONL transcript is now KEPT (moved into tests/results/, not deleted) -
 # see `samplingControl` in each result JSON. What this harness does NOT do is
 # pin a seed or temperature: `opencode run` has no known per-invocation flag
@@ -238,8 +239,8 @@ param(
     # it does not change PASS/FAIL or what a dispatcher keeps; it is the metric that shows a better model or
     # configuration doing more than the minimum. Not shown to the model. Resolved like -AcceptanceDir.
     [string]$IdealDir = "",
-    # After each run that exited 0 against an Ollama provider, ask that host's
-    # /api/ps where -Model sits (Get-EngineGpuPlacement). Loaded with none of it
+    # After each run that exited 0 against a llama.cpp provider, ask that host
+    # where -Model sits (Get-EngineGpuPlacement: nvidia-smi over ssh). Loaded with none of it
     # in VRAM means the host was not using its GPU: the run is infrastructure
     # (exit -5, a _CPUONLY_ transcript, no row), because its time and its
     # truncation behaviour measure the host, not the model. 2026-10-12: the
@@ -1587,8 +1588,8 @@ function Get-OverflowRecovery {
     # and a closing summary, filed as _INFRA_. Such a run reached the model and
     # finished, so it is gradable. Recovered = at least one error, every error a
     # context overflow, and the last step after the last of them finished with "stop".
-    # Any other error, or no such step, leaves it infrastructure. Ollama never sends
-    # this error (it truncates silently), so no Ollama run is affected.
+    # Any other error, or no such step, leaves it infrastructure. Ollama (removed
+    # 2026-11-21) never sent this error (it truncated silently), so no Ollama run was affected.
     param([string]$Path)
 
     $overflows = 0; $other = 0; $lastFinish = $null
@@ -1711,15 +1712,15 @@ function Get-StopKind {
 }
 
 function Format-ContextOverflowWarning {
-    # The "context" WARN for requests longer than the served context, worded for
-    # what the engine does with one. An engine that refuses explicitly (llama-server:
-    # HTTP 400, a ContextOverflowError the agent handles) drops nothing; Ollama cuts
-    # the front off silently. The FrontDrops arithmetic fires on both, because a
-    # refused request is still an over-long one, so the refusals decide the wording
-    # when there are any: on 2026-10-19 the plugin-off rounds on llama.cpp printed
-    # "Ollama dropped the oldest messages" for 42 explicit refusals. Returns $null
-    # when there is nothing to warn about.
-    param($FrontDrops, [int]$OverflowErrors, [string]$EngineName, $NumCtx, [string]$AgentName)
+    # The "context" WARN for requests longer than the served context. llama-server
+    # refuses one explicitly (HTTP 400, a ContextOverflowError the agent handles) and
+    # drops nothing. The FrontDrops arithmetic fires on a refused request too, because
+    # it is still an over-long one, so the refusals decide the wording when there are
+    # any: on 2026-10-19 the plugin-off rounds on llama.cpp printed "Ollama dropped the
+    # oldest messages" for 42 explicit refusals. Ollama, which cut the front off
+    # silently, had its own wording here until it was removed on 2026-11-21. Returns
+    # $null when there is nothing to warn about.
+    param($FrontDrops, [int]$OverflowErrors, $NumCtx, [string]$AgentName)
     $ctxText = if ($null -ne $NumCtx) { "$NumCtx" } else { "unknown" }
     if ($OverflowErrors -gt 0) {
         return ("the engine refused {0} over-long request(s) explicitly (ContextOverflowError against a {1}-token context); {2} handled each one and the run went on. Nothing was dropped silently. Recorded in overflowRecovery, not graded." -f $OverflowErrors, $ctxText, $AgentName)
@@ -1729,10 +1730,7 @@ function Format-ContextOverflowWarning {
     if ($drops.Count -eq 0) { return $null }
     $fd = $drops[0]
     $head = "a request overflowed num_ctx {0} time(s) (first before step {1}: ~{2} tokens against {3})" -f $drops.Count, $fd.step, $fd.estimatedRequest, $ctxText
-    if ($EngineName -eq "llamacpp") {
-        return ("$head by the 3-characters-a-token estimate, but llama-server refuses an over-long request explicitly and refused none in this run: the estimate ran high, nothing was dropped. Recorded in contextEvents, not graded.")
-    }
-    return ("$head; Ollama dropped the oldest messages, the task prompt with them, and the model carried on without it. Recorded in contextEvents, not graded.")
+    return ("$head by the 3-characters-a-token estimate, but llama-server refuses an over-long request explicitly and refused none in this run: the estimate ran high, nothing was dropped. Recorded in contextEvents, not graded.")
 }
 
 function Get-ContextEvents {
@@ -1971,15 +1969,15 @@ Write-Host ("model: {0} (label {1})" -f $Model, $ModelLabel) -ForegroundColor Da
 # Tolerant of either being absent/erroring: a failed probe degrades to a
 # labeled "unknown" rather than aborting the whole benchmark.
 #
-# The Ollama version is the one serving -Model, not the local binary's: the
-# model id's provider picks the host (ollama-desktop/-server/-node3 -> that
-# provider's *_BASE_URL) and its /api/version is asked. Stamping
-# `ollama --version` put the desktop's 0.34.3 on every node3 run (node3 was
-# 0.34.2) and would put it on hosted-provider runs that touch no Ollama at all.
-# The "ollama version is X" shape is kept so existing result files compare.
+# The engine version is the one serving -Model, not a local binary's: the
+# model id's provider picks the host (llamacpp-desktop/-server/-node3 -> that
+# provider's *_BASE_URL) and the adapter asks it (Get-EngineVersion). Stamping
+# a local binary's version (`ollama --version`, before 2026-10) put the
+# desktop's 0.34.3 on every node3 run (node3 was 0.34.2) and on hosted-provider
+# runs that touched no engine at all.
 #
-# numCtx is the context window baked into the served model (/api/show
-# parameters). It is not part of the prompt hash, so without this stamp a
+# numCtx is the context window the host serves the model with
+# (Get-EngineServedContext). It is not part of the prompt hash, so without this stamp a
 # 32k run and a 64k run of the same task are indistinguishable afterwards
 # (the 64k context trial, docs/roadmap.md -> "Context budget").
 $providerId = ($Model -split '/', 2)[0]
@@ -2004,13 +2002,13 @@ if ($engineRoot) {
 }
 $engineVersionText = Format-EngineVersion -ProviderId $providerId -Root $engineRoot -Version $engineVersionRaw
 # `ollamaVersion` is kept in the run JSON so older result files (Ollama runs, before 2026-11-21) compare;
-# no engine since writes it.
-$ollamaVersion = if ($script:EngineName -eq "ollama") { $engineVersionText } else { $null }
-# What served the model, engine-neutral: Ollama is being replaced (owner,
-# 2026-10-03), and a run under a different engine is a new era, so the engine is
-# recorded by name, not only through the Ollama-shaped `ollamaVersion` (kept, so
-# older result files still compare). A provider this script does not know
-# records "unknown" rather than borrowing Ollama's.
+# no engine since writes it, so it is always null.
+$ollamaVersion = $null
+# What served the model, engine-neutral: a run under a different engine is a new
+# era, so the engine is recorded by name (since 2026-10-03, when the owner decided
+# to replace Ollama; before that only the Ollama-shaped `ollamaVersion` said it).
+# A provider the adapter does not know records "unknown" rather than borrowing
+# another engine's version.
 $servingEngine = [ordered]@{
     name     = $(if ($engineBaseVar) { $script:EngineName } else { "unknown" })
     version  = $engineVersionRaw
@@ -2037,8 +2035,8 @@ try {
 } catch { }
 
 # Prompt-loss check (Get-EnginePromptLoss): what an engine that cuts an over-long
-# prompt silently leaves behind. Ollama's is its server.log, readable only when it
-# is local; llama-server refuses explicitly instead, so there is nothing to read.
+# prompt silently leaves behind. Ollama's was its server.log (removed 2026-11-21);
+# llama-server refuses explicitly instead, so there is nothing to read.
 # Every graded run records which it was, so an engine without one records "not
 # checked" or "not applicable", not a clean.
 $promptLoss = Get-EnginePromptLossSetup -Root $engineRoot -ProviderId $providerId
@@ -2369,7 +2367,8 @@ foreach ($tk in $tasksToRun) {
             $readBudget = $agentEnvResult.ReadBudget
         }
     }
-    # A run whose prompt Ollama truncated never showed the model the whole
+    # A run whose prompt the engine truncated silently (Ollama did, until it was
+    # removed on 2026-11-21; an adapter reports it) never showed the model the whole
     # system prompt, tool list and task, so whatever it did measures the task's
     # fit, not the model. Same treatment as any infrastructure failure: kept
     # transcript (_TRUNCATED_), no summary row. Exit -3 is this harness's code
@@ -2452,7 +2451,7 @@ foreach ($tk in $tasksToRun) {
         }
         if ($gpuResetText) { $runDetail += " Also: $gpuResetText." }
         if ($ctxEvents.TemplateCrash) {
-            $runDetail += " Cause: a context overflow. The request was longer than num_ctx, so Ollama dropped the oldest messages, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
+            $runDetail += " Cause: a context overflow. The request was longer than num_ctx, the oldest messages were dropped, the task prompt with them, and the model's chat template refused a conversation with no user message (docs/roadmap.md -> `"Context overflow`")."
         }
         Write-Result $tk.id "$($script:AgentName) run" "FAIL" $runDetail
         $overallPass = $false
@@ -2507,7 +2506,7 @@ foreach ($tk in $tasksToRun) {
     # Context events are recorded, not graded: a front-drop or a refused request
     # is what this seat does in a real session too, so the gates still judge the
     # end state. The wording follows the engine (Format-ContextOverflowWarning).
-    $overflowWarn = Format-ContextOverflowWarning -FrontDrops $ctxEvents.FrontDrops -OverflowErrors $overflowRec.OverflowErrors -EngineName $script:EngineName -NumCtx $numCtx -AgentName $script:AgentName
+    $overflowWarn = Format-ContextOverflowWarning -FrontDrops $ctxEvents.FrontDrops -OverflowErrors $overflowRec.OverflowErrors -NumCtx $numCtx -AgentName $script:AgentName
     if ($overflowWarn) { Write-Result $tk.id "context" "WARN" $overflowWarn }
     if ($ctxEvents.AskedForTask.Count -gt 0) {
         $af = $ctxEvents.AskedForTask[0]
