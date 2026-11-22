@@ -4,10 +4,8 @@
 # .\desktop\scripts\install-opencode-profiles.ps1. It defines an `opencode`
 # function that sits in front of the real command:
 #
-#   opencode quality                  # dev-workflow-quality: qwen3.6 + CPU 3b
-#   opencode resident                 # dev-workflow-resident: qwen3:8b + 7b coder
-#   opencode desktop-only run "..."   # anything after the name goes to opencode
-#   opencode quality -NoWarm          # launcher switches work too (-KeepLoaded)
+#   opencode server-llamacpp          # dev-workflow-server-llamacpp: qwen3.6 on the server + CPU 3b
+#   opencode node3 run "..."          # anything after the name goes to opencode
 #   opencode                          # no profile name: the real opencode, as before
 #
 # A profile name is a live profile's basename (profiles/dev-*.sh; parked
@@ -17,7 +15,7 @@
 # afterwards. Anything else is passed to the real opencode untouched.
 #
 # A profile name wins over a project directory of the same name in the current
-# directory; open such a directory as .\quality.
+# directory; open such a directory as .\node3.
 #
 # Only PowerShell sees this function: Git Bash and cmd still run the real
 # opencode.

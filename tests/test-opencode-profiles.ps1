@@ -16,8 +16,9 @@
 #      opencode first on PATH: profile names go to the launcher with the rest of
 #      the arguments intact; everything else goes to opencode untouched.
 #   3. The REAL launcher end to end (needs Git Bash) against the real
-#      dev-workflow-quality profile with -NoWarm -KeepLoaded, so nothing touches
-#      Ollama: opencode sees the profile's model, and the shell's env is restored.
+#      dev-workflow-server-llamacpp profile (the launcher makes no network calls since
+#      the desktop's Ollama warm-up went, 2026-11-21): opencode sees the profile's model,
+#      and the shell's env is restored.
 #   4. On opencode 2.x the launcher puts --standalone first (the shared service
 #      ignores the launcher's env; desktop\scripts\opencode-standalone.ps1), not
 #      on 1.x, and not when the args already pick a server.
@@ -104,25 +105,25 @@ try {
     opencode --version
     Check "a flag goes to the real opencode" (Last) "real args=--version model=sentinel"
 
-    Write-Host "-- the real launcher (Git Bash, real dev-workflow-quality profile, no Ollama calls)"
+    Write-Host "-- the real launcher (Git Bash, real dev-workflow-server-llamacpp profile, no network calls)"
     $global:OpencodeProfilesRepo = $repo
-    $want = (Select-String -Path (Join-Path $repo "profiles\dev-workflow-quality.sh") -Pattern '^export OPENCODE_MODEL="([^"]+)"').Matches[0].Groups[1].Value
-    opencode quality -NoWarm -KeepLoaded run "x y" *> $null
+    $want = (Select-String -Path (Join-Path $repo "profiles\dev-workflow-server-llamacpp.sh") -Pattern '^export OPENCODE_MODEL="([^"]+)"').Matches[0].Groups[1].Value
+    opencode server-llamacpp run "x y" *> $null
     Check "opencode saw the profile's model, args intact" (Last) "real args=run|x y model=$want"
     Check "the shell's OPENCODE_MODEL is restored" $env:OPENCODE_MODEL "sentinel"
 
     Write-Host "-- opencode 2.x: the launcher adds --standalone (opencode-standalone.ps1)"
     $env:OCP_TEST_VERSION = "1.19.5"
-    opencode quality -NoWarm -KeepLoaded run "x y" *> $null
+    opencode server-llamacpp run "x y" *> $null
     Check "1.x: no --standalone" (Last) "real args=run|x y model=$want"
     $env:OCP_TEST_VERSION = "opencode v2.3.2"
-    opencode quality -NoWarm -KeepLoaded run "x y" *> $null
+    opencode server-llamacpp run "x y" *> $null
     Check "2.x: --standalone first, before the subcommand" (Last) "real args=--standalone|run|x y model=$want"
-    opencode quality -NoWarm -KeepLoaded *> $null
+    opencode server-llamacpp *> $null
     Check "2.x bare TUI launch: --standalone" (Last) "real args=--standalone model=$want"
-    opencode quality -NoWarm -KeepLoaded --server http://127.0.0.1:1 run "x" *> $null
+    opencode server-llamacpp --server http://127.0.0.1:1 run "x" *> $null
     Check "2.x with --server: left alone" (Last) "real args=--server|http://127.0.0.1:1|run|x model=$want"
-    opencode quality -NoWarm -KeepLoaded --standalone run "x" *> $null
+    opencode server-llamacpp --standalone run "x" *> $null
     Check "2.x already --standalone: not doubled" (Last) "real args=--standalone|run|x model=$want"
     Remove-Item Env:OCP_TEST_VERSION
     . (Join-Path $repo "desktop\scripts\opencode-standalone.ps1")
@@ -132,7 +133,7 @@ try {
     Check "unknown version: args unchanged"       ((Add-OpencodeStandaloneArg "" @("run", "a b")) -join '|') "run|a b"
     Check "--server=URL form: left alone"         ((Add-OpencodeStandaloneArg "2.3.2" @("--server=http://h:1")) -join '|') "--server=http://h:1"
     Remove-Item Env:OPENCODE_MODEL
-    opencode quality -NoWarm -KeepLoaded *> $null
+    opencode server-llamacpp *> $null
     # Absent, not empty: on pwsh 7.5+ an empty value survives the restore unless it passes a true null.
     Check "an unset variable is unset again" (Test-Path Env:OPENCODE_MODEL) "False"
 } finally {

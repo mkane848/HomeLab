@@ -134,7 +134,8 @@ try {
         Check "...and every llama.cpp call in it sends it ($($llamaCalls.Count) calls)" $unsent.Count 0
     }
     $oc = Get-Content -Raw (Join-Path $repo "opencode/global/opencode.jsonc")
-    foreach ($v in "SERVER", "DESKTOP", "NODE3") {
+    # The desktop provider went with the desktop's seats (2026-11-21): the server and node3 are the llama.cpp hosts.
+    foreach ($v in "SERVER", "NODE3") {
         Has "OpenCode's llamacpp-$($v.ToLower()) provider reads the key file" $oc ('"baseURL": "\{env:LLAMACPP_' + $v + '_BASE_URL\}",\s*(//[^\n]*\n\s*)*"apiKey": "\{file:\.secrets/llamacpp-api-key\}"')
     }
     foreach ($f in "server/scripts/llamacpp-window.sh", "server/scripts/llamacpp-soak.sh", "server/scripts/status.sh") {

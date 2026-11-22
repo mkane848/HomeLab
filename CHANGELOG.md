@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: OpenCode, the profiles and the desktop no longer use Ollama (2026-11-21; Ollama removal, part 2 of 4).** The
+  owner's decision: Ollama goes everywhere, and the desktop runs no models. It is the OpenCode client and the harness run
+  host.
+  - **OpenCode config:** the `ollama-server`, `ollama-desktop`, `ollama-node3` and `llamacpp-desktop` providers are
+    gone, and `llamacpp-node3` no longer lists the CPU 3b, which node3 does not serve. What remains: `llamacpp-server`,
+    `llamacpp-node3` and `opencode-go`. The template loads on 2.x.
+  - **Profiles:**
+    - **Live:** two remain, `dev-workflow-server-llamacpp`, the default, and `dev-node3`, rewritten for node3's
+      llama-server.
+    - **Parked:** one remains, `dev-go-only`.
+    - **Deleted:** five Ollama or desktop profiles, and six parked ones that named Ollama-only tags. They are in git
+      history.
+    - **Exports:** every profile now exports both llama.cpp base URLs, because `{env:}` has no fallback. The default
+      profile did not export node3's before.
+  - **Desktop:**
+    - `startup.ps1`, `startup.bat`, `models.ps1`, `pin-ollama-desktop.ps1`, `status.ps1` and `desktop/ollama/` are
+      deleted.
+    - The launcher drops its desktop-Ollama warm-up and unload, along with `-NoWarm` and `-KeepLoaded`, and stops
+      resetting Ollama variables.
+  - **`check_config_drift.py`, rewritten for llama.cpp only:**
+    - Each host's `models.ini` `c` is compared with the seat table and with that host's OpenCode `limit.context`. This
+      covers node3 too, for the first time.
+    - A registered model that the host does not serve fails, and so does a seat no section serves.
+    - The catalog's context column is checked for seated tags, and so are the profile seats and README counts.
+    - The allowlist is now empty.
+  - **Found by the new check:**
+    - node3's 3b registration.
+    - A seat row for `qwen2.5-coder:3b`, which was only Ollama's base tag for the CPU seat.
+    - The catalog's `gpt-oss:20b` context: 16384 was Ollama's default; llama.cpp serves 65536.
+  - **Tests:**
+    - `test_config_drift.py` has 15 tests. With the node3 rule removed, 3 fail, and the file was restored
+      byte-identical.
+    - `test-opencode-profiles` uses the default profile for its real-launcher checks.
+    - `test-llamacpp-auth` checks the server and node3 providers.
+    - `run-guards`: 52 of 56 pass. The other 4 are the known 1.19.5 version pins, and CI installs 1.19.5.
 - **feat: the llama-servers no longer read Ollama's files (2026-11-21; first step of removing Ollama, owner's request).**
   - **Why:** the server's llama-server loaded four seats (`qwen3.6:35b-a3b-coding`, `qwen3:8b`, `qwen2.5-coder-3b-cpu`,
     `gpt-oss:20b`) straight from Ollama's volume, and node3's loaded `qwen3:8b` from its Ollama store. Uninstalling
