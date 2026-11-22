@@ -102,7 +102,8 @@ class Firewall(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         c = self.chains()
         self.assertEqual(c["HOMELAB-MODELS"], [["-s", "192.0.2.10", "-j", "RETURN"], ["-s", "192.0.2.11", "-j", "RETURN"], ["-j", "DROP"]])
-        self.assertCountEqual(c["DOCKER-USER"], [jump(8090), jump(11434)])
+        # One port by default since Ollama (11434) was removed on 2026-11-21.
+        self.assertCountEqual(c["DOCKER-USER"], [jump(8090)])
 
     def test_the_drop_is_last_and_only_inside_the_chain(self):
         self.run_fw("apply", "--allow", "192.0.2.10")
