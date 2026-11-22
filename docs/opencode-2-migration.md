@@ -124,8 +124,12 @@ Each step is one PR.
      `test-read-budget.ps1:47`, `test-agent-shell.ps1`, `test-agent-tools.ps1`, `checks.yml`) and update the stand-in
      shims.
 4. **Plugins.**
-   - 4.1 First measure whether 2.x resumes after an automatic compaction on its own (the kane-07 case, without the
-     plugin).
+   - 4.1 **Done (2026-11-21): 2.x goes on after compacting by itself.** One `kane-07` run on the server's
+     `llamacpp-server/qwen3.6`, with the client on the desktop's 2.3.2 and no plugins. It compacted five times, at 4,
+     6, 17, 29 and 38 minutes, and kept making tool calls after each one with no nudge: 71 steps and 0 errors, still
+     working when the 45-minute timeout killed it, so it was not graded. Details are in `tests/results/NOTES.md` →
+     "OpenCode 2.x compaction check". Caveats: n = 1, and the run did not finish; frequent compactions on a
+     read-heavy run with no read cap suggest re-measuring with the 2.x `read-budget` loaded.
    - 4.2 **Done (2026-11-21):** `read-budget` ported to `opencode/plugins/read-budget/index.js`. It is still needed:
      2.x's own read cap is 50 KiB and 2000 lines, and ours at 64k is about 17 KB. The 1.x `read-budget.js` stays
      for 1.19.5 (CI, node3) until the cutover. Both import `read-budget/core.js`. Checked on 2.3.2 with a probe
@@ -143,7 +147,7 @@ Each step is one PR.
    - At the cutover (5.1), the template's entry `"__REPO_URL__/opencode/plugins/read-budget.js"` becomes
      `"__REPO_URL__/opencode/plugins/read-budget"` under `plugins`. The adapter's `-match 'read-budget'` plugin test
      matches both.
-   - 4.3 Port `compaction-continue` only if 4.1 shows a stall.
+   - 4.3 **Not ported**, because 4.1 showed no stall. `compaction-continue.js` stays for 1.x until the cutover and is retired with it. On 2.x it never loads, as a file plugin.
    - 4.4 Port the live tests to `/api/...`, mutation-check them, and change `@opencode-ai/plugin` to
      `@opencode/plugin`. **read-budget done (2026-11-21).** Neither plugin imports `@opencode-ai/plugin`, and the 2.x
      plugin needs no import. `test-read-budget-live.mjs` drives 2.x `serve` as follows:
