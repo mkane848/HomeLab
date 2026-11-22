@@ -4,26 +4,23 @@
 # (server/docker/docker-compose.llamacpp.yml, server/llamacpp/models.ini,
 # server/scripts/llamacpp-check.sh; docs/llamacpp-trial.md).
 #
-# Why this exists: the stack is only worth measuring if it is the SAME model on the
-# SAME weights at the SAME context as the Ollama seat it is compared with, and if it
-# can not quietly lose the GPU the way the Ollama container did on 2026-10-12. Each
-# of those is a line in a file that a later edit can break without anything failing.
+# Why this exists: the stack is only worth measuring if it serves the pinned weights at the
+# pinned context, and if it can not quietly lose the GPU the way the (then) Ollama container
+# did on 2026-10-12. Each of those is a line in a file that a later edit can break without
+# anything failing. llama.cpp is the server's only engine since Ollama was removed on 2026-11-21.
 #
 # What it does:
-#   1. The compose file's invariants, read from the REAL file: its own project (so it
-#      never orphans the Ollama stack), an image pinned by build tag AND digest and
-#      not the CUDA 13 build, restart unless-stopped and the Ollama stack restart "no" (Phase 3), the SAME five GPU device nodes as
-#      the Ollama compose file, a healthcheck that runs nvidia-smi inside the
-#      container, the Ollama volume external and read-only, and the preset mounted
-#      where the command reads it. Every model path in the preset sits under the
-#      mount point.
+#   1. The compose file's invariants, read from the REAL file: its own project, an image
+#      pinned by build tag AND digest and not the CUDA 13 build, restart unless-stopped,
+#      exactly the five GPU device nodes, a healthcheck that runs nvidia-smi inside the
+#      container, no Ollama volume, and the preset mounted where the command reads it.
+#      Every model path in the preset is a GGUF under /models.
 #   2. The REAL llamacpp-check.sh on the real preset and seat table (all OK), then on
 #      deliberately broken copies, each of which must FAIL for the stated reason:
-#      a blob that is not the pinned one, a missing or different `c`, four slots, a
-#      CPU seat with GPU layers, a ':' section with no alias, a section with no seat row, a quantized V cache
-#      without flash attention, an unpinned (non-Ollama) weights path (a WARN, not a
-#      failure), a missing file (exit 2).
-#   3. The Python unit tests for the sampling and live-server logic
+#      a missing or different `c`, four slots, a CPU seat with GPU layers, a ':' section
+#      with no alias, a section with no seat row, a quantized V cache without flash
+#      attention, an unpinned weights path (a WARN, not a failure), a missing file (exit 2).
+#   3. The Python unit tests for the live-server, auth, template and weights logic
 #      (tests/test_llamacpp_check.py).
 # Parts 2-3 need bash and python3 (both standard on the server); without them they
 # are reported SKIP and part 1 still runs. Exit 1 on any failure.
@@ -34,7 +31,6 @@ param()
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $compose = Join-Path $repo "server/docker/docker-compose.llamacpp.yml"
-$ollamaCompose = Join-Path $repo "server/docker/docker-compose.yml"
 $ini = Join-Path $repo "server/llamacpp/models.ini"
 $seats = Join-Path $repo "models/server-seats.tsv"
 $checker = Join-Path $repo "server/scripts/llamacpp-check.sh"
@@ -48,7 +44,7 @@ function Check([string]$name, $actual, $expected) {
 }
 function Has([string]$name, [string]$text, [string]$pattern) { Check $name ($text -match $pattern) "True" }
 
-foreach ($f in $compose, $ollamaCompose, $ini, $seats, $checker) {
+foreach ($f in $compose, $ini, $seats, $checker) {
     if (-not (Test-Path -LiteralPath $f)) { Write-Host "FAIL: missing $f"; exit 1 }
 }
 
@@ -56,17 +52,14 @@ Write-Host "-- docker-compose.llamacpp.yml invariants"
 $text = Get-Content -LiteralPath $compose -Raw
 $lines = @(Get-Content -LiteralPath $compose | Where-Object { $_ -notmatch '^\s*#' })
 $code = $lines -join "`n"
-Check "its own compose project, not the Ollama stack's"      ([regex]::IsMatch($code, '(?m)^name:\s*llamacpp\s*$')) "True"
+Check "its own compose project (llamacpp)"                   ([regex]::IsMatch($code, '(?m)^name:\s*llamacpp\s*$')) "True"
 $image = ($lines | Where-Object { $_ -match '^\s*image:' } | Select-Object -First 1)
 Has   "image pinned by build tag AND sha256 digest"           $image 'server-cuda-b\d+@sha256:[0-9a-f]{64}\s*$'
 Check "...never :latest, and never the CUDA 13 build (driver 580)" (($image -match 'latest') -or ($image -match 'cuda13')) "False"
 Check "restart is unless-stopped (the primary engine since Phase 3, 2026-11-01)" ([regex]::IsMatch($code, '(?m)^\s*restart:\s*unless-stopped\s*$')) "True"
-$ollamaCode = (@(Get-Content -LiteralPath $ollamaCompose | Where-Object { $_ -notmatch '^\s*#' }) -join "`n")
-Check "...and the Ollama stack does NOT start at boot (only one engine may hold the card at boot)" ([regex]::IsMatch($ollamaCode, '(?m)^\s*restart:\s*"no"\s*$')) "True"
 $devs = @($lines | Where-Object { $_ -match '^\s*-\s*/dev/nvidia' } | ForEach-Object { ($_ -replace '^\s*-\s*', '').Trim() } | Sort-Object)
-$ollamaDevs = @(Get-Content -LiteralPath $ollamaCompose | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '^\s*-\s*/dev/nvidia' } | ForEach-Object { ($_ -replace '^\s*-\s*', '').Trim() } | Sort-Object)
 Check "lists five GPU device nodes explicitly"                $devs.Count 5
-Check "...the SAME five the Ollama compose file lists"        ($devs -join ",") ($ollamaDevs -join ",")
+Check "...exactly nvidiactl, nvidia0, nvidia-uvm, nvidia-uvm-tools, nvidia-modeset" ($devs -join ",") ((@("nvidiactl", "nvidia0", "nvidia-uvm", "nvidia-uvm-tools", "nvidia-modeset") | ForEach-Object { "/dev/${_}:/dev/${_}" } | Sort-Object) -join ",")
 Has   "healthcheck runs nvidia-smi -L inside the container"   $code 'healthcheck:[\s\S]*nvidia-smi -L'
 Has   "...and probes llama-server's own /health on 8090 (the image's built-in one probes 8080)" $code 'healthcheck:[\s\S]*127\.0\.0\.1:8090/health'
 # Since 2026-11-21 every seat's weights are a GGUF in ~/models (four are byte copies of the Ollama blobs they used to
@@ -143,11 +136,6 @@ if (-not $bash -or -not $python) {
         Has   "...and the summary line is 0 FAIL"                  $r.Out '0 FAIL'
 
         Write-Host "-- ...on deliberately broken copies"
-        # A blob path whose hash is not the seat's pin (blob paths name their own sha256).
-        $r = Invoke-Checker (Mutate "wrong-blob" "model = /models/qwen3.6-35b-a3b-coding.gguf" ("model = /ollama/models/blobs/sha256-" + ("0" * 64)))
-        Check "a blob that is not the pinned one: exit 1"         $r.Exit 1
-        Has   "...names the blob and the pin"                      $r.Out 'blob sha256 0{12}\.\.\. != server-seats\.tsv weights'
-
         $r = Invoke-Checker (Mutate "no-c" "model = /models/qwen3-8b.gguf`nc = 32768" "model = /models/qwen3-8b.gguf")
         Check "a section with no explicit context: exit 1"        $r.Exit 1
         Has   "...says it would be inherited"                      $r.Out 'qwen3:8b\s+no explicit context'
@@ -177,8 +165,8 @@ if (-not $bash -or -not $python) {
         Has   "...says it needs flash attention"                   $r.Out 'quantized V cache \(q8_0\) needs flash attention'
 
         $r = Invoke-Checker (Mutate "unpinned" "model = /models/qwen3-8b.gguf" "model = /models/qwen3-8b.bin")
-        Check "weights that are not an Ollama blob: a WARN, not a failure (exit 0)" $r.Exit 0
-        Has   "...says it is unpinned, a different era"            $r.Out '\[WARN\s*\]\s+qwen3:8b\s+weights are not an Ollama blob'
+        Check "weights that are not a pinned /models GGUF: a WARN, not a failure (exit 0)" $r.Exit 0
+        Has   "...says it is unpinned, a different era"            $r.Out '\[WARN\s*\]\s+qwen3:8b\s+weights are not a /models GGUF pinned'
 
         $r = Invoke-Checker (Join-Path $tmp "does-not-exist.ini")
         Check "a missing file: exit 2"                             $r.Exit 2
@@ -188,7 +176,7 @@ if (-not $bash -or -not $python) {
         try { $py = & $python.Source -I (Join-Path $PSScriptRoot "test_llamacpp_check.py") 2>&1 | Out-String; $pyExit = $LASTEXITCODE } finally { $ErrorActionPreference = $prev }
         Check "test_llamacpp_check.py passes"                      $pyExit 0
         if ($pyExit -ne 0) { Write-Host $py }
-        Has   "...and ran its 43 tests"                            $py 'Ran 43 tests'
+        Has   "...and ran its 31 tests"                            $py 'Ran 31 tests'
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }

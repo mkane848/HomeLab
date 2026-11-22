@@ -1,25 +1,18 @@
-# models/server-seats.tsv - what the server serves, read by server/scripts/llamacpp-check.sh (against
-# server/llamacpp/models.ini and, with --weights-container, the blobs) and by bake-models.sh (Ollama only, the
-# rollback engine since Phase 3, 2026-11-01).
+# models/server-seats.tsv - what the server's llama-server serves, read by server/scripts/llamacpp-check.sh
+# (against server/llamacpp/models.ini and, with --weights-container, the GGUF files) and by
+# tests/check_config_drift.py. llama.cpp is the only engine since Ollama was removed on 2026-11-21.
 #
-# The server's Ollama must match the desktop's measured setup before any of its
-# results can be compared (docs/roadmap.md -> "Next up (2026-10-10): server
-# first", step 2). For each seat this file pins:
-#   num_ctx   baked into the tag itself, the same value and the same tag name as
-#             the desktop (desktop/scripts/startup.ps1 $contextModels) - not
-#             install-model.sh's <tag>-Nk names, so one run-tasks-models.tsv row
-#             covers both hosts. opencode/global/opencode.jsonc's ollama-server
-#             limit.context must equal it (tests/test-profiles.ps1 checks it against the value the server serves).
-#   num_gpu   only for derived CPU models (0 = no VRAM).
-#   from      the base tag a derived model is built from ("-" for a pulled tag).
-#   weights   sha256 of the desktop copy's weights blob (/api/show FROM line, read
-#             2026-10-10). bake-models.sh compares the server copy against it: a
-#             different blob is a different model, so its results are a new era.
-#   source    pull (ollama pull the tag), import (the desktop copy is a local GGUF
-#             import - copy that GGUF over, or pull and accept new weights),
-#             derived (built by bake-models.sh from `from`), import-server (a GGUF in the
-#             server's ~/models, served by llama.cpp only and never by the desktop, so
-#             tests/check_config_drift.py does not expect it in startup.ps1).
+# For each seat this file pins:
+#   num_ctx   the context the seat serves: its models.ini `c` and opencode/global/opencode.jsonc's
+#             llamacpp-server limit.context must equal it (tests/check_config_drift.py, and
+#             tests/test-profiles.ps1 against the value the server reports).
+#   num_gpu   0 for a CPU seat (no GPU layers); "-" otherwise.
+#   from      the base a derived seat was built from (informational; "-" otherwise).
+#   weights   sha256 of the seat's GGUF file. A different file is a different model, so its results are a new
+#             era. Four seats (qwen3.6, qwen3:8b, the 3b, gpt-oss) loaded Ollama's blobs until 2026-11-21; their
+#             GGUFs in ~/models are byte copies, so these hashes are unchanged.
+#   source    import-server: a GGUF in the server's ~/models (the /models mount). "import" is the older name
+#             for the same thing.
 # Columns are tab-separated.
 tag	num_ctx	num_gpu	from	weights	source	note
 qwen3.6:35b-a3b-coding	65536	-	-	sha256:d372de8e934898a59e6ccfabc3368474711384d8f1fd4d22d87a3f0a45400cdc	import-server	main executor; desktop 11 of 12 work packages with the stop nudge (2026-10-10)

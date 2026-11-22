@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: the server's and node3's scripts no longer use Ollama (2026-11-21; Ollama removal, part 3a).**
+  - **Deleted:**
+    - `server/scripts/install-model.sh` and `bake-models.sh`, Ollama's pull and bake scripts.
+    - The model catalog, `models/catalog.tsv` and `catalog.sh`, which was Ollama's pull list.
+    - The Ollama compose file `server/docker/docker-compose.yml` and `server/systemd/ollama-server.service`.
+  - **Changed:**
+    - `startup.sh` and `stop.sh` drop `--engine ollama`.
+    - `status.sh` reports llama.cpp only.
+    - `llamacpp-window.sh` no longer unloads an Ollama seat before a window.
+    - `model-ports-firewall.sh` defaults to port 8090 only.
+  - **`llamacpp_check.py`:**
+    - Loses `--ollama-url`, the sampling comparison against Ollama's parameters, and its Ollama blob paths.
+    - Weights are GGUF files under `/models`, pinned by the seat table. The real preset reports 0 FAIL, 0 WARN, 21 OK.
+  - **`server/docker/.env.example`** now documents what the household stack actually reads from `.env`
+    (`GROCY_TAG`, `OPENWEBUI_TAG`, `LLAMACPP_HOUSEHOLD_KEY`, `WEBUI_SECRET_KEY`). It held only Ollama settings before.
+  - **`machines.tsv`:** the desktop loses its `model-host` role. The server and node3 notes say llama.cpp is their
+    only engine.
+  - **Seat table:** the header is rewritten. `num_ctx` is the served `c`, and `source` is `import-server`.
+  - **Drift check:** the catalog rule goes with the catalog.
+  - **Tests:**
+    - `test_llamacpp_check.py` has 31 tests; the sampling and parsing ones are gone. With the pinning rule
+      disabled, 9 fail, and the file was restored byte-identical.
+    - `test-llamacpp-stack` checks exactly the five GPU device nodes, with no Ollama compose file to compare
+      against.
+    - `test-llamacpp-window` asserts that nothing Ollama is called. That guard runs in the Linux CI job.
+    - `test-profiles` is llama.cpp-only: no catalog, no install intent, no desktop or Ollama providers. Live against
+      the server: 16 PASS, 0 FAIL.
 - **feat: OpenCode, the profiles and the desktop no longer use Ollama (2026-11-21; Ollama removal, part 2 of 4).** The
   owner's decision: Ollama goes everywhere, and the desktop runs no models. It is the OpenCode client and the harness run
   host.

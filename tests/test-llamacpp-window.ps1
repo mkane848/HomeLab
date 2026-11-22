@@ -2,12 +2,12 @@
 # run-after: server/scripts/llamacpp-window.sh or the llama.cpp compose file it starts
 # test-llamacpp-window.ps1 - regression guard for the server's unattended-window script.
 #
-# Why this exists: the script is the thing that takes the GPU away from Ollama for a night and must give it back by
+# Why this exists: the script is the thing that holds the server's GPU for a night and must give it back by
 # the deadline whatever else happens; a bug in it costs the owner their morning, and it is never run on a machine
 # that has a docker daemon, a GPU and no one watching, except the real one. So the real script runs here against
 # stand-in `docker`, `curl`, `nvidia-smi` and `llamacpp-check.sh` that keep their state in files and record every
 # call, and each branch is walked:
-#   - up, the happy path: Ollama's resident seat is stopped BEFORE the stack starts, the stack is started once, the
+#   - up, the happy path: nothing Ollama is touched (it was removed 2026-11-21), the stack is started once, the
 #     seat is asked to load, the deadline is hours ahead, status is ready, down closes it and clears the deadline;
 #   - every refusal leaves nothing running: GPU still held (4, the stack never started), compose up failing, a
 #     container that never gets healthy (5), a seat that fails to load (6), a failing contract check (7) - each of
@@ -50,8 +50,7 @@ function Write-Lf([string]$Path, [string]$Text) {
 
 # --- the stand-ins ---------------------------------------------------------------------------
 # State files under $state: container (none|running|exited), health (healthy|starting|unhealthy), seat
-# (unloaded|loaded|failed), gpu (MiB), ollama_running (present = the Ollama container is up), ollama_models (one
-# per line). Flags: FAIL_UP, NEVER_HEALTHY, LOAD_FAILS, CHECK_FAILS, RESTART_FIXES; health_fail_once makes the next
+# (unloaded|loaded|failed), gpu (MiB). Flags: FAIL_UP, NEVER_HEALTHY, LOAD_FAILS, CHECK_FAILS, RESTART_FIXES; health_fail_once makes the next
 # /health poll fail and the ones after it succeed.
 Write-Lf (Join-Path $fx "docker") @'
 #!/usr/bin/env bash
@@ -59,18 +58,9 @@ S="$FX_STATE"
 echo "docker $*" >> "$S/calls.log"
 case "$1" in
   ps)
-    [ -e "$S/ollama_running" ] && echo ollama-server
     [ "$(cat "$S/container")" = running ] && echo llamacpp-server
     exit 0 ;;
   exec)
-    if [ "$3" = ollama ] && [ "$4" = ps ]; then
-      echo "NAME ID SIZE PROCESSOR CONTEXT UNTIL"
-      while read -r m; do [ -n "$m" ] && echo "$m abc123 20 GB 100% GPU 65536 4 hours from now"; done < "$S/ollama_models"
-      exit 0
-    fi
-    if [ "$3" = ollama ] && [ "$4" = stop ]; then
-      grep -vx "$5" "$S/ollama_models" > "$S/om.tmp"; mv "$S/om.tmp" "$S/ollama_models"; echo 300 > "$S/gpu"; exit 0
-    fi
     exit 0 ;;
   compose)
     case " $* " in
@@ -149,9 +139,7 @@ function Reset-State([hashtable]$Flags = @{}) {
     Set-Content -LiteralPath (Join-Path $state "container") -Value "none"
     Set-Content -LiteralPath (Join-Path $state "health") -Value "none"
     Set-Content -LiteralPath (Join-Path $state "seat") -Value "unloaded"
-    Set-Content -LiteralPath (Join-Path $state "gpu") -Value "14000"
-    Set-Content -LiteralPath (Join-Path $state "ollama_models") -Value "qwen3.6:35b-a3b-coding"
-    New-Item -ItemType File -Path (Join-Path $state "ollama_running") | Out-Null
+    Set-Content -LiteralPath (Join-Path $state "gpu") -Value "300"
     New-Item -ItemType File -Path (Join-Path $state "calls.log") | Out-Null
     foreach ($k in $Flags.Keys) { if ($Flags[$k]) { New-Item -ItemType File -Path (Join-Path $state $k) | Out-Null } }
 }
@@ -176,9 +164,7 @@ try {
     Reset-State
     $r = Invoke-Window @("up", "--no-watch")
     Check "exit 0" $r.Exit 0
-    $iStop = CallIndex 'ollama stop qwen3\.6'; $iUp = CallIndex 'compose .* up -d'
-    Check "Ollama's resident seat was stopped" ($iStop -ge 0) "True"
-    Check "...before the stack started" ($iStop -ge 0 -and $iUp -gt $iStop) "True"
+    Check "nothing Ollama was asked for (removed 2026-11-21)" (CallCount '(?i)ollama') 0
     Check "the stack was started exactly once" (CallCount 'compose .* up -d') 1
     Check "the seat was asked to load" (CallCount 'curl .*-X POST .*/models/load') 1
     Check "the contract check ran against the server's URL" (CallCount 'llamacpp-check --url http://stand-in:8090') 1
@@ -201,7 +187,6 @@ try {
     $r = Invoke-Window @("up", "--no-watch")
     Check "adopt: exit 0" $r.Exit 0
     Check "...the stack was not started again" (CallCount 'compose .* up') 0
-    Check "...Ollama was left alone" (CallCount 'ollama stop') 0
     Check "...the seat was still loaded and checked" ("{0}|{1}" -f (CallCount 'curl .*-X POST .*/models/load'), (CallCount 'llamacpp-check --url')) "1|1"
     Check "...and the window says it adopted it" ((WindowLog) -match 'adopting the running stack') "True"
     $d = Invoke-Window @("down")
@@ -232,7 +217,6 @@ try {
 
     Write-Host "-- up refusals leave nothing running"
     Reset-State
-    Set-Content -LiteralPath (Join-Path $state "ollama_models") -Value ""
     Set-Content -LiteralPath (Join-Path $state "gpu") -Value "9000"
     $r = Invoke-Window @("up", "--no-watch")
     Check "GPU still held by something else: exit 4" $r.Exit 4

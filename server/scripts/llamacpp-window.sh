@@ -2,13 +2,13 @@
 # llamacpp-window.sh - open, watch and close an unattended llama.cpp window on the server.
 #
 # Why this exists: a testing window on the server's llama.cpp (docs/llamacpp-trial.md, steps 0 and 2) was opened
-# and watched by hand. During the trial the container ran with `restart: "no"` (it must never fight Ollama for the
-# GPU at boot), so a crash at 3 a.m. ended the night, and a window left open held the GPU into the morning. This is
+# and watched by hand. During the trial the container ran with `restart: "no"` (it must never fight the other
+# engine for the GPU at boot), so a crash at 3 a.m. ended the night, and a window left open held the GPU into the morning. This is
 # the same procedure with a clock on it: a deadline after which the stack is taken down whatever else happens,
 # and a watchdog that restarts a dead or unhealthy llama-server a few times an hour while the window is open.
 #
-# Since Phase 3 (2026-11-01) llama.cpp is the server's primary engine (`restart: unless-stopped`, Ollama's container
-# stopped), so the stack is usually up already. `up` then ADOPTS it: no Ollama stop, no GPU check, no start; it still
+# Since Phase 3 (2026-11-01) llama.cpp is the server's engine (`restart: unless-stopped`; Ollama was removed
+# 2026-11-21), so the stack is usually up already. `up` then ADOPTS it: no GPU check, no start; it still
 # loads the seat, runs the contract check, sets the deadline and starts the watchdog, and it writes
 # $WINDOW_DIR/adopted. A window that adopted the stack leaves it running when it closes (deadline, STOP, give-up,
 # `down`): the primary engine is not the window's to take away.
@@ -18,12 +18,11 @@
 #   bash server/scripts/llamacpp-window.sh status                         exit 0 only if open, healthy, seat loaded
 #   bash server/scripts/llamacpp-window.sh down                           close now (stops the watchdog first)
 #
-# `up`: stops whatever Ollama has resident (the card cannot hold both engines' copies), waits for the GPU to be
-# free, starts docker-compose.llamacpp.yml, waits for the container to be healthy (its healthcheck runs
+# `up`: waits for the GPU to be free, starts docker-compose.llamacpp.yml, waits for the container to be healthy (its healthcheck runs
 # nvidia-smi inside the container), loads the seat and waits until the router says `loaded` (POST /models/load
 # answers before the load has happened, so the outcome is read from GET /models, as llamacpp-soak.sh does), runs
 # llamacpp-check.sh --url, then starts the watchdog in the background and returns. Any step that fails brings the
-# stack down again and exits non-zero, so a failed `up` leaves Ollama free to serve in the morning.
+# stack down again and exits non-zero, so a failed `up` does not hold the GPU into the morning.
 #
 # The watchdog polls every WATCH_INTERVAL seconds. Two bad polls in a row (container not running, `unhealthy`, or
 # /health not answering) restart llama-server and load the seat again; the fifth restart within an hour gives up,
@@ -35,7 +34,7 @@
 # failed.
 #
 # Env overrides: URL (http://localhost:8090), SEAT (qwen3.6:35b-a3b-coding), CONTAINER (llamacpp-server),
-# OLLAMA_CONTAINER (ollama-server), WINDOW_DIR (~/llamacpp-window), WATCH_INTERVAL (30), MAX_USED_MIB (2500: the
+# WINDOW_DIR (~/llamacpp-window), WATCH_INTERVAL (30), MAX_USED_MIB (2500: the
 # GPU memory still in use that blocks the start), MAX_RESTARTS (4 an hour), POLL (3: seconds between polls while
 # waiting), HEALTH_WAIT (300), LOAD_WAIT (600), GPU_WAIT (90). DOCKER, CURL, NVIDIA_SMI and PYTHON name the
 # binaries (tests/test-llamacpp-window.ps1 points them at stand-ins).
@@ -49,7 +48,6 @@ compose="${COMPOSE_FILE:-$repo/server/docker/docker-compose.llamacpp.yml}"
 URL="${URL:-http://localhost:8090}"
 SEAT="${SEAT:-qwen3.6:35b-a3b-coding}"
 CONTAINER="${CONTAINER:-llamacpp-server}"
-OLLAMA_CONTAINER="${OLLAMA_CONTAINER:-ollama-server}"
 WINDOW_DIR="${WINDOW_DIR:-$HOME/llamacpp-window}"
 WATCH_INTERVAL="${WATCH_INTERVAL:-30}"
 MAX_USED_MIB="${MAX_USED_MIB:-2500}"
@@ -203,23 +201,12 @@ cmd_up() {
 
     # 0. Already up and healthy (the primary engine since Phase 3): adopt it, and leave it up when the window closes.
     if [ "$(container_state)" = "running healthy" ]; then
-        log "adopting the running stack: no Ollama stop, no GPU check, no start; it stays up when the window closes"
+        log "adopting the running stack: no GPU check, no start; it stays up when the window closes"
         : > "$WINDOW_DIR/adopted"
         UP_IN_PROGRESS=1
         trap on_interrupt INT TERM HUP
     else
-        # 1. Free the card of Ollama's resident seat(s). Real use of the server pauses for the window.
-        if "$DOCKER" ps --format '{{.Names}}' 2>/dev/null | grep -qx "$OLLAMA_CONTAINER"; then
-            local m
-            while read -r m; do
-                [ -n "$m" ] || continue
-                "$DOCKER" exec "$OLLAMA_CONTAINER" ollama stop "$m" >/dev/null 2>&1 && log "stopped Ollama's resident seat $m" || log "could not stop $m"
-            done < <("$DOCKER" exec "$OLLAMA_CONTAINER" ollama ps 2>/dev/null | awk 'NR>1 {print $1}')
-        else
-            log "no running $OLLAMA_CONTAINER container: nothing to unload"
-        fi
-
-        # 2. The GPU must be free before the seat is loaded; something other than Ollama may be holding it.
+        # 1. The GPU must be free before the seat is loaded; something else may be holding it.
         if command -v "$NVIDIA_SMI" >/dev/null 2>&1; then
             local used="" start
             start="$(date +%s)"
@@ -229,14 +216,14 @@ cmd_up() {
                 sleep "$POLL"
             done
             if ! { [ -n "$used" ] && [ "$used" -le "$MAX_USED_MIB" ] 2>/dev/null; }; then
-                die 4 "the GPU still holds ${used:-?} MiB (limit $MAX_USED_MIB) after ${GPU_WAIT}s: something other than Ollama's resident seat is using it; nothing was started"
+                die 4 "the GPU still holds ${used:-?} MiB (limit $MAX_USED_MIB) after ${GPU_WAIT}s: something else is using it; nothing was started"
             fi
             log "GPU idle baseline: ${used} MiB"
         else
             log "no nvidia-smi: GPU idle check skipped"
         fi
 
-        # 3. Start the stack and wait for a healthy container (nvidia-smi inside it passes).
+        # 2. Start the stack and wait for a healthy container (nvidia-smi inside it passes).
         UP_IN_PROGRESS=1
         trap on_interrupt INT TERM HUP
         if ! dc up -d >>"$WINDOW_DIR/window.log" 2>&1; then

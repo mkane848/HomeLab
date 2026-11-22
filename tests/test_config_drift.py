@@ -19,7 +19,6 @@ import check_config_drift as cd  # noqa: E402
 
 FILES = [
     "models/server-seats.tsv",
-    "models/catalog.tsv",
     "server/llamacpp/models.ini",
     "node3/llamacpp/models.ini",
     "opencode/global/opencode.jsonc",
@@ -105,12 +104,6 @@ class Drift(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("[seat-unserved] zz-gone:8b", out)
 
-    def test_catalog_context_mismatch(self):
-        self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")
-        code, out = run(self.tmp)
-        self.assertEqual(code, 1)
-        self.assertIn("[catalog-ctx] qwen3:8b", out)
-
     def test_profile_seat_not_registered(self):
         self.edit("profiles/dev-node3.sh", 'OPENCODE_MODEL="llamacpp-node3/qwen3:8b"', 'OPENCODE_MODEL="llamacpp-node3/nope:1b"')
         code, out = run(self.tmp)
@@ -142,8 +135,8 @@ class Drift(unittest.TestCase):
         self.assertIn("[stale-allowlist]", out)
 
     def test_allowlist_hides_a_listed_problem(self):
-        self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")
-        self.append("tests/config-drift-allow.tsv", "catalog-ctx\tqwen3:8b\ta deliberate difference\n")
+        self.edit("node3/llamacpp/models.ini", "c = 32768", "c = 16384")
+        self.append("tests/config-drift-allow.tsv", "llamacpp-limit\tnode3 qwen3:8b\ta deliberate difference\n")
         code, out = run(self.tmp)
         self.assertEqual(code, 0, out)
 

@@ -14,8 +14,8 @@
 #
 # The task runs llama-server.exe directly. node3's PowerShell 7 is the Store install, whose `pwsh` on PATH is an app
 # alias a scheduled task cannot launch (0x80070002, file not found; the same quirk as #162's agentShell), so nothing
-# here goes through a shell. Logging is llama-server's own --log-file. Ollama keeps running beside it (Phase 6 retires
-# it); the two engines must not both hold a seat on the 10 GB card.
+# here goes through a shell. Logging is llama-server's own --log-file. It is node3's only model engine (Ollama was
+# removed 2026-11-21).
 param(
     [string]$Build = "b11562",
     [string]$Root = "C:\HomeLab\llama.cpp",

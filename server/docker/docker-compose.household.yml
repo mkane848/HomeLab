@@ -4,7 +4,7 @@
 #   docker compose -p household -f server/docker/docker-compose.household.yml up -d
 # with GROCY_TAG, OPENWEBUI_TAG and WEBUI_SECRET_KEY set in server/docker/.env (git-ignored).
 #
-# PINNED, like every image on this server (server/docker/docker-compose.yml): an unattended :latest pull can
+# PINNED, like every image on this server (server/docker/docker-compose.llamacpp.yml): an unattended :latest pull can
 # change the database schema under the household's history. GROCY_TAG has no default on purpose; the compose
 # refuses to start without it. Record the tag in docs/household/phase1.md -> "Installed version" when you set it,
 # and back up before moving it.

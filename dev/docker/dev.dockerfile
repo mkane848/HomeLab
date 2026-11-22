@@ -6,8 +6,8 @@
 # (esbuild, better-sqlite3, pg, etc.) compile in-container.
 #
 # CPU-only by design: the desktop .wslconfig sets gpuSupport=false (WSL
-# ConfigureGpu workaround), so there is NO GPU passthrough. Ollama stays native
-# via Vulkan on the host - nothing here should ever try to run a model.
+# ConfigureGpu workaround), so there is NO GPU passthrough, and the desktop runs no
+# models (since 2026-11-21) - nothing here should ever try to run a model.
 #
 # No secrets ever: projects that need a DATABASE_URL pass it at run time
 # (--env / envfile), they are not baked into this image.
