@@ -129,7 +129,7 @@ class Firewall(unittest.TestCase):
         self.run_fw("apply", "--allow", "192.0.2.20")
         c = self.chains()
         self.assertEqual(c["HOMELAB-MODELS"], [["-s", "192.0.2.20", "-j", "RETURN"], ["-j", "DROP"]])
-        self.assertEqual(len(c["DOCKER-USER"]), 2)
+        self.assertEqual(len(c["DOCKER-USER"]), 1)   # one jump per port (8090), not duplicated by the re-apply
 
     def test_rules_that_were_already_in_docker_user_are_kept(self):
         mine = ["-s", "198.51.100.0/24", "-j", "ACCEPT"]
