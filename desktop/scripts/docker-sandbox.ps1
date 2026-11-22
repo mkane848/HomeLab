@@ -11,7 +11,7 @@
 #
 # Security: only the explicitly requested host (or a temp) directory is
 # mounted; containers get a memory/CPU cap so a runaway sandbox can't starve
-# host Ollama; never mount ~/.config/opencode/.secrets or other sensitive dirs.
+# the host; never mount ~/.config/opencode/.secrets or other sensitive dirs.
 
 param(
     [string]$Image = "dev-base:1",

@@ -16,8 +16,9 @@ export DEV_TIERS_NODE3=false
 # Models to have installed on the server
 export DEV_SERVER_MODELS="autocomplete"
 
-export OLLAMA_SERVER_URL="http://localhost:11434"
-export OLLAMA_SERVER_BASE_URL="${OLLAMA_SERVER_BASE_URL:-http://localhost:11434/v1}"
+# {env:...} has no fallbacks: export every llama.cpp endpoint the config names.
+export LLAMACPP_SERVER_BASE_URL="${LLAMACPP_SERVER_BASE_URL:-http://${SERVER_IP:-SERVER_IP}:8090/v1}"
+export LLAMACPP_NODE3_BASE_URL="${LLAMACPP_NODE3_BASE_URL:-http://${NODE3_IP:-NODE3_IP}:8090/v1}"
 
 # Leave OPENCODE_MODEL unset -> OpenCode config default is the Go model.
 echo "[profile] Go mode: Qwen + OpenCode Go models"

@@ -8,7 +8,6 @@ ioskey.pub
 # Real config files (use .example templates instead)
 opencode/global/opencode.json
 opencode/project-override/opencode.json
-desktop/ollama/config.json
 
 # OS junk
 Thumbs.db

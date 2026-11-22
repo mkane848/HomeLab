@@ -77,7 +77,7 @@ jobs:
           python3 -I tests/test_planner_done.py
           python3 -I tests/test_config_drift.py
 
-      - name: Config drift (catalog, seats, startup.ps1, opencode.jsonc, profiles)
+      - name: Config drift (seats, both models.ini, opencode.jsonc, catalog, profiles)
         run: python3 -I tests/check_config_drift.py
 
       - name: llama.cpp preset contracts (static)

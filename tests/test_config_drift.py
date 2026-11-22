@@ -18,10 +18,10 @@ sys.path.insert(0, HERE)
 import check_config_drift as cd  # noqa: E402
 
 FILES = [
-    "desktop/scripts/startup.ps1",
     "models/server-seats.tsv",
     "models/catalog.tsv",
     "server/llamacpp/models.ini",
+    "node3/llamacpp/models.ini",
     "opencode/global/opencode.jsonc",
     "profiles/README.md",
     "tests/config-drift-allow.tsv",
@@ -61,6 +61,10 @@ class Drift(unittest.TestCase):
         with open(p, "w", encoding="utf-8", newline="") as f:
             f.write(s.replace(old, new, 1))
 
+    def append(self, rel, text):
+        with open(os.path.join(self.tmp, rel), "a", encoding="utf-8", newline="") as f:
+            f.write(text)
+
     def test_real_tree_is_clean(self):
         code, out = run(REPO)
         self.assertEqual(code, 0, out)
@@ -73,9 +77,33 @@ class Drift(unittest.TestCase):
         self.edit("models/server-seats.tsv", "qwen3:8b\t32768", "qwen3:8b\t16384")
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
-        # qwen3:8b is a server-only (llama.cpp) seat since 2026-11-21, so the desktop-parity
-        # rule skips it; the seat table against models.ini `c` is what catches the drift.
-        self.assertIn("[llamacpp-ctx] qwen3:8b", out)
+        self.assertIn("[llamacpp-ctx] server qwen3:8b", out)
+
+    def test_server_section_without_c(self):
+        self.edit("server/llamacpp/models.ini", "c = 32768", "# c = 32768")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[llamacpp-ctx] server", out)
+        self.assertIn("no explicit `c`", out)
+
+    def test_node3_limit_mismatch(self):
+        # node3's served context against the llamacpp-node3 registration.
+        self.edit("node3/llamacpp/models.ini", "c = 32768", "c = 16384")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[llamacpp-limit] node3 qwen3:8b", out)
+
+    def test_registered_but_not_served(self):
+        self.edit("node3/llamacpp/models.ini", "[qwen3.6:35b-a3b-coding]", "[qwen3.6:other]")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[llamacpp-orphan] node3 qwen3.6:35b-a3b-coding", out)
+
+    def test_seat_nobody_serves(self):
+        self.append("models/server-seats.tsv", "\t".join(["zz-gone:8b", "32768", "-", "-", "sha256:" + "c" * 64, "import-server", "test row"]) + "\n")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[seat-unserved] zz-gone:8b", out)
 
     def test_catalog_context_mismatch(self):
         self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")
@@ -83,53 +111,44 @@ class Drift(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("[catalog-ctx] qwen3:8b", out)
 
-    def test_a_server_only_seat_need_not_be_on_the_desktop(self):
-        row = "\t".join(["zz-vision:8b", "32768", "-", "-", "sha256:" + "c" * 64, "%s", "test row"]) + "\n"
-        with open(os.path.join(self.tmp, "models", "server-seats.tsv"), "a", encoding="utf-8", newline="") as f:
-            f.write(row % "import-server")
-        code, out = run(self.tmp)
-        self.assertEqual(code, 0, out)
-        with open(os.path.join(self.tmp, "models", "server-seats.tsv"), "a", encoding="utf-8", newline="") as f:
-            f.write((row % "import").replace("zz-vision", "zz-other"))
-        code, out = run(self.tmp)
-        self.assertEqual(code, 1)
-        self.assertIn("[seat-not-on-desktop] zz-other:8b", out)
-        self.assertNotIn("zz-vision", out)
-
-    def test_server_limit_mismatch(self):
-        self.edit("models/server-seats.tsv", "qwen3.6:35b-a3b-coding\t65536", "qwen3.6:35b-a3b-coding\t49152")
-        code, out = run(self.tmp)
-        self.assertEqual(code, 1)
-        self.assertIn("[server-limit] qwen3.6:35b-a3b-coding", out)
-        self.assertIn("[llamacpp-ctx] qwen3.6:35b-a3b-coding", out)
-
-    def test_unknown_model_key(self):
-        self.edit("opencode/global/opencode.jsonc", '"codestral:22b": {', '"codestral": {')
-        code, out = run(self.tmp)
-        self.assertEqual(code, 1)
-        self.assertIn("[uncatalogued] ollama-server/codestral", out)
-
     def test_profile_seat_not_registered(self):
-        self.edit("profiles/dev-desktop-only.sh", 'OPENCODE_MODEL="ollama-desktop/qwen3:8b"', 'OPENCODE_MODEL="ollama-desktop/nope:1b"')
+        self.edit("profiles/dev-node3.sh", 'OPENCODE_MODEL="llamacpp-node3/qwen3:8b"', 'OPENCODE_MODEL="llamacpp-node3/nope:1b"')
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
-        self.assertIn("[profile-seat]", out)
+        self.assertIn("[profile-seat] dev-node3 OPENCODE_MODEL", out)
+
+    def test_profile_on_a_removed_provider(self):
+        self.edit("profiles/dev-node3.sh", 'OPENCODE_MODEL="llamacpp-node3/qwen3:8b"', 'OPENCODE_MODEL="ollama-node3/qwen3:8b"')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("provider 'ollama-node3' is not in opencode.jsonc", out)
 
     def test_profile_count_in_readme(self):
-        self.edit("profiles/README.md", "Live profiles (6)", "Live profiles (5)")
+        self.edit("profiles/README.md", "Live profiles (2)", "Live profiles (3)")
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
         self.assertIn("[profile-count]", out)
 
+    def test_parked_count_in_readme(self):
+        self.edit("profiles/README.md", "Parked profiles (1)", "Parked profiles (2)")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[parked-count]", out)
+
     def test_stale_allowlist_row(self):
-        with open(os.path.join(self.tmp, "tests/config-drift-allow.tsv"), "a", encoding="utf-8", newline="") as f:
-            f.write("seat-ctx\tnot-a-tag\tleft over\n")
+        self.append("tests/config-drift-allow.tsv", "llamacpp-ctx\tnot-a-tag\tleft over\n")
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
         self.assertIn("[stale-allowlist]", out)
 
+    def test_allowlist_hides_a_listed_problem(self):
+        self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")
+        self.append("tests/config-drift-allow.tsv", "catalog-ctx\tqwen3:8b\ta deliberate difference\n")
+        code, out = run(self.tmp)
+        self.assertEqual(code, 0, out)
+
     def test_missing_source_is_exit_2(self):
-        os.remove(os.path.join(self.tmp, "models/server-seats.tsv"))
+        os.remove(os.path.join(self.tmp, "node3/llamacpp/models.ini"))
         code, _ = run(self.tmp)
         self.assertEqual(code, 2)
 
