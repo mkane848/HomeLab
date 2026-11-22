@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **feat: the llama-servers no longer read Ollama's files (2026-11-21; first step of removing Ollama, owner's request).**
+  - **Why:** the server's llama-server loaded four seats (`qwen3.6:35b-a3b-coding`, `qwen3:8b`, `qwen2.5-coder-3b-cpu`,
+    `gpt-oss:20b`) straight from Ollama's volume, and node3's loaded `qwen3:8b` from its Ollama store. Uninstalling
+    Ollama would have deleted the primary engine's weights.
+  - **On the machines (done, nothing deleted):**
+    - The four server blobs were copied to `~/models/*.gguf`, and node3's to `C:\HomeLab\models\qwen3-8b.gguf`.
+    - Each copy's sha256 equals its blob's name: 42.7 GB on the server, 5.2 GB on node3.
+  - **In the repo:**
+    - `server/llamacpp/models.ini` and `node3/llamacpp/models.ini` point at the copies.
+    - The four rows in `models/server-seats.tsv` become `import-server`. The weights hashes are unchanged, because
+      the bytes are the same.
+    - `docker-compose.llamacpp.yml` no longer mounts or declares the Ollama volume.
+  - **Tests:**
+    - `test-llamacpp-stack` now requires no Ollama mount and only `/models` GGUF paths. Mutation-checked two ways,
+      each red, each file restored byte-identical.
+    - `llamacpp_check.py` on the real preset reports 0 FAIL, 0 WARN, 21 OK.
+    - The obsolete `gpt-oss` desktop-parity allowlist row is gone, and `test_config_drift`'s seat-context test
+      asserts `llamacpp-ctx`.
+  - **Not deployed yet:**
+    - **Server:** restarting from the repo's compose file also rolls out the engine API keys (merged 2026-11-17, not
+      yet rolled out), so it goes with that rollout (`docs/engine-api-keys.md`).
+    - **node3:** a `git pull` of its checkout and a restart of its llama-server.
 - **tests: the rest of step 3, the Go gate, the window, sync and ripgrep on OpenCode 2.x (2026-11-21).**
   - **Go listing and spend move into the adapter.** `run-tasks-batch.ps1` no longer calls `opencode`, and
     `test-agent-adapter` now enforces that.

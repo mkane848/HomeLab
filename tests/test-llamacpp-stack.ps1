@@ -69,8 +69,9 @@ Check "lists five GPU device nodes explicitly"                $devs.Count 5
 Check "...the SAME five the Ollama compose file lists"        ($devs -join ",") ($ollamaDevs -join ",")
 Has   "healthcheck runs nvidia-smi -L inside the container"   $code 'healthcheck:[\s\S]*nvidia-smi -L'
 Has   "...and probes llama-server's own /health on 8090 (the image's built-in one probes 8080)" $code 'healthcheck:[\s\S]*127\.0\.0\.1:8090/health'
-Has   "Ollama's volume is mounted read-only at /ollama"       $code '(?m)^\s*-\s*ollama_data:/ollama:ro\s*$'
-Has   "...declared external, under its real name"              $code '(?s)volumes:\s*\n\s*ollama_data:\s*\n\s*external:\s*true\s*\n\s*name:\s*docker_ollama_data'
+# Since 2026-11-21 every seat's weights are a GGUF in ~/models (four are byte copies of the Ollama blobs they used to
+# load), and Ollama's volume is not mounted: it is removed with Ollama.
+Check "Ollama's volume is not mounted, nor declared"          ($code -match '(?m)^\s*-\s*ollama_data:|^\s*ollama_data:\s*$') "False"
 Has   "port 8090 published, and served on 8090"                $code '(?s)"8090:8090".*--port\s*\n\s*-\s*"8090"'
 Has   "router mode: --models-preset /config/models.ini"        $code '--models-preset\s*\n\s*-\s*/config/models\.ini'
 Has   "...and that file is mounted read-only from server/llamacpp" $code '\.\./llamacpp/models\.ini:/config/models\.ini:ro'
@@ -78,10 +79,10 @@ Has   "chat templates mounted read-only from server/llamacpp/templates" $code '(
 $tplRefs = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*chat-template-file\s*=' } | ForEach-Object { ($_ -split '=', 2)[1].Trim() })
 $tplMissing = @($tplRefs | Where-Object { -not ($_ -match '^/config/templates/([^/]+)$' -and (Test-Path -LiteralPath (Join-Path $repo "server/llamacpp/templates/$($Matches[1])"))) })
 Check "every chat-template-file in the preset is a file in server/llamacpp/templates" "$($tplRefs.Count) referenced, $($tplMissing.Count) missing" "$($tplRefs.Count) referenced, 0 missing"
-# An Ollama blob, or (2026-11-02, North Mini Code) a GGUF file directly under the read-only /models mount, pinned by its
-# sha256 in the seat table (llamacpp-check.sh --weights-container hashes it against that).
-$badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*model\s*=' -and $_ -notmatch '=\s*(/ollama/models/blobs/sha256-[0-9a-f]{64}|/models/[\w.-]+\.gguf)\s*$' })
-Check "every model path in the preset is an Ollama blob under /ollama or a GGUF under /models" $badPaths.Count 0
+# A GGUF file directly under the read-only /models mount, pinned by its sha256 in the seat table (llamacpp-check.sh
+# --weights-container hashes it against that). Ollama blob paths are gone with Ollama (2026-11-21).
+$badPaths = @(Get-Content -LiteralPath $ini | Where-Object { $_ -match '^\s*model\s*=' -and $_ -notmatch '=\s*/models/[\w.-]+\.gguf\s*$' })
+Check "every model path in the preset is a GGUF under /models" $badPaths.Count 0
 Has   "/models is mounted read-only" $code '(?m)^\s*-\s*\$\{HOME\}/models:/models:ro\s*$' 
 
 # --- the checker, the real thing -----------------------------------------------
@@ -138,16 +139,16 @@ if (-not $bash -or -not $python) {
         Write-Host "-- llamacpp-check.sh on the real preset and seat table"
         $r = Invoke-Checker $ini
         Check "exit 0, nothing FAILs"                             $r.Exit 0
-        Has   "...every seat's weights are the pinned blob"        $r.Out '(?s)qwen3\.6:35b-a3b-coding\s+weights are the pinned blob.*qwen3:8b\s+weights are the pinned blob.*qwen2\.5-coder-3b-cpu\s+weights are the pinned blob'
+        Has   "...the seats that loaded Ollama blobs are now GGUF files pinned by the seat table" $r.Out '(?s)qwen3\.6:35b-a3b-coding\s+weights are a GGUF file pinned by server-seats\.tsv.*qwen3:8b\s+weights are a GGUF file pinned.*qwen2\.5-coder-3b-cpu\s+weights are a GGUF file pinned.*gpt-oss:20b\s+weights are a GGUF file pinned'
         Has   "...and the summary line is 0 FAIL"                  $r.Out '0 FAIL'
 
         Write-Host "-- ...on deliberately broken copies"
-        $flip = "d372de8e934898a59e6ccfabc3368474711384d8f1fd4d22d87a3f0a45400cdc"
-        $r = Invoke-Checker (Mutate "wrong-blob" $flip ("0" * 64))
+        # A blob path whose hash is not the seat's pin (blob paths name their own sha256).
+        $r = Invoke-Checker (Mutate "wrong-blob" "model = /models/qwen3.6-35b-a3b-coding.gguf" ("model = /ollama/models/blobs/sha256-" + ("0" * 64)))
         Check "a blob that is not the pinned one: exit 1"         $r.Exit 1
         Has   "...names the blob and the pin"                      $r.Out 'blob sha256 0{12}\.\.\. != server-seats\.tsv weights'
 
-        $r = Invoke-Checker (Mutate "no-c" "model = /ollama/models/blobs/sha256-a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f`nc = 32768" "model = /ollama/models/blobs/sha256-a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f")
+        $r = Invoke-Checker (Mutate "no-c" "model = /models/qwen3-8b.gguf`nc = 32768" "model = /models/qwen3-8b.gguf")
         Check "a section with no explicit context: exit 1"        $r.Exit 1
         Has   "...says it would be inherited"                      $r.Out 'qwen3:8b\s+no explicit context'
 
@@ -175,7 +176,7 @@ if (-not $bash -or -not $python) {
         Check "a quantized V cache without flash attention: exit 1" $r.Exit 1
         Has   "...says it needs flash attention"                   $r.Out 'quantized V cache \(q8_0\) needs flash attention'
 
-        $r = Invoke-Checker (Mutate "unpinned" "model = /ollama/models/blobs/sha256-a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f" "model = /models/some-other-qwen3-8b.gguf")
+        $r = Invoke-Checker (Mutate "unpinned" "model = /models/qwen3-8b.gguf" "model = /models/qwen3-8b.bin")
         Check "weights that are not an Ollama blob: a WARN, not a failure (exit 0)" $r.Exit 0
         Has   "...says it is unpinned, a different era"            $r.Out '\[WARN\s*\]\s+qwen3:8b\s+weights are not an Ollama blob'
 

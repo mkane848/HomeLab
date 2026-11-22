@@ -73,7 +73,9 @@ class Drift(unittest.TestCase):
         self.edit("models/server-seats.tsv", "qwen3:8b\t32768", "qwen3:8b\t16384")
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
-        self.assertIn("[seat-ctx] qwen3:8b", out)
+        # qwen3:8b is a server-only (llama.cpp) seat since 2026-11-21, so the desktop-parity
+        # rule skips it; the seat table against models.ini `c` is what catches the drift.
+        self.assertIn("[llamacpp-ctx] qwen3:8b", out)
 
     def test_catalog_context_mismatch(self):
         self.edit("models/catalog.tsv", "qwen3:8b\t5.2\tfit\t32768", "qwen3:8b\t5.2\tfit\t16384")

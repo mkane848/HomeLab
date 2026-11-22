@@ -1,14 +1,8 @@
-# llama.cpp (llama-server) beside Ollama - the engine trial's server stack.
-# Protocol and runbook: docs/llamacpp-trial.md. Phase 1 only; nothing here runs
-# at boot, and nothing here touches the Ollama stack.
+# llama.cpp (llama-server) - the server's only model engine. Began as the engine
+# trial's stack (docs/llamacpp-trial.md); Ollama was removed 2026-11-21.
 #
 #   docker compose -f server/docker/docker-compose.llamacpp.yml up -d
 #   docker compose -f server/docker/docker-compose.llamacpp.yml down
-#
-# ONE ENGINE ON THE GPU AT A TIME. qwen3.6 holds ~13.6 GB of the 16 GB under
-# Ollama, so before a trial window stop its resident model:
-#   docker exec ollama-server ollama stop qwen3.6:35b-a3b-coding
-# (Ollama keeps it loaded for 4 h.) Real use of the server pauses for the window.
 #
 # --- Why this file is shaped the way it is ---------------------------------
 # * `name: llamacpp` - its OWN compose project. The Ollama stack's project is
@@ -16,11 +10,10 @@
 #   `docker_ollama_data`; renaming that directory orphans the volume
 #   (docs/network-topology.md -> "Server layout"). A second file in the same
 #   project would make the Ollama container an orphan of this one.
-# * The Ollama volume is mounted READ-ONLY and declared `external`: llama-server
-#   loads Ollama's own weights blobs (the file name of a blob IS its sha256), so
-#   the weights are the exact bytes models/server-seats.tsv pins. Nothing in this
-#   stack can write to, rename or remove them. Needs Ollama 0.34.3 left as it is:
-#   0.40.2 upgrades stored models in the background (docs/llamacpp-trial.md).
+# * Weights are GGUF files in ~/models, mounted READ-ONLY at /models, each pinned by
+#   its sha256 in models/server-seats.tsv. Until 2026-11-21 four seats loaded Ollama's
+#   blobs from its volume (docker_ollama_data); those are now byte copies in ~/models
+#   (checked by sha256), and the Ollama volume is no longer mounted.
 # * Pinned by build tag AND digest. ghcr tags every build (server-cuda-bNNNNN) and
 #   the digest is the multi-arch index (linux/amd64, linux/arm64). Chosen
 #   2026-10-12: b11561 was the newest server-cuda build. The image is CUDA 12.8.1
@@ -54,13 +47,10 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - ollama_data:/ollama:ro
       - ../llamacpp/models.ini:/config/models.ini:ro
       # Chat templates for seats whose weights carry none (server/llamacpp/templates/README.md).
       - ../llamacpp/templates:/config/templates:ro
-      # GGUF files that are not Ollama blobs (a candidate seat downloaded directly, e.g. North Mini Code,
-      # 2026-11-02). Read-only, like the Ollama volume; ~/models on the server, its sha256 pinned in
-      # models/server-seats.tsv.
+      # Every seat's GGUF file: ~/models on the server, read-only, each sha256 pinned in models/server-seats.tsv.
       - ${HOME}/models:/models:ro
     deploy:
       resources:
@@ -109,8 +99,3 @@ secrets:
   llamacpp_api_key:
     # On the server, outside the repo, mode 600: docs/engine-api-keys.md -> "Install the keys".
     file: ${LLAMACPP_API_KEY_FILE:-${HOME}/.config/llamacpp/api-key}
-
-volumes:
-  ollama_data:
-    external: true
-    name: docker_ollama_data

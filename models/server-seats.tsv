@@ -22,11 +22,11 @@
 #             tests/check_config_drift.py does not expect it in startup.ps1).
 # Columns are tab-separated.
 tag	num_ctx	num_gpu	from	weights	source	note
-qwen3.6:35b-a3b-coding	65536	-	-	sha256:d372de8e934898a59e6ccfabc3368474711384d8f1fd4d22d87a3f0a45400cdc	pull	main executor; desktop 11 of 12 work packages with the stop nudge (2026-10-10)
-qwen3:8b	32768	-	-	sha256:a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f	pull	light general seat
+qwen3.6:35b-a3b-coding	65536	-	-	sha256:d372de8e934898a59e6ccfabc3368474711384d8f1fd4d22d87a3f0a45400cdc	import-server	main executor; desktop 11 of 12 work packages with the stop nudge (2026-10-10)
+qwen3:8b	32768	-	-	sha256:a3de86cd1c132c822487ededd47a324c50491393e6565cd14bafa40d0b8e686f	import-server	light general seat
 qwen2.5-coder:3b	16384	-	-	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	pull	base of the CPU small model
-qwen2.5-coder-3b-cpu	16384	0	qwen2.5-coder:3b	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	derived	OpenCode small model (titles) on the CPU, so it never evicts the main seat
-gpt-oss:20b	65536	-	-	sha256:8ecb5d4ad6172c63f9cbf1a07a04e525985a8a11a6e516da02b674c4010de716	pull	model-sweep candidate (probe PASS on llama.cpp 2026-10-23, with the official template); llama.cpp seat only, not resident beside qwen3.6
+qwen2.5-coder-3b-cpu	16384	0	qwen2.5-coder:3b	sha256:4a188102020e9c9530b687fd6400f775c45e90a0d7baafe65bd0a36963fbb7ba	import-server	OpenCode small model (titles) on the CPU, so it never evicts the main seat
+gpt-oss:20b	65536	-	-	sha256:8ecb5d4ad6172c63f9cbf1a07a04e525985a8a11a6e516da02b674c4010de716	import-server	model-sweep candidate (probe PASS on llama.cpp 2026-10-23, with the official template); llama.cpp seat only, not resident beside qwen3.6
 north-mini-code	65536	-	-	sha256:86ba9cf324a1cf53687872abdda3861e3304bfd25d1f606f92a6641017ecbc6e	import	candidate (2026-11-02): Cohere North Mini Code 1.0, unsloth UD-Q4_K_XL GGUF in ~/models (not an Ollama blob); llama.cpp seat only, not resident beside qwen3.6
 #
 # Candidates, NOT installed on the server yet. Uncomment a row only after probing that tag on this host
