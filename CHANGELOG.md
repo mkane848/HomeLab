@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
+  - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
+    `tests/test-gpu-device-loss.ps1` (both read the local Ollama `server.log`). Their engine-neutral scenarios (a
+    `_TRUNCATED_` FAIL, a `gpu device` WARN with `gpuResets`, an old event not blamed) moved to
+    `tests/test-overflow-recovery.ps1`, through a fixture adapter.
+  - **`test-tasks.ps1`** loads the llama.cpp adapter for every run (no `-OllamaLogDir`); `ollamaVersion` stays in
+    the run JSON as null. **`run-tasks-batch.ps1`** discovers `LLAMACPP_<HOST>_BASE_URL` hosts only, reads the
+    llama.cpp probe log only (`toolcalls-summary.tsv` is Ollama-era history), skips an old `ollama` registry row as
+    an unknown engine, and `tests/run-tasks-models.tsv` lists llama.cpp and Go seats.
+  - **`test-toolcalls.ps1`, `bench-speed.ps1`, `probe-overflow.ps1`** accept only `-Engine llamacpp` (the default)
+    and `-EngineHost`; `-OllamaHost` is gone. `test-toolcalls.ps1` refuses a log with a different header, so the
+    Ollama-era log never gets mixed rows.
+  - **Guards rewritten on llama.cpp stand-ins:** `test-batch-engines` (two routers, the server's and node3's, each
+    with its own build), `test-hosted-seats`, `test-gpu-placement` (placement over a stand-in ssh; the batch's
+    CPU-only stop moved to `test-batch-engines`), `test-engine-adapter`, `test-toolcalls-engine`,
+    `test-bench-speed`, `test-probe-overflow`, plus model-id fixtures in the analysis guards. Each was
+    mutation-checked (rule broken, guard red, file restored byte-identical).
+  - **Fixed in passing:** a probe guard run whose refusal was broken (a mutation) logged two rows into the repo's
+    `tests/results/overflow-probe.tsv`. The three probe guards now give every scenario that names no results file a
+    scratch one; the rows were reverted.
+  - Stale profile names in `desktop/scripts/opencode.ps1` and `install-opencode-profiles.ps1`, the sampling
+    contract in `server/llamacpp/models.ini` and a probe example in `models/server-seats.tsv` no longer name Ollama.
+  - Verification: every guard named above passes; `run-guards.ps1` and `make-reference.py --check` are in the PR.
+
 - **docs: the current docs describe a llama.cpp-only fleet (2026-11-22; Ollama removal, docs).**
   - **Rewritten for llama.cpp only, with a desktop that runs no models:** `README.md`, `docs/start-here.md`,
     `docs/profiles.md` (two live profiles, `dev-go-only` parked), `docs/troubleshooting.md` (llama-server not
