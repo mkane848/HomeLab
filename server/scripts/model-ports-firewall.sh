@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # model-ports-firewall.sh - let only named LAN hosts reach the server's model ports.
 #
-# Why: llama-server (8090) and Ollama (11434) are published by Docker on every interface and take no API key, so any
+# Why: llama-server (8090) is published by Docker on every interface (Ollama, 11434, was removed 2026-11-21), so any
 # device on the LAN can run inference and load or unload models (found by the 2026-11-09 audit). `ufw` does not help:
 # Docker publishes ports through its own rules, ahead of ufw's. Docker's documented place for a rule of your own is
 # the DOCKER-USER chain, matched on the ORIGINAL destination port, because the address and port are rewritten before
@@ -22,7 +22,7 @@
 #   sudo server/scripts/model-ports-firewall.sh status
 #   sudo server/scripts/model-ports-firewall.sh remove             # back to open on the LAN
 #        server/scripts/model-ports-firewall.sh apply --dry-run    # print the commands, change nothing (no root)
-# Options: --allow ip[,ip...]  --ports p[,p...] (default 8090,11434)  --iface IF (default: the default route's)
+# Options: --allow ip[,ip...]  --ports p[,p...] (default 8090)  --iface IF (default: the default route's)
 #          --env-file FILE (default: <repo>/.env)  --dry-run
 # Exit 0 ok, 1 could not apply (no DOCKER-USER chain: not root, or Docker is not running), 3 bad arguments.
 #
@@ -37,7 +37,7 @@ repo="$(cd "$here/../.." && pwd)"
 
 action="${1:-}"
 [ $# -gt 0 ] && shift
-allow=""; ports="8090,11434"; iface=""; env_file="$repo/.env"; dry=0
+allow=""; ports="8090"; iface=""; env_file="$repo/.env"; dry=0
 
 die() { echo "model-ports-firewall: $1" >&2; exit "${2:-3}"; }
 

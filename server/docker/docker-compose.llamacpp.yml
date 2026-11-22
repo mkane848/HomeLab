@@ -5,11 +5,7 @@
 #   docker compose -f server/docker/docker-compose.llamacpp.yml down
 #
 # --- Why this file is shaped the way it is ---------------------------------
-# * `name: llamacpp` - its OWN compose project. The Ollama stack's project is
-#   `docker` (named after its directory) and it owns the models volume
-#   `docker_ollama_data`; renaming that directory orphans the volume
-#   (docs/network-topology.md -> "Server layout"). A second file in the same
-#   project would make the Ollama container an orphan of this one.
+# * `name: llamacpp` - its OWN compose project, separate from the household stack's.
 # * Weights are GGUF files in ~/models, mounted READ-ONLY at /models, each pinned by
 #   its sha256 in models/server-seats.tsv. Until 2026-11-21 four seats loaded Ollama's
 #   blobs from its volume (docker_ollama_data); those are now byte copies in ~/models
@@ -21,18 +17,14 @@
 #   not use server-cuda13 / the CUDA 13.4 builds on this driver. A different
 #   build is a different era - change it deliberately, re-run the probe.
 # * The five /dev/nvidia* nodes are listed explicitly and the healthcheck runs
-#   `nvidia-smi -L` INSIDE the container, exactly as the Ollama file does. On
-#   2026-10-12 a systemd reload (apt-daily) silently took the Ollama container's
-#   GPU and it served qwen3.6 from the CPU for 31 minutes
+#   `nvidia-smi -L` INSIDE the container. On 2026-10-12 a systemd reload (apt-daily)
+#   silently took the (then) Ollama container's GPU and it served qwen3.6 from the CPU for 31 minutes
 #   (docs/troubleshooting.md -> "Container lost the GPU"). This container has the
 #   same Docker, cgroup driver and toolkit, so it has the same hazard. A
 #   llama-server that loses the GPU may not say so, which is why the trial has a
 #   drill for it (docs/llamacpp-trial.md, measurement E).
 # * restart: unless-stopped since Phase 3 (cutover, 2026-11-01): llama.cpp is the
-#   server's primary engine and comes back after a reboot. During the trial it was
-#   "no", so it could never start at boot and fight Ollama for the GPU; that rule now
-#   sits on the Ollama stack instead (docker-compose.yml: restart "no", container
-#   stopped). Only one of the two may start at boot (tests/test-llamacpp-stack.ps1).
+#   server's only engine (Ollama removed 2026-11-21) and comes back after a reboot.
 # * The image's own HEALTHCHECK probes port 8080 (LLAMA_ARG_PORT=8080 in its
 #   Dockerfile); this stack serves 8090, so the healthcheck is overridden below.
 #   The image installs curl; verify on first start with

@@ -6,7 +6,6 @@ Compares, with no host and no network:
   * server/llamacpp/models.ini         (the server's llama-server `c` per section)
   * node3/llamacpp/models.ini          (node3's llama-server `c` per section)
   * opencode/global/opencode.jsonc     (llamacpp-server / llamacpp-node3 models and limit.context)
-  * models/catalog.tsv                 (the ctx column, for tags that are seated)
   * profiles/*.sh                      (live profiles: OPENCODE_*MODEL)
   * profiles/README.md                 (live / parked profile counts)
 
@@ -102,12 +101,6 @@ def check(root):
     jsonc = json.loads(strip_jsonc(read(root, "opencode/global/opencode.jsonc")))
     providers = jsonc.get("provider", {})
 
-    catalog = {}
-    for r in tsv_rows(read(root, "models/catalog.tsv")):
-        if r[0] == "tag":
-            continue
-        catalog[r[0]] = {"ctx": r[3]}
-
     def limits(provider):
         out = {}
         for tag, m in providers.get(provider, {}).get("models", {}).items():
@@ -141,13 +134,7 @@ def check(root):
         if tag not in server_ini:
             bad("seat-unserved", tag, "in models/server-seats.tsv but server/llamacpp/models.ini has no section")
 
-    # 3. catalog.tsv ctx <-> the seat table, for seated tags (the column is display-only,
-    #    so nothing else would notice it going stale)
-    for tag, (n, _src) in seats.items():
-        if tag in catalog and n is not None and catalog[tag]["ctx"] != str(n):
-            bad("catalog-ctx", tag, "catalog.tsv ctx %s, server-seats.tsv num_ctx %d" % (catalog[tag]["ctx"], n))
-
-    # 4. live profiles: seats registered
+    # 3. live profiles: seats registered
     live = sorted(glob.glob(os.path.join(root, "profiles", "dev-*.sh")))
     for path in live:
         name = os.path.basename(path)[:-3]
@@ -160,7 +147,7 @@ def check(root):
                 elif tag not in providers[prov].get("models", {}):
                     bad("profile-seat", "%s %s" % (name, var), "%s is not registered under %s" % (tag, prov))
 
-    # 5. profiles/README.md counts
+    # 4. profiles/README.md counts
     readme = read(root, "profiles/README.md")
     parked = glob.glob(os.path.join(root, "profiles", "parked", "*.sh"))
     m = re.search(r"Live profiles \((\d+)\)", readme)

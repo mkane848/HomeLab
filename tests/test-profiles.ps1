@@ -1,11 +1,11 @@
 # protects: Primary harness: live profiles vs intent manifest, host liveness, round-trip, reliability
-# run-after: Any profile, the catalog or opencode.jsonc
+# run-after: Any profile or opencode.jsonc
 # test-profiles.ps1 — Verify that a profile's env contract, opencode registration,
 # host availability, and (opt-in) prompt round-trips all actually work.
 #
 # Usage (PowerShell, from anywhere):
 #   .\tests\test-profiles.ps1                              # ALL profiles, liveness + registration + intent only
-#   .\tests\test-profiles.ps1 -Profile dev-desktop-only    # one profile (or comma-separated names)
+#   .\tests\test-profiles.ps1 -Profile dev-node3           # one profile (or comma-separated names)
 #   .\tests\test-profiles.ps1 -RoundTrip                   # prompt every referenced model (slow, loads VRAM)
 #   .\tests\test-profiles.ps1 -Bench                       # -RoundTrip + enforce per-model latency budgets + report table
 #   .\tests\test-profiles.ps1 -Reliability                 # single-write canary on every tool-capable MAIN seat
@@ -22,7 +22,7 @@
 #   -ReliabilityTimeout     seconds per canary run (default 360; `opencode run` is killed if it exceeds this).
 #   -ConfigPath             live opencode config to validate registration against.
 #   -BashPath               Git Bash executable (auto-detected if omitted).
-#   -RequestTimeout         seconds for Ollama API liveness/presence calls (default 15).
+#   -RequestTimeout         seconds for the engines' liveness/presence calls (default 15).
 #   -RoundTripTimeout       seconds per inference call (default 240).
 #
 # Exit code: 0 if no FAIL, 1 otherwise. WARN/SKIP do not fail the run.
@@ -45,7 +45,6 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot   = Split-Path -Parent $scriptDir
-$catalogPath = Join-Path $repoRoot "models\catalog.tsv"
 $profilesDir = Join-Path $repoRoot "profiles"
 
 $results = [System.Collections.Generic.List[object]]::new()
@@ -126,11 +125,11 @@ function Get-ProfileEnv {
     $profileBashPath = ($ProfilePath -replace '\\', '/' -replace '^\w:', '$0')
     $bashScript = @'
 set +e
-unset OPENCODE_MODEL OPENCODE_SMALL_MODEL OLLAMA_SERVER_URL OLLAMA_SERVER_BASE_URL OLLAMA_DESKTOP_URL OLLAMA_DESKTOP_BASE_URL OLLAMA_NODE3_URL OLLAMA_NODE3_BASE_URL LLAMACPP_SERVER_BASE_URL LLAMACPP_SERVER_SSH LLAMACPP_DESKTOP_BASE_URL LLAMACPP_NODE3_BASE_URL DEV_TIERS_SERVER DEV_TIERS_DESKTOP DEV_TIERS_GO DEV_TIERS_NODE3 DEV_SERVER_MODELS DEV_DESKTOP_MODELS DEV_NODE3_MODELS OLLAMA_CONTEXT_LENGTH 2>/dev/null
+unset OPENCODE_MODEL OPENCODE_SMALL_MODEL LLAMACPP_SERVER_BASE_URL LLAMACPP_SERVER_SSH LLAMACPP_NODE3_BASE_URL DEV_TIERS_SERVER DEV_TIERS_DESKTOP DEV_TIERS_GO DEV_TIERS_NODE3 2>/dev/null
 if [ -f "__PROFILEPATH__" ]; then
   . "__PROFILEPATH__" >/dev/null 2>&1
 fi
-for v in DEV_TIERS_SERVER DEV_TIERS_DESKTOP DEV_TIERS_GO DEV_TIERS_NODE3 DEV_SERVER_MODELS DEV_DESKTOP_MODELS DEV_NODE3_MODELS OPENCODE_MODEL OPENCODE_SMALL_MODEL OLLAMA_SERVER_BASE_URL OLLAMA_DESKTOP_BASE_URL OLLAMA_NODE3_BASE_URL LLAMACPP_SERVER_BASE_URL LLAMACPP_SERVER_SSH LLAMACPP_DESKTOP_BASE_URL LLAMACPP_NODE3_BASE_URL SERVER_IP DESKTOP_IP; do
+for v in DEV_TIERS_SERVER DEV_TIERS_DESKTOP DEV_TIERS_GO DEV_TIERS_NODE3 OPENCODE_MODEL OPENCODE_SMALL_MODEL LLAMACPP_SERVER_BASE_URL LLAMACPP_SERVER_SSH LLAMACPP_NODE3_BASE_URL SERVER_IP NODE3_IP; do
   eval 'val=${'$v':-<unset>}'
   printf 'ENV %s=%s\n' "$v" "$val"
 done
@@ -186,51 +185,31 @@ function Get-InstalledModelIds {
     }
 }
 
-# Served context for a tag, straight from the host. This is the ground truth
-# that opencode's limit.context is not allowed to exceed.
-# $BaseUrl is the OpenAI-compat endpoint (".../v1"); the native API lives one level up.
-#   ollama   (default): POST /api/show, the baked num_ctx.
-#   llamacpp: router-mode GET /props?model=<seat>&autoload=false ->
-#             default_generation_settings.n_ctx (docs/llamacpp-trial.md, step 2;
-#             llamacpp-check.sh --url reads the same field). `autoload=false` so a
-#             check never loads a 20 GB seat as a side effect: a seat that is not
-#             loaded answers an error and the check is skipped (null), like an
-#             Ollama host that serves OLLAMA_CONTEXT_LENGTH.
+# Served context for a tag, straight from the host's llama-server. This is the ground
+# truth that opencode's limit.context is not allowed to exceed. $BaseUrl is the
+# OpenAI-compat endpoint (".../v1"); router-mode GET /props?model=<seat>&autoload=false
+# -> default_generation_settings.n_ctx (docs/llamacpp-trial.md, step 2; llamacpp-check.sh
+# --url reads the same field). `autoload=false` so a check never loads a 20 GB seat as a
+# side effect: a seat that is not loaded answers an error and the check is skipped (null).
 $script:servedCtxCache = @{}
 function Get-ServedContext {
-    param([string]$BaseUrl, [string]$Tag, [ValidateSet("ollama", "llamacpp")][string]$Engine = "ollama")
+    param([string]$BaseUrl, [string]$Tag)
 
-    $key = "$Engine|$BaseUrl|$Tag"
+    $key = "$BaseUrl|$Tag"
     if ($script:servedCtxCache.ContainsKey($key)) { return $script:servedCtxCache[$key] }
 
     $root = $BaseUrl -replace '/v1/?$', ''
     $ctx = $null
     try {
-        if ($Engine -eq "llamacpp") {
-            $uri = "$root/props?model=" + [uri]::EscapeDataString($Tag) + "&autoload=false"
-            $r = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec $RequestTimeout -ErrorAction Stop
-            $n = if ($r.default_generation_settings -and $r.default_generation_settings.n_ctx) { $r.default_generation_settings.n_ctx } else { $null }
-            if ($n) { $ctx = [int]$n }
-        } else {
-            $body = @{ name = $Tag } | ConvertTo-Json -Compress
-            $r = Invoke-RestMethod -Uri "$root/api/show" -Method Post -Body $body `
-                    -ContentType "application/json" -TimeoutSec $RequestTimeout -ErrorAction Stop
-            # Baked num_ctx wins; otherwise the host serves OLLAMA_CONTEXT_LENGTH,
-            # which /api/show does not report - leave null and skip the check.
-            if ($r.parameters -match 'num_ctx\s+(\d+)') { $ctx = [int]$matches[1] }
-        }
+        $uri = "$root/props?model=" + [uri]::EscapeDataString($Tag) + "&autoload=false"
+        $r = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec $RequestTimeout -ErrorAction Stop
+        $n = if ($r.default_generation_settings -and $r.default_generation_settings.n_ctx) { $r.default_generation_settings.n_ctx } else { $null }
+        if ($n) { $ctx = [int]$n }
     } catch {
         $ctx = $null
     }
     $script:servedCtxCache[$key] = $ctx
     return $ctx
-}
-
-# Which engine a provider id speaks, and which tier / base-URL variable it uses.
-function Get-ProviderEngine {
-    param([string]$Provider)
-    if ($Provider -like "llamacpp-*") { return "llamacpp" }
-    return "ollama"
 }
 
 function Test-ModelPresent {
@@ -240,24 +219,6 @@ function Test-ModelPresent {
         if (($id -replace ':latest$', '') -eq $norm) { return $true }
     }
     return $false
-}
-
-function Expand-InstallGroup {
-    param([string[]]$Tokens)
-
-    $tags = [System.Collections.Generic.List[string]]::new()
-    $rows = Import-Csv -LiteralPath $catalogPath -Delimiter "`t"
-    foreach ($t in $Tokens) {
-        if (-not $t) { continue }
-        $row = $rows | Where-Object { $_.tag -eq $t }
-        if ($row) { $tags.Add($t) }
-        else {
-            $groupRows = $rows | Where-Object { ($_.groups -split ",") -contains $t }
-            if ($groupRows) { $groupRows | ForEach-Object { $tags.Add($_.tag) } }
-            else { $tags.Add($t) }
-        }
-    }
-    return @($tags | Select-Object -Unique)
 }
 
 function Test-ChatRoundTrip {
@@ -389,18 +350,9 @@ function Test-ReliableWrite {
     return [pscustomobject]@{ Ok = $false; Detail = "wrote the file but content mismatch (exists=$exists contentOk=$contentOk)"; Writes = $writes }
 }
 
-$script:catalogRows = Import-Csv -LiteralPath $catalogPath -Delimiter "`t"
-
 function Get-ModelRole {
     param([string]$Tag)
     if (-not $Tag) { return "general" }
-    $row = $script:catalogRows | Where-Object { $_.tag -eq $Tag } | Select-Object -First 1
-    if ($row) {
-        foreach ($g in @("coder", "reasoner", "creative", "embed")) {
-            if (($row.groups -split ",") -contains $g) { return $g }
-        }
-        return "general"
-    }
     if ($Tag -match 'deepseek|qwq') { return "reasoner" }
     if ($Tag -match 'coder|codestral|gpt-oss') { return "coder" }
     if ($Tag -match 'gemma') { return "creative" }
@@ -421,22 +373,7 @@ $budgetsMs = @{
 function Get-Budget {
     param([string]$Tag)
     if ($budgetsMs.ContainsKey($Tag)) { return $budgetsMs[$Tag] }
-    $row = $script:catalogRows | Where-Object { $_.tag -eq $Tag } | Select-Object -First 1
-    if ($row) { return [int][Math]::Min(240000, [Math]::Max(45000, 15000 + [double]$row.size_gb * 9000)) }
     return 120000
-}
-
-function Test-EmbedCapability {
-    param([string]$BaseUrl, [string]$ModelId, [int]$TimeoutSec)
-    $body = @{ model = $ModelId; input = @("hello") } | ConvertTo-Json -Depth 4
-    try {
-        $r = Invoke-RestMethod -Uri "$BaseUrl/embeddings" -Method Post -ContentType "application/json" -Body $body -TimeoutSec $TimeoutSec -ErrorAction Stop
-        $dims = @($r.data[0].embedding).Count
-        if ($dims -gt 0) { return [pscustomobject]@{ Ok = $true; Detail = "dims=$dims" } }
-        return [pscustomobject]@{ Ok = $false; Detail = "embedding vector empty" }
-    } catch {
-        return [pscustomobject]@{ Ok = $false; Detail = "request failed: $($_.Exception.Message)" }
-    }
 }
 
 function Test-Capability {
@@ -485,29 +422,14 @@ function New-Intent {
 }
 
 $profileIntents = @{
-    # Main seat must be a model that can actually CALL TOOLS. qwen2.5-coder and
-    # deepseek-r1 cannot (tests/test-toolcalls.ps1) - they print the call as
-    # chat text and report edits they never made. The qwen3 pair (8b/14b) and
-    # devstral:24b passed on 2026-09-17 (13 of 22 probed models pass on Ollama
-    # 0.34.2/0.34.3, AGENTS.md Gotchas), so a tool-capable seat holds the main seat here
-    # regardless of code-quality ranking. This check asserts tool capability, not
-    # task performance (docs/roadmap.md -> Executor standings). qwen3.6 took
-    # the quality seat 2026-10-03 (docs/main-seat-trial.md: trial win plus the
-    # companion experiment), after qwen3:14b (2026-09-17); its small model is
-    # the CPU-pinned 3b that startup.ps1 derives, so titles do not evict it.
-    "dev-workflow-quality"  = New-Intent -Purpose "qwen3.6 drives in-thread at 64k with a CPU companion, /plan on demand" -Main "ollama-desktop/qwen3.6:35b-a3b-coding" -Role "general" -Small "ollama-desktop/qwen2.5-coder-3b-cpu" -Desktop $true
-    "dev-workflow-resident" = New-Intent -Purpose "qwen3:8b drives, 7b coder resident as a no-tools code/review model (no coder subagent since 2026-09-17)" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
-    "dev-workflow-server"   = New-Intent -Purpose "qwen3.6 drives from the server at 64k with a CPU companion, desktop idle (back 2026-10-12)" -Main "ollama-server/qwen3.6:35b-a3b-coding" -Role "general" -Small "ollama-server/qwen2.5-coder-3b-cpu" -Server $true
-    "dev-workflow-server-llamacpp" = New-Intent -Purpose "dev-workflow-server's twin on llama.cpp (Replacing Ollama, Phase 2): qwen3.6 from the server's llama-server at 64k, CPU 3b companion, desktop idle" -Main "llamacpp-server/qwen3.6:35b-a3b-coding" -Role "general" -Small "llamacpp-server/qwen2.5-coder-3b-cpu" -Server $true
-    "dev-desktop-only"      = New-Intent -Purpose "standalone desktop console, no LAN deps" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-desktop/qwen2.5-coder:7b" -Desktop $true
-    "dev-local-only"        = New-Intent -Purpose "zero-cloud local stack: desktop main seat + server autocomplete" -Main "ollama-desktop/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Desktop $true
-    "dev-server-all"        = New-Intent -Purpose "everything heavy on the server, desktop idle" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
-    "dev-quick"             = New-Intent -Purpose "fastest loop: server autocomplete only" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
-    "dev-coder"             = New-Intent -Purpose "code quality: server 14b coder available as a no-tools model" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
-    "dev-embeddings"        = New-Intent -Purpose "server autocomplete + nomic/mxbai embeddings for semantic search" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true
+    # Main seat must be a model that can actually CALL TOOLS (tests/test-toolcalls.ps1):
+    # a seat that cannot prints the call as chat text and reports edits it never made.
+    # This check asserts tool capability, not task performance (docs/roadmap.md ->
+    # Executor standings). Every local seat is a llama-server seat since 2026-11-21
+    # (Ollama removed; the desktop runs no models).
+    "dev-workflow-server-llamacpp" = New-Intent -Purpose "the default: qwen3.6 from the server's llama-server at 64k, CPU 3b companion, desktop idle" -Main "llamacpp-server/qwen3.6:35b-a3b-coding" -Role "general" -Small "llamacpp-server/qwen2.5-coder-3b-cpu" -Server $true
     "dev-go-only"           = New-Intent -Purpose "cloud evaluation: OPENCODE_MODEL must stay unset (config default = Go model)" -Main "<unset>" -Role "unset" -Small "<unset>" -Server $true -Go $true -GoDefault $true
-    "dev-full"              = New-Intent -Purpose "all tiers, cloud default for testing anything new" -Main "<unset>" -Role "unset" -Small "<unset>" -Server $true -Desktop $true -Go $true -GoDefault $true
-    "dev-node3"              = New-Intent -Purpose "third node (RTX 3080 FE, live since 2026-09-20): node3 qwen3:8b when NODE3_IP set; degrades gracefully to server autocomplete without it" -Main "ollama-server/qwen3:8b" -Role "general" -Small "ollama-server/qwen2.5-coder:7b" -Server $true -Stub $true
+    "dev-node3"             = New-Intent -Purpose "third node (RTX 3080 FE): qwen3:8b on node3's llama-server when NODE3_IP is set; the server's qwen3:8b without it" -Main "llamacpp-server/qwen3:8b" -Role "general" -Small "llamacpp-server/qwen2.5-coder-3b-cpu" -Server $true -Stub $true
 }
 
 $capCache    = @{}
@@ -583,10 +505,10 @@ foreach ($profileName in $profileNames) {
 
         if ($intent.Stub) {
             if ($tiers.node3) {
-                $expMain = "ollama-node3/qwen3:8b"; $expRole = "general"
-                Write-Result $profileName "intent: third-node tier" "PASS" "node active -> main on ollama-node3"
+                $expMain = "llamacpp-node3/qwen3:8b"; $expRole = "general"
+                Write-Result $profileName "intent: third-node tier" "PASS" "node active -> main on llamacpp-node3"
             } else {
-                Write-Result $profileName "intent: third-node tier" "WARN" "NODE3_IP unset - third-node tier off (documented stub state), server autocomplete only"
+                Write-Result $profileName "intent: third-node tier" "WARN" "NODE3_IP unset - third-node tier off (documented stub state), the server's qwen3:8b instead"
             }
         }
 
@@ -636,7 +558,7 @@ foreach ($profileName in $profileNames) {
         # tests/test-toolcalls.ps1 results - a model that cannot call tools
         # cannot read, edit or run anything, and will report edits it never made.
         if ($expRole -ne "unset") {
-            $modelTag = $expMain -replace '^(ollama|llamacpp)-[^/]+/', ''
+            $modelTag = $expMain -replace '^llamacpp-[^/]+/', ''
             $split = Split-ModelId $expMain
             $modelDef = $null
             if ($providers -and $split) {
@@ -661,19 +583,6 @@ foreach ($profileName in $profileNames) {
     foreach ($id in @($mainId, $smallId) | Where-Object { $_ -ne "<unset>" -and $_ }) {
         $refModels += [pscustomobject]@{ Id = $id; Source = "default" }
     }
-    # Models the desktop must be able to serve beyond the main/small pair.
-    # qwen3:8b is the lighter main seat in dev-workflow-resident and
-    # dev-desktop-only, so it must stay registered. The -16k aliases are
-    # derived tags startup.ps1 bakes; they are kept as deliberate no-tools
-    # models (code text, review) and profiles may seat them as small_model, so
-    # their presence is still part of the contract.
-    if ($tiers.desktop) {
-        $refModels += [pscustomobject]@{ Id = "ollama-desktop/qwen3:8b"; Source = "lighter seat (resident/desktop-only)" }
-        foreach ($agentId in @("deepseek-r1-16k", "qwen2.5-coder-16k")) {
-            $refModels += [pscustomobject]@{ Id = "ollama-desktop/$agentId"; Source = "derived alias (no-tools)" }
-        }
-    }
-
     $contractOk = $true
     foreach ($ref in $refModels | Select-Object -Unique Id) {
         $split = Split-ModelId $ref.Id
@@ -683,17 +592,13 @@ foreach ($profileName in $profileNames) {
             continue
         }
         $tierVar = switch ($split.Provider) {
-            "ollama-server"   { "DEV_TIERS_SERVER" }
-            "ollama-desktop"  { "DEV_TIERS_DESKTOP" }
-            "ollama-node3"    { "DEV_TIERS_NODE3" }
             "llamacpp-server"  { "DEV_TIERS_SERVER" }
-            "llamacpp-desktop" { "DEV_TIERS_DESKTOP" }
             "llamacpp-node3"   { "DEV_TIERS_NODE3" }
             default           { $null }
         }
         if (-not $tierVar) {
             if ($ref.Source -eq "default") {
-                Write-Result $profileName "provider '$($split.Provider)'" "FAIL" "not an ollama-*/llamacpp-*/registered tier host"
+                Write-Result $profileName "provider '$($split.Provider)'" "FAIL" "not a llamacpp-* (registered tier host) provider"
                 $contractOk = $false
             }
             continue
@@ -711,72 +616,6 @@ foreach ($profileName in $profileNames) {
     if ($profileName -eq "dev-workflow-server-llamacpp" -and $tiers.server -and $envMap["SERVER_IP"] -ne "<unset>" -and $envMap["LLAMACPP_SERVER_BASE_URL"] -match 'localhost|127\.0\.0\.1') {
         Write-Result $profileName "server baseURL" "WARN" "LLAMACPP_SERVER_BASE_URL points at localhost, but SERVER_IP=$($envMap['SERVER_IP']) - opencode on the desktop would hit its own port 8090, not the server"
     }
-    if ($profileName -in @("dev-workflow-server","dev-node3") -and $tiers.server -and $envMap["SERVER_IP"] -ne "<unset>" -and $envMap["OLLAMA_SERVER_BASE_URL"] -match 'localhost|127\.0\.0\.1') {
-        Write-Result $profileName "server baseURL" "WARN" "OLLAMA_SERVER_BASE_URL points at localhost, but SERVER_IP=$($envMap['SERVER_IP']) - opencode on the desktop would hit its own Ollama, not the server"
-    }
-
-    $installHosts = @(
-        if ($tiers.desktop -and $envMap["DEV_DESKTOP_MODELS"] -ne "<unset>") {
-            [pscustomobject]@{ Host = "desktop"; Var = "DEV_DESKTOP_MODELS"; Tokens = @($envMap["DEV_DESKTOP_MODELS"] -split ' ') }
-        }
-        if ($tiers.server -and $envMap["DEV_SERVER_MODELS"] -ne "<unset>") {
-            [pscustomobject]@{ Host = "server"; Var = "DEV_SERVER_MODELS"; Tokens = @($envMap["DEV_SERVER_MODELS"] -split ' ') }
-        }
-        if ($tiers.node3 -and $envMap["DEV_NODE3_MODELS"] -ne "<unset>") {
-            [pscustomobject]@{ Host = "node3"; Var = "DEV_NODE3_MODELS"; Tokens = @($envMap["DEV_NODE3_MODELS"] -split ' ') }
-        }
-    )
-    foreach ($ih in $installHosts) {
-        $envVarName = switch ($ih.Host) {
-            "desktop" { "OLLAMA_DESKTOP_BASE_URL" }
-            "server"  { "OLLAMA_SERVER_BASE_URL" }
-            "node3"    { "OLLAMA_NODE3_BASE_URL" }
-        }
-        $baseUrl = [Environment]::GetEnvironmentVariable($envVarName, "Process")
-        if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-            Write-Result $profileName "install intent ($($ih.Host))" "WARN" "$envVarName not set in this shell - set by sourcing the profile; skipping host model checks"
-            continue
-        }
-        $installTags = Expand-InstallGroup -Tokens $ih.Tokens
-        $installed = Get-InstalledModelIds -BaseUrl $baseUrl
-        if ($null -eq $installed) {
-            Write-Result $profileName "install intent ($($ih.Host))" "SKIP" "$baseUrl unreachable"
-            continue
-        }
-        $missing = @($installTags | Where-Object { -not (Test-ModelPresent -Installed $installed -ModelId $_) })
-        if ($missing.Count -eq 0) {
-            Write-Result $profileName "install intent ($($ih.Host))" "PASS" "$baseUrl has all $($installTags.Count) models"
-        } else {
-            Write-Result $profileName "install intent ($($ih.Host))" "WARN" "missing on host: $($missing -join ', ')"
-        }
-        foreach ($btag in @($installTags | Where-Object { (Get-ModelRole -Tag $_) -eq "embed" })) {
-            $e = Test-EmbedCapability -BaseUrl $baseUrl -ModelId $btag -TimeoutSec $RequestTimeout
-            if ($e.Ok) {
-                Write-Result $profileName "embed capability '$btag'" "PASS" $e.Detail
-            } else {
-                Write-Result $profileName "embed capability '$btag'" "WARN" "$($e.Detail) - an embed model must answer /api/embeddings"
-            }
-        }
-    }
-
-    if ($tiers.desktop) {
-        foreach ($agentId in @("deepseek-r1-16k", "qwen2.5-coder-16k")) {
-            $baseUrl = [Environment]::GetEnvironmentVariable("OLLAMA_DESKTOP_BASE_URL", "Process")
-            if ([string]::IsNullOrWhiteSpace($baseUrl)) {
-                Write-Result $profileName "derived model $agentId" "WARN" "OLLAMA_DESKTOP_BASE_URL unset in this shell"
-                continue
-            }
-            $installed = Get-InstalledModelIds -BaseUrl $baseUrl
-            if ($null -eq $installed) {
-                Write-Result $profileName "derived model $agentId" "SKIP" "$baseUrl unreachable"
-            } elseif (Test-ModelPresent -Installed $installed -ModelId $agentId) {
-                Write-Result $profileName "derived model $agentId" "PASS" "present (created by startup.ps1)"
-            } else {
-                Write-Result $profileName "derived model $agentId" "FAIL" "missing - run desktop\scripts\startup.ps1 to bake it (opencode subagents hard-reference it)"
-            }
-        }
-    }
-
     if ($providers) {
         foreach ($ref in @($refModels | Select-Object -Unique Id)) {
             $split = Split-ModelId $ref.Id
@@ -822,14 +661,14 @@ foreach ($profileName in $profileNames) {
                 # --- promise check --------------------------------------------
                 # limit.context must never exceed what the host actually serves,
                 # or the client over-promises and the prompt gets truncated
-                # (system prompt thrown away, request dies). Baked num_ctx is
-                # ground truth; hosts serving the OLLAMA_CONTEXT_LENGTH default
-                # do not report it, so those are skipped rather than guessed.
+                # (system prompt thrown away, request dies). The host's served
+                # n_ctx is ground truth; a seat that is not loaded does not
+                # report it, so it is skipped rather than guessed.
                 if ($lim -and $lim.context) {
-                    $served = Get-ServedContext -BaseUrl $resolvedVal -Tag $split.Model -Engine (Get-ProviderEngine $split.Provider)
+                    $served = Get-ServedContext -BaseUrl $resolvedVal -Tag $split.Model
                     if ($served) {
                         if ($lim.context -gt $served) {
-                            Write-Result $profileName "promise '$($ref.Id)'" "FAIL" "limit.context=$($lim.context) exceeds served num_ctx=$served - re-bake with startup.ps1 (Ollama) or fix `c` in server/llamacpp/models.ini (llama.cpp), or lower limit.context"
+                            Write-Result $profileName "promise '$($ref.Id)'" "FAIL" "limit.context=$($lim.context) exceeds served num_ctx=$served - fix `c` in the host's llamacpp models.ini, or lower limit.context"
                         } else {
                             Write-Result $profileName "promise '$($ref.Id)'" "PASS" "limit.context=$($lim.context) <= served $served"
                         }
@@ -846,11 +685,7 @@ foreach ($profileName in $profileNames) {
         $envVar = if ($providers) { Get-ProviderEnvVar -Providers $providers -ProviderName $split.Provider } else { $null }
         if (-not $envVar) {
             $envVar = switch ($split.Provider) {
-                "ollama-server"    { "OLLAMA_SERVER_BASE_URL" }
-                "ollama-desktop"   { "OLLAMA_DESKTOP_BASE_URL" }
-                "ollama-node3"     { "OLLAMA_NODE3_BASE_URL" }
                 "llamacpp-server"  { "LLAMACPP_SERVER_BASE_URL" }
-                "llamacpp-desktop" { "LLAMACPP_DESKTOP_BASE_URL" }
                 "llamacpp-node3"   { "LLAMACPP_NODE3_BASE_URL" }
                 default            { $null }
             }

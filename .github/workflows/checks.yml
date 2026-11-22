@@ -60,7 +60,7 @@ jobs:
         run: |
           # Blocking since 2026-11-12 (owner, 2026-11-11): until then this ended in `|| true` and could not fail.
           # Error severity only; warnings are not checked. The audit folder's scripts are a record, not run.
-          shellcheck -S error server/scripts/*.sh server/household/*.sh models/catalog.sh \
+          shellcheck -S error server/scripts/*.sh server/household/*.sh \
             profiles/*.sh profiles/parked/*.sh tests/*.sh .claude/hooks/*.sh make-executable.sh
 
       - name: Python unit tests (llamacpp_check, config drift, planner checkpoint, grocy import, chat tool, chat push, household backup, model-ports firewall)

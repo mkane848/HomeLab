@@ -5,8 +5,9 @@ Run through llamacpp-check.sh. Standard library only.
 
   static (always)   server/llamacpp/models.ini against models/server-seats.tsv:
                     - every section has a row in the seat table;
-                    - its weights are an Ollama blob whose sha256 equals the row's
-                      `weights` (same bytes as the other engines' results);
+                    - its weights are a GGUF file under /models whose sha256 the
+                      row's `weights` pins (Ollama, whose blobs four seats loaded
+                      until 2026-11-21, is removed; those seats load byte copies);
                     - `c` is explicit in the section and equals the row's num_ctx;
                     - one slot (`parallel`/`np` = 1), because `c` is shared across
                       slots and an automatic count would quarter the window;
@@ -14,11 +15,6 @@ Run through llamacpp-check.sh. Standard library only.
                     - a quantized V cache has flash attention on;
                     - a `chat-template-file` is a file under /config/templates that
                       exists in server/llamacpp/templates.
-  --ollama-url U    sampling: for each section, ask Ollama's /api/show for the same
-                    tag's parameters and compare them with the section. A parameter
-                    Ollama applies that the section does not set means llama-server
-                    uses ITS default for it - a difference the engine comparison
-                    would otherwise hide.
   --url U           a running llama-server: /health, the API key (/props without
                     the key must be refused with 401, docs/engine-api-keys.md),
                     the model list, and for each section /props (n_ctx must
@@ -28,15 +24,14 @@ Run through llamacpp-check.sh. Standard library only.
                     comment). Default: $LLAMACPP_API_KEY, else $LLAMACPP_API_KEY_FILE,
                     else ~/.config/llamacpp/api-key. Never printed.
   --weights-container NAME | --weights-dir DIR
-                    the weights are really there (the job bake-models.sh did under
-                    Ollama, "Replacing Ollama" Phase 3): each section's blob exists,
+                    the weights are really there: each section's GGUF file exists,
                     is not empty and starts with the GGUF magic. Through
-                    `docker exec NAME` (the container sees Ollama's volume at
-                    /ollama; the host cannot read it without sudo), or in a local
-                    copy of the blobs directory. A missing blob says how to get it.
-  --hash            with a weights option: also recompute each blob's sha256 and
-                    compare it with its name (reads every byte: about a minute for
-                    the 20 GB seat).
+                    `docker exec NAME` (the container's own view of /models), or in a
+                    local directory holding the same files. A missing file says how
+                    to get it.
+  --hash            with a weights option: also recompute each file's sha256 and
+                    compare it with the seat table's pin (reads every byte: about a
+                    minute for the 20 GB seat).
 
 Exit 1 if anything FAILs, 2 on a usage problem. WARN and INFO never fail.
 """
@@ -58,24 +53,6 @@ DEFAULT_SEATS = os.path.normpath(os.path.join(HERE, "..", "..", "models", "serve
 # server/llamacpp/templates, mounted read-only here by docker-compose.llamacpp.yml.
 TEMPLATES_DIR = os.path.normpath(os.path.join(HERE, "..", "llamacpp", "templates"))
 TEMPLATES_MOUNT = "/config/templates/"
-
-# Ollama parameter -> the llama-server keys that set the same thing.
-SAMPLING = {
-    "temperature": ("temp", "temperature"),
-    "top_k": ("top-k",),
-    "top_p": ("top-p",),
-    "min_p": ("min-p",),
-    "repeat_penalty": ("repeat-penalty",),
-    "presence_penalty": ("presence-penalty",),
-    "frequency_penalty": ("frequency-penalty",),
-    "repeat_last_n": ("repeat-last-n",),
-    "seed": ("seed", "s"),
-    # Not sampling, but applied the same way: Ollama 0.34.3 serves a tag with this
-    # parameter through its bundled llama-server with `--spec-type draft-mtp
-    # --spec-draft-n-max N` (its own log, trial step 5, 2026-10-13). Speculative
-    # decoding changes speed, not output, so leaving it out skews only the speed row.
-    "draft_num_predict": ("spec-draft-n-max",),
-}
 
 results = []  # (level, subject, message)
 
@@ -216,17 +193,12 @@ def static_checks(ini, seats):
             say("FAIL", tag, "no row in models/server-seats.tsv")
             continue
         path = sec.get("model", "")
-        m = re.search(r"/blobs/sha256-([0-9a-f]{64})$", path)
-        if not m and GGUF_FILE_RE.search(path) and seat.get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", seat.get("weights", "")):
-            # A GGUF file under the /models mount (not an Ollama blob): pinned by the seat table's sha256 instead of
-            # its name, which --weights-container --hash checks against the bytes (2026-11-02, North Mini Code).
+        if GGUF_FILE_RE.search(path) and seat.get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", seat.get("weights", "")):
+            # A GGUF file under the /models mount, pinned by the seat table's sha256, which
+            # --weights-container --hash checks against the bytes.
             say("OK", tag, "weights are a GGUF file pinned by server-seats.tsv (%s...)" % seat["weights"][7:19])
-        elif not m:
-            say("WARN", tag, "weights are not an Ollama blob (%s): unpinned, so this is a different era" % (path or "no model key"))
-        elif "sha256:" + m.group(1) == seat["weights"]:
-            say("OK", tag, "weights are the pinned blob (%s...)" % m.group(1)[:12])
         else:
-            say("FAIL", tag, "blob sha256 %s... != server-seats.tsv weights %s" % (m.group(1)[:12], seat["weights"][:19] + "..."))
+            say("WARN", tag, "weights are not a /models GGUF pinned by server-seats.tsv (%s): unpinned, so this is a different era" % (path or "no model key"))
         c = None
         for key in ("c", "ctx-size"):
             if key in sec:
@@ -238,7 +210,7 @@ def static_checks(ini, seats):
         else:
             say("OK", tag, "context %s equals server-seats.tsv" % c)
         # Router mode reads `name:tag` as a quant tag and rewrites it (qwen3.6:35b-a3b-coding ->
-        # qwen3.6:CODING); only an alias keeps the Ollama tag addressable (trial step 2, 2026-10-13).
+        # qwen3.6:CODING); only an alias keeps the exact tag addressable (trial step 2, 2026-10-13).
         if ":" in tag:
             if sec.get("alias") == tag:
                 say("OK", tag, "alias keeps the exact tag addressable")
@@ -271,63 +243,18 @@ def static_checks(ini, seats):
             say("WARN", tag, "seat in server-seats.tsv has no section in the preset")
 
 
-def parse_ollama_parameters(text):
-    out = {}
-    for line in (text or "").splitlines():
-        parts = line.strip().split(None, 1)
-        if len(parts) == 2 and parts[0] in SAMPLING:
-            out[parts[0]] = parts[1].strip().strip('"')
-    return out
-
-
-def same_number(a, b):
-    try:
-        return abs(float(a) - float(b)) < 1e-9
-    except (TypeError, ValueError):
-        return str(a) == str(b)
-
-
-def sampling_checks(ini, ollama_url):
-    glob = ini.get("*", {})
-    for tag in [s for s in ini if s not in ("*", "__global__")]:
-        try:
-            _, show = http_json(ollama_url.rstrip("/") + "/api/show", {"model": tag})
-        except Exception as e:  # noqa: BLE001 - any failure is the same finding
-            say("WARN", tag, "could not read Ollama's parameters: %s" % e)
-            continue
-        params = parse_ollama_parameters(show.get("parameters", ""))
-        if not params:
-            say("INFO", tag, "Ollama applies no sampling parameters to this tag; llama-server defaults are not compared")
-            continue
-        for oname, value in sorted(params.items()):
-            have = pick(ini[tag], glob, *SAMPLING[oname])
-            if have is None:
-                say("FAIL", tag, "Ollama applies %s = %s; the preset does not set %s, so llama-server's own default is used" % (oname, value, SAMPLING[oname][0]))
-            elif same_number(have, value):
-                say("OK", tag, "%s = %s matches Ollama" % (SAMPLING[oname][0], have))
-            else:
-                say("FAIL", tag, "%s = %s but Ollama applies %s = %s" % (SAMPLING[oname][0], have, oname, value))
-            if oname == "draft_num_predict":
-                kinds = (pick(ini[tag], glob, "spec-type") or "").split(",")
-                if "draft-mtp" in kinds:
-                    say("OK", tag, "spec-type includes draft-mtp, as Ollama serves it")
-                else:
-                    say("FAIL", tag, "Ollama drafts with MTP (draft_num_predict = %s); the preset needs spec-type = draft-mtp" % value)
-
-
 GGUF_MAGIC = b"GGUF"
-BLOB_RE = re.compile(r"/blobs/(sha256-[0-9a-f]{64})$")
 GGUF_FILE_RE = re.compile(r"^/models/([\w.-]+\.gguf)$")
 
 
 class LocalBlobs:
-    """Blobs in a local directory (tests, or a copy of the volume)."""
+    """GGUF files in a local directory (tests, or a copy of ~/models)."""
 
     def __init__(self, directory):
         self.dir = directory
 
     def stat(self, name):
-        """(size, first 4 bytes), or None when the blob is not there."""
+        """(size, first 4 bytes), or None when the file is not there."""
         p = os.path.join(self.dir, name)
         if not os.path.isfile(p):
             return None
@@ -343,7 +270,7 @@ class LocalBlobs:
 
 
 class ContainerBlobs:
-    """Blobs read through `docker exec`, at the path the preset gives (the container's own view)."""
+    """GGUF files read through `docker exec`, at the path the preset gives (the container's own view)."""
 
     def __init__(self, container, run=subprocess.run):
         self.container, self.run = container, run
@@ -368,37 +295,25 @@ class ContainerBlobs:
         return out.split()[0].decode()
 
 
-# Seats whose weights are a GGUF file under /models, pinned by the seat table's sha256. "import" also has a desktop
-# copy; "import-server" is served by the server's llama.cpp only (e.g. the household vision seat, 2026-11-09).
+# Seats whose weights are a GGUF file under /models, pinned by the seat table's sha256. "import-server" is served by
+# the server's llama.cpp only (every seat since 2026-11-21); "import" is the older name, kept readable.
 IMPORT_SOURCES = ("import", "import-server")
 
 
 def how_to_get(tag, seat):
-    """The fix for a missing blob. Ollama's volume is where the weights live until Phase 6."""
-    src = (seat or {}).get("source")
-    pull = (seat or {}).get("from") if src == "derived" else tag
-    if src == "import-server":
-        return "a server-only seat: download its GGUF into ~/models again (the seat row's note names the file)"
-    if src == "import":
-        return "an import seat: copy the desktop's GGUF and 'ollama create %s' from it" % tag
-    return ("pull it into Ollama's volume: docker start ollama-server && docker exec ollama-server ollama pull %s "
-            "&& docker stop ollama-server (no model loads, so it does not fight llama.cpp for the GPU)" % pull)
+    """The fix for a missing GGUF file."""
+    return "put its GGUF back in ~/models (the seat row's note names the file; --hash checks it against the pin)"
 
 
 def weights_checks(ini, seats, blobs, rehash=False):
     for tag in [s for s in ini if s not in ("*", "__global__")]:
         path = ini[tag].get("model", "")
-        m = BLOB_RE.search(path)
         g = GGUF_FILE_RE.search(path)
         pinned = (seats.get(tag) or {}).get("weights", "")
-        if m:
-            name, want = m.group(1), m.group(1)[7:]
-        elif g and (seats.get(tag) or {}).get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", pinned):
+        if g and (seats.get(tag) or {}).get("source") in IMPORT_SOURCES and re.fullmatch(r"sha256:[0-9a-f]{64}", pinned):
             name, want = g.group(1), pinned[7:]   # a GGUF under /models: the seat table pins its bytes
         else:
             continue  # static_checks already WARNs that it is unpinned
-        if isinstance(blobs, LocalBlobs) and g:
-            name = g.group(1)
         if isinstance(blobs, ContainerBlobs):
             blobs.paths[name] = ini[tag]["model"]
         try:
@@ -407,11 +322,11 @@ def weights_checks(ini, seats, blobs, rehash=False):
             say("FAIL", tag, "could not read the weights: %s" % e)
             continue
         if st is None:
-            say("FAIL", tag, "weights blob %s... is not there; %s" % (name[7:19], how_to_get(tag, seats.get(tag))))
+            say("FAIL", tag, "weights %s are not there; %s" % (name, how_to_get(tag, seats.get(tag))))
             continue
         size, magic = st
         if size == 0 or magic != GGUF_MAGIC:
-            say("FAIL", tag, "blob %s... is not a GGUF file (%d bytes, starts %r): re-pull it" % (name[7:19], size, magic))
+            say("FAIL", tag, "%s is not a GGUF file (%d bytes, starts %r): fetch it again" % (name, size, magic))
             continue
         if not rehash:
             say("OK", tag, "weights present (%.1f GB, GGUF)" % (size / 1e9))
@@ -479,13 +394,12 @@ def main(argv):
     ap = argparse.ArgumentParser(description="Check the llama.cpp trial's preset contracts.")
     ap.add_argument("--ini", default=DEFAULT_INI)
     ap.add_argument("--seats", default=DEFAULT_SEATS)
-    ap.add_argument("--ollama-url", help="compare sampling parameters with this Ollama (e.g. http://localhost:11434)")
     ap.add_argument("--url", help="check a running llama-server (e.g. http://localhost:8090)")
     ap.add_argument("--key-file", help="the API key file to send with --url (default: see the module docstring)")
     where = ap.add_mutually_exclusive_group()
-    where.add_argument("--weights-container", metavar="NAME", help="check the weights blobs through docker exec (e.g. llamacpp-server)")
-    where.add_argument("--weights-dir", metavar="DIR", help="check the weights blobs in a local blobs directory")
-    ap.add_argument("--hash", action="store_true", help="with a weights option: recompute each blob's sha256 (slow)")
+    where.add_argument("--weights-container", metavar="NAME", help="check the GGUF files through docker exec (e.g. llamacpp-server)")
+    where.add_argument("--weights-dir", metavar="DIR", help="check the GGUF files in a local directory")
+    ap.add_argument("--hash", action="store_true", help="with a weights option: recompute each file's sha256 (slow)")
     args = ap.parse_args(argv)
     if args.hash and not (args.weights_container or args.weights_dir):
         print("llamacpp-check: --hash needs --weights-container or --weights-dir", file=sys.stderr)
@@ -496,8 +410,6 @@ def main(argv):
             return 2
     ini, seats = load_ini(args.ini), load_seats(args.seats)
     static_checks(ini, seats)
-    if args.ollama_url:
-        sampling_checks(ini, args.ollama_url)
     if args.url:
         global API_KEY
         API_KEY = read_api_key(args.key_file)

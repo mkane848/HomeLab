@@ -1,5 +1,5 @@
-"""Unit tests for server/scripts/llamacpp_check.py: the sampling comparison and the
-live-server checks, with the HTTP layer replaced (no server needed). The static
+"""Unit tests for server/scripts/llamacpp_check.py: the live-server, auth, template and
+weights checks, with the HTTP layer replaced (no server needed). The static
 checks and the command line are covered end to end by tests/test-llamacpp-stack.ps1.
 
 Run:  python3 -I tests/test_llamacpp_check.py   (standard library only)
@@ -27,71 +27,6 @@ class Base(unittest.TestCase):
 
     def tearDown(self):
         lc.http_json = self.real
-
-
-class ParseParameters(Base):
-    def test_only_sampling_parameters_are_read(self):
-        text = 'temperature                    0.6\ntop_k                          20\nstop                           "<|im_end|>"\nnum_ctx                        65536\n'
-        self.assertEqual(lc.parse_ollama_parameters(text), {"temperature": "0.6", "top_k": "20"})
-
-    def test_empty_and_none(self):
-        self.assertEqual(lc.parse_ollama_parameters(""), {})
-        self.assertEqual(lc.parse_ollama_parameters(None), {})
-
-    def test_numbers_compare_as_numbers(self):
-        self.assertTrue(lc.same_number("0.6", "0.60"))
-        self.assertTrue(lc.same_number("20", "20.0"))
-        self.assertFalse(lc.same_number("0.6", "0.7"))
-
-
-class Sampling(Base):
-    INI = {"*": {}, "t": {"temp": "0.6", "top-k": "20"}}
-
-    def run_with(self, ini, show):
-        lc.http_json = lambda url, data=None, timeout=15: (200, show)
-        lc.sampling_checks(ini, "http://ollama.invalid:11434")
-
-    def test_matching_parameters_pass(self):
-        self.run_with(self.INI, {"parameters": "temperature 0.6\ntop_k 20\n"})
-        self.assertEqual(sorted(l for l, _ in levels()), ["OK", "OK"])
-
-    def test_a_parameter_the_preset_does_not_set_fails(self):
-        self.run_with(self.INI, {"parameters": "temperature 0.6\ntop_k 20\nrepeat_penalty 1.05\n"})
-        self.assertEqual(sorted(l for l, _ in levels()), ["FAIL", "OK", "OK"])
-        self.assertIn("llama-server's own default is used", messages("FAIL")[0])
-
-    def test_a_different_value_fails(self):
-        self.run_with(self.INI, {"parameters": "temperature 0.7\n"})
-        self.assertEqual(levels(), [("FAIL", "t")])
-        self.assertIn("temp = 0.6 but Ollama applies temperature = 0.7", messages("FAIL")[0])
-
-    def test_the_long_key_name_is_accepted(self):
-        self.run_with({"*": {}, "t": {"temperature": "0.6"}}, {"parameters": "temperature 0.6\n"})
-        self.assertEqual(levels(), [("OK", "t")])
-
-    def test_a_global_value_counts(self):
-        self.run_with({"*": {"top-p": "0.95"}, "t": {}}, {"parameters": "top_p 0.95\n"})
-        self.assertEqual(levels(), [("OK", "t")])
-
-    def test_no_ollama_parameters_is_information_not_a_failure(self):
-        self.run_with(self.INI, {"parameters": "num_ctx 65536\n"})
-        self.assertEqual(levels(), [("INFO", "t")])
-
-    def test_mtp_drafting_must_be_copied(self):
-        # Ollama 0.34.3 serves draft_num_predict as --spec-type draft-mtp --spec-draft-n-max N (2026-10-13).
-        self.run_with({"*": {}, "t": {}}, {"parameters": "draft_num_predict 2\n"})
-        self.assertEqual(sorted(l for l, _ in levels()), ["FAIL", "FAIL"])
-        self.assertTrue(any("spec-type = draft-mtp" in m for m in messages("FAIL")))
-        lc.results.clear()
-        self.run_with({"*": {}, "t": {"spec-type": "draft-mtp", "spec-draft-n-max": "2"}}, {"parameters": "draft_num_predict 2\n"})
-        self.assertEqual(levels(), [("OK", "t"), ("OK", "t")])
-
-    def test_unreachable_ollama_is_a_warning(self):
-        def boom(*a, **k):
-            raise OSError("connection refused")
-        lc.http_json = boom
-        lc.sampling_checks(self.INI, "http://ollama.invalid:11434")
-        self.assertEqual(levels(), [("WARN", "t")])
 
 
 class Live(Base):
@@ -268,11 +203,11 @@ class ServerOnlyImport(Base):
 
 
 class ChatTemplate(Base):
-    # gpt-oss's Ollama blob has no usable template; its seat loads one from the repo (2026-10-23).
-    SEATS = {"g:1": {"num_ctx": "65536", "num_gpu": "-", "from": "-", "weights": "sha256:" + "a" * 64}}
+    # gpt-oss's GGUF carries no usable template; its seat loads one from the repo (2026-10-23).
+    SEATS = {"g:1": {"num_ctx": "65536", "num_gpu": "-", "from": "-", "weights": "sha256:" + "a" * 64, "source": "import-server"}}
 
     def run_with(self, tpl):
-        sec = {"model": "/ollama/models/blobs/sha256-" + "a" * 64, "c": "65536", "alias": "g:1", "parallel": "1"}
+        sec = {"model": "/models/g-1.gguf", "c": "65536", "alias": "g:1", "parallel": "1"}
         if tpl is not None:
             sec["chat-template-file"] = tpl
         lc.static_checks({"*": {}, "g:1": sec}, self.SEATS)
@@ -297,7 +232,7 @@ class ChatTemplate(Base):
 
 
 class Weights(Base):
-    # bake-models.sh's last job under llama.cpp (Phase 3, 2026-11-01): the pinned blob is really in the volume.
+    # The pinned GGUF is really under /models (ContainerBlobs reads it through docker exec, at the preset's path).
     def setUp(self):
         super().setUp()
         import hashlib
@@ -310,57 +245,57 @@ class Weights(Base):
         self.tmp.cleanup()
         super().tearDown()
 
-    def write(self, sha, body):
-        with open(os.path.join(self.tmp.name, "sha256-" + sha), "wb") as fh:
+    def write(self, body):
+        with open(os.path.join(self.tmp.name, "t-1.gguf"), "wb") as fh:
             fh.write(body)
 
-    def ini(self, sha):
-        return {"*": {}, "t:1": {"model": "/ollama/models/blobs/sha256-" + sha}}
+    INI = {"*": {}, "t:1": {"model": "/models/t-1.gguf"}}
 
-    def check(self, sha, rehash=False, seats=None):
-        lc.weights_checks(self.ini(sha), seats or {}, lc.LocalBlobs(self.tmp.name), rehash)
+    def seats(self, source="import-server", sha=None):
+        return {"t:1": {"source": source, "from": "-", "weights": "sha256:" + (sha or self.sha)}}
 
-    def test_a_present_gguf_blob_passes(self):
-        self.write(self.sha, self.body)
-        self.check(self.sha)
+    def check(self, rehash=False, seats=None):
+        lc.weights_checks(self.INI, seats if seats is not None else self.seats(), lc.LocalBlobs(self.tmp.name), rehash)
+
+    def test_a_present_gguf_passes(self):
+        self.write(self.body)
+        self.check()
         self.assertEqual([l for l, _ in levels()], ["OK"])
 
-    def test_a_missing_blob_fails_and_says_how_to_pull_it(self):
-        self.check(self.sha, seats={"t:1": {"source": "pull", "from": "-"}})
+    def test_a_missing_file_fails_and_says_how_to_get_it(self):
+        self.check()
         self.assertEqual(len(messages("FAIL")), 1)
-        self.assertIn("ollama pull t:1", messages("FAIL")[0])
-
-    def test_a_derived_seat_pulls_its_base(self):
-        self.check(self.sha, seats={"t:1": {"source": "derived", "from": "base:3b"}})
-        self.assertIn("ollama pull base:3b", messages("FAIL")[0])
+        self.assertIn("put its GGUF back in ~/models", messages("FAIL")[0])
 
     def test_a_file_that_is_not_gguf_fails(self):
-        self.write(self.sha, b"<html>rate limited</html>")
-        self.check(self.sha)
+        self.write(b"<html>rate limited</html>")
+        self.check()
         self.assertEqual(len(messages("FAIL")), 1)
 
-    def test_an_empty_blob_fails(self):
-        self.write(self.sha, b"")
-        self.check(self.sha)
+    def test_an_empty_file_fails(self):
+        self.write(b"")
+        self.check()
         self.assertEqual(len(messages("FAIL")), 1)
 
-    def test_hash_matches_its_name(self):
-        self.write(self.sha, self.body)
-        self.check(self.sha, rehash=True)
+    def test_hash_matches_the_pin(self):
+        self.write(self.body)
+        self.check(rehash=True)
         self.assertEqual([l for l, _ in levels()], ["OK"])
         self.assertIn("sha256 matches", messages("OK")[0])
 
     def test_hash_catches_bytes_that_are_not_the_pinned_weights(self):
-        # Right name and magic, wrong bytes (a corrupted or partial pull): only --hash sees it.
-        self.write(self.sha, b"GGUF" + b"\x01" * 60)
-        self.check(self.sha)
+        # Right name and magic, wrong bytes (a corrupted or partial download): only --hash sees it.
+        self.write(b"GGUF" + b"\x01" * 60)
+        self.check()
         self.assertEqual(messages("FAIL"), [])
         lc.results.clear()
-        self.check(self.sha, rehash=True)
+        self.check(rehash=True)
         self.assertEqual(len(messages("FAIL")), 1)
 
     def test_an_unpinned_model_path_is_left_to_the_static_check(self):
-        lc.weights_checks({"*": {}, "t:1": {"model": "/models/x.gguf"}}, {}, lc.LocalBlobs(self.tmp.name))
+        self.check(seats={})
+        self.assertEqual(lc.results, [])
+        self.check(seats=self.seats(source="pull"))
         self.assertEqual(lc.results, [])
 
     def test_the_container_reader_parses_stat_and_magic(self):
@@ -373,16 +308,16 @@ class Weights(Base):
         def run(cmd, capture_output, timeout):
             calls.append(cmd)
             if cmd[3] == "sha256sum":
-                return R(0, (self.sha + "  /ollama/x\n").encode())
+                return R(0, (self.sha + "  /models/t-1.gguf\n").encode())
             return R(0, b"64\nGGUF")
-        lc.weights_checks(self.ini(self.sha), {}, lc.ContainerBlobs("llamacpp-server", run), True)
+        lc.weights_checks(self.INI, self.seats(), lc.ContainerBlobs("llamacpp-server", run), True)
         self.assertEqual([l for l, _ in levels()], ["OK"])
         self.assertEqual(calls[0][:3], ["docker", "exec", "llamacpp-server"])
-        self.assertIn("/ollama/models/blobs/sha256-" + self.sha, calls[0])
+        self.assertIn("/models/t-1.gguf", calls[0])
 
-    def test_the_container_reader_reports_a_missing_blob(self):
+    def test_the_container_reader_reports_a_missing_file(self):
         run = lambda cmd, capture_output, timeout: type("R", (), {"returncode": 1, "stdout": b""})()
-        lc.weights_checks(self.ini(self.sha), {}, lc.ContainerBlobs("llamacpp-server", run))
+        lc.weights_checks(self.INI, self.seats(), lc.ContainerBlobs("llamacpp-server", run))
         self.assertEqual(len(messages("FAIL")), 1)
 
     def test_hash_without_a_weights_option_is_a_usage_error(self):
