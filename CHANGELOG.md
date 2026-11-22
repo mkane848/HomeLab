@@ -64,6 +64,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Server:** restarting from the repo's compose file also rolls out the engine API keys (merged 2026-11-17, not
       yet rolled out), so it goes with that rollout (`docs/engine-api-keys.md`).
     - **node3:** a `git pull` of its checkout and a restart of its llama-server.
+
+- **fix: OpenCode 2.x can reach the local engines again (2026-11-21).** Every Ollama and llama.cpp provider in
+  `opencode/global/opencode.jsonc` now states `"npm": "@ai-sdk/openai-compatible"`.
+  - **Why:** 1.x gave a config-defined provider without the field that package by itself. 2.x normalizes the missing
+    field to an empty `package` and refuses every request with `provider.no-route: Unsupported package for <model>`.
+    Found when step 4.1's run on `llamacpp-server/qwen3.6` failed as infrastructure. On the desktop's 2.x, every
+    `opencode <profile>` launch on a local seat had the same error; only the built-in OpenCode Go worked.
+  - **Checked:**
+    - An `OPENCODE_CONFIG` overlay with the field made the server's `qwen2.5-coder-3b-cpu` answer through
+      `llamacpp-server` on v2.3.2.
+    - The expanded template resolves all six local providers to `aisdk:@ai-sdk/openai-compatible`.
+    - `check_config_drift.py` reports 0 problems, `test_config_drift.py` 11 OK, and `test-sync-opencode` passes.
+    - 1.x accepts the field, and CI checks the template on 1.19.5.
+  - **To take effect on the desktop:** re-stage the config with `desktop\scripts\sync-opencode.ps1` from the main
+    checkout.
 - **tests: the rest of step 3, the Go gate, the window, sync and ripgrep on OpenCode 2.x (2026-11-21).**
   - **Go listing and spend move into the adapter.** `run-tasks-batch.ps1` no longer calls `opencode`, and
     `test-agent-adapter` now enforces that.
