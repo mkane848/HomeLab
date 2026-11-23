@@ -1,0 +1,85 @@
+== lfc-ready-clears-removal  (lfc-bot, parent 8bdcd4d00)
+  baseline  14/14 pass, 0 fail
+  testsonly 12/14 pass, 2 fail
+      x handleReady reconciles guild membership clears the removal marker of a guild that re-added the bot while it was offline
+      x server lifecycle model conforms to the real code every trace of five events leaves the server where the model says
+  ref       14/14 pass, 0 fail
+  srconly   12/14 pass, 2 fail
+      x handleReady reconciles guild membership clears the removal marker of a guild that re-added the bot while it was offline
+      x server lifecycle model conforms to the real code every trace of five events leaves the server where the model says
+== lfc-digest-cutoff  (lfc-bot, parent 8bdcd4d00)
+  baseline  35/35 pass, 0 fail
+  testsonly 33/38 pass, 5 fail
+      x digest model conforms to the real code every trace of five events leaves the digest where the model says
+      x digest state selects nothing created after the cutoff
+      x digest state only moves the watermark forward
+      x digest state advances a watermark that was never set
+      x runDigest watermark puts a listing posted while a digest is being sent into the next digest
+  ref       38/38 pass, 0 fail
+  srconly   33/35 pass, 2 fail
+      x digest model conforms to the real code every trace of five events leaves the digest where the model says
+      x runDigest watermark puts a listing posted while a digest is being sent into the next digest
+== lfc-guild-lifecycle  (lfc-bot, parent cb2338c3f)
+  baseline  35/35 pass, 0 fail
+  testsonly 32/36 pass, 4 fail
+      x handleGuildCreate restores the digest job of a guild that re-adds the bot
+      x handleReady reconciles guild membership marks a guild that removed the bot while it was offline
+      x digest jobs and the server lifecycle does not schedule a digest for a server the bot has left
+      x server lifecycle model conforms to the real code every trace of five events leaves the server where the model says
+  ref       36/36 pass, 0 fail
+  srconly   32/35 pass, 3 fail
+      x handleGuildCreate restores the digest job of a guild that re-adds the bot
+      x server lifecycle model conforms to the real code every trace of five events leaves the server where the model says
+      x digest jobs and the server lifecycle does not schedule a digest for a server the bot has left
+== lfc-guild-rejoin-digest  (lfc-bot, parent cb2338c3f)
+  baseline  3/3 pass, 0 fail
+  testsonly 2/3 pass, 1 fail
+      x handleGuildCreate restores the digest job of a guild that re-adds the bot
+  ref       3/3 pass, 0 fail
+  srconly   2/3 pass, 1 fail
+      x handleGuildCreate restores the digest job of a guild that re-adds the bot
+== lfc-digest-pause-overlap  (lfc-bot, parent e394f1549)
+  baseline  56/56 pass, 0 fail
+  testsonly 56/61 pass, 5 fail
+      x digest model conforms to the real code every trace of five events leaves the digest where the model says
+      x turning digests on and off pausing and resuming skips what was posted while paused, and still sends what was unsent before
+      x turning digests on and off pausing and resuming starts from the resume for a pause with no recorded start
+      x runDigest watermark does not send a listing twice when two digests run at once
+      x digest jobs and the server lifecycle turning digests back on after a pause does not send the backlog
+  ref       61/61 pass, 0 fail
+  srconly   54/56 pass, 2 fail
+      x digest model conforms to the real code every trace of five events leaves the digest where the model says
+      x runDigest watermark does not send a listing twice when two digests run at once
+== lfc-sealed-same-name  (lfc-bot, parent 2e0e833f5)
+  baseline  46/46 pass, 0 fail
+  testsonly 44/52 pass, 8 fail
+      x syncSealedCatalog truncates names over the Discord cap and keeps them resolvable
+      x autocompleteSealedProducts substring-matches the normalized name, labels each choice with its set, and carries the uuid
+      x autocompleteSealedProducts tells same-named products apart by set, and each pick resolves to its own product
+      x autocompleteSealedProducts shortens a long name so the labelled choice fits the 100-character limit
+      x autocompleteSealedProducts scopes results to setCode when given
+      x resolveSealedProduct resolves a picked suggestion by uuid, even when the set option names another set
+      x /have-sealed replies with an error instead of posting when a picked product has left the catalog
+      x /want-sealed replies with an error instead of posting when a picked product has left the catalog
+  ref       52/52 pass, 0 fail
+  srconly   43/46 pass, 3 fail
+      x syncSealedCatalog truncates names over the Discord cap and keeps them resolvable
+      x autocompleteSealedProducts substring-matches the normalized name and mirrors name into value
+      x autocompleteSealedProducts scopes results to setCode when given
+== lfc-closed-listings-full  (lfc-bot, parent bedea5fc0)
+  baseline  54/54 pass, 0 fail
+  testsonly 49/59 pass, 10 fail
+      x batch-edit queue model every custom id the queue builds fits in 100 characters
+      x batch-edit queue model caps the selection one below where the encoder overflows
+      x batch-edit queue model conforms to the real code refuses a selection too large for the queue instead of throwing
+      x listing model conforms to the real code every trace of four events leaves the row where the model says
+      x /admin remove leaves a fulfilled listing fulfilled
+      x handleEditModal on a closed listing does not change a fulfilled listing
+      x /fulfill on a closed listing leaves a deleted listing deleted, and says why
+      x handleListingButton leaves a closed listing alone when an old button is pressed
+  ref       59/59 pass, 0 fail
+  srconly   50/54 pass, 4 fail
+      x batch-edit queue model conforms to the real code opens the modal for a full selection of 3-digit ids
+      x listing model conforms to the real code every trace of four events leaves the row where the model says
+      x handleEditModal on a closed listing does not change a fulfilled listing
+      x /fulfill on a closed listing leaves a deleted listing deleted

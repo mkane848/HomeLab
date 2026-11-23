@@ -1,0 +1,53 @@
+== lfc-08-ready-clears-removal: 2 source hunks
+  hunk 1 src/events/ready.ts '@@ -6,7 +6,7 @@ import {': red  [8 failed | 3 passed | 3 expected fail (14)]
+  hunk 2 src/events/ready.ts '@@ -16,8 +16,12 @@ export function handleReady(client: Clien': red  [2 failed | 9 passed | 3 expected fail (14)]
+== lfc-09-digest-cutoff-watermark: 6 source hunks
+  hunk 1 src/services/digest-state.ts '@@ -1,4 +1,4 @@': red  [10 failed | 22 passed | 6 expected fail (38)]
+  hunk 2 src/services/digest-state.ts '@@ -26,7 +26,7 @@ export function listScheduledServers(): Se': red  [13 failed | 19 passed | 6 expected fail (38)]
+  hunk 3 src/services/digest-state.ts '@@ -38,14 +38,30 @@ export function prepareDigestListings(se': red  [11 failed | 21 passed | 6 expected fail (38)]
+  hunk 4 src/services/digest.ts '@@ -5,7 +5,7 @@ import { DIGEST_SECTION_CAP, DISCORD_MESSAGE': red  [8 failed | 24 passed | 6 expected fail (38)]
+  hunk 5 src/services/digest.ts '@@ -98,7 +98,11 @@ export async function runDigest(': red  [8 failed | 24 passed | 6 expected fail (38)]
+  hunk 6 src/services/digest.ts '@@ -130,7 +134,11 @@ export async function runDigest(': red  [8 failed | 24 passed | 6 expected fail (38)]
+== lfc-10-sealed-sync-join: 1 source hunks
+  hunk 1 src/services/sealed.ts '@@ -138,9 +138,21 @@ function recordSyncMeta(': red  [1 failed | 34 passed (35)]
+== lfc-11-sealed-same-name: 10 source hunks
+  hunk 1 src/commands/user/have-sealed.ts '@@ -8,7 +8,7 @@ import {': red  [2 failed | 50 passed (52)]
+  hunk 2 src/commands/user/have-sealed.ts '@@ -65,6 +65,15 @@ async function execute(interaction: ChatI': red  [1 failed | 51 passed (52)]
+  hunk 3 src/commands/user/want-sealed.ts '@@ -8,7 +8,7 @@ import {': red  [2 failed | 50 passed (52)]
+  hunk 4 src/commands/user/want-sealed.ts '@@ -66,6 +66,15 @@ async function execute(interaction: ChatI': red  [1 failed | 51 passed (52)]
+  hunk 5 src/services/sealed.ts '@@ -8,7 +8,9 @@ import {': red  [15 failed | 37 passed (52)]
+  hunk 6 src/services/sealed.ts '@@ -117,8 +119,8 @@ function recordSyncMeta(': GREEN (unpinned) comment-only [52 passed (52)]
+  hunk 7 src/services/sealed.ts '@@ -293,14 +295,27 @@ export function autocompleteSealedProd': red  [5 failed | 47 passed (52)]
+  hunk 8 src/services/sealed.ts '@@ -331,8 +346,10 @@ export function autocompleteSealedSets(': GREEN (unpinned) comment-only [52 passed (52)]
+  hunk 9 src/services/sealed.ts '@@ -355,16 +372,20 @@ export async function resolveSealedPro': red  [3 failed | 49 passed (52)]
+  hunk 10 src/utils/constants.ts '@@ -33,6 +33,25 @@ export const DIGEST_SECTION_CAP = 25;': red  [18 failed | 34 passed (52)]
+== lfc-12-guild-lifecycle: 7 source hunks
+  hunk 1 src/events/guildCreate.ts '@@ -1,10 +1,14 @@': red  [2 failed | 34 passed (36)]
+  hunk 2 src/events/ready.ts '@@ -6,7 +6,11 @@ import {': red  [10 failed | 26 passed (36)]
+  hunk 3 src/events/ready.ts '@@ -24,6 +28,8 @@ export function handleReady(client: Client': red  [2 failed | 34 passed (36)]
+  hunk 4 src/services/digest-state.ts '@@ -1,4 +1,4 @@': red  [4 failed | 32 passed (36)]
+  hunk 5 src/services/digest-state.ts '@@ -11,12 +11,17 @@ import {': red  [2 failed | 34 passed (36)]
+  hunk 6 src/services/listing-expiry.ts '@@ -1,4 +1,4 @@': red  [9 failed | 27 passed (36)]
+  hunk 7 src/services/listing-expiry.ts '@@ -59,6 +59,24 @@ export function purgeMarkedServers(retent': red  [10 failed | 26 passed (36)]
+== asohav-14-strain-clears-on-goal: 1 source hunks
+  hunk 1 apps/server/src/routes/combat.ts "@@ -119,21 +119,28 @@ combatRouter.post('/:encounterId/end',": red  [1 failed | 21 passed (22)]
+== asohav-15-combat-end-authz: 2 source hunks
+  hunk 1 apps/server/src/routes/combat.ts '@@ -1,6 +1,6 @@': red  [3 failed | 28 passed (31)]
+  hunk 2 apps/server/src/routes/combat.ts "@@ -146,7 +146,14 @@ combatRouter.post('/:encounterId/end', ": red  [1 failed | 30 passed (31)]
+== asohav-16-sheet-get-authz: 1 source hunks
+  hunk 1 apps/server/src/routes/sheet.ts "@@ -38,6 +38,11 @@ sheetRouter.get('/:characterId', wrap<She": red  [1 failed | 10 passed (11)]
+== asohav-17-invite-email-escape: 2 source hunks
+  hunk 1 apps/server/src/email.ts '@@ -60,6 +60,13 @@ async function sendViaSupabase({ to, link': red  [4 failed | 5 passed (9)]
+  hunk 2 apps/server/src/email.ts '@@ -81,10 +88,10 @@ async function sendViaResend({': GREEN (unpinned)  [9 passed (9)]
+== asohav-18-next-round-guard: 2 source hunks
+  hunk 1 apps/server/src/routes/combat.ts "@@ -58,7 +58,18 @@ combatRouter.post('/start', wrap<{ campai": red  [1 failed | 29 passed (30)]
+  hunk 2 apps/server/src/routes/combat.ts "@@ -98,6 +109,16 @@ combatRouter.put('/:encounterId', wrap<{": red  [3 failed | 27 passed (30)]
+== asohav-19-defaults-on-read: 4 source hunks
+  hunk 1 packages/shared/src/logic.ts '@@ -869,6 +869,9 @@ export function normalizeSheet(sheet: Ch': red  [1 failed | 162 passed (163)]
+  hunk 2 packages/shared/src/logic.ts '@@ -897,6 +900,9 @@ export function normalizeParty(party: Pa': red  [1 failed | 162 passed (163)]
+  hunk 3 packages/shared/src/logic.ts '@@ -956,6 +962,8 @@ export function normalizeLibrary(library': red  [1 failed | 162 passed (163)]
+  hunk 4 packages/shared/src/logic.ts '@@ -985,6 +993,8 @@ export function normalizeLibrary(library': red  [1 failed | 162 passed (163)]
+== asohav-20-motif-pad: 1 source hunks
+  hunk 1 packages/shared/src/logic.ts '@@ -989,11 +989,23 @@ function asList<T>(value: T[] | null |': red  [1 failed | 188 passed (189)]
+== asohav-21-invite-decline-pending: 1 source hunks
+  hunk 1 apps/server/src/routes/invites.ts "@@ -114,6 +114,11 @@ invitesRouter.post('/:id/decline', wrap": red  [2 failed | 13 passed (15)]

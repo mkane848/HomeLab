@@ -1,0 +1,104 @@
+asohav-14-strain-clears-on-goal
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-15-combat-end-authz
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-16-sheet-get-authz
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:P fOO:F acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-17-invite-email-escape
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:P fOO:F acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-18-next-round-guard
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:P fOO:F acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-19-defaults-on-read
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:P fOO:F acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-20-motif-pad
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:P fOO:F acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+asohav-21-invite-decline-pending
+  dry       base:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:S
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:S
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:S
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:S
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:S
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:S
+lfc-08-ready-clears-removal
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+lfc-09-digest-cutoff-watermark
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+lfc-10-sealed-sync-join
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+lfc-11-sealed-same-name
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P
+lfc-12-guild-lifecycle
+  dry       base:P accOld:P dry:P
+  ref       base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  srconly   base:P run:P writes:P scope:P suite:F fOO:S acc:P
+  testsonly base:P run:P writes:P scope:F suite:F fOO:S acc:W
+  dummy     base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  auckland  base:P run:P writes:P scope:P suite:P fOO:P acc:P
+  repeat    base:P run:P writes:P scope:P suite:P fOO:P acc:P

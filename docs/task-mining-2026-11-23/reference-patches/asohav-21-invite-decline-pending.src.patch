@@ -1,0 +1,17 @@
+diff --git a/apps/server/src/routes/invites.ts b/apps/server/src/routes/invites.ts
+index 6af2dc5..463305d 100644
+--- a/apps/server/src/routes/invites.ts
++++ b/apps/server/src/routes/invites.ts
+@@ -114,6 +114,11 @@ invitesRouter.post('/:id/decline', wrap(async (req, res) => {
+     if (err instanceof InviteError) { res.status(403).json({ error: err.message }); return; }
+     throw err;
+   }
+-  await updateInviteStatus(invite.Id, 'Declined');
++  // Only from Pending, like a redemption's claim: an unconditional write landing just after a
++  // redemption used to leave a member whose invite read Declined.
++  if (!(await claimPendingInvite(invite.Id, 'Declined'))) {
++    res.status(409).json({ error: 'This invite has already been used.' });
++    return;
++  }
+   res.json({ ok: true });
+ }));
