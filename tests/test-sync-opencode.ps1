@@ -58,7 +58,8 @@ function New-Checkout([string]$root) {
     Copy-Item (Join-Path $repoRoot "machines.tsv") $root
     # A model host with no client role, so the refusal below never depends on how a real machine is set up.
     Add-Content -LiteralPath (Join-Path $root "machines.tsv") -Value "fx-model`tmodel-host`tfixture: model host only"
-    Copy-Item (Join-Path $repoRoot "opencode/plugins/*.js") (Join-Path $root "opencode/plugins/")
+    # The plugins as the template lists them: since the OpenCode 2 cutover (2026-11-24), the read-budget DIRECTORY.
+    Copy-Item (Join-Path $repoRoot "opencode/plugins/*") (Join-Path $root "opencode/plugins/") -Recurse
     Set-Content -LiteralPath (Join-Path $root "opencode/agents/fx-agent.md") -Value "agent v1"
     Set-Content -LiteralPath (Join-Path $root "opencode/commands/fx-cmd.md") -Value "command v1"
 }
@@ -122,7 +123,7 @@ try {
     Check "no backup when there was no previous config" (& $baks).Count 0
     Check "opencode debug config was run" (@($r.Calls | Where-Object { $_ -like 'opencode debug config*' }).Count) 1
     Check "...reported as loading" ($r.Out -match 'opencode debug config: loads') "True"
-    Check "...and every plugin path as existing" ([regex]::Matches($r.Out, 'plugin ok:').Count) 2
+    Check "...and every plugin path as existing (one since the 2.x cutover)" ([regex]::Matches($r.Out, 'plugin ok:').Count) 1
     Check "agents staged" (Get-Content (Join-Path $homeDir ".config/opencode/agents/fx-agent.md") -Raw).Trim() "agent v1"
     Check "commands staged" (Get-Content (Join-Path $homeDir ".config/opencode/commands/fx-cmd.md") -Raw).Trim() "command v1"
     Check "a local-only agent is left alone" (Get-Content (Join-Path $homeDir ".config/opencode/agents/local-only.md") -Raw).Trim() "mine"
@@ -210,7 +211,7 @@ try {
     }
 
     $r = Run-Sync $co @("-Push", "desktop", "-RemoteRepoRoot", "C:\remote\checkout")
-    Check "-RemoteRepoRoot: pushed config names the target's checkout" ($r.Cfg -match [regex]::Escape("file:///C:/remote/checkout/opencode/plugins/read-budget.js")) "True"
+    Check "-RemoteRepoRoot: pushed config names the target's checkout" ($r.Cfg -match [regex]::Escape("`"file:///C:/remote/checkout/opencode/plugins/read-budget`"")) "True"
     Check "...and not this one" ($r.Cfg.Contains($url)) "False"
     Check "...the live config is unchanged" ((Get-Content $live -Raw) -ceq $expected) "True"
 
