@@ -106,6 +106,12 @@ jobs:
         shell: pwsh
         run: ./tests/test-session-start-hook.ps1
 
+      # The same for the server's Ollama uninstall dry run: part A of this guard runs ollama-inventory.sh against
+      # stand-ins on Linux only. The Windows runner runs part B (ollama-inventory.ps1) through run-guards.ps1.
+      - name: ollama-inventory.sh and .ps1 against stand-ins
+        shell: pwsh
+        run: ./tests/test-ollama-inventory.ps1
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest

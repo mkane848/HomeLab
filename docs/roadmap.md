@@ -14,6 +14,7 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
 | Ollama removed (2026-11-21) | [Ollama removed](#ollama-removed-2026-11-21) |
+| Task set expansion III (2026-11-23) | [Task set expansion III](#task-set-expansion-iii-13-tasks-from-lfc-bot-and-asohav-2026-11-23) |
 
 ## Ollama removed (2026-11-21)
 
@@ -29,10 +30,39 @@ stays. This closes "Replacing Ollama" Phase 6 below; Phase 4 (a desktop llama-se
   1. **Uninstall Ollama on each machine** (server container, image and the `docker_ollama_data` volume; the desktop
      and node3 native installs, their model stores, `OLLAMA_*` User env vars and the desktop's updater firewall rule).
      The owner confirms what is deleted on each machine before anything is; dry run and hash-compare first.
+     **The dry runs (2026-11-24; read-only, guard `tests/test-ollama-inventory.ps1`):**
+     - **Server:** `server/scripts/ollama-inventory.sh`. It lists the container, image and volume and checks that no
+       other container mounts the volume. Its gate is `llamacpp-check.sh --weights-container llamacpp-server --hash`.
+     - **Desktop and node3:** `pwsh -NoProfile -File desktop\scripts\ollama-inventory.ps1`. It lists the install,
+       store, `OLLAMA_*` variables, startup entries, tasks and firewall rules. Its gate checks every
+       `node3/llamacpp/models.ini` file against the seat table's pins, and that none loads from the store.
+
+     Each prints `READY` and the delete commands only when its gate passes, and runs none of them. Pull `main` on
+     the server first so `ollama-inventory.sh` is there.
+
+     **Desktop: Ollama uninstalled by the owner (said 2026-11-24).** The uninstaller does not necessarily remove the
+     model store, the `OLLAMA_*` User variables or the updater firewall rule. `ollama-inventory.ps1` there lists
+     whatever is left, and says "nothing Ollama is left on this machine" when the desktop is done. Left: the server
+     and node3.
   2. **Redeploy the server** (pull `main`, recreate `llamacpp-server`), together with the engine API-key rollout:
      [engine-api-keys.md](engine-api-keys.md) → "Rollout".
   3. **node3: `git pull`**, then restart its llama-server (`Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
      HomeLab-llamacpp`) so the router reads the preset's new `model` paths ([node3/README.md](../node3/README.md)).
+
+## Task set expansion III: 13 tasks from lfc-bot and ASoHaV (2026-11-23)
+
+The audit's "More tasks, not more runs" item. A cloud session mined the two repos' commits since 2026-09-26 (147, of which
+48 touched source and tests) and verified 20 candidates. The owner picked 13, and they are in `tests/tasks/manifest.json`:
+**40 tasks, none of the 13 with a graded row yet.** The method, the candidates not added, what the upstream tests leave
+unpinned and the `bench/*` commands are in [task-mining-2026-11-23/](task-mining-2026-11-23/README.md).
+- **Checked:** baseline, red and green in fresh worktrees; three repeats and another time zone; the whole package suite
+  green with each fix; the real `test-tasks.ps1` with a stand-in (91 runs, every verdict as expected); mutation checks.
+- **Not checked here:** a Windows CRLF checkout. That is the owner's `-DryRun` per new task, after `run-tasks-batch.ps1
+  -SetupOnly` creates the labels.
+- **Report them as their own cohort**, with lfc and ASoHaV apart. Four lfc tasks start with a named `it.fails` repro
+  already in the suite (lfc-bot's state-machine audit of 2026-11-20). That makes them easier, and it adds the step of
+  flipping the repro.
+- **Next mining:** KaneEnabler, once the fixes from its 2026-11-23 state-machine audit land.
 
 ## OpenCode 2.0 migration (opened 2026-11-21)
 

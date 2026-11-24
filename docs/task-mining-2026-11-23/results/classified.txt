@@ -1,0 +1,195 @@
+######## lfc-bot
+605ad399b 2026-11-21|Join a second sealed catalog sync to the one in flight
+    SRC(1) M:src/services/sealed.ts
+    TST(2) M:tests/models/catalog-sync.model.test.ts M:tests/services/sealed.test.ts
+    other 1
+af2a8e640 2026-11-21|Keep each server's digest job in step with whether the bot is in it
+    SRC(4) M:src/events/guildCreate.ts M:src/events/ready.ts M:src/services/digest-state.ts M:src/services/listing-expiry.ts
+    TST(4) M:tests/events/guildCreate.test.ts M:tests/events/ready.test.ts M:tests/models/server.model.test.ts M:tests/services/scheduler.test.ts
+    other 1
+b60455a0e 2026-11-21|test: smoke-test the entrypoint's startup and shutdown
+    SRC(1) M:vitest.config.ts
+    TST(1) A:tests/index.test.ts
+    other 1
+2a51b5b4e 2026-11-21|test: cover the untested modules and edge branches
+    SRC(1) M:eslint.config.js
+    TST(40) M:tests/commands/admin/admin.test.ts M:tests/commands/admin/channel.test.ts M:tests/commands/admin/config.test.ts A:tests/commands/admin/context.test.ts M:tests/commands/admin/digest.test.ts
+    other 1
+e201108a2 2026-11-21|Stop digests from sending a pause's backlog or overlapping twice
+    SRC(3) M:src/db/schema.ts M:src/services/digest-state.ts M:src/services/digest.ts
+    TST(4) M:tests/models/digest.model.test.ts M:tests/services/digest-state.test.ts M:tests/services/digest.test.ts M:tests/services/scheduler.test.ts
+    other 4
+9c5381e65 2026-11-21|Make closed listings final, and cap batch edit to what fits
+    SRC(7) M:src/commands/admin/remove.ts M:src/commands/user/delete.ts M:src/commands/user/edit.ts M:src/commands/user/fulfill.ts M:src/commands/user/mylistings.ts
+    TST(6) M:tests/commands/admin/remove.test.ts M:tests/commands/user/edit.test.ts M:tests/commands/user/fulfill.test.ts M:tests/commands/user/mylistings.test.ts M:tests/models/batch-edit.model.test.ts
+    other 1
+758df9397 2026-11-20|Fix the two data-loss bugs the state-machine models found
+    SRC(3) M:src/events/ready.ts M:src/services/digest-state.ts M:src/services/digest.ts
+    TST(5) M:tests/events/ready.test.ts M:tests/models/digest.model.test.ts M:tests/models/server.model.test.ts M:tests/services/digest-state.test.ts M:tests/services/digest.test.ts
+    other 1
+8bdcd4d00 2026-11-20|Add state-machine models of the bot's lifecycles and repros for what they find
+    SRC(2) A:tests/helpers/model-check.ts A:tests/models/support.ts
+    TST(12) M:tests/commands/user/edit.test.ts M:tests/commands/user/fulfill.test.ts A:tests/events/guildCreate.test.ts M:tests/events/ready.test.ts A:tests/helpers/model-check.test.ts
+    other 0
+033c1e902 2026-10-24|feat: Pokémon sealed product, and unnumbered singles as cards
+    SRC(13) M:src/commands/user/edit.ts M:src/commands/user/have-multi.ts M:src/commands/user/have-sealed.ts M:src/commands/user/want-multi.ts M:src/commands/user/want-sealed.ts
+    TST(9) M:tests/commands/user/edit.test.ts M:tests/commands/user/have-multi.test.ts M:tests/commands/user/have-sealed.test.ts M:tests/commands/user/pokemon.test.ts M:tests/commands/user/want-sealed.test.ts
+    other 14
+1377fa1b8 2026-10-24|feat: Pokémon singles from a TCGCSV catalog
+    SRC(26) M:src/commands/admin/games.ts M:src/commands/user/have-multi.ts M:src/commands/user/have-sealed.ts M:src/commands/user/want-multi.ts M:src/commands/user/want-sealed.ts
+    TST(15) M:tests/commands/admin/admin.test.ts M:tests/commands/admin/games.test.ts M:tests/commands/autocomplete.test.ts M:tests/commands/user/have.test.ts A:tests/commands/user/pokemon.test.ts
+    other 15
+0235231d8 2026-10-24|feat: multi-game foundation (registry, /admin games, language, graded cards)
+    SRC(37) M:src/commands/admin/admin.ts M:src/commands/admin/config.ts M:src/commands/admin/games.ts M:src/commands/user/edit.ts M:src/commands/user/have-multi.ts
+    TST(21) M:tests/commands/admin/admin.test.ts A:tests/commands/admin/games.test.ts A:tests/commands/autocomplete.test.ts M:tests/commands/user/edit.test.ts M:tests/commands/user/have-multi.test.ts
+    other 8
+0c95cc7d6 2026-10-24|refactor: rename listings.manapool_url and sealed_uuid to generic names
+    SRC(14) M:src/commands/user/edit.ts M:src/commands/user/have-multi.ts M:src/commands/user/have-sealed.ts M:src/commands/user/have.ts M:src/commands/user/want-multi.ts
+    TST(20) M:tests/commands/admin/remove.test.ts M:tests/commands/user/delete.test.ts M:tests/commands/user/edit.test.ts M:tests/commands/user/fulfill.test.ts M:tests/commands/user/have-multi.test.ts
+    other 5
+6a97d8375 2026-09-29|fix(sealed): tell same-named products apart and resolve the one picked
+    SRC(4) M:src/commands/user/have-sealed.ts M:src/commands/user/want-sealed.ts M:src/services/sealed.ts M:src/utils/constants.ts
+    TST(3) M:tests/commands/user/have-sealed.test.ts M:tests/commands/user/want-sealed.test.ts M:tests/services/sealed.test.ts
+    other 3
+######## asohavcompanionapp
+1170b7a8d 2026-11-21|0.86.2: a Strain offer is resolved exactly once
+    SRC(7) M:apps/server/src/routes/combat.ts M:apps/web/src/features/combat/EncounterView.tsx M:apps/web/src/features/combat/IncomingOffers.tsx M:apps/web/src/lib/api.ts M:apps/web/src/lib/combatLifecycle.ts
+    TST(2) M:apps/server/src/routes/combat.test.ts A:packages/shared/src/offers.test.ts
+    other 11
+17209aef6 2026-11-20|0.86.1: state transitions that two requests at once could break
+    SRC(9) A:apps/server/src/documentWrites.ts M:apps/server/src/repo.ts M:apps/server/src/routes/adventures.ts M:apps/server/src/routes/campaign.ts M:apps/server/src/routes/characters.ts
+    TST(7) A:apps/server/src/documentWrites.test.ts M:apps/server/src/routes/campaign.test.ts M:apps/server/src/routes/characters.test.ts M:apps/server/src/routes/combat.test.ts M:apps/server/src/routes/invites.test.ts
+    other 14
+0f4a28142 2026-11-17|0.86.0: remaining audit items that need no owner decision
+    SRC(14) M:apps/server/src/adminLogic.ts M:apps/server/src/auth.ts A:apps/server/src/bestEffort.ts A:apps/server/src/csp.ts M:apps/server/src/index.ts
+    TST(8) M:apps/server/src/adminLogic.test.ts A:apps/server/src/csp.test.ts M:apps/server/src/routes/admin.test.ts M:apps/server/src/routes/campaign.test.ts M:apps/server/src/routes/characters.test.ts
+    other 13
+70560f7ea 2026-11-17|0.84.0: stale-save precondition and rate limits
+    SRC(16) M:apps/server/src/body.ts M:apps/server/src/errorMiddleware.ts M:apps/server/src/index.ts A:apps/server/src/rateLimits.ts M:apps/server/src/repo.ts
+    TST(8) A:apps/server/src/rateLimits.test.ts A:apps/server/src/repo.stale.test.ts M:apps/server/src/routes/combat.test.ts M:apps/server/src/routes/party.test.ts M:apps/server/src/routes/replacementHero.test.ts
+    other 16
+926c2f06e 2026-11-16|0.83.1: first batch of the audit's open findings
+    SRC(11) A:apps/server/src/body.ts M:apps/server/src/index.ts M:apps/server/src/routes/adventures.ts M:apps/server/src/routes/combat.ts M:apps/server/src/routes/party.ts
+    TST(7) M:apps/server/src/routes/adventures.test.ts M:apps/server/src/routes/clocks.test.ts M:apps/server/src/routes/combat.test.ts M:apps/server/src/routes/party.test.ts M:apps/server/src/routes/sheet.test.ts
+    other 23
+f6dc24caf 2026-11-14|0.83.0: audit and code review fixes, with the report
+    SRC(10) M:apps/server/src/email.ts M:apps/server/src/repo.ts M:apps/server/src/routes/campaign.ts M:apps/server/src/routes/combat.ts M:apps/server/src/routes/library.ts
+    TST(6) M:apps/server/src/email.test.ts A:apps/server/src/repo.sheet.test.ts M:apps/server/src/routes/campaign.test.ts M:apps/server/src/routes/combat.test.ts M:apps/server/src/routes/library.test.ts
+    other 14
+386a6be7a 2026-10-26|Printable GM Reference, generated from library.gmReference
+    SRC(9) M:apps/web/scripts/behavior-smoke.mjs M:apps/web/scripts/harnessConfig.mjs A:apps/web/scripts/print-gm-reference.mjs M:apps/web/src/App.tsx M:apps/web/src/features/gm/GmReferenceDrawer.tsx
+    TST(1) A:apps/web/src/features/print/PrintGmReference.test.tsx
+    other 3
+3df44fcc5 2026-10-25|Printable character sheet generated from the app's own data, with a coverage guard
+    SRC(10) M:apps/web/scripts/behavior-smoke.mjs M:apps/web/scripts/harnessConfig.mjs A:apps/web/scripts/print-sheet.mjs M:apps/web/src/App.tsx M:apps/web/src/components/AppShell.tsx
+    TST(1) A:apps/web/src/features/print/PrintSheet.test.tsx
+    other 7
+b1d9229fb 2026-10-24|iPad touch and pointer hardening (review I-04, I-07, I-10, I-11, I-12, I-14, I-15, I-20, I-21, I-22)
+    SRC(9) M:apps/web/scripts/behavior-smoke.mjs M:apps/web/src/components/InlineEdit.tsx M:apps/web/src/components/PendingBondBadge.tsx M:apps/web/src/features/campaign/CampaignBonds.tsx M:apps/web/src/features/campaign/CampaignTile.tsx
+    TST(2) A:apps/web/src/components/InlineEdit.test.tsx A:apps/web/src/lib/useModalA11y.test.tsx
+    other 26
+9b250412d 2026-10-24|Replacement Hero: GM opens creation per player whose Hero is Dead or Retired
+    SRC(17) M:apps/server/src/index.ts M:apps/server/src/routes/characters.ts M:apps/server/src/routes/party.ts A:apps/server/src/routes/replacementHero.ts M:apps/web/scripts/harnessConfig.mjs
+    TST(3) M:apps/server/src/routes/characters.test.ts A:apps/server/src/routes/replacementHero.test.ts A:apps/web/src/features/campaign/ReplacementHero.test.tsx
+    other 1
+95cd6b6e1 2026-10-24|Show why a button is disabled as visible hint text, not a hover title
+    SRC(4) A:apps/web/src/components/DisabledHint.tsx M:apps/web/src/features/combat/ParticipantCard.tsx M:apps/web/src/features/roll/AidTagMenu.tsx M:apps/web/src/features/sheet/StatusesPanel.tsx
+    TST(2) A:apps/web/src/features/combat/ParticipantCard.hints.test.tsx A:apps/web/src/features/sheet/StatusesPanel.hints.test.tsx
+    other 2
+3d2d5ec58 2026-10-24|Frontend UX smalls: refused Grow-closer, tick at 0, number drafts, a11y
+    SRC(9) M:apps/web/src/features/combat/AddParticipantModal.tsx M:apps/web/src/features/invites/PendingInvites.tsx M:apps/web/src/features/sheet/AddCampAssetModal.tsx M:apps/web/src/features/sheet/CampActionsModal.tsx M:apps/web/src/features/sheet/EndSessionModal.tsx
+    TST(7) A:apps/web/src/features/clocks/ClocksPanel.test.tsx A:apps/web/src/features/combat/AddParticipantModal.test.tsx A:apps/web/src/features/invites/PendingInvites.test.tsx A:apps/web/src/features/sheet/AddCampAssetModal.test.tsx A:apps/web/src/features/sheet/EndSessionModal.test.tsx
+    other 3
+1ae17287f 2026-10-24|Coalesce and defer Realtime bootstrap refetches; resync on reconnect
+    SRC(3) A:apps/web/src/lib/liveSync.ts M:apps/web/src/lib/mutations.ts M:apps/web/src/lib/useLiveCampaign.ts
+    TST(1) A:apps/web/src/lib/liveSync.test.tsx
+    other 0
+55066ff3d 2026-10-24|Close the Start Combat race at the database; guard Next Round
+    SRC(2) M:apps/server/src/repo.ts M:apps/server/src/routes/combat.ts
+    TST(1) M:apps/server/src/routes/combat.test.ts
+    other 1
+3d6ee0061 2026-10-23|0.77.3: Playwright behaviour suite and jsdom component tests
+    SRC(1) A:apps/web/scripts/behavior-smoke.mjs
+    TST(4) A:apps/web/src/components/ConfirmModal.test.tsx A:apps/web/src/components/LoadFailed.test.tsx A:apps/web/src/components/Toast.test.tsx A:apps/web/src/lib/clockActions.test.tsx
+    other 12
+a34211c41 2026-10-23|0.77.2: backdrop-click data loss, dvh modal caps, toast timer, aria labels
+    SRC(30) M:apps/web/src/components/AboutModal.tsx M:apps/web/src/components/ConfirmModal.tsx M:apps/web/src/components/GlossaryDrawer.tsx M:apps/web/src/components/HistoryModal.tsx M:apps/web/src/components/MarkBondModal.tsx
+    TST(1) A:apps/web/src/lib/backdropClose.test.ts
+    other 12
+c2ea0e14e 2026-10-22|V0.7 slice 8c: Surrender log and Resurrection via Clocks
+    SRC(18) M:apps/server/src/repo.ts M:apps/server/src/routes/characters.ts M:apps/server/src/routes/party.ts M:apps/server/src/routes/sheet.ts M:apps/web/src/features/campaign/DramaCounter.tsx
+    TST(7) A:apps/server/src/routes/partySurrender.test.ts M:apps/server/src/routes/sheetDeath.test.ts A:apps/server/src/routes/sheetResurrection.test.ts M:packages/shared/src/death.test.ts M:packages/shared/src/engine.test.ts
+    other 5
+bfbb2b7ab 2026-10-22|V0.7 slice 8b: Dying choice, second Strain mark, Scars, Dead and Retired Heroes
+    SRC(20) M:apps/server/src/repo.ts M:apps/server/src/routes/characters.ts M:apps/server/src/routes/sheet.ts M:apps/web/src/features/campaign/PeekSheetModal.tsx M:apps/web/src/features/combat/EncounterView.tsx
+    TST(5) M:apps/server/src/routes/sheet.test.ts A:apps/server/src/routes/sheetDeath.test.ts A:packages/shared/src/death.test.ts M:packages/shared/src/engine.test.ts M:packages/shared/src/logic.test.ts
+    other 5
+f7301fdf9 2026-10-22|wip: dying
+    SRC(17) M:apps/server/src/repo.ts M:apps/server/src/routes/characters.ts M:apps/server/src/routes/sheet.ts M:apps/web/src/features/campaign/PeekSheetModal.tsx M:apps/web/src/features/combat/EncounterView.tsx
+    TST(5) M:apps/server/src/routes/sheet.test.ts A:packages/shared/src/dying.test.ts M:packages/shared/src/engine.test.ts M:packages/shared/src/logic.test.ts M:packages/shared/src/strainArmor.test.ts
+    other 2
+116dc5564 2026-10-22|V0.7 slice 4: advancement caps, clears, and moves into Make Camp
+    SRC(23) M:apps/server/src/routes/combat.ts M:apps/server/src/routes/party.ts M:apps/web/src/features/campaign/CampaignBonds.tsx M:apps/web/src/features/campaign/ForgeBondModal.tsx M:apps/web/src/features/combat/EncounterView.tsx
+    TST(4) M:apps/server/src/routes/combat.test.ts M:apps/server/src/routes/party.test.ts M:packages/shared/src/engine.test.ts M:packages/shared/src/logic.test.ts
+    other 7
+a68d5193f 2026-10-22|feat(strain): Temporary Strain, multi-Status absorption, three Armor types, GM-tagged Strain offers (V0.7 slice 7)
+    SRC(16) M:apps/server/src/repo.ts M:apps/server/src/routes/characters.ts A:apps/web/src/components/ArmorPicker.tsx A:apps/web/src/components/StatusPicks.tsx A:apps/web/src/components/StrainTagFields.tsx
+    TST(5) M:apps/server/src/routes/characters.test.ts A:apps/web/src/components/StatusPicks.test.ts M:packages/shared/src/engine.test.ts M:packages/shared/src/logic.test.ts A:packages/shared/src/strainArmor.test.ts
+    other 7
+1d1d6604f 2026-10-22|Spend Hold on the granting Move's effects; add Safety Tools page and Toolkit credit (V0.7 slice 11)
+    SRC(14) M:apps/web/scripts/harnessConfig.mjs M:apps/web/src/App.tsx M:apps/web/src/components/AboutModal.tsx M:apps/web/src/features/roll/TierReport.tsx A:apps/web/src/features/safety/safetyToolkitCredit.ts
+    TST(3) A:apps/web/src/features/safety/safetyToolsContent.test.ts A:packages/shared/src/hold.test.ts M:packages/shared/src/logic.test.ts
+    other 5
+6dc03d368 2026-10-22|Combat: either side may start a Team-Up Turn; Prepare ends at next turn; enemy Subdued lasts to end of Combat (V0.7)
+    SRC(6) M:apps/web/src/features/combat/EncounterHeader.tsx M:apps/web/src/features/combat/EncounterView.tsx M:apps/web/src/features/combat/ParticipantCard.tsx M:packages/shared/src/combat.ts M:packages/shared/src/seedLibrary.ts
+    TST(1) M:packages/shared/src/combat.test.ts
+    other 1
+e965a56f9 2026-10-19|Core text alignment with V0.7: Invoke Expertise trigger, Recuperate 6- (0.70.1)
+    SRC(2) M:apps/web/src/features/sheet/RecuperateModal.tsx M:packages/shared/src/seedLibrary.ts
+    TST(1) M:packages/shared/src/seedLibrary.test.ts
+    other 9
+bd5a924ad 2026-10-18|Ending Combat: Strain clears only when the Combat Goal is achieved (0.70.0)
+    SRC(3) M:apps/server/src/routes/combat.ts M:apps/web/src/features/combat/EncounterView.tsx M:apps/web/src/features/combat/EndCombatFlow.tsx
+    TST(1) M:apps/server/src/routes/combat.test.ts
+    other 10
+c761a356b 2026-10-18|0.69.0: Aid is a Party Skill Tag (V0.7 slice 5)
+    SRC(10) M:apps/server/src/routes/combat.ts M:apps/web/src/features/combat/EncounterView.tsx M:apps/web/src/features/combat/ParticipantCard.tsx M:apps/web/src/features/roll/AidSection.tsx A:apps/web/src/features/roll/AidTagMenu.tsx
+    TST(1) M:packages/shared/src/logic.test.ts
+    other 11
+cdd6eeb4b 2026-10-18|0.68.1: Bond spend options follow V0.7 (with the owner's ruling on the -1)
+    SRC(1) M:packages/shared/src/logic.ts
+    TST(1) M:packages/shared/src/logic.test.ts
+    other 9
+c0151c6dc 2026-10-18|0.68.0: rename Misfortune to Drama (V0.7 slice 2)
+    SRC(40) M:apps/server/src/adminLogic.ts M:apps/server/src/routes/adventures.ts M:apps/server/src/routes/campaign.ts M:apps/server/src/routes/party.ts M:apps/web/scripts/harnessConfig.mjs
+    TST(9) M:apps/server/src/adminLogic.test.ts M:apps/server/src/routes/adventures.test.ts M:apps/server/src/routes/auth.test.ts M:apps/server/src/routes/campaign.test.ts M:apps/server/src/routes/combat.test.ts
+    other 20
+028a78563 2026-10-18|0.67.1: default Armor, Rapport and two library track lengths on read
+    SRC(1) M:packages/shared/src/logic.ts
+    TST(1) M:packages/shared/src/logic.test.ts
+    other 8
+bd5785f06 2026-10-06|Add New Villain / New NPC forms to Adventure Prep (0.67.0)
+    SRC(9) M:apps/web/scripts/interaction-smoke.mjs M:apps/web/src/features/adventures/AdventuresPanel.tsx A:apps/web/src/features/adventures/GmContentFormModal.tsx A:apps/web/src/features/adventures/gmContentUi.ts M:apps/web/src/features/combat/AddParticipantModal.tsx
+    TST(3) A:apps/web/src/features/adventures/gmContentUi.test.ts M:apps/web/src/lib/api.test.ts A:packages/shared/src/gmContent.test.ts
+    other 15
+fbd01c3c0 2026-10-06|Add server routes and storage for GM-authored Villains and NPCs
+    SRC(7) M:apps/server/src/index.ts M:apps/server/src/repo.ts A:apps/server/src/routes/gmContent.ts M:packages/shared/src/api.ts A:packages/shared/src/gmContent.ts
+    TST(1) A:apps/server/src/routes/gmContent.test.ts
+    other 1
+82b3f1c4c 2026-09-29|Add grant/revoke admin control to the admin Users view (0.66.0)
+    SRC(5) M:apps/server/src/repo.ts M:apps/server/src/routes/admin.ts M:apps/web/src/features/admin/UsersView.tsx M:apps/web/src/lib/api.ts M:apps/web/src/pages/AdminPanelPage.tsx
+    TST(1) M:apps/server/src/routes/admin.test.ts
+    other 10
+01b6e6900 2026-09-29|Show save and page failures instead of losing them, and stop saving blank tags
+    SRC(6) M:apps/web/src/App.tsx A:apps/web/src/components/ErrorBoundary.tsx M:apps/web/src/components/InlineEdit.tsx M:apps/web/src/components/TagList.tsx M:apps/web/src/lib/api.ts
+    TST(2) A:apps/web/src/components/ErrorBoundary.test.ts M:apps/web/src/lib/api.test.ts
+    other 1
+76ee36a2d 2026-09-29|Gate Start playing and Misfortune on the server, strip blank Party tags, log refusals
+    SRC(6) M:apps/server/src/errorMiddleware.ts M:apps/server/src/index.ts M:apps/server/src/pgPool.ts A:apps/server/src/requestLog.ts M:apps/server/src/routes/campaign.ts
+    TST(3) A:apps/server/src/requestLog.test.ts M:apps/server/src/routes/campaign.test.ts M:apps/server/src/routes/party.test.ts
+    other 0
+d5068248f 2026-09-27|Add shared contracts for the phase-gating audit
+    SRC(5) M:apps/web/src/features/campaign/PeekCard.tsx A:apps/web/src/features/campaign/PeekSheetModal.tsx M:apps/web/src/features/sheet/QuestProgress.tsx M:apps/web/src/lib/phaseLabels.ts M:packages/shared/src/logic.ts
+    TST(1) M:packages/shared/src/logic.test.ts
+    other 0
+######## kaneenabler
