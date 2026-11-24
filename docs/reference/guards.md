@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-57 guards.
+58 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -37,6 +37,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-llamacpp-window.ps1` | server/scripts/llamacpp-window.sh (open, watchdog, deadline and close of an unattended llama.cpp window) | server/scripts/llamacpp-window.sh or the llama.cpp compose file it starts |
 | `tests/test-new-real-task.ps1` | real-work intake: a task in the real-work manifest at the repo's HEAD; nothing runs on an unconfirmed list | tests/new-real-task.ps1 |
 | `tests/test-no-push.ps1` | Set-NoPushEnv: a model cannot push or open a PR from a task checkout | How a run is launched |
+| `tests/test-ollama-inventory.ps1` | the Ollama uninstall dry runs (server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1): read-only, and READY only when nothing still needs Ollama's files | server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1, or llamacpp-check.sh's weights check |
 | `tests/test-opencode-profiles.ps1` | Launcher routing and env restore for opencode <profile> | desktop/scripts/opencode.ps1, opencode-profiles.ps1 or opencode-standalone.ps1 |
 | `tests/test-opencode-run.ps1` | Invoke-AgentRun: normal run, non-zero exit, timeout, job dying | How a run is launched, waited for or collected |
 | `tests/test-outside-writes.ps1` | Get-OutsideWrites (writes outside the worktree) | How a transcript is read or a run JSON is built |
