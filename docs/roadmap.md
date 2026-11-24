@@ -38,6 +38,11 @@ stays. This closes "Replacing Ollama" Phase 6 below; Phase 4 (a desktop llama-se
 
      Each prints `READY` and the delete commands only when its gate passes, and runs none of them. Pull `main` on
      the server first so `ollama-inventory.sh` is there.
+
+     **Desktop: Ollama uninstalled by the owner (said 2026-11-24).** The uninstaller does not necessarily remove the
+     model store, the `OLLAMA_*` User variables or the updater firewall rule. `ollama-inventory.ps1` there lists
+     whatever is left, and says "nothing Ollama is left on this machine" when the desktop is done. Left: the server
+     and node3.
   2. **Redeploy the server** (pull `main`, recreate `llamacpp-server`), together with the engine API-key rollout:
      [engine-api-keys.md](engine-api-keys.md) → "Rollout".
   3. **node3: `git pull`**, then restart its llama-server (`Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
