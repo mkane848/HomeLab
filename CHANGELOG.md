@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **server, desktop, tests: read-only dry runs of the Ollama uninstall (2026-11-24; Ollama removal, step 1 prep).**
+  - **`server/scripts/ollama-inventory.sh`:**
+    - It lists every Ollama container, image and volume, and what mounts each volume.
+    - It is `NOT READY` while any other container mounts an Ollama volume, while `llamacpp-server` is not running,
+      or while `llamacpp-check.sh --weights-container llamacpp-server --hash` fails.
+    - When ready, it prints the `docker rm`, `docker volume rm` and `docker image rm` lines for the owner to run.
+  - **`desktop/scripts/ollama-inventory.ps1`** (desktop and node3):
+    - It lists the install and its uninstaller, any running process, the model store with its size, the `OLLAMA_*`
+      variables, Run-key and Startup entries, scheduled tasks and firewall rules.
+    - It is `NOT READY` while a `node3/llamacpp/models.ini` model on this machine loads from inside the store, or
+      hashes to no `weights` pin in `models/server-seats.tsv`.
+  - Neither script deletes anything, and the delete commands are printed only when ready. Exit codes: 0 ready or
+    nothing left, 1 a blocker, 2 usage.
+  - **Guard `tests/test-ollama-inventory.ps1`:**
+    - Part A (Linux, a new step in the CI Linux job) runs the real `.sh` against stand-in `docker` and
+      `llamacpp-check.sh`.
+    - Part B (any OS, in `run-guards.ps1`) runs the real `.ps1` against fixtures.
+    - It asserts that a refusal prints no delete command, that docker gets no destructive verb, and that the
+      fixtures are unchanged.
+    - Mutation-checked: seven broken copies each turn it red (a missing mount check, an always-passing gate, a
+      script that deletes, a missing `--hash`, a missing store check, every hash treated as pinned, a deleted store).
+  - Verification: the guard passes with LF and CRLF copies; shellcheck 0.9.0 is clean at every level; the `.ps1`
+    parses; `make-reference.py --check` passes. The roadmap's uninstall step points to both dry runs.
+  - **Fixed in passing: a read race in `tests/test-llamacpp-window.ps1`.** Its stand-ins rewrite a state file with
+    `echo ... >`, which leaves the file empty for an instant. A `Wait-For` poll landing then read `$null` and threw
+    ("You cannot call a method on a null-valued expression"), which failed this PR's first CI run in the Linux job. It
+    passed on #261's run. State that a live watchdog may be writing is now read through `Read-State`, and a
+    `Wait-For` condition that throws counts as "not yet". A throwing condition can still only fail a check, never
+    pass it. Five runs in a row: 71 of 71 each.
+
 - **tests: 13 mined tasks from lfc-bot and ASoHaV (2026-11-23; the audit's "More tasks, not more runs").**
   - **Added to `tests/tasks/manifest.json` (27 → 40 tasks):**
     - `lfc-08` to `lfc-12`: two data-loss fixes, a sync join, same-named sealed products and the guild-lifecycle gaps.

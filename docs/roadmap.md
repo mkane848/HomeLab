@@ -30,6 +30,20 @@ stays. This closes "Replacing Ollama" Phase 6 below; Phase 4 (a desktop llama-se
   1. **Uninstall Ollama on each machine** (server container, image and the `docker_ollama_data` volume; the desktop
      and node3 native installs, their model stores, `OLLAMA_*` User env vars and the desktop's updater firewall rule).
      The owner confirms what is deleted on each machine before anything is; dry run and hash-compare first.
+     **The dry runs (2026-11-24; read-only, guard `tests/test-ollama-inventory.ps1`):**
+     - **Server:** `server/scripts/ollama-inventory.sh`. It lists the container, image and volume and checks that no
+       other container mounts the volume. Its gate is `llamacpp-check.sh --weights-container llamacpp-server --hash`.
+     - **Desktop and node3:** `pwsh -NoProfile -File desktop\scripts\ollama-inventory.ps1`. It lists the install,
+       store, `OLLAMA_*` variables, startup entries, tasks and firewall rules. Its gate checks every
+       `node3/llamacpp/models.ini` file against the seat table's pins, and that none loads from the store.
+
+     Each prints `READY` and the delete commands only when its gate passes, and runs none of them. Pull `main` on
+     the server first so `ollama-inventory.sh` is there.
+
+     **Desktop: Ollama uninstalled by the owner (said 2026-11-24).** The uninstaller does not necessarily remove the
+     model store, the `OLLAMA_*` User variables or the updater firewall rule. `ollama-inventory.ps1` there lists
+     whatever is left, and says "nothing Ollama is left on this machine" when the desktop is done. Left: the server
+     and node3.
   2. **Redeploy the server** (pull `main`, recreate `llamacpp-server`), together with the engine API-key rollout:
      [engine-api-keys.md](engine-api-keys.md) → "Rollout".
   3. **node3: `git pull`**, then restart its llama-server (`Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
