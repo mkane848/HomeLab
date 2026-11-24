@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       script that deletes, a missing `--hash`, a missing store check, every hash treated as pinned, a deleted store).
   - Verification: the guard passes with LF and CRLF copies; shellcheck 0.9.0 is clean at every level; the `.ps1`
     parses; `make-reference.py --check` passes. The roadmap's uninstall step points to both dry runs.
+  - **Fixed in passing: a read race in `tests/test-llamacpp-window.ps1`.** Its stand-ins rewrite a state file with
+    `echo ... >`, which leaves the file empty for an instant. A `Wait-For` poll landing then read `$null` and threw
+    ("You cannot call a method on a null-valued expression"), which failed this PR's first CI run in the Linux job. It
+    passed on #261's run. State that a live watchdog may be writing is now read through `Read-State`, and a
+    `Wait-For` condition that throws counts as "not yet". A throwing condition can still only fail a check, never
+    pass it. Five runs in a row: 71 of 71 each.
 
 - **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
   - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
