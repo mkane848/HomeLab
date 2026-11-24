@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: `AGENTS.md` restructured along Factory's AGENTS.md guide (2026-11-24; the owner's request).**
+  - **Commands and Verification come first:**
+    - syntax checks, shellcheck, one guard, every guard, the reference tables, and waiting on CI;
+    - then the order to verify a change in.
+
+    `tests/run-guards.ps1` was not named in the file before.
+  - **The rest is regrouped:** Where things are (with a "Generated files" note), Safety, PRs and docs, and Known
+    mistakes. Every rule is kept, and the history behind each is cut to a clause. `CHANGELOG.md` and the roadmap keep
+    the full accounts.
+  - **The node3-over-ssh runbook** moved verbatim to `node3/README.md` → "Working on node3 over ssh". A short
+    summary and a pointer stay.
+  - `docs/references.md` gains the `factory-agents-md` row. 11,211 → 10,678 bytes.
+  - **Fixed in passing: the documented ParseFile check printed nothing for a broken file.** On pwsh 7.4.6 a ParseError
+    formats as an empty line, so `if ($errs.Count) { $errs }` showed a blank line where it should show the error.
+    The command now prints each error's line and message and exits 1. Checked on a broken file and a good one.
+
 - **hooks, tests: the session-start hook installs PowerShell only from a tarball with the pinned sha256 (2026-11-24; the 2026-11-09 audit's supply-chain finding).**
   - **`.claude/hooks/session-start.sh`** pins v7.4.6's sha256 for x64 and arm64. The pins are the release's own
     `hashes.sha256`, and they matched a fresh download of each tarball. On a mismatch it prints `REFUSED` with both

@@ -68,6 +68,22 @@ then `pwsh -File node3\scripts\start-llama-server.ps1 -Lan`. `profiles/dev-node3
 Rows: `tests/results/toolcalls-summary-llamacpp.tsv`, `tests/results/overflow-probe.tsv`,
 `tests/results/bench-speed.tsv`.
 
+## Working on node3 over ssh
+
+Moved here from `AGENTS.md` on 2026-11-24, verbatim. Each was a real, repeated mistake.
+
+- Its ssh shell is **cmd**. `;` does not separate commands (it reached a script as `-Apply;`), and nested quoting
+  breaks. Copy a script with `scp` and run it with `pwsh -NoProfile -File <script>`. A script piped into
+  `pwsh -Command -` can fail without a word.
+- Use `ssh -o BatchMode=yes` (also as `GIT_SSH_COMMAND`) for anything that could prompt; give the command
+  `< /dev/null`.
+- A one-shot scheduled task (S4U) has none of the user's session environment. Set every variable the run needs:
+  `LLAMACPP_SERVER_BASE_URL` (OpenCode's provider reads its `baseURL` from it). Without it all of `real-01`'s attempts
+  were "infrastructure". Launch the **running** pwsh (`(Get-Process -Id $PID).Path`, as `run-window.ps1 -Detach`
+  does): a Store update can stage a newer build that a task cannot start yet (`0x80070005`).
+- Remove a one-shot task, and any worktree a session made, when its run is over; seven had piled up by 2026-11-02.
+- Git there is described below, in "Git on node3".
+
 ## Git on node3 (2026-11-02)
 
 - **`C:\HomeLab\repos\HomeLab`** (public): pulls over https with no credentials. node3 never pushes it.
