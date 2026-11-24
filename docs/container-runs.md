@@ -84,8 +84,8 @@ The image digest and the OpenCode version reported from inside the image go into
 `agentVersion`). A new pinned version is a new era for the rows, as it already is today.
 
 **OpenCode's config is generated per run** by the harness from the profile: the provider entry for this seat with its
-limits, and the `read-budget` plugin directory. It is mounted read-only. Its `apiKey` reads `{env:LLAMACPP_API_KEY}` (or
-the Go key for a hosted seat). The harness passes the variable from its own process environment, and the secrets folder
+limits, and the `read-budget` plugin directory. It is mounted read-only. Its `apiKey` reads `{env:LLAMACPP_API_KEY}`.
+Hosted seats are not in the first build ("Decided", item 3). The harness passes the variable from its own process environment, and the secrets folder
 is never mounted. The planner's token travels the same way (AGENTS.md: "The planner's token travels only through the
 process environment").
 
@@ -108,12 +108,12 @@ The planner's pattern, one proxy per run host, with an allowlist per phase:
 - **Phase 1:** CONNECT to 443 for the registry hosts.
 - **Phase 2, a llama.cpp seat:** plain HTTP to one host and port, the engine. From node3, the engine is node3's own
   `llama-server`, reached as `host.docker.internal:8090`. From the desktop it is the server's address on the LAN.
-- **Phase 2, a hosted seat:** CONNECT to 443 for OpenCode Go's API host only.
+- **Phase 2, a hosted seat:** not in the first build ("Decided", item 3). When it comes, it would be CONNECT to 443
+  for OpenCode Go's API host only, with a per-run spend cap.
 - **Phase 3:** `--network none`, no proxy.
 
 The engine's API key ([engine-api-keys.md](engine-api-keys.md)) is the one secret inside. The model can read it from the
-environment, but the proxy lets it reach only the engine it already uses. A hosted seat's key is the same, limited to
-Go's API host.
+environment, but the proxy lets it reach only the engine it already uses.
 
 ### Limits and clean-up
 
@@ -151,7 +151,7 @@ new era directly.
 
 ## Building it: four steps, each a PR and a stop point
 
-0. **The owner: Docker on node3.** Docker Desktop with WSL 2, the same as the desktop. `docker run --rm hello-world`
+0. **The owner: Docker on node3.** Docker Desktop with WSL 2, the same as the desktop (decided 2026-11-24). `docker run --rm hello-world`
    should pass. Nothing in `node3/README.md` or `machines.tsv` records Docker on node3.
 1. **The image and a dry run, no model:**
    - build `attempt:1`;
@@ -170,16 +170,24 @@ new era directly.
 4. **The era:** the 16-task baseline inside, then the batch default flips to `container`, recorded in
    `tests/results/NOTES.md` and the roadmap.
 
-## Open questions for the owner
+## Decided (owner, 2026-11-24)
 
-- **node3 is also where the owner games.** Docker Desktop's background memory there is a cost on that machine; the
-  phases can stop the WSL VM between batches if it matters.
-- **Does `host.docker.internal` reach node3's `llama-server`**, which binds to `127.0.0.1`? Docker Desktop normally
-  forwards it, but this needs checking in step 3. If not, the engine binds to the WSL network as well, which is a change
-  to the firewall rule already owed for the LAN.
-- **A hosted seat's key inside the container:** the proxy confines it to Go's API host, but a run could still spend
-  within its timeout. Is a per-run spend cap wanted before hosted seats run in containers?
-- **Is GPU passthrough ever wanted?** Not for this design: attempts call engines over HTTP.
+1. **node3 gets Docker Desktop**, the same as the desktop, so there is one setup to support. The owner installs it
+   (step 0). Because node3 is also where the owner games, the harness stops the WSL VM after a batch, so Docker holds
+   no memory between batches.
+2. **node3's engine: check first.** In step 3 a container on node3 calls `host.docker.internal:8090`. If node3's
+   `llama-server` answers there while it is bound to `127.0.0.1`, nothing changes. If not, the build stops and comes
+   back to the owner with the change needed: binding to the WSL network as well, which touches the LAN firewall rule
+   still owed.
+3. **Hosted seats wait.** The first build covers local llama.cpp seats only, and hosted (OpenCode Go) seats stay on the
+   host as today. Two things come first:
+   - the 2.x spend reader's $0 problem must be understood ([opencode-2-migration.md](opencode-2-migration.md), step 3.5;
+     finding out needs one priced Go call, the owner's decision);
+   - a per-run spend cap must be designed.
+
+   Nothing that spends money changes in this design.
+
+Not a question: GPU passthrough is not wanted. Attempts call the engines over HTTP.
 
 ## What it does not protect against
 

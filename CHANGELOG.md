@@ -21,7 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **It is a new era:** Linux, LF and bash. The 16-task baseline is re-run inside before any comparison.
   - **Four build steps**, each a PR. Step 2 is an equivalence check: the grading verdict matrix inside the container
     must equal the host's, task by task, using the 2026-11-23 rig.
-  - Open questions for the owner are listed in the doc. The roadmap and the audit row point to it.
+  - **The owner's three decisions (2026-11-24)** are recorded in it:
+    - node3 gets Docker Desktop, with the WSL VM stopped between batches;
+    - node3's engine is reached through `host.docker.internal`, checked in step 3 before anything changes;
+    - hosted seats wait until the 2.x spend reader's $0 problem is understood and a per-run cap is designed.
+
+    The roadmap and the audit row point to it.
 
 - **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
   - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
