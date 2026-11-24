@@ -152,11 +152,16 @@ function Invoke-Window([string[]]$Arguments) {
     $out = & timeout 60 bash $window @Arguments 2>&1 | Out-String
     [pscustomobject]@{ Exit = $LASTEXITCODE; Out = $out }
 }
+# A state file the stand-ins rewrite with `echo ... >` is empty for an instant (truncate, then write). A read in that
+# instant gives $null, so state is read through Read-State, and a Wait-For condition that throws counts as "not yet".
+# (A poll landing there failed CI on 2026-11-24: "You cannot call a method on a null-valued expression".)
+function Read-State([string]$Name) { "$(Get-Content -Raw -LiteralPath (Join-Path $state $Name) -ErrorAction SilentlyContinue)".Trim() }
 function Wait-For([scriptblock]$Condition, [int]$Seconds = 15) {
     $until = (Get-Date).AddSeconds($Seconds)
-    while ((Get-Date) -lt $until) { if (& $Condition) { return $true }; Start-Sleep -Milliseconds 100 }
-    return [bool](& $Condition)
+    while ((Get-Date) -lt $until) { if (Test-Condition $Condition) { return $true }; Start-Sleep -Milliseconds 100 }
+    return (Test-Condition $Condition)
 }
+function Test-Condition([scriptblock]$Condition) { try { return [bool](& $Condition) } catch { return $false } }
 function WindowLog { $p = Join-Path $win "window.log"; if (Test-Path $p) { Get-Content -Raw -LiteralPath $p } else { "" } }
 
 try {
@@ -272,9 +277,9 @@ try {
     # Break the container: the watchdog must restart it and load the seat again.
     Set-Content -LiteralPath (Join-Path $state "container") -Value "exited"
     Check "two failed polls restart the container" (Wait-For { (CallCount 'docker restart llamacpp-server') -ge 1 } 20) "True"
-    Check "...the seat is loaded again afterwards" (Wait-For { (Get-Content -Raw (Join-Path $state "seat")).Trim() -eq "loaded" } 20) "True"
+    Check "...the seat is loaded again afterwards" (Wait-For { (Read-State "seat") -eq "loaded" } 20) "True"
     Check "...and the restart is recorded for the give-up rule" (Wait-For { Test-Path (Join-Path $win "restarts") }) "True"
-    Check "...and the window stays open" ((Get-Content -Raw (Join-Path $state "container")).Trim()) "running"
+    Check "...and the window stays open" (Read-State "container") "running"
     # (the next block is the transient-failure case; it needs a window that is open and healthy again)
     Check "a window is open and healthy again before the flake test" (Wait-For { (Invoke-Window @("status")).Exit -eq 0 } 20) "True"
     $restartsBefore = CallCount 'docker restart llamacpp-server'

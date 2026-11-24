@@ -55,6 +55,7 @@ and `swe-bench-verified` is the reference named throughout
 | ID | Source | URL |
 |---|---|---|
 | aider-edit-formats | Aider — edit formats (whole, diff, udiff) | <https://aider.chat/docs/more/edit-formats.html> |
+| factory-agents-md | Factory docs, "AGENTS.md" (Customize the Harness; read 2026-11-24): one root file, nested files only where a package needs different rules; exact commands first; concrete, checkable rules; no long runbooks, secrets, stale directory inventories or temporary notes; an 80,000-character cap on the initial load, "caps, not targets". The basis of `AGENTS.md`'s 2026-11-24 restructure | <https://docs.factory.com/harness/agents-md> |
 | aider-unified-diffs | Aider — "Unified diffs make GPT-4 Turbo 3x less lazy" (edit-format + flexible-apply analysis) | <https://aider.chat/docs/unified-diffs.html> |
 | qcoda-bakeoff | QCoda — "We Tested Every Agentic Coding Engine Against Every Local Model" (engine × model, edit-format + round-trip analysis, 2026-06) | <https://qcoda.com/blog/engine-model-bakeoff> |
 | mortar-flashback | Tom's Hardware forum — "MSI B550M Mortar - Bios Flash/boot issues" (read 2026-10-10): solid CPU LED after a BIOS settings save, Flashback never finishing across sticks, versions and CPUs | <https://forums.tomshardware.com/threads/msi-b550m-mortar-bios-flash-boot-issues.3664291/> |

@@ -26,6 +26,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Merge order:** the owner upgrades node3 (step 5.3), then this merges. On 1.19.5, a directory plugin would not
     load.
 
+- **docs: `AGENTS.md` restructured along Factory's AGENTS.md guide (2026-11-24; the owner's request).**
+  - **Commands and Verification come first:**
+    - syntax checks, shellcheck, one guard, every guard, the reference tables, and waiting on CI;
+    - then the order to verify a change in.
+
+    `tests/run-guards.ps1` was not named in the file before.
+  - **The rest is regrouped:** Where things are (with a "Generated files" note), Safety, PRs and docs, and Known
+    mistakes. Every rule is kept, and the history behind each is cut to a clause. `CHANGELOG.md` and the roadmap keep
+    the full accounts.
+  - **The node3-over-ssh runbook** moved verbatim to `node3/README.md` → "Working on node3 over ssh". A short
+    summary and a pointer stay.
+  - `docs/references.md` gains the `factory-agents-md` row. 11,211 → 10,678 bytes.
+  - **Fixed in passing: the documented ParseFile check printed nothing for a broken file.** On pwsh 7.4.6 a ParseError
+    formats as an empty line, so `if ($errs.Count) { $errs }` showed a blank line where it should show the error.
+    The command now prints each error's line and message and exits 1. Checked on a broken file and a good one.
+
+- **docs: the design for containerised task runs (2026-11-24; the 2026-11-09 audit's finding 2).**
+  - `docs/container-runs.md` is the "written" half of the owner's 2026-11-11 decision; it is not built.
+  - **The problem:** an attempt's tool calls and every grading command run model-written code on the run host as the
+    owner. That code can reach the secrets folder, ssh keys (node3's deploy key can push), the LAN and the internet.
+  - **The design** reuses the planner container's pattern (`dev-base:1`, uid 1001, an internal network behind a squid
+    allowlist, capabilities dropped, resource limits, a timeout ending in `docker rm -f`):
+    - one container per attempt, in three phases on a per-attempt volume: install (registry only), agent (the seat's
+      model endpoint only) and grading (no network);
+    - a pinned OpenCode in the image;
+    - the engine key passed through the environment;
+    - only `/out` is written back to the host.
+  - **It is a new era:** Linux, LF and bash. The 16-task baseline is re-run inside before any comparison.
+  - **Four build steps**, each a PR. Step 2 is an equivalence check: the grading verdict matrix inside the container
+    must equal the host's, task by task, using the 2026-11-23 rig.
+  - **The owner's three decisions (2026-11-24)** are recorded in it:
+    - node3 gets Docker Desktop, with the WSL VM stopped between batches;
+    - node3's engine is reached through `host.docker.internal`, checked in step 3 before anything changes;
+    - hosted seats wait until the 2.x spend reader's $0 problem is understood and a per-run cap is designed.
+
+    The roadmap and the audit row point to it.
+
+- **hooks, tests: the session-start hook installs PowerShell only from a tarball with the pinned sha256 (2026-11-24; the 2026-11-09 audit's supply-chain finding).**
+  - **`.claude/hooks/session-start.sh`** pins v7.4.6's sha256 for x64 and arm64. The pins are the release's own
+    `hashes.sha256`, and they matched a fresh download of each tarball. On a mismatch it prints `REFUSED` with both
+    hashes and installs nothing; the session still starts.
+  - **`PWSH_URL`, `PWSH_INSTALL_DIR` and `PWSH_LINK`** are test overrides. The pin does not move with them.
+  - **Guard `tests/test-session-start-hook.ps1`**, Linux and offline, in a new CI Linux-job step. Its cases:
+    - not a remote session;
+    - pwsh already present;
+    - a tampered but valid tarball, which must be refused with nothing unpacked;
+    - a failed download;
+    - both pins present.
+
+    Mutation-checked: removing the comparison, or warning without stopping, turns it red.
+  - Verification:
+    - by hand: the real download installed 7.4.6, the genuine tarball from a local file installed, and the tampered
+      one was refused;
+    - shellcheck is clean;
+    - `make-reference.py --check` passes.
+
+    AGENTS.md and the audit's supply-chain note say so.
+
+- **server, desktop, tests: read-only dry runs of the Ollama uninstall (2026-11-24; Ollama removal, step 1 prep).**
+  - **`server/scripts/ollama-inventory.sh`:**
+    - It lists every Ollama container, image and volume, and what mounts each volume.
+    - It is `NOT READY` while any other container mounts an Ollama volume, while `llamacpp-server` is not running,
+      or while `llamacpp-check.sh --weights-container llamacpp-server --hash` fails.
+    - When ready, it prints the `docker rm`, `docker volume rm` and `docker image rm` lines for the owner to run.
+  - **`desktop/scripts/ollama-inventory.ps1`** (desktop and node3):
+    - It lists the install and its uninstaller, any running process, the model store with its size, the `OLLAMA_*`
+      variables, Run-key and Startup entries, scheduled tasks and firewall rules.
+    - It is `NOT READY` while a `node3/llamacpp/models.ini` model on this machine loads from inside the store, or
+      hashes to no `weights` pin in `models/server-seats.tsv`.
+  - Neither script deletes anything, and the delete commands are printed only when ready. Exit codes: 0 ready or
+    nothing left, 1 a blocker, 2 usage.
+  - **Guard `tests/test-ollama-inventory.ps1`:**
+    - Part A (Linux, a new step in the CI Linux job) runs the real `.sh` against stand-in `docker` and
+      `llamacpp-check.sh`.
+    - Part B (any OS, in `run-guards.ps1`) runs the real `.ps1` against fixtures.
+    - It asserts that a refusal prints no delete command, that docker gets no destructive verb, and that the
+      fixtures are unchanged.
+    - Mutation-checked: seven broken copies each turn it red (a missing mount check, an always-passing gate, a
+      script that deletes, a missing `--hash`, a missing store check, every hash treated as pinned, a deleted store).
+  - Verification: the guard passes with LF and CRLF copies; shellcheck 0.9.0 is clean at every level; the `.ps1`
+    parses; `make-reference.py --check` passes. The roadmap's uninstall step points to both dry runs.
+  - **Fixed in passing: a read race in `tests/test-llamacpp-window.ps1`.** Its stand-ins rewrite a state file with
+    `echo ... >`, which leaves the file empty for an instant. A `Wait-For` poll landing then read `$null` and threw
+    ("You cannot call a method on a null-valued expression"), which failed this PR's first CI run in the Linux job. It
+    passed on #261's run. State that a live watchdog may be writing is now read through `Read-State`, and a
+    `Wait-For` condition that throws counts as "not yet". A throwing condition can still only fail a check, never
+    pass it. Five runs in a row: 71 of 71 each.
+
 - **tests: 13 mined tasks from lfc-bot and ASoHaV (2026-11-23; the audit's "More tasks, not more runs").**
   - **Added to `tests/tasks/manifest.json` (27 → 40 tasks):**
     - `lfc-08` to `lfc-12`: two data-loss fixes, a sync join, same-named sealed products and the guild-lifecycle gaps.
