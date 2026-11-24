@@ -101,6 +101,11 @@ jobs:
         shell: pwsh
         run: ./tests/test-llamacpp-window.ps1
 
+      # The remote sessions' pwsh install unpacks only a tarball with the pinned sha256. Linux only, offline (file://).
+      - name: session-start hook refuses an unpinned tarball
+        shell: pwsh
+        run: ./tests/test-session-start-hook.ps1
+
       # The same for the server's Ollama uninstall dry run: part A of this guard runs ollama-inventory.sh against
       # stand-ins on Linux only. The Windows runner runs part B (ollama-inventory.ps1) through run-guards.ps1.
       - name: ollama-inventory.sh and .ps1 against stand-ins
