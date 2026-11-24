@@ -1,0 +1,91 @@
+diff --git a/src/services/digest-state.ts b/src/services/digest-state.ts
+index 7dd6c86..2415fa5 100644
+--- a/src/services/digest-state.ts
++++ b/src/services/digest-state.ts
+@@ -1,4 +1,4 @@
+-import { and, asc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
++import { and, asc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
+ import { getDb } from '../db/index.js';
+ import { listings, servers, type ListingRow, type ServerRow } from '../db/schema.js';
+ import { enabledGameIdsFromConfig } from '../games/index.js';
+@@ -26,7 +26,7 @@ export function listScheduledServers(): ServerRow[] {
+  * are included. Listings of a game the server has since disabled are left out;
+  * they are kept, and appear again if the game is re-enabled.
+  */
+-export function prepareDigestListings(server: ServerRow): ListingRow[] {
++export function prepareDigestListings(server: ServerRow, cutoff: number = now()): ListingRow[] {
+   const db = getDb();
+   const from = server.lastDigestAt ?? 0;
+   return db
+@@ -38,14 +38,30 @@ export function prepareDigestListings(server: ServerRow): ListingRow[] {
+         eq(listings.status, 'active'),
+         inArray(listings.game, enabledGameIdsFromConfig(server.enabledGames)),
+         gte(listings.createdAt, from),
+-        lte(listings.createdAt, now()),
++        lte(listings.createdAt, cutoff),
+       ),
+     )
+     .orderBy(asc(listings.createdAt))
+     .all();
+ }
+ 
+-/** Advance the server's digest watermark after a successful delivery. */
++/**
++ * Move the server's digest watermark forward to `timestamp` after a successful
++ * delivery, never back: when two runs overlap, the one that selected less must
++ * not undo the other's progress.
++ */
++export function advanceServerWatermark(serverId: string, timestamp: number): void {
++  const db = getDb();
++  db.update(servers)
++    .set({
++      lastDigestAt: sql`max(coalesce(${servers.lastDigestAt}, 0), ${timestamp})`,
++      updatedAt: now(),
++    })
++    .where(eq(servers.id, serverId))
++    .run();
++}
++
++/** Set the server's digest watermark. */
+ export function setServerWatermark(serverId: string, timestamp: number): void {
+   const db = getDb();
+   db.update(servers)
+diff --git a/src/services/digest.ts b/src/services/digest.ts
+index dfb7a84..803cc23 100644
+--- a/src/services/digest.ts
++++ b/src/services/digest.ts
+@@ -5,7 +5,7 @@ import { DIGEST_SECTION_CAP, DISCORD_MESSAGE_MAX_LENGTH } from '../utils/constan
+ import type { DigestTrigger } from '../types/index.js';
+ import { enabledGameIdsFromConfig } from '../games/index.js';
+ import { digestLine } from '../utils/embeds.js';
+-import { prepareDigestListings, setServerWatermark } from './digest-state.js';
++import { advanceServerWatermark, prepareDigestListings } from './digest-state.js';
+ import { sendCriticalAlert } from './alerts.js';
+ import { retryWithBackoff } from '../utils/retry.js';
+ 
+@@ -98,7 +98,11 @@ export async function runDigest(
+   server: ServerRow,
+   trigger: DigestTrigger,
+ ): Promise<DigestResult> {
+-  const collected = prepareDigestListings(server);
++  // The watermark advances to this cutoff, not to when delivery finishes: a
++  // listing posted while the messages are being sent (retries can take
++  // seconds) was not selected, and must be in the next digest.
++  const cutoff = now();
++  const collected = prepareDigestListings(server, cutoff);
+ 
+   const empty: DigestResult = { sent: false, channelOk: false, dmOk: false, listingCount: 0 };
+   if (collected.length === 0) {
+@@ -130,7 +134,11 @@ export async function runDigest(
+     return { sent: false, channelOk, dmOk, listingCount: collected.length };
+   }
+ 
+-  setServerWatermark(server.id, now());
++  // Inclusive: a listing created in the cutoff's own millisecond after the
++  // selection ran is picked up next time. The price is that one created in
++  // that millisecond before it may be sent twice, and a duplicate is
++  // preferable to dropping a listing.
++  advanceServerWatermark(server.id, cutoff);
+   logDigest(server.id, trigger, collected, { channel: channelOk, dm: dmOk });
+   return { sent: true, channelOk, dmOk, listingCount: collected.length };
+ }
