@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **hooks, tests: the session-start hook installs PowerShell only from a tarball with the pinned sha256 (2026-11-24; the 2026-11-09 audit's supply-chain finding).**
+  - **`.claude/hooks/session-start.sh`** pins v7.4.6's sha256 for x64 and arm64. The pins are the release's own
+    `hashes.sha256`, and they matched a fresh download of each tarball. On a mismatch it prints `REFUSED` with both
+    hashes and installs nothing; the session still starts.
+  - **`PWSH_URL`, `PWSH_INSTALL_DIR` and `PWSH_LINK`** are test overrides. The pin does not move with them.
+  - **Guard `tests/test-session-start-hook.ps1`**, Linux and offline, in a new CI Linux-job step. Its cases:
+    - not a remote session;
+    - pwsh already present;
+    - a tampered but valid tarball, which must be refused with nothing unpacked;
+    - a failed download;
+    - both pins present.
+
+    Mutation-checked: removing the comparison, or warning without stopping, turns it red.
+  - Verification:
+    - by hand: the real download installed 7.4.6, the genuine tarball from a local file installed, and the tampered
+      one was refused;
+    - shellcheck is clean;
+    - `make-reference.py --check` passes.
+
+    AGENTS.md and the audit's supply-chain note say so.
+
 - **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
   - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
     `tests/test-gpu-device-loss.ps1` (both read the local Ollama `server.log`). Their engine-neutral scenarios (a

@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-57 guards.
+58 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -53,6 +53,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-run-cost.ps1` | Run usage and cost estimates (Get-TranscriptUsage, Get-RunCostEstimate) | How a transcript is read or a cost is computed |
 | `tests/test-run-window.ps1` | run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, slices, report) | run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter |
 | `tests/test-sealed-checkout.ps1` | Sealed task checkout (no future commits, refs, stashes or remotes) | How a task's checkout is made, reset or graded |
+| `tests/test-session-start-hook.ps1` | .claude/hooks/session-start.sh (the remote sessions' pwsh install): nothing unpacked unless its sha256 is the pin | .claude/hooks/session-start.sh |
 | `tests/test-show-acceptance.ps1` | -ShowAcceptance / -ReadOnlyAcceptance / -ShownPrompt / -AcceptanceDir (planner's tests) modes | How acceptance tests are placed, a run is prompted or scope is graded |
 | `tests/test-stop-nudge.ps1` | -NudgeOnStop and Get-StopKind classifiers 2 and 3 | The nudge, Get-StopKind or where results are written |
 | `tests/test-summarize-rounds.ps1` | summarize-rounds.ps1 pass@k / pass^k arithmetic, pass rule, timeouts counted as failures, the planner arm's selector counts, the cap / long-step splits and the cost line | summarize-rounds.ps1 |

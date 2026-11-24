@@ -20,7 +20,8 @@ Repo for provisioning a hybrid Ubuntu server / Windows PCs LLM setup (llama.cpp'
   `SessionStart` hook, gated on `$CLAUDE_CODE_REMOTE`) — added 2026-09-21 after a manifest bug
   (`kane-02`'s `setup` step) shipped because the sandbox had no PowerShell to actually run the
   syntax-check above, only a bracket-balance guess. Installs the official Linux x64/arm64 binary
-  tarball to `/opt/microsoft/powershell/7`, symlinked to `/usr/local/bin/pwsh`; idempotent
+  tarball to `/opt/microsoft/powershell/7`, symlinked to `/usr/local/bin/pwsh`, only if its sha256 is the pin for the
+  architecture (since 2026-11-24; a new version needs new pins from that release's `hashes.sha256`); idempotent
   (no-ops if `pwsh` is already on `PATH`). Syntax-checking a `.ps1` is still necessary, not
   sufficient — it catches malformed PowerShell, not wrong data (`kane-02`'s bug was a valid
   script pointed at a `setup` step that doesn't apply at that historical commit). The real fix

@@ -101,6 +101,11 @@ jobs:
         shell: pwsh
         run: ./tests/test-llamacpp-window.ps1
 
+      # The remote sessions' pwsh install unpacks only a tarball with the pinned sha256. Linux only, offline (file://).
+      - name: session-start hook refuses an unpinned tarball
+        shell: pwsh
+        run: ./tests/test-session-start-hook.ps1
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest
