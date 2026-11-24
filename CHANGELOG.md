@@ -23,6 +23,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     formats as an empty line, so `if ($errs.Count) { $errs }` showed a blank line where it should show the error.
     The command now prints each error's line and message and exits 1. Checked on a broken file and a good one.
 
+- **docs: the design for containerised task runs (2026-11-24; the 2026-11-09 audit's finding 2).**
+  - `docs/container-runs.md` is the "written" half of the owner's 2026-11-11 decision; it is not built.
+  - **The problem:** an attempt's tool calls and every grading command run model-written code on the run host as the
+    owner. That code can reach the secrets folder, ssh keys (node3's deploy key can push), the LAN and the internet.
+  - **The design** reuses the planner container's pattern (`dev-base:1`, uid 1001, an internal network behind a squid
+    allowlist, capabilities dropped, resource limits, a timeout ending in `docker rm -f`):
+    - one container per attempt, in three phases on a per-attempt volume: install (registry only), agent (the seat's
+      model endpoint only) and grading (no network);
+    - a pinned OpenCode in the image;
+    - the engine key passed through the environment;
+    - only `/out` is written back to the host.
+  - **It is a new era:** Linux, LF and bash. The 16-task baseline is re-run inside before any comparison.
+  - **Four build steps**, each a PR. Step 2 is an equivalence check: the grading verdict matrix inside the container
+    must equal the host's, task by task, using the 2026-11-23 rig.
+  - **The owner's three decisions (2026-11-24)** are recorded in it:
+    - node3 gets Docker Desktop, with the WSL VM stopped between batches;
+    - node3's engine is reached through `host.docker.internal`, checked in step 3 before anything changes;
+    - hosted seats wait until the 2.x spend reader's $0 problem is understood and a per-run cap is designed.
+
+    The roadmap and the audit row point to it.
+
 - **hooks, tests: the session-start hook installs PowerShell only from a tarball with the pinned sha256 (2026-11-24; the 2026-11-09 audit's supply-chain finding).**
   - **`.claude/hooks/session-start.sh`** pins v7.4.6's sha256 for x64 and arm64. The pins are the release's own
     `hashes.sha256`, and they matched a fresh download of each tarball. On a mismatch it prints `REFUSED` with both
