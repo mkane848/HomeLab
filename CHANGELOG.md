@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests, opencode: the OpenCode 2 cutover (2026-11-24; migration steps 3.7 and 4.3, and the plugin half of 5.1). Held
+  until node3 runs 2.3.2.**
+  - **CI installs `@opencode/cli@2.3.2`.** 2.x is published under that name; `opencode-ai` stops at 1.19.x.
+  - **The template lists one plugin, the 2.x `read-budget` directory.** 2.x loads only directory plugins.
+  - **`compaction-continue.js` is retired**, with `tests/test-compaction-plugin.ps1`, `.mjs` and `-live.mjs`. 2.x goes
+    on after compacting by itself (step 4.1), and the plugin never loaded on 2.x.
+  - **The live sections of `test-agent-tools` and `test-agent-shell` accept 2.3.2:**
+    - the tools check matches the 2.x wording ("the rg opencode 2.x uses", "ripgrep not found");
+    - the shell check reads the config through `Get-AgentConfig`, because 2.x's `debug config` is a list of sources.
+  - **Checked against the real 2.3.2 here** (installed in the session's scratch folder, with the owner's go):
+    - `--standalone debug config` keeps an `OPENCODE_CONFIG_CONTENT` `shell` as a document source;
+    - `Get-AgentConfig` returns the wanted pwsh inside `Start-AgentRunEnv` and nothing outside it;
+    - `test-read-budget-live.mjs` with the 2.x directory plugin passes its 20 checks inside `opencode serve`;
+    - `test-read-budget.ps1`'s unit runs pass.
+
+    The stand-in sections of these guards use Windows `.cmd` shims, so Windows CI is where they run.
+  - **Merge order:** the owner upgrades node3 (step 5.3), then this merges. On 1.19.5, a directory plugin would not
+    load.
+
 - **tests: 13 mined tasks from lfc-bot and ASoHaV (2026-11-23; the audit's "More tasks, not more runs").**
   - **Added to `tests/tasks/manifest.json` (27 → 40 tasks):**
     - `lfc-08` to `lfc-12`: two data-loss fixes, a sync join, same-named sealed products and the guild-lifecycle gaps.

@@ -104,7 +104,7 @@ try {
     $live = Join-Path $homeDir ".config/opencode/opencode.jsonc"
     $url = Get-RepoRootUrl $co
     $expected = Expand-OpenCodeTemplate (Get-Content -LiteralPath (Join-Path $co "opencode/global/opencode.jsonc") -Raw) $co
-    @{ plugin = @("$url/opencode/plugins/compaction-continue.js", "$url/opencode/plugins/read-budget.js") } | ConvertTo-Json | Set-Content -LiteralPath $env:FIXTURE_DEBUG
+    @{ plugin = @("$url/opencode/plugins/read-budget") } | ConvertTo-Json | Set-Content -LiteralPath $env:FIXTURE_DEBUG
     $baks = { @(Get-ChildItem (Split-Path $live) -Filter "opencode.jsonc.bak-*") }
 
     Write-Host "-- default run: local only, no .env"
@@ -115,7 +115,7 @@ try {
     Check "zero ssh and scp calls" ($r.Ssh.Count + $r.Scp.Count) 0
     Check "the live config was written" (Test-Path $live) "True"
     Check "...equal to the template with the token filled in" ((Get-Content $live -Raw) -ceq $expected) "True"
-    Check "...plugin paths name this checkout" ((Get-Content $live -Raw).Contains("`"$url/opencode/plugins/compaction-continue.js`"")) "True"
+    Check "...plugin paths name this checkout" ((Get-Content $live -Raw).Contains("`"$url/opencode/plugins/read-budget`"")) "True"
     Check "...no placeholder token left" ((Get-Content $live -Raw).Contains($script:RepoUrlToken)) "False"
     Check "...no hard-coded M:/Projects/dev-docs left" ((Get-Content $live -Raw) -match 'M:/Projects/dev-docs') "False"
     Check "...the template file itself has no machine path" ((Get-Content (Join-Path $repoRoot "opencode/global/opencode.jsonc") -Raw) -match '(?<![A-Za-z0-9])[A-Za-z]:[/\\]') "False"
@@ -156,12 +156,12 @@ try {
     $env:FIXTURE_VER = "opencode v2.3.2"
     $dirPlugin = Join-Path $co "opencode/plugins/fx-dir"; New-Item -ItemType Directory -Path $dirPlugin -Force | Out-Null
     ConvertTo-Json -Depth 6 @(
-        [ordered]@{ type = "document"; path = "global"; info = [ordered]@{ plugins = @("$url/opencode/plugins/compaction-continue.js", [ordered]@{ package = "$url/opencode/plugins/fx-dir"; options = @{} }) } },
+        [ordered]@{ type = "document"; path = "global"; info = [ordered]@{ plugins = @("$url/opencode/plugins/read-budget.js", [ordered]@{ package = "$url/opencode/plugins/fx-dir"; options = @{} }) } },
         [ordered]@{ type = "directory"; path = "dir" }) | Set-Content -LiteralPath $env:FIXTURE_DEBUG
     $r = Run-Sync $co
     Check "2.x: exit 0" $r.Code 0
     Check "...debug config read with --standalone (the staged files, not the service's copy)" (@($r.Calls | Where-Object { $_ -like 'opencode --standalone debug config*' }).Count) 1
-    Check "...a file plugin: WARNING that 2.x skips it" ($r.Out -match 'WARNING: opencode 2\.3\.2 skips this plugin, a file, not a directory: .*compaction-continue\.js') "True"
+    Check "...a file plugin: WARNING that 2.x skips it" ($r.Out -match 'WARNING: opencode 2\.3\.2 skips this plugin, a file, not a directory: .*read-budget\.js') "True"
     Check "...a directory plugin (package form): ok" ([regex]::Matches($r.Out, 'plugin ok:.*fx-dir').Count) 1
     Remove-Item Env:FIXTURE_VER -ErrorAction SilentlyContinue
     $env:PATH = "$bin\no-opencode;$env:SystemRoot\System32"
@@ -170,7 +170,7 @@ try {
     Check "opencode absent: exit 0" $r.Code 0
     Check "...WARNING says so" ($r.Out -match 'WARNING: opencode is not on PATH') "True"
     $env:PATH = "$bin;$($saved['PATH'])"
-    @{ plugin = @("$url/opencode/plugins/compaction-continue.js", "$url/opencode/plugins/read-budget.js") } | ConvertTo-Json | Set-Content -LiteralPath $env:FIXTURE_DEBUG
+    @{ plugin = @("$url/opencode/plugins/read-budget") } | ConvertTo-Json | Set-Content -LiteralPath $env:FIXTURE_DEBUG
 
     Write-Host "-- opt-in push: refusals"
     $r = Run-Sync $co @("-Push", "server")

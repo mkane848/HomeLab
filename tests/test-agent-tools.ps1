@@ -220,10 +220,14 @@ function Read-AgentEvents {
     Check "-DryRun (no agent runs) never checks, so broken tools do not stop it" ("{0}|{1}" -f $d.Exit, ($d.Calls -join ",")) "0|"
 
     Write-Host "-- live: the real opencode"
-    Check "installed opencode is $script:AgentToolsCheckedVersion (else re-read packages/core/src/ripgrep/binary.ts, then move `$script:AgentToolsCheckedVersion)" $realVersion $script:AgentToolsCheckedVersion
-    if ($realVersion -eq $script:AgentToolsCheckedVersion) {
+    # CI installs 2.3.2 since the cutover (2026-11-24); 1.19.5 is still accepted for a host not yet upgraded.
+    $liveV2 = $realVersion -eq $script:AgentToolsCheckedVersionV2
+    Check "installed opencode is $script:AgentToolsCheckedVersionV2 or $script:AgentToolsCheckedVersion (else re-read packages/core/src/ripgrep/binary.ts, then move the pin)" ($liveV2 -or $realVersion -eq $script:AgentToolsCheckedVersion) "True"
+    if ($liveV2 -or $realVersion -eq $script:AgentToolsCheckedVersion) {
         $r = Test-AgentTools
-        Check "the search works here" ("{0}|{1}|{2}" -f $r.checked, $r.ok, [bool]($r.detail -match '^ripgrep search works \(opencode debug rg search found the probe file\); shell Core 7\.')) "True|True|True"
+        # 1.x runs `opencode debug rg search`; 2.x has no `debug rg`, so the check runs the rg 2.x would use.
+        $worksRx = if ($liveV2) { '^ripgrep search works \(.+, the rg opencode 2\.x uses, found the probe file\); shell Core 7\.' } else { '^ripgrep search works \(opencode debug rg search found the probe file\); shell Core 7\.' }
+        Check "the search works here" ("{0}|{1}|{2}" -f $r.checked, $r.ok, [bool]($r.detail -match $worksRx)) "True|True|True"
         # Say why when it fails: on CI (2026-11-08) it failed twice in a row with nothing but True|False|False.
         if (-not $r.ok) { Write-Host "     detail:   $($r.detail) ($($r.seconds) s)" }
         # node3's case without breaking Windows PowerShell: ripgrep nowhere opencode
@@ -237,7 +241,9 @@ function Read-AgentEvents {
             Remove-Item Env:NO_PROXY -ErrorAction SilentlyContinue
             $r = Test-AgentTools -TimeoutSec 120
             Check "ripgrep unreachable: not ok" ("{0}|{1}" -f $r.checked, $r.ok) "True|False"
-            Check "...and the detail says why" ([bool]($r.detail -match '^ripgrep search does not work \(exit \d+\)')) "True"
+            # 2.x would download ripgrep at the first search, so with none on PATH or in its bin folder it says so.
+            $whyRx = if ($liveV2) { "^ripgrep not found: no rg on PATH and none in opencode's bin folder" } else { '^ripgrep search does not work \(exit \d+\)' }
+            Check "...and the detail says why" ([bool]($r.detail -match $whyRx)) "True"
         } finally {
             foreach ($n in $saved.Keys) { [Environment]::SetEnvironmentVariable($n, $(if ($null -ne $saved[$n]) { $saved[$n] } else { [NullString]::Value })) }
         }

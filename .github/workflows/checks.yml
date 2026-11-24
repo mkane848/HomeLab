@@ -121,15 +121,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      # test-compaction-plugin.ps1 runs the plugin inside a real `opencode serve` and
-      # FAILs on any opencode but the one its hooks were read at (AGENTS.md).
-      - name: Install opencode 1.19.5 (pinned)
+      # test-read-budget.ps1 runs the plugin inside a real `opencode serve` and FAILs on
+      # any opencode but the one its hooks were read at (AGENTS.md). OpenCode 2.x is
+      # published as @opencode/cli (opencode-ai stops at 1.19.x); pinned to 2.3.2, the
+      # version the adapter's 2.x branch was measured against (the cutover, 2026-11-24).
+      - name: Install opencode 2.3.2 (pinned)
         run: |
-          npm install -g opencode-ai@1.19.5
+          npm install -g @opencode/cli@2.3.2
           opencode --version
 
-      # opencode 1.19.5 runs rg from PATH, else downloads ripgrep 15.1.0 into its
-      # cache. From 2026-11-21 that download unpacks without rg.exe on the runner
+      # opencode runs rg from PATH, else downloads ripgrep 15.1.0 (2.x: into its bin
+      # folder). From 2026-11-21 that download unpacks without rg.exe on the runner
       # ("ripgrep archive did not contain executable"; failed twice, PR #250), so
       # test-agent-tools' live search failed. A pinned rg on PATH, as on the desktop
       # and node3. Its "ripgrep unreachable" check still strips every PATH entry
