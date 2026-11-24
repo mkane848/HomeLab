@@ -1,0 +1,34 @@
+== lfc-09-digest-cutoff-watermark
+  watermark may move back: red [1 failed | 31 passed | 6 expected fail (38)]
+  advance to finish time: red [2 failed | 30 passed | 6 expected fail (38)]
+  select up to now, not cutoff: GREEN (unpinned) [32 passed | 6 expected fail (38)]
+== lfc-10-sealed-sync-join
+  guard never cleared: red [9 failed | 26 passed (35)]
+  joins but returns a new promise: red [1 failed | 34 passed (35)]
+== lfc-11-sealed-same-name
+  no shortening: red [2 failed | 50 passed (52)]
+  no set-code ordering: GREEN (unpinned) [52 passed (52)]
+== lfc-12-guild-lifecycle
+  empty cache marks everything: red [1 failed | 35 passed (36)]
+  restart schedules left servers: red [2 failed | 34 passed (36)]
+== asohav-14-strain-clears-on-goal
+  history text not updated: red [1 failed | 21 passed (22)]
+== asohav-15-combat-end-authz
+  filter after reading (no filter): red [1 failed | 30 passed (31)]
+== asohav-16-sheet-get-authz
+  existence only, no campaign check (the same line also guards the PUT route, both replaced): red [1 failed | 10 passed (11)]
+== asohav-17-invite-email-escape
+  escapeHtml exported but body not escaped: GREEN (unpinned) [9 passed (9)]
+  apostrophe not escaped: red [1 failed | 8 passed (9)]
+== asohav-18-next-round-guard
+  non-integer Round accepted: red [1 failed | 29 passed (30)]
+  jump of 2 accepted: red [1 failed | 29 passed (30)]
+  other 409 message: red [1 failed | 29 passed (30)]
+== asohav-19-defaults-on-read
+  || instead of ??: GREEN (unpinned) [163 passed (163)]
+  backfill without the needs-normalizing check: red [1 failed | 162 passed (163)]
+== asohav-20-motif-pad
+  copies/truncates three or more: red [1 failed | 188 passed (189)]
+  truncates more than three: GREEN (unpinned) [189 passed (189)]
+== asohav-21-invite-decline-pending
+  other 409 message: GREEN (unpinned) [15 passed (15)]

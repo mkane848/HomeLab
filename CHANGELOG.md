@@ -37,6 +37,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `Wait-For` condition that throws counts as "not yet". A throwing condition can still only fail a check, never
     pass it. Five runs in a row: 71 of 71 each.
 
+- **tests: 13 mined tasks from lfc-bot and ASoHaV (2026-11-23; the audit's "More tasks, not more runs").**
+  - **Added to `tests/tasks/manifest.json` (27 → 40 tasks):**
+    - `lfc-08` to `lfc-12`: two data-loss fixes, a sync join, same-named sealed products and the guild-lifecycle gaps.
+    - `asohav-14` to `asohav-21`:
+      - a ruleset reversal of `asohav-08`;
+      - three security fixes: two cross-campaign authz fixes and the invite email escape;
+      - a Start race and a Round guard;
+      - two normalizer fixes;
+      - an invite decline race.
+
+    Each is an upstream fix pinned at its parent, with the fix commit's own tests as the informational acceptance
+    check. `asohav-21` is hand-scoped and has none. None has a graded row yet.
+  - **Mined from** 147 commits since 2026-09-26. 20 candidates were verified, and the owner picked 13. KaneEnabler had
+    nothing to mine yet.
+  - **`lfc-12` is the whole three-gap commit (owner's choice).** The first pick, the rejoin fix alone, turns the server
+    model's conformance test red in the full suite.
+  - **A new check over the 2026-10 rig:** the whole package suite stays green with each fix.
+  - Method, the candidates not added, the gaps the upstream tests leave, the rig, the raw results and the reference
+    patches are in `docs/task-mining-2026-11-23/`. The roadmap has a dated section, and the audit's row says what was
+    done.
+  - Verification:
+    - the real `test-tasks.ps1` on Linux with a stand-in `opencode`: 13 tasks × 7 arms, every verdict as expected
+      (`results/rig-matrix.txt`);
+    - `manifest_splice.py`'s checks, with existing entries untouched;
+    - `test-task-env`, `test-task-pins`, `test-retired-tasks`, `test-clean-recheck` and `test-new-real-task` pass;
+    - not run here: a Windows CRLF `-DryRun` per new task (the owner's).
+
 - **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
   - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
     `tests/test-gpu-device-loss.ps1` (both read the local Ollama `server.log`). Their engine-neutral scenarios (a

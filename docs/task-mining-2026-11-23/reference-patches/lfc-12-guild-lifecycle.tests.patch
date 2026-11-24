@@ -1,0 +1,175 @@
+diff --git a/tests/events/guildCreate.test.ts b/tests/events/guildCreate.test.ts
+index dd24b98..f9ca6ef 100644
+--- a/tests/events/guildCreate.test.ts
++++ b/tests/events/guildCreate.test.ts
+@@ -33,9 +33,8 @@ describe('handleGuildCreate', () => {
+   });
+ 
+   // Found by `tests/models/server.model.test.ts`: `handleGuildDelete` cancels
+-  // the digest job, and nothing restores it on rejoin until the next restart.
+-  // A known bug, kept as an expected failure: flip `it.fails` to `it` with the fix.
+-  it.fails('restores the digest job of a guild that re-adds the bot', () => {
++  // the digest job, so rejoining has to restore it.
++  it('restores the digest job of a guild that re-adds the bot', () => {
+     getDb()
+       .insert(servers)
+       .values({ id: 'g1', digestMode: 'channel', removedAt: 5, createdAt: 1, updatedAt: 1 })
+diff --git a/tests/events/ready.test.ts b/tests/events/ready.test.ts
+index 3e996cb..c7d65cc 100644
+--- a/tests/events/ready.test.ts
++++ b/tests/events/ready.test.ts
+@@ -112,10 +112,8 @@ describe('handleReady', () => {
+   });
+ });
+ 
+-// Counterexamples found by `tests/models/server.model.test.ts`: gateway events
+-// that happen while the bot is offline are never replayed, so boot has to
+-// reconcile. An `it.fails` is a known bug, kept as an expected failure until
+-// fixed: flip it to `it` with the fix.
++// Found by `tests/models/server.model.test.ts`: gateway events that happen while
++// the bot is offline are never replayed, so boot has to reconcile.
+ describe('handleReady reconciles guild membership', () => {
+   const markedRow = (id: string) => ({
+     id,
+@@ -137,14 +135,32 @@ describe('handleReady reconciles guild membership', () => {
+     expect(getDb().select().from(servers).get()?.removedAt).toBeNull();
+   });
+ 
+-  it.fails('marks a guild that removed the bot while it was offline', () => {
++  it('marks a guild that removed the bot while it was offline', () => {
+     getDb()
+       .insert(servers)
+       .values({ ...markedRow('gone'), removedAt: null })
+       .run();
+ 
++    handleReady(fakeClient(['still-here']));
++
++    const gone = getDb()
++      .select()
++      .from(servers)
++      .all()
++      .find((row) => row.id === 'gone');
++    expect(gone?.removedAt).not.toBeNull();
++  });
++
++  it('marks nothing when the guild cache is empty', () => {
++    // More likely a cache problem than a bot in no guilds; marking every server
++    // would start the 30-day purge for all of them.
++    getDb()
++      .insert(servers)
++      .values({ ...markedRow('g1'), removedAt: null })
++      .run();
++
+     handleReady(fakeClient([]));
+ 
+-    expect(getDb().select().from(servers).get()?.removedAt).not.toBeNull();
++    expect(getDb().select().from(servers).get()?.removedAt).toBeNull();
+   });
+ });
+diff --git a/tests/models/server.model.test.ts b/tests/models/server.model.test.ts
+index 7ac47f1..e6a83ec 100644
+--- a/tests/models/server.model.test.ts
++++ b/tests/models/server.model.test.ts
+@@ -106,8 +106,10 @@ export const serverMachine: Machine<State, Event> = {
+     switch (event) {
+       case 'join':
+         if (s.member) return null;
+-        // `handleGuildCreate`: clear the marker and upsert. It never touches the scheduler.
+-        return s.online ? { ...s, member: true, row: 'live' } : { ...s, member: true };
++        // `handleGuildCreate`: clear the marker, upsert, and refresh the digest job.
++        return s.online
++          ? { ...s, member: true, row: 'live', job: s.row !== 'none' && s.digestOn }
++          : { ...s, member: true };
+       case 'leave':
+         if (!s.member) return null;
+         // `handleGuildDelete`: cancel the job, mark the row if there is one.
+@@ -119,11 +121,11 @@ export const serverMachine: Machine<State, Event> = {
+         return s.online ? { ...s, online: false, job: false } : null;
+       case 'boot': {
+         if (s.online) return null;
+-        // `handleReady`: clear the marker of and upsert every guild the bot is
+-        // in, then `scheduleAllDigests`, which selects on digest_mode alone.
+-        const row: Row = s.member ? 'live' : s.row;
++        // `handleReady`: clear the marker of and upsert every guild the bot is in,
++        // mark every live row it isn't in, then `scheduleAllDigests` for live rows.
++        const row: Row = s.member ? 'live' : s.row === 'live' ? 'marked' : s.row;
+         const digestOn = row === 'none' ? false : s.digestOn;
+-        return { ...s, online: true, row, digestOn, job: row !== 'none' && digestOn };
++        return { ...s, online: true, row, digestOn, job: row === 'live' && digestOn };
+       }
+       case 'modeOn':
+       case 'modeOff': {
+@@ -162,7 +164,7 @@ describe('server lifecycle model', () => {
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+ 
+-  it.fails('a guild that removes the bot while it is offline is marked for removal', () => {
++  it('a guild that removes the bot while it is offline is marked for removal', () => {
+     const violation = violationOf(result, 'leftGuildIsMarked');
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+@@ -172,19 +174,13 @@ describe('server lifecycle model', () => {
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+ 
+-  it.fails('a server has a digest job exactly when it is live with digests on', () => {
++  it('a server has a digest job exactly when it is live with digests on', () => {
+     const violation = violationOf(result, 'jobMatchesConfig');
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+ 
+-  it('reports the shortest counterexamples', () => {
+-    const shortest = Object.fromEntries(
+-      result.violations.map((v) => [v.invariant, formatTrace(v.trace)]),
+-    );
+-    expect(shortest).toEqual({
+-      leftGuildIsMarked: 'join → crash → leave → boot',
+-      jobMatchesConfig: 'join → modeOn → leave → join',
+-    });
++  it('finds no violation at all', () => {
++    expect(result.violations).toEqual([]);
+   });
+ });
+ 
+@@ -208,7 +204,7 @@ describe('server lifecycle model conforms to the real code', () => {
+       channels: { fetch: vi.fn() },
+       users: { fetch: vi.fn() },
+     }) as unknown as Client;
+-  const guild = { id: 'guild-1', name: 'Test' } as never;
++  const guild = { id: 'guild-1', name: 'Test', client: client(['guild-1']) } as never;
+ 
+   const project = (member: boolean, online: boolean, purgedWhileMember: boolean): State => {
+     const row = getServerConfig('guild-1');
+@@ -256,7 +252,9 @@ describe('server lifecycle model conforms to the real code', () => {
+             break;
+           case 'boot':
+             online = true;
+-            handleReady(client(member ? ['guild-1'] : []));
++            // The bot is always in some other guild: `markServersNotIn` does
++            // nothing for an empty guild list, as a guard against a bad cache.
++            handleReady(client(member ? ['guild-0', 'guild-1'] : ['guild-0']));
+             break;
+           case 'modeOn':
+           case 'modeOff':
+diff --git a/tests/services/scheduler.test.ts b/tests/services/scheduler.test.ts
+index fb5c635..3c56daa 100644
+--- a/tests/services/scheduler.test.ts
++++ b/tests/services/scheduler.test.ts
+@@ -262,13 +262,11 @@ describe('startGameCatalogSync', () => {
+   });
+ });
+ 
+-// Counterexamples found by `tests/models/server.model.test.ts` and
+-// `tests/models/digest.model.test.ts`. An `it.fails` is a known bug, kept as an
+-// expected failure until fixed: flip it to `it` with the fix.
++// Found by `tests/models/server.model.test.ts` and `tests/models/digest.model.test.ts`.
+ describe('digest jobs and the server lifecycle', () => {
+-  it.fails('does not schedule a digest for a server the bot has left', () => {
+-    // `listScheduledServers` selects on digest_mode alone, so every restart in
+-    // the 30-day retention window schedules a digest that can only fail.
++  it('does not schedule a digest for a server the bot has left', () => {
++    // It would fail on every run, with a critical alert, for the whole
++    // 30-day retention window.
+     getDb()
+       .insert(servers)
+       .values(serverRow({ removedAt: Date.now() }))

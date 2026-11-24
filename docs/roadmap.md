@@ -14,6 +14,7 @@ Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
 | Context overflow | [Context overflow](#context-overflow-the-qwen359b-template-crash-and-silent-task-loss-2026-10-04) |
 | Real-use tasks | [Real-use tasks](#real-use-tasks-the-owners-own-prompts-planned-2026-10-04) |
 | Ollama removed (2026-11-21) | [Ollama removed](#ollama-removed-2026-11-21) |
+| Task set expansion III (2026-11-23) | [Task set expansion III](#task-set-expansion-iii-13-tasks-from-lfc-bot-and-asohav-2026-11-23) |
 
 ## Ollama removed (2026-11-21)
 
@@ -47,6 +48,21 @@ stays. This closes "Replacing Ollama" Phase 6 below; Phase 4 (a desktop llama-se
      [engine-api-keys.md](engine-api-keys.md) → "Rollout".
   3. **node3: `git pull`**, then restart its llama-server (`Stop-ScheduledTask HomeLab-llamacpp; Start-ScheduledTask
      HomeLab-llamacpp`) so the router reads the preset's new `model` paths ([node3/README.md](../node3/README.md)).
+
+## Task set expansion III: 13 tasks from lfc-bot and ASoHaV (2026-11-23)
+
+The audit's "More tasks, not more runs" item. A cloud session mined the two repos' commits since 2026-09-26 (147, of which
+48 touched source and tests) and verified 20 candidates. The owner picked 13, and they are in `tests/tasks/manifest.json`:
+**40 tasks, none of the 13 with a graded row yet.** The method, the candidates not added, what the upstream tests leave
+unpinned and the `bench/*` commands are in [task-mining-2026-11-23/](task-mining-2026-11-23/README.md).
+- **Checked:** baseline, red and green in fresh worktrees; three repeats and another time zone; the whole package suite
+  green with each fix; the real `test-tasks.ps1` with a stand-in (91 runs, every verdict as expected); mutation checks.
+- **Not checked here:** a Windows CRLF checkout. That is the owner's `-DryRun` per new task, after `run-tasks-batch.ps1
+  -SetupOnly` creates the labels.
+- **Report them as their own cohort**, with lfc and ASoHaV apart. Four lfc tasks start with a named `it.fails` repro
+  already in the suite (lfc-bot's state-machine audit of 2026-11-20). That makes them easier, and it adds the step of
+  flipping the repro.
+- **Next mining:** KaneEnabler, once the fixes from its 2026-11-23 state-machine audit land.
 
 ## OpenCode 2.0 migration (opened 2026-11-21)
 
