@@ -1,0 +1,94 @@
+diff --git a/tests/events/ready.test.ts b/tests/events/ready.test.ts
+index be3e4cb..3e996cb 100644
+--- a/tests/events/ready.test.ts
++++ b/tests/events/ready.test.ts
+@@ -113,9 +113,9 @@ describe('handleReady', () => {
+ });
+ 
+ // Counterexamples found by `tests/models/server.model.test.ts`: gateway events
+-// that happen while the bot is offline are never replayed, and boot doesn't
+-// reconcile. Known bugs, kept as expected failures until fixed: flip `it.fails`
+-// to `it` with the fix.
++// that happen while the bot is offline are never replayed, so boot has to
++// reconcile. An `it.fails` is a known bug, kept as an expected failure until
++// fixed: flip it to `it` with the fix.
+ describe('handleReady reconciles guild membership', () => {
+   const markedRow = (id: string) => ({
+     id,
+@@ -128,17 +128,14 @@ describe('handleReady reconciles guild membership', () => {
+     updatedAt: 1,
+   });
+ 
+-  it.fails(
+-    'clears the removal marker of a guild that re-added the bot while it was offline',
+-    () => {
+-      // Left alone, the hourly purge deletes this live guild's listings 30 days later.
+-      getDb().insert(servers).values(markedRow('g1')).run();
++  it('clears the removal marker of a guild that re-added the bot while it was offline', () => {
++    // Left alone, the hourly purge deletes this live guild's listings 30 days later.
++    getDb().insert(servers).values(markedRow('g1')).run();
+ 
+-      handleReady(fakeClient(['g1']));
++    handleReady(fakeClient(['g1']));
+ 
+-      expect(getDb().select().from(servers).get()?.removedAt).toBeNull();
+-    },
+-  );
++    expect(getDb().select().from(servers).get()?.removedAt).toBeNull();
++  });
+ 
+   it.fails('marks a guild that removed the bot while it was offline', () => {
+     getDb()
+diff --git a/tests/models/server.model.test.ts b/tests/models/server.model.test.ts
+index d5d352d..7ac47f1 100644
+--- a/tests/models/server.model.test.ts
++++ b/tests/models/server.model.test.ts
+@@ -119,9 +119,9 @@ export const serverMachine: Machine<State, Event> = {
+         return s.online ? { ...s, online: false, job: false } : null;
+       case 'boot': {
+         if (s.online) return null;
+-        // `handleReady`: upsert every guild the bot is in (which never clears a
+-        // marker), then `scheduleAllDigests`, which selects on digest_mode alone.
+-        const row: Row = s.member && s.row === 'none' ? 'live' : s.row;
++        // `handleReady`: clear the marker of and upsert every guild the bot is
++        // in, then `scheduleAllDigests`, which selects on digest_mode alone.
++        const row: Row = s.member ? 'live' : s.row;
+         const digestOn = row === 'none' ? false : s.digestOn;
+         return { ...s, online: true, row, digestOn, job: row !== 'none' && digestOn };
+       }
+@@ -157,20 +157,17 @@ export const serverMachine: Machine<State, Event> = {
+ describe('server lifecycle model', () => {
+   const result = explore(serverMachine, 7);
+ 
+-  it.fails(
+-    'a guild that re-adds the bot while it is offline is not left marked for removal',
+-    () => {
+-      const violation = violationOf(result, 'memberIsNotMarked');
+-      expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+-    },
+-  );
++  it('a guild that re-adds the bot while it is offline is not left marked for removal', () => {
++    const violation = violationOf(result, 'memberIsNotMarked');
++    expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
++  });
+ 
+   it.fails('a guild that removes the bot while it is offline is marked for removal', () => {
+     const violation = violationOf(result, 'leftGuildIsMarked');
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+ 
+-  it.fails('the retention purge never deletes a guild the bot is in', () => {
++  it('the retention purge never deletes a guild the bot is in', () => {
+     const violation = violationOf(result, 'neverPurgeAMember');
+     expect(violation, violation && formatTrace(violation.trace)).toBeUndefined();
+   });
+@@ -185,9 +182,7 @@ describe('server lifecycle model', () => {
+       result.violations.map((v) => [v.invariant, formatTrace(v.trace)]),
+     );
+     expect(shortest).toEqual({
+-      memberIsNotMarked: 'join → leave → crash → join → boot',
+       leftGuildIsMarked: 'join → crash → leave → boot',
+-      neverPurgeAMember: 'join → leave → crash → join → boot → retentionElapses → purge',
+       jobMatchesConfig: 'join → modeOn → leave → join',
+     });
+   });

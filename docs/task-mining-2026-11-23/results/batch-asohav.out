@@ -1,0 +1,143 @@
+== asohav-email-escape  (asohavcompanionapp, parent 0bf6052ba)
+  baseline  8/8 pass, 0 fail
+  testsonly 8/9 pass, 1 fail
+      x escapeHtml and the Resend body escapes markup characters
+  ref       9/9 pass, 0 fail
+  srconly   8/8 pass, 0 fail
+== asohav-sheet-get-authz  (asohavcompanionapp, parent 0bf6052ba)
+  baseline  9/9 pass, 0 fail
+  testsonly 10/11 pass, 1 fail
+      x GET /campaigns/:campaignId/sheets/:characterId 404s a GM asking for another campaign's character, without reading the sheet
+  ref       11/11 pass, 0 fail
+  srconly   9/9 pass, 0 fail
+== asohav-combat-end-authz  (asohavcompanionapp, parent 0bf6052ba)
+  baseline  30/30 pass, 0 fail
+  testsonly 30/31 pass, 1 fail
+      x POST …/combat/:encounterId/end ignores a Participant from another campaign never reads or writes the sheet of a character that is not in this campaign
+  ref       31/31 pass, 0 fail
+  srconly   28/30 pass, 2 fail
+      x POST /campaigns/:campaignId/combat/:encounterId/end Strain on ending clears every Hero's Strain when the Combat Goal was achieved
+      x POST /campaigns/:campaignId/combat/:encounterId/end clears every Hero's marked Strain when Combat ends
+== asohav-library-id-immutable  (asohavcompanionapp, parent 0bf6052ba)
+  baseline  43/43 pass, 0 fail
+  testsonly 43/44 pass, 1 fail
+      x library CRUD keeps the record Id when the body carries a different one
+  ref       44/44 pass, 0 fail
+  srconly   43/43 pass, 0 fail
+== asohav-campaign-0830  (asohavcompanionapp, parent 0bf6052ba)
+  baseline  37/37 pass, 0 fail
+  testsonly 38/41 pass, 3 fail
+      x invite revoke and send guards refuses to revoke another campaign's invite
+      x invite revoke and send guards refuses an address that is not shaped like an email
+      x invite revoke and send guards refuses a new invite once the campaign has 20 pending
+  ref       41/41 pass, 0 fail
+  srconly   34/37 pass, 3 fail
+      x POST /campaigns/:id/invites archive freeze still allows sending an invite on an Active campaign
+      x POST /campaigns/:id/invites — code generation mints a longer alphanumeric code and checks it for a collision
+      x POST /campaigns/:id/invites — code generation retries when the first generated code already exists
+== asohav-invite-redeem-cleanup  (asohavcompanionapp, parent 208ec7ff7)
+  baseline  12/12 pass, 0 fail
+  testsonly 10/14 pass, 4 fail
+      x POST /invites/:id/redeem creates a Player membership and marks the invite Accepted
+      x POST /invites/redeem-by-code resolves the invite by code and redeems it
+      x POST /invites/:id/redeem - races and failures answers 409 and makes no membership when the invite was already claimed
+      x POST /invites/:id/redeem - races and failures releases the claim when the membership cannot be made
+  ref       0/0 pass, 0 fail  load-fail: ['invites.test.ts']
+  srconly   0/0 pass, 0 fail  load-fail: ['invites.test.ts']
+== asohav-character-create-cleanup  (asohavcompanionapp, parent 208ec7ff7)
+  baseline  23/23 pass, 0 fail
+  testsonly 19/25 pass, 6 fail
+      x POST /campaigns/:campaignId/characters creates a character, sheet, and links the membership
+      x POST /campaigns/:campaignId/characters includes the two chosen Improvements on the sheet with their library Name and Effect
+      x POST /campaigns/:campaignId/characters applies Light load tier with Inconspicuous Boon
+      x POST /campaigns/:campaignId/characters - replacement Hero creates the new Hero outside Party Creation, repoints the membership, clears the slot, leave
+      x POST /campaigns/:campaignId/characters - a write that cannot complete removes its own character and answers 409 when another submit attached a Hero fi
+      x POST /campaigns/:campaignId/characters - a write that cannot complete removes its own character when the sheet cannot be saved
+  ref       0/0 pass, 0 fail  load-fail: ['characters.test.ts']
+  srconly   0/0 pass, 0 fail  load-fail: ['characters.test.ts']
+== asohav-auth-outage-503  (asohavcompanionapp, parent 208ec7ff7)
+  baseline  NO RESULT (FileNotFoundError)
+  testsonly 1/5 pass, 4 fail
+      x verifyAccessToken throws a 503 when Auth cannot be reached
+      x verifyAccessToken throws a 503 when Auth answers with a server error
+      x loadUser throws a 503 when the profile cannot be read, rather than answering "no such user"
+      x loadUser answers null when the account has no profile
+  ref       5/5 pass, 0 fail
+  srconly   NO RESULT (FileNotFoundError)
+== asohav-admin-changelog  (asohavcompanionapp, parent 208ec7ff7)
+  baseline  37/37 pass, 0 fail
+  testsonly 38/44 pass, 6 fail
+      x importShapeError accepts a seed library
+      x importShapeError refuses something that is not a library
+      x importShapeError refuses a collection that is not a list, or a record with no Id
+      x importShapeError refuses a setting of the wrong type and ignores settings it does not know
+      x account actions are audited records a password reset without the link
+      x account actions are audited records a grant of admin
+  ref       44/44 pass, 0 fail
+  srconly   37/37 pass, 0 fail
+== asohav-motif-pad  (asohavcompanionapp, parent 208ec7ff7)
+  baseline  187/187 pass, 0 fail
+  testsonly 188/189 pass, 1 fail
+      x normalizeSheet Motifs pads a short Motif list with empty ones instead of replacing it
+  ref       189/189 pass, 0 fail
+  srconly   187/187 pass, 0 fail
+== asohav-invite-decline-pending  (asohavcompanionapp, parent f0f6779b8)
+  baseline  14/14 pass, 0 fail
+  testsonly 12/15 pass, 3 fail
+      x POST /invites/:id/decline marks a matching Pending invite Declined
+      x POST /invites/:id/decline answers 409 when the invite stopped being Pending after it was read
+      x POST /invites/:id/redeem - races and failures releases the claim when the membership cannot be made
+  ref       15/15 pass, 0 fail
+  srconly   12/14 pass, 2 fail
+      x POST /invites/:id/decline marks a matching Pending invite Declined
+      x POST /invites/:id/redeem - races and failures releases the claim when the membership cannot be made
+== asohav-campaign-phase-race  (asohavcompanionapp, parent f0f6779b8)
+  baseline  43/43 pass, 0 fail
+  testsonly 37/45 pass, 8 fail
+      x PATCH /campaigns/:id/phase lets the GM close signup and start Party Creation
+      x PATCH /campaigns/:id/phase lets the GM start playing once the party is set up
+      x PATCH /campaigns/:id/phase — conditional on the phase read answers 409 when the phase changed between the read and the write
+      x PATCH /campaigns/:id/phase — conditional on the phase read conditions a legacy campaign with no stored Phase on the null it read
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party starts once every character-holder is ready, even though a player without a character i
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party leaves Signup → PartyCreation ungated — nobody has a character to be ready with yet
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party leaves reopening signup (PartyCreation → Signup) ungated
+      x archive freeze on phase, ready and invite revoke still allows a phase change on an Active campaign
+  ref       45/45 pass, 0 fail
+  srconly   37/43 pass, 6 fail
+      x PATCH /campaigns/:id/phase lets the GM close signup and start Party Creation
+      x PATCH /campaigns/:id/phase lets the GM start playing once the party is set up
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party starts once every character-holder is ready, even though a player without a character i
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party leaves Signup → PartyCreation ungated — nobody has a character to be ready with yet
+      x PATCH /campaigns/:id/phase — Start playing needs a ready party leaves reopening signup (PartyCreation → Signup) ungated
+      x archive freeze on phase, ready and invite revoke still allows a phase change on an Active campaign
+== asohav-next-round-guard  (asohavcompanionapp, parent 4b63a80a9)
+  baseline  22/22 pass, 0 fail
+  testsonly 26/30 pass, 4 fail
+      x POST /campaigns/:campaignId/combat/start turns a unique violation from the one-active index into a 409 and writes no Rapport
+      x PUT /campaigns/:campaignId/combat/:encounterId Round guard (defense in depth for Next Round) rejects a lower Round
+      x PUT /campaigns/:campaignId/combat/:encounterId Round guard (defense in depth for Next Round) rejects a Round that jumps by more than 1
+      x PUT /campaigns/:campaignId/combat/:encounterId Round guard (defense in depth for Next Round) rejects a non-integer Round
+  ref       30/30 pass, 0 fail
+  srconly   22/22 pass, 0 fail
+== asohav-strain-clears-on-goal  (asohavcompanionapp, parent c761a356b)
+  baseline  20/20 pass, 0 fail
+  testsonly 21/22 pass, 1 fail
+      x POST /campaigns/:campaignId/combat/:encounterId/end Strain on ending leaves Strain marked when the Combat Goal was not achieved
+  ref       22/22 pass, 0 fail
+  srconly   19/20 pass, 1 fail
+      x POST /campaigns/:campaignId/combat/:encounterId/end clears every Hero's marked Strain when Combat ends
+== asohav-defaults-on-read  (asohavcompanionapp, parent 42493a153)
+  baseline  160/160 pass, 0 fail
+  testsonly 160/163 pass, 3 fail
+      x normalizeSheet defaults Armor to an empty list on a sheet saved without it, and keeps a stored list
+      x normalizeLibrary backfills PotentialTrackLength and RapportTrackLength to 5 when a settings row lacks them, and keeps stored values
+      x normalizeParty backfills Rapport to 0 on a party row saved without it, and keeps a stored value (including one above the cap)
+  ref       163/163 pass, 0 fail
+  srconly   160/160 pass, 0 fail
+== asohav-bond-spend-v07  (asohavcompanionapp, parent c0151c6dc)
+  baseline  166/166 pass, 0 fail
+  testsonly 165/166 pass, 1 fail
+      x BOND_SPEND_OPTIONS (revised) is the revision's five, verbatim
+  ref       166/166 pass, 0 fail
+  srconly   165/166 pass, 1 fail
+      x BOND_SPEND_OPTIONS (revised) is the revision's five, verbatim
