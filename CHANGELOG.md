@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the design for containerised task runs (2026-11-24; the 2026-11-09 audit's finding 2).**
+  - `docs/container-runs.md` is the "written" half of the owner's 2026-11-11 decision; it is not built.
+  - **The problem:** an attempt's tool calls and every grading command run model-written code on the run host as the
+    owner. That code can reach the secrets folder, ssh keys (node3's deploy key can push), the LAN and the internet.
+  - **The design** reuses the planner container's pattern (`dev-base:1`, uid 1001, an internal network behind a squid
+    allowlist, capabilities dropped, resource limits, a timeout ending in `docker rm -f`):
+    - one container per attempt, in three phases on a per-attempt volume: install (registry only), agent (the seat's
+      model endpoint only) and grading (no network);
+    - a pinned OpenCode in the image;
+    - the engine key passed through the environment;
+    - only `/out` is written back to the host.
+  - **It is a new era:** Linux, LF and bash. The 16-task baseline is re-run inside before any comparison.
+  - **Four build steps**, each a PR. Step 2 is an equivalence check: the grading verdict matrix inside the container
+    must equal the host's, task by task, using the 2026-11-23 rig.
+  - Open questions for the owner are listed in the doc. The roadmap and the audit row point to it.
+
 - **tests: the task harness, the batch and their guards are llama.cpp-only (2026-11-22; Ollama removal, part 3b).**
   - **Deleted:** `tests/engines/ollama.ps1` (the Ollama adapter), `tests/test-prompt-truncation.ps1` and
     `tests/test-gpu-device-loss.ps1` (both read the local Ollama `server.log`). Their engine-neutral scenarios (a
