@@ -407,7 +407,8 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     if ($IsWindows) { Copy-Item (Join-Path $env:SystemRoot "System32\PING.EXE") $gameExe; $gameArgs = @("-n", "300", "127.0.0.1") }
     else { Copy-Item (Get-Command sleep).Source $gameExe; & chmod +x $gameExe; $gameArgs = @("300") }
     $games = [hashtable]::Synchronized(@{ Exe = $gameExe; Args = $gameArgs; Pids = [Collections.ArrayList]::Synchronized([Collections.ArrayList]::new()) })
-    function Start-Game { $p = Start-Process -FilePath $games.Exe -ArgumentList $games.Args -PassThru -WindowStyle Hidden -ErrorAction Stop; [void]$games.Pids.Add($p.Id); $p }
+    # -WindowStyle exists only on Windows' Start-Process; elsewhere it is a parameter error (it stopped this guard on Linux).
+    function Start-Game { $h = if ($IsWindows) { @{ WindowStyle = "Hidden" } } else { @{} }; $p = Start-Process -FilePath $games.Exe -ArgumentList $games.Args -PassThru @h -ErrorAction Stop; [void]$games.Pids.Add($p.Id); $p }
     function Stop-Games { foreach ($id in @($games.Pids)) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $games.Pids.Clear() }
     $noSteam = Join-Path $tmp "no-such-steam-key"
     & {
@@ -434,7 +435,7 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     Check "a game running at the gate: exit 2" $r.Exit 2
     Check "...nothing ran" $r.Calls.Count 0
     Has "...the report names the game" $r.Report "no game running.*$gameName is running"
-    $helpers += Start-AfterPhase "baseline" 2 { param($g) $p = Start-Process -FilePath $g.Exe -ArgumentList $g.Args -PassThru -WindowStyle Hidden; [void]$g.Pids.Add($p.Id) } $games
+    $helpers += Start-AfterPhase "baseline" 2 { param($g) $h = if ($IsWindows) { @{ WindowStyle = "Hidden" } } else { @{} }; $p = Start-Process -FilePath $g.Exe -ArgumentList $g.Args -PassThru @h; [void]$g.Pids.Add($p.Id) } $games
     $r = Invoke-Window (@{ Run = @("baseline") } + $gameArgsWin) -Plan '{"baseline":{"sleep":120}}'
     Stop-Games
     Check "a game that starts mid-phase ends the window: exit 0, well before the stand-in's 120 s" ("{0}|{1}" -f $r.Exit, ($r.Seconds -lt 60)) "0|True"

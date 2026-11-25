@@ -112,6 +112,12 @@ jobs:
         shell: pwsh
         run: ./tests/test-ollama-inventory.ps1
 
+      # run-window.ps1 is the desktop's, but its guard runs to the end on Linux since 2026-11-25 (the game scenarios
+      # used Start-Process -WindowStyle, which is Windows-only). Run here too, so it keeps doing so.
+      - name: run-window.ps1 against stand-ins (Linux)
+        shell: pwsh
+        run: ./tests/test-run-window.ps1
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest

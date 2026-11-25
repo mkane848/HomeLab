@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: `test-run-window.ps1` runs to the end on Linux (2026-11-25; the 2026-11-09 audit's item).**
+  - **The cause:** the game scenarios started their stand-in game with `Start-Process -WindowStyle Hidden`, and
+    `-WindowStyle` exists only on Windows. Elsewhere it is a parameter error, which stopped the guard at check 108.
+    Both calls now pass it on Windows only. Nothing else in the guard needed a change: the stand-in game is already a
+    renamed `sleep` off Windows, and the Steam registry cases already ran on Windows only.
+  - **The CI Linux job now runs it too**, so it keeps running to the end there. The Windows job runs it as before.
+  - Verification: `pwsh -NoProfile -File tests/test-run-window.ps1` on Linux gave 154 of 154 twice, game cases
+    included. Before the change it stopped at the Start-Process error. `checks.yml` parses as YAML.
+
 - **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
   - **`docs/plan.md` is the live plan,** 67 lines. It has these sections:
     - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;
