@@ -72,10 +72,10 @@ config is intentionally skipped.
 
 ## Imported Skills (from Claude)
 
-Skills, commands, and agents were imported from the local Claude Code
-installation and vended into this repo (`skills/`, `opencode/commands/`,
-`opencode/agents/`). Provenance and licenses live in
-[`claude/README.md`](../claude/README.md).
+Skills were imported from the local Claude Code installation and vendored into
+`skills/`. The plugins' agents and commands sit in `claude/imports/` as
+provenance only; they are not staged (removed from `opencode/` on 2026-11-25).
+Provenance and licenses live in [`claude/README.md`](../claude/README.md).
 
 Two scripts manage the lifecycle:
 
@@ -104,9 +104,34 @@ system prompt of **every** request (~5.5k tokens for all 73). Use
 `-Scope all` to deploy everything globally, and `-Prune` when narrowing scope
 or the old ones stay behind.
 
-Current `opencode/` has **9 commands** and **4 agents**. `plan.md` is the
-`/plan` flow (it runs on the main agent — there is no planner subagent);
-the rest are Vercel/Render imports.
+`opencode/commands/` has **3 commands**, all the repo's own, and
+`opencode/agents/` has **none**:
+- `/plan` (`plan.md`) writes `docs/implementation-tasks.md`. It runs on the main
+  agent; there is no planner subagent.
+- `/sandbox` runs a throwaway container.
+- `/devcontainer` runs a command for LFCbot or ASoHaV in `dev-base:1`.
+
+They follow [Factory's AGENTS.md guide](https://docs.factory.com/harness/agents-md):
+the command first, then concrete rules, then a "Done when" check.
+
+The 10 Vercel and Render agents and commands (`ai-architect`,
+`deployment-expert`, `performance-optimizer`, `render-assistant`; `/bootstrap`,
+`/deploy`, `/env`, `/status`, `/check-render-status`, `/deploy-to-render`) were
+**deleted on 2026-11-25** (owner's call). Every session listed them, which cost
+context on the 32k/64k local seats. The sync scripts never delete a live file,
+so remove the old copies once on each machine that has them:
+
+```powershell
+$aside = Join-Path $env:TEMP "opencode-vendored-aside"; New-Item -ItemType Directory -Force $aside | Out-Null
+$names = "agents/ai-architect","agents/deployment-expert","agents/performance-optimizer","agents/render-assistant",
+         "commands/bootstrap","commands/check-render-status","commands/deploy-to-render","commands/deploy","commands/env","commands/status"
+foreach ($n in $names) {
+    $f = Join-Path $HOME ".config/opencode/$n.md"
+    if (Test-Path -LiteralPath $f) { Move-Item -LiteralPath $f -Destination (Join-Path $aside (($n -replace '/', '-') + ".md")); "moved $n" }
+}
+```
+
+Check that OpenCode no longer lists them, then delete `$aside`.
 
 > `implement.md` and `coder.md` were **deleted 2026-09-17**. The coder subagent
 > was pinned to `qwen2.5-coder-16k`, which cannot emit a parseable tool call, so

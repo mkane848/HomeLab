@@ -1,51 +1,40 @@
 ---
-description: Enter or run tooling inside a project's devcontainer (pinned Node 22 + build toolchain). Targets LFCbot and asohav.
+description: Run a command for LFCbot or ASoHaV inside a Node 22 container (dev-base:1) with the project mounted.
 ---
 
-# Dev Container
+# Dev container
 
-Enter a project's dev environment without leaving OpenCode. Each project has a
-`.devcontainer/` that pins a Node 22 toolchain (built on the shared `dev-base:1`
-image from `dev/docker/dev.dockerfile` - node:22-bookworm + python3.12 + build
-tools). CPU-only; no model runs in-container (desktop `.wslconfig` has
-`gpuSupport=false`).
+Run one command for a project inside the shared `dev-base:1` image (Node 22, Python 3.11, git, build tools), with the
+project mounted at `/workspace`. `$ARGUMENTS` is a project alias or path, then the command (default `bash`). If the
+project is unknown, show the table and ask.
 
-## Known projects
+| Alias | Path |
+|---|---|
+| `lfcbot` | `M:\Projects\LFCbot` |
+| `asohav` | `M:\TTRPG\A Story of Heroes and Villains` |
 
-| Alias | Path | Extra in image |
-|---|---|---|
-| `lfcbot` | `M:\Projects\LFCbot` | - |
-| `asohav` | `M:\TTRPG\A Story of Heroes and Villains` | Playwright chromium + system deps |
-
-`$ARGUMENTS` = alias, full path to a project with a `.devcontainer`, or a
-command to run (default `bash`). If unknown, list the table and ask.
-
-## Run a command in a project container
-
-Reuse the same mounts the project's devcontainer declares so native modules
-(`node_modules` volumes) persist and don't blow up the Windows filesystem:
+## Command
 
 ```
-docker run --rm -it --memory 4g --cpus 4 \
-  -v "M:\TTRPG\A Story of Heroes and Villains:/workspace" \
-  -v asohav-node_modules:/workspace/node_modules \
-  -w /workspace dev-base:1 bash -lc "<command>"
+docker run --rm --memory 4g --cpus 4 -v "<path>:/workspace" -v <alias>-node_modules:/workspace/node_modules -w /workspace dev-base:1 bash -lc "<command>"
 ```
 
-- If the project has an `.devcontainer/` with a custom `FROM dev-base:1` image
-  (asohav), build it first: `docker build -t <proj>-dev -f <proj>\.devcontainer\Dockerfile <proj>` then run that image instead.
-- First use installs deps: `npm install` (+ `npx playwright install --with-deps chromium` for asohav - already baked at image build if the project image is used).
-- For VS Code, point the user at `.devcontainer/devcontainer.json` (Dev
-  Containers extension opens it directly).
+- If `dev-base:1` is missing (`docker image inspect dev-base:1` fails), build it with `.\desktop\scripts\docker-base.ps1`.
+- The named `node_modules` volume keeps Linux-built native modules out of the Windows checkout. On first use run
+  `npm install` inside the container.
+- If the project has a `.devcontainer/Dockerfile`, build and use that image instead
+  (`docker build -t <alias>-dev -f "<path>\.devcontainer\Dockerfile" "<path>"`). Neither project has one today.
 
-## After the run
+## Rules
 
-- Report the command output and exit code.
-- Confirm the container was `--rm` (nothing lingering in `docker ps -a`).
-- If they want the container to persist for a multi-step session, use
-  `docker run -d --name proj-dev ...` + `docker exec`, ending with
-  `docker rm -f proj-dev`.
-- Never copy secrets into the container. It talks to the host Postgres at
-  `host.docker.internal:5432` (or the published `127.0.0.1` port) if a project
-  needs a DB; those credentials should come from the user via args/env, not
-  from `.env` copies.
+- Always `--rm`, `--memory` and `--cpus`.
+- Never copy secrets or `.env` files into the container. A project that needs a database gets `DATABASE_URL` from the
+  user, through `-e`. The host's Postgres is `host.docker.internal:5432`.
+- CPU only: no `--gpus`, and no model runs in the container.
+- A multi-step session uses `docker run -d --name <alias>-dev ...`, then `docker exec`, and ends with
+  `docker rm -f <alias>-dev`.
+
+## Done when
+
+- You have reported the command's output and exit code.
+- `docker ps -a` shows no container this run left behind.
