@@ -6,7 +6,7 @@ It is not an app codebase: most changes are bash and PowerShell scripts, JSONC c
 
 **North star:** turn every machine in the house into interchangeable compute for one Claude Code / Codex-like
 experience. You prompt in plain language and the fleet supplies the models: the profile selects one, OpenCode pins it,
-tests enforce it. Progress gates by hardware, not by preference. See `docs/roadmap.md`.
+tests enforce it. Progress gates by hardware, not by preference. What is next: `docs/plan.md`.
 
 This file follows [Factory's AGENTS.md guide](https://docs.factory.com/harness/agents-md). History, incidents and
 postmortems are in `CHANGELOG.md` and `docs/roadmap.md`, not here.
@@ -64,7 +64,8 @@ The long reference lives in `docs/reference/` (moved there from this file on 202
 | Symptom → cause → fix (tool-calling, context, VRAM, Vulkan, env vars, GPU loss) | [`docs/reference/gotchas.md`](docs/reference/gotchas.md) |
 | A testing window on the server and node3 with no one there (`run-window.ps1`, `llamacpp-window.sh`) | [`docs/unattended-window.md`](docs/unattended-window.md) |
 | Working on node3 over ssh, and git there | [`node3/README.md`](node3/README.md) → "Working on node3 over ssh", "Git on node3" |
-| History, incidents, postmortems | `CHANGELOG.md`, `docs/roadmap.md` |
+| What is next, who it waits on | [`docs/plan.md`](docs/plan.md) |
+| History, incidents, postmortems | `CHANGELOG.md`, `docs/roadmap.md` (the dated log) |
 
 **Generated files:** the tables in `docs/reference/machines.md` and `docs/reference/guards.md` come from `machines.tsv`
 and the guard headers. Edit those sources, then run `python3 tests/make-reference.py`. Never hand-edit a generated
