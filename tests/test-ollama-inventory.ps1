@@ -30,11 +30,7 @@ $ps1 = if ($Ps1Path) { $Ps1Path } else { Join-Path $repo "desktop/scripts/ollama
 foreach ($p in $sh, $ps1) { if (-not (Test-Path -LiteralPath $p)) { Write-Host "FAIL: missing $p"; exit 1 } }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function Write-Lf([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path, ($Text -replace "`r`n", "`n")) }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("ollama-inventory-" + [guid]::NewGuid().ToString("N").Substring(0, 12))

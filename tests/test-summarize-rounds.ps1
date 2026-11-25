@@ -34,11 +34,7 @@ $ErrorActionPreference = "Stop"
 . $ScriptPath
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function R3($x) { if ($null -eq $x) { "null" } else { [math]::Round($x, 3) } }
 function Run([string]$Model, [string]$Task, [string]$Grading, [string]$Acc, [string]$Scope = "PASS", [string]$Suite = "PASS", [string]$Fo = "SKIP") {
     $j = [ordered]@{ model = $Model; taskId = $Task; gates = [ordered]@{ scope = $Scope; suite = $Suite; failsOnOld = $Fo } }

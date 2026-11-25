@@ -54,11 +54,7 @@ foreach ($name in "ConvertTo-WindowsArgument", "Run-Native", "Run-NativeTimed") 
 $script:fail = 0
 # The `shell` in a JSON config string, or "" (null or not JSON: a control's adapter).
 function ShellOf([string]$json) { if (-not $json) { return "" }; try { return [string]($json | ConvertFrom-Json -ErrorAction Stop).shell } catch { return "" } }
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 $realVersion = Get-AgentVersion
 $psExe = (Get-Process -Id $PID).Path

@@ -50,11 +50,7 @@ foreach ($name in $names) {
 Invoke-Expression $fnBlock
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function B64([string]$path) {
     if (Test-Path -LiteralPath $path) { return [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) }
     return "<absent>"

@@ -33,11 +33,7 @@ param([string]$ScriptPath = (Join-Path $PSScriptRoot "test-tasks.ps1"))
 
 $ErrorActionPreference = "Stop"
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("sealed-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
 $psExe = (Get-Process -Id $PID).Path

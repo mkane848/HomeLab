@@ -37,11 +37,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Write-Host "FAIL: node is not on PATH"; exit 1 }
 if (-not (Test-Path -LiteralPath $PluginPath)) { Write-Host "FAIL: plugin not found at $PluginPath"; exit 1 }

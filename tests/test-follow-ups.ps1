@@ -34,11 +34,7 @@ Invoke-Expression $fn.Extent.Text
 . (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("followups-" + [guid]::NewGuid().ToString("N"))
 $psExe = (Get-Process -Id $PID).Path
