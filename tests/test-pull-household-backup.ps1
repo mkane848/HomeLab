@@ -108,7 +108,10 @@ exit 98
         $env:PATH = $pathValue
         try { $out = & $pwshPath -NoProfile -File $script -LocalDir $LocalDir -Keep $Keep 2>&1 | Out-String; $code = $LASTEXITCODE }
         finally { $env:PATH = $saved["PATH"] }
-        [pscustomobject]@{ Out = $out; Exit = $code; Calls = @(Get-Content -LiteralPath $log | Where-Object { $_ }) }
+        # pwsh's error view wraps a long message at the console width (on the CI runner, "(ssh" and "exit 255)" landed on
+        # two lines joined by "|"), so the messages are matched with those continuation lines joined back.
+        $flat = $out -replace '\r?\n\s+\|\s?', ' '
+        [pscustomobject]@{ Out = $flat; Exit = $code; Calls = @(Get-Content -LiteralPath $log | Where-Object { $_ }) }
     }
     $sha = { param($p) (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash }
 

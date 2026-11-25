@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - every call is in batch mode, and ssh has `-n`.
   - **Its two header mutations** (the empty-file refusal, the missing-tracker error) are run by `run-mutations.ps1` in
     both CI jobs.
+  - **Learned on the CI runner:**
+    - pwsh's error view wraps a long message at the console width, so "(ssh" and "exit 255)" landed on two lines
+      joined by `|`. The guard now matches messages with those continuation lines joined back.
+    - `run-mutations.ps1` now prints the guard's last 30 lines for any verdict not CAUGHT. Its BASE-RED had said
+      nothing about why.
   - Verification:
     - 23 of 23 on Linux;
     - `run-mutations.ps1 -Only test-pull-household-backup`: 2 of 2 CAUGHT, and the script hashes the same afterwards;
