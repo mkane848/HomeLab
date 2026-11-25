@@ -34,6 +34,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       a reversed sort;
     - `make-reference.py --check`.
 
+- **tests: `test-run-window.ps1` runs to the end on Linux (2026-11-25; the 2026-11-09 audit's item).**
+  - **The cause:** the game scenarios started their stand-in game with `Start-Process -WindowStyle Hidden`, and
+    `-WindowStyle` exists only on Windows. Elsewhere it is a parameter error, which stopped the guard at check 108.
+    Both calls now pass it on Windows only. The Steam registry cases already ran on Windows only.
+  - **The stand-in game off Windows is now a renamed `sh` running `sleep 300; :`**, not a renamed `sleep`. On the
+    ubuntu runner `sleep` is a multi-call coreutils binary that picks its program by name, so the copy printed
+    "coreutils: unknown program" and exited. That turned 8 game checks red in this PR's first CI run, though they
+    passed in this container. The trailing `:` stops `sh` from exec-ing into `sleep` and losing the name.
+    `Stop-Games` now kills the whole process tree (`Kill($true)`). Without that, each `sh` left its `sleep` behind:
+    five orphans after one local run.
+  - **The CI Linux job now runs it too**, so it keeps running to the end there. The Windows job runs it as before.
+  - Verification:
+    - `pwsh -NoProfile -File tests/test-run-window.ps1` on Linux: 154 of 154, game cases included, and
+      `pgrep -af "sleep 300|hlfakegame"` finds nothing afterwards. Before the change it stopped at the
+      Start-Process error.
+    - A probe started a renamed `sh` with these arguments: `Get-Process -Name` finds it, under its own name.
+
 - **tests: every new guard must show it can fail (2026-11-25; the 2026-11-09 audit's "A check that a new guard can fail").**
   - **A new header group in each guard names a one-line break of the code it protects:**
     - `# mutation:` the file;

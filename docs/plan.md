@@ -49,7 +49,6 @@ From the 2026-11-09 audit ([roadmap → Open after the 2026-11-09 audit](roadmap
 From [audit-2026-11-09.md](audit-2026-11-09.md) → "Open: work for an agent":
 - **IPv6 on the model ports.** The firewall rule is IPv4 only.
 - **One shared `Check` helper** for the guards.
-- **`tests/test-run-window.ps1` runs to the end on Linux.**
 
 ## Parked (the owner's call)
 
