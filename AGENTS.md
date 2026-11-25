@@ -42,7 +42,8 @@ Notes:
 Do these in order before calling a change done:
 1. `git diff` the change, and syntax-check every edited script (Commands).
 2. Run the guards for what you touched. A new `tests/test-*.ps1` needs its `# protects:`, `# run-after:` and
-   `# mutation:` header lines, or CI fails; run it under `tests/run-mutations.ps1 -Only <name>`.
+   `# mutation:` header lines, or CI fails; run it under `tests/run-mutations.ps1 -Only <name>`. It gets `Check` by
+   dot-sourcing `tests/lib/guard.ps1` after `$script:fail = 0`.
 3. `python3 tests/make-reference.py --check`.
 4. Reproduce CI's environment for a guard: the runners set `core.autocrlf=true`. Run the guard under
    `GIT_CONFIG_GLOBAL=<file with autocrlf = true>`, with the guard file itself converted to CRLF.

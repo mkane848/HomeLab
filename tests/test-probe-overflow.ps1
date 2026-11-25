@@ -44,11 +44,7 @@ foreach ($var in '$script:OverflowPatterns', '$script:OverflowExclusions', '$scr
 }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function Has([string]$name, [string]$text, [string]$pattern) { Check $name ($text -match $pattern) "True" }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("probe-overflow-" + [guid]::NewGuid().ToString("N").Substring(0, 12))

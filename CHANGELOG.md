@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: one shared `Check` for the guards (2026-11-25; the 2026-11-09 audit's "One shared helper for the guards").**
+  - **`tests/lib/guard.ps1`** defines `Check <name> <actual> <expected>`: a PASS/FAIL line, with a failure counted in
+    the guard's own `$script:fail`. 47 guards carried a byte-identical copy. Each now dot-sources the file in the same
+    place, a 5-line function becoming 1 line, and nothing else changed. The swap was an exact-text replacement,
+    asserted to occur once per file, keeping each file's line endings: two guards have mixed endings on purpose.
+  - **Kept their own `Check`:** the 11 guards whose version differs, by extra context or another format.
+    `test-context-events` has no `Check`.
+  - **A broken helper cannot pass quietly.** The guards with `# mutation:` headers that use it, run by
+    `run-mutations.ps1` in CI, would go SURVIVED if `Check` stopped counting failures.
+  - **Verification:**
+    - The whole suite (`tests/run-guards.ps1`) ran on Linux, on this branch and on a fresh `origin/main` worktree.
+      Per guard, the verdict and PASS/FAIL counts match for 57 of 58. The odd one, `test-clean-recheck`, failed one
+      check on `main` because the two runs were in parallel; run alone there it passes 14 of 14, as on this branch.
+    - Every `.ps1` in `tests/` parses.
+    - `make-reference.py --check`.
+
 - **tests: a guard for `pull-household-backup.ps1` (2026-11-25; the 2026-11-09 audit's item).**
   - **The desktop's nightly copy of the server's household backups had no guard,** because it needs ssh. A silent
     success that copied nothing, or kept an empty file as a backup, would be found only on the day the copy was needed.
