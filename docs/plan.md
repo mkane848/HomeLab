@@ -48,7 +48,6 @@ From the 2026-11-09 audit ([roadmap → Open after the 2026-11-09 audit](roadmap
 
 From [audit-2026-11-09.md](audit-2026-11-09.md) → "Open: work for an agent":
 - **IPv6 on the model ports.** The firewall rule is IPv4 only.
-- **A check that a new guard can fail.** The mutation-check rule in `AGENTS.md` is enforced by nothing.
 - **One shared `Check` helper** for the guards.
 - **A guard for `pull-household-backup.ps1`.**
 
