@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
-  - **`docs/plan.md` is the live plan,** about 80 lines. It has these sections:
+  - **`docs/plan.md` is the live plan,** 67 lines. It has these sections:
     - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;
     - Next, in order: the pilot, containerised runs, the planner-free run, and checking planner sets;
     - the owner's steps not yet done;
