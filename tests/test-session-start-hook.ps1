@@ -1,5 +1,9 @@
 # protects: .claude/hooks/session-start.sh (the remote sessions' pwsh install): nothing unpacked unless its sha256 is the pin
 # run-after: .claude/hooks/session-start.sh
+# mutation: .claude/hooks/session-start.sh
+# mutation-from: if [ "$GOT" != "$PWSH_SHA256" ]; then
+# mutation-to: if false; then
+# mutation-expect: FAIL\s+REFUSED, naming
 # test-session-start-hook.ps1 - regression guard for the remote sessions' PowerShell install.
 #
 # Why this exists: the hook downloads a PowerShell tarball and unpacks it into /opt as root, in every cloud session.

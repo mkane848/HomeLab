@@ -1,5 +1,9 @@
 # protects: the Ollama uninstall dry runs (server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1): read-only, and READY only when nothing still needs Ollama's files
 # run-after: server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1, or llamacpp-check.sh's weights check
+# mutation: desktop/scripts/ollama-inventory.ps1
+# mutation-from: else { $blockers.Add("$full (sha256 $sha) matches no weights pin in $SeatsPath, so the Ollama store may hold the only good copy") }
+# mutation-to: else { }
+# mutation-expect: FAIL\s+NOT READY, naming the unpinned file
 # test-ollama-inventory.ps1 - regression guard for the two Ollama uninstall dry runs.
 #
 # Why this exists: deleting Ollama's volume and model stores is not reversible, and the owner runs the delete

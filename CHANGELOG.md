@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: every new guard must show it can fail (2026-11-25; the 2026-11-09 audit's "A check that a new guard can fail").**
+  - **A new header group in each guard names a one-line break of the code it protects:**
+    - `# mutation:` the file;
+    - `# mutation-from:` and `# mutation-to:` the exact text and its replacement;
+    - `# mutation-expect:` the FAIL line the guard must then print.
+
+    The expect line shows *where* the guard caught it, so a later step's exit 1 cannot pass for it (AGENTS.md's
+    two incidents).
+  - **`tests/run-mutations.ps1`** runs each guard unmutated, then once per mutation. It refuses a target that differs
+    from git. It copies the file aside, replaces the text byte for byte (line endings kept) and puts the original back,
+    then checks the sha256. The verdicts:
+    - CAUGHT;
+    - SKIPPED, when the guard printed no PASS line here (e.g. a Linux-only guard on Windows);
+    - SURVIVED, WRONG-PLACE, BASE-RED, STALE, DIRTY, NOT-RESTORED or TIMEOUT. Each of these fails the run.
+  - **`make-reference.py --check` refuses:**
+    - a guard with no mutation, unless it is in `tests/mutation-exempt.txt` (the 57 older guards; capped at 57, so
+      the list only shrinks);
+    - an incomplete group;
+    - a `mutation-from` that no longer occurs exactly once;
+    - an exempt name that is not a guard.
+  - **Seeded with real rules,** so the 57 exempt guards are 57 of 59:
+    - `test-session-start-hook`: the hook's sha256 comparison;
+    - `test-ollama-inventory`: `ollama-inventory.ps1`'s refusal of an unpinned model.
+  - **CI:** the Linux job runs the mutations of the Linux guards. The Windows job runs all of them after
+    `run-guards.ps1`, and the logs are in the artifact.
+  - **Guard `tests/test-run-mutations.ps1`** runs the real runner on a throwaway repo. It checks each verdict and exit
+    code, and that a CRLF, non-ASCII target is byte-identical after every run. It also checks make-reference's five
+    refusals and its acceptance of a good guard. Its own three mutations:
+    - a SURVIVED marked CAUGHT;
+    - the restore removed;
+    - the header rule disabled.
+  - **Verification:**
+    - `pwsh -NoProfile -File tests/run-mutations.ps1`: 5 of 5 mutations CAUGHT, and all four mutated files have the
+      same sha256 before and after;
+    - `tests/test-run-mutations.ps1`: 29 of 29, also run CRLF under `GIT_CONFIG_GLOBAL` with `autocrlf = true`;
+    - `python3 tests/make-reference.py --check`;
+    - `checks.yml` parses as YAML.
+
 - **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
   - **`docs/plan.md` is the live plan,** 67 lines. It has these sections:
     - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;
