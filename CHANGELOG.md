@@ -26,6 +26,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Merge order:** the owner upgrades node3 (step 5.3), then this merges. On 1.19.5, a directory plugin would not
     load.
 
+- **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
+  - **`docs/plan.md` is the live plan,** 67 lines. It has these sections:
+    - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;
+    - Next, in order: the pilot, containerised runs, the planner-free run, and checking planner sets;
+    - the owner's steps not yet done;
+    - open for an agent;
+    - parked;
+    - outside the plan.
+
+    Each row says whose step it is and what it waits on, and links into the log for the detail.
+  - **`docs/roadmap.md` is unchanged** apart from a banner pointing to `plan.md`. Its sections and anchors stay, because
+    108 references in 70 files cite them.
+  - `AGENTS.md`, `docs/README.md`, `docs/start-here.md` and the audit's row now point to `plan.md` for what is next.
+  - Verification: every link and anchor in `plan.md` was checked against the headings it targets;
+    `python3 tests/make-reference.py --check`; `bash tests/lint-doc-claims.sh`.
+
+- **opencode: the agent and command files follow Factory's AGENTS.md guide; the Vercel and Render imports deleted (2026-11-25; the owner's request and call).**
+  - **Deleted:** the 4 agents and 6 commands copied from Anthropic's Vercel and Render plugins:
+    - agents `ai-architect`, `deployment-expert`, `performance-optimizer`, `render-assistant` (63 KB);
+    - commands `/bootstrap`, `/deploy`, `/env`, `/status`, `/check-render-status`, `/deploy-to-render`.
+
+    Every OpenCode session listed them, which cost context on the 32k/64k local seats. The 2026-11-09 audit flagged
+    them. The plugin originals stay in `claude/imports/` as provenance, and git history keeps the OpenCode ports. The
+    copies were moved aside and hash-checked against `origin/main`'s blobs before the `git rm`.
+  - **The sync scripts never delete a live file,** so the staged copies stay on the desktop and node3 until removed.
+    `opencode/README.md` has the move-aside snippet, the owner's step. `opencode/agents/` keeps a `.gitkeep`, so both
+    sync scripts find the folder.
+  - **The three repo-owned commands were rewritten:** the command first, then concrete rules, then "Done when".
+    - `/sandbox`: the base image's Python is 3.11 (bookworm), not 3.12 as the file said.
+    - `/devcontainer`: neither LFCbot nor ASoHaV has a `.devcontainer/`, on its default branch or in history. The
+      command now runs `dev-base:1` with the project mounted, and uses a project's own Dockerfile only if one
+      appears. `-it` was dropped, because the agent's shell has no TTY.
+    - `/plan`: the same two sections. It adds "change no other file" and a one-line reply.
+  - **Docs fixed:** `opencode/README.md`, `claude/README.md`, and the audit's row. `docs/reference/config.md` said the
+    importer writes into `opencode/agents|commands`; it writes `claude/imports/`.
+
 - **docs: `AGENTS.md` restructured along Factory's AGENTS.md guide (2026-11-24; the owner's request).**
   - **Commands and Verification come first:**
     - syntax checks, shellcheck, one guard, every guard, the reference tables, and waiting on CI;

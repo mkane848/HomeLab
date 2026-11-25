@@ -25,7 +25,8 @@ One homelab: a server and two PCs running local LLMs, driven from OpenCode (dail
 
 | Doc | What it holds |
 |---|---|
-| [roadmap.md](roadmap.md) | Ordered backlog and the long result log |
+| [plan.md](plan.md) | The live plan: in flight, next, the owner's steps, parked |
+| [roadmap.md](roadmap.md) | The dated log: past backlogs and results, with the anchors other docs cite |
 | [llamacpp-trial.md](llamacpp-trial.md) | llama.cpp engine trial: runbook and results |
 | [main-seat-trial.md](main-seat-trial.md) | The plain-language trial that chose the main seat |
 | [adversarial-review-2026-09-29.md](adversarial-review-2026-09-29.md), [adversarial-review-2026-10-23.md](adversarial-review-2026-10-23.md) | What each harness measures, what to stop claiming (the second was written by a Claude subagent) |

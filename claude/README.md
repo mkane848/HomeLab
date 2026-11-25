@@ -26,8 +26,8 @@ Windows. Versioned copies sit in:
 ## What's included
 
 - **62 skills** — `frontend-design` (1), `render` (21), `vercel` (33), `ui-ux-pro-max` (7)
-- **4 agents** — vercel: `ai-architect`, `deployment-expert`, `performance-optimizer`; render: `render-assistant`
-- **6 commands** — vercel: `bootstrap`, `deploy`, `env`, `status`; render: `check-render-status`, `deploy-to-render`
+- **4 agents** (in `imports/` only, not deployed) — vercel: `ai-architect`, `deployment-expert`, `performance-optimizer`; render: `render-assistant`
+- **6 commands** (in `imports/` only, not deployed) — vercel: `bootstrap`, `deploy`, `env`, `status`; render: `check-render-status`, `deploy-to-render`
 - **2 MCP servers** (opt-in, need runtime auth):
   - vercel: `https://mcp.vercel.com` (OAuth)
   - render: `https://mcp.render.com/mcp` (OAuth)
@@ -67,7 +67,8 @@ deploy. The importer keeps them under `skills/<source>/` in dev-docs;
 
 ## Relationship to dev-docs
 
-- `skills/` and `opencode/commands|agents` are the **canonical deployed artifacts**
-- `imports/` is raw provenance (reference only; not deployed)
+- `skills/` is the **canonical deployed artifact**
+- `imports/` is raw provenance (reference only; not deployed). Since 2026-11-25 that includes the plugins' agents
+  and commands: the OpenCode ports in `opencode/agents|commands` were deleted (owner's call), so nothing stages them
 - The MCP comment block in `opencode/global/opencode.jsonc` is the deploy point
   for the two cloud MCP servers

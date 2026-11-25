@@ -1,6 +1,10 @@
 # Roadmap
 
-Ordered backlog for the hybrid LLM fleet. Items are TODOs, not commitments.
+> **The live plan is [plan.md](plan.md)** (since 2026-11-25). This file is the dated log: what was planned,
+> tried and decided, oldest lists kept as the record. Its sections and anchors stay where they are, because other docs
+> link to them. Add new results here; keep what is next in `plan.md`.
+
+The backlog and result log for the hybrid LLM fleet. Items are TODOs, not commitments.
 
 **Sections other docs cite** (stable anchors; the bulk of this file is a dated log):
 
