@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
+  - **`docs/plan.md` is the live plan,** about 80 lines. It has these sections:
+    - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;
+    - Next, in order: the pilot, containerised runs, the planner-free run, and checking planner sets;
+    - the owner's steps not yet done;
+    - open for an agent;
+    - parked;
+    - outside the plan.
+
+    Each row says whose step it is and what it waits on, and links into the log for the detail.
+  - **`docs/roadmap.md` is unchanged** apart from a banner pointing to `plan.md`. Its sections and anchors stay, because
+    108 references in 70 files cite them.
+  - `AGENTS.md`, `docs/README.md`, `docs/start-here.md` and the audit's row now point to `plan.md` for what is next.
+  - Verification: every link and anchor in `plan.md` was checked against the headings it targets;
+    `python3 tests/make-reference.py --check`; `bash tests/lint-doc-claims.sh`.
+
 - **docs: `AGENTS.md` restructured along Factory's AGENTS.md guide (2026-11-24; the owner's request).**
   - **Commands and Verification come first:**
     - syntax checks, shellcheck, one guard, every guard, the reference tables, and waiting on CI;

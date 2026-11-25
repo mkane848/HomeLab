@@ -95,4 +95,4 @@ Run `.\tests\test-profiles.ps1` first; expect `0 FAIL`. A SKIP is a host that di
 | Add or change a model | [reference/config.md](reference/config.md) → "Adding a model" |
 | Fix the server | [server-recovery-cpu-led.md](server-recovery-cpu-led.md) |
 | Use VS Code | [vscode.md](vscode.md) |
-| See what's open | [roadmap.md](roadmap.md) |
+| See what's open | [plan.md](plan.md) |
