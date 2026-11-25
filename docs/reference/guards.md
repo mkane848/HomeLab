@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-60 guards.
+61 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -46,6 +46,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-planner-local.ps1` | run-planner-local.ps1 prompt path rewrite, the audit of tool calls outside the scratch folder, and collecting files from the clone | run-planner-local.ps1 |
 | `tests/test-probe-overflow.ps1` | probe-overflow.ps1 verdicts and OpenCode overflow patterns | probe-overflow.ps1 or an opencode upgrade |
 | `tests/test-profiles.ps1` | Primary harness: live profiles vs intent manifest, host liveness, round-trip, reliability | Any profile or opencode.jsonc |
+| `tests/test-pull-household-backup.ps1` | desktop/scripts/pull-household-backup.ps1 (the desktop's copy of the server's household backups): newest copied, a missing tracker backup is an error, nothing empty or half-copied kept under a backup's name, the newest -Keep kept | desktop/scripts/pull-household-backup.ps1 |
 | `tests/test-read-budget.ps1` | opencode/plugins/read-budget.js (1.x) and read-budget/index.js (2.x); fails on any opencode but 1.19.5 or 2.3.2 | The plugin or its core.js, any opencode upgrade, Start/Stop-AgentRunEnv |
 | `tests/test-repo-roots.ps1` | Per-host repo-root map (tests/repo-roots.tsv, Set-TaskRepoRoots copies) | The map, the function or how either script reads a task's repo |
 | `tests/test-retired-tasks.ps1` | Retired tasks left out of default selection | The manifest's retired objects or task selection |

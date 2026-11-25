@@ -100,10 +100,10 @@ foreach ($g in $guards) {
     $i = 0
     foreach ($m in $g.Mutations) {
         $i++
-        $row = [ordered]@{ Guard = $name; N = $i; File = $m.Path; Verdict = $null; Detail = "" }
+        $row = [ordered]@{ Guard = $name; N = $i; File = $m.Path; Verdict = $null; Detail = ""; Log = $null }
         $results.Add($row)
         if (-not $m.From -or $null -eq $m.To -or -not $m.Expect) { $row.Verdict = "INCOMPLETE"; $row.Detail = "needs mutation-from, -to and -expect"; continue }
-        if (-not $baseOk) { $row.Verdict = "BASE-RED"; $row.Detail = "the guard is red unmutated (exit $($base.Exit))"; continue }
+        if (-not $baseOk) { $row.Verdict = "BASE-RED"; $row.Detail = "the guard is red unmutated (exit $($base.Exit))"; $row.Log = $base.Text; continue }
         if (-not $runsHere) { $row.Verdict = "SKIPPED"; $row.Detail = "the guard printed no PASS line here"; continue }
         $target = Join-Path $repo $m.Path
         if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { $row.Verdict = "STALE"; $row.Detail = "no file $($m.Path)"; continue }
@@ -129,6 +129,7 @@ foreach ($g in $guards) {
         $shaAfter = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([IO.File]::ReadAllBytes($target)))
         if ($shaAfter -ne $shaBefore) { $row.Verdict = "NOT-RESTORED"; $row.Detail = "the original is in $aside"; continue }
         Remove-Item -LiteralPath $aside -Force
+        $row.Log = $r.Text
         if ($r.TimedOut) { $row.Verdict = "TIMEOUT"; $row.Detail = "the mutated run hit $TimeoutSec s" }
         elseif ($r.Exit -eq 0) { $row.Verdict = "SURVIVED"; $row.Detail = "the guard stayed green with the rule broken" }
         elseif ($r.Text -notmatch $m.Expect) { $row.Verdict = "WRONG-PLACE"; $row.Detail = "red (exit $($r.Exit)) but no output matched '$($m.Expect)'" }
@@ -142,6 +143,11 @@ foreach ($r in $results) {
     Write-Host ("{0,-12} {1} #{2} ({3}): {4}" -f $r.Verdict, $r.Guard, $r.N, $r.File, $r.Detail) -ForegroundColor $color
 }
 $bad = @($results | Where-Object { $_.Verdict -notin "CAUGHT", "SKIPPED" })
+# The guard's own words, for a verdict that needs them: CI keeps only this step's output.
+foreach ($r in @($bad | Where-Object { $_.Log })) {
+    Write-Host "---- $($r.Guard) #$($r.N) ($($r.Verdict)), the guard's last 30 lines ----"
+    @($r.Log -split "`n") | Select-Object -Last 30 | ForEach-Object { Write-Host $_ }
+}
 if ($env:GITHUB_STEP_SUMMARY) {
     $md = @("### Mutations: $(@($results | Where-Object Verdict -eq 'CAUGHT').Count) caught, $(@($results | Where-Object Verdict -eq 'SKIPPED').Count) skipped, $($bad.Count) not caught", "", "| guard | # | file | verdict | detail |", "|---|---|---|---|---|")
     $md += $results | ForEach-Object { "| ``$($_.Guard)`` | $($_.N) | ``$($_.File)`` | $($_.Verdict) | $($_.Detail -replace '\|', '\|') |" }
