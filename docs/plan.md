@@ -39,7 +39,9 @@ From the 2026-11-09 audit ([roadmap → Open after the 2026-11-09 audit](roadmap
 3. Pull `main` on the server, so the nightly backup includes the chat. Check that the next `backup.log` has two lines.
 4. Run `tests\run-window.ps1 -Plan` on the desktop once, to see what the "GPU to itself" gate reads.
 5. Run `summarize-rounds.ps1` on a recent private round, with and without `-ExcludeTimeouts`.
-6. Roll out the engine API keys, together with the server redeploy: [engine-api-keys.md](engine-api-keys.md) →
+6. Remove the deleted Vercel and Render agents and commands from the desktop's and node3's live OpenCode config
+   (#268; the sync scripts never delete a live file): the snippet in `opencode/README.md`.
+7. Roll out the engine API keys, together with the server redeploy: [engine-api-keys.md](engine-api-keys.md) →
    "Rollout".
 
 ## Open for an agent
@@ -50,8 +52,6 @@ From [audit-2026-11-09.md](audit-2026-11-09.md) → "Open: work for an agent":
 - **One shared `Check` helper** for the guards.
 - **`tests/test-run-window.ps1` runs to the end on Linux.**
 - **A guard for `pull-household-backup.ps1`.**
-- **The OpenCode agents and commands follow Factory's AGENTS.md guide** (owner's request, 2026-11-25): concrete rules,
-  and the Vercel and Render imports the audit flagged removed.
 
 ## Parked (the owner's call)
 
