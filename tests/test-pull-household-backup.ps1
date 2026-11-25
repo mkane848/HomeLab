@@ -34,10 +34,13 @@ $script = if ($ScriptPath) { $ScriptPath } else { Join-Path $repo "desktop/scrip
 if (-not (Test-Path -LiteralPath $script)) { Write-Host "FAIL: missing $script"; exit 1 }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
+function Check([string]$name, $actual, $expected, [string]$Context = "") {
     $ok = ("$actual" -eq "$expected")
     Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
+    if (-not $ok) {
+        Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++
+        if ($Context) { Write-Host "     the script said:"; $Context.TrimEnd() -split "`n" | ForEach-Object { Write-Host "       $_" } }
+    }
 }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("pull-backup-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
@@ -139,22 +142,22 @@ exit 98
     Get-ChildItem -LiteralPath $rdir -Filter "grocy-*" | Remove-Item
     New-RemoteBackup "openwebui-20261122.tar.gz" 5
     $r = Invoke-Pull (Join-Path $tmp "local3")
-    Check "no tracker backup on the server: an error" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'no backup found on server:backups/household')) "True|True"
+    Check "no tracker backup on the server: an error" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'no backup found on server:backups/household')) "True|True" $r.Out
     Check "...and the chat backup is not pulled after it" @($r.Calls -like "scp *").Count 0
 
     Write-Host "-- ssh fails"
     New-RemoteBackup "grocy-20261122.tar.gz" 5
     $r = Invoke-Pull (Join-Path $tmp "local4") @{ FAKE_SSH_EXIT = "255" }
-    Check "ssh failing is an error naming its exit code" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'ssh exit 255')) "True|True"
+    Check "ssh failing is an error naming its exit code" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'ssh exit 255')) "True|True" $r.Out
 
     Write-Host "-- scp fails, or delivers nothing"
     $l5 = Join-Path $tmp "local5"
     $r = Invoke-Pull $l5 @{ FAKE_SCP_EXIT = "1" }
-    Check "an scp failure is an error" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'scp failed \(exit 1\)')) "True|True"
+    Check "an scp failure is an error" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'scp failed \(exit 1\)')) "True|True" $r.Out
     Check "...and nothing is under the backup's name" (Test-Path (Join-Path $l5 "grocy-20261122.tar.gz")) "False"
     $l6 = Join-Path $tmp "local6"
     $r = Invoke-Pull $l6 @{ FAKE_SCP_EMPTY = "1" }
-    Check "an empty copy is refused" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'grocy-20261122\.tar\.gz arrived empty')) "True|True"
+    Check "an empty copy is refused" ("{0}|{1}" -f ($r.Exit -ne 0), ($r.Out -match 'grocy-20261122\.tar\.gz arrived empty')) "True|True" $r.Out
     Check "...and nothing is under the backup's name" (Test-Path (Join-Path $l6 "grocy-20261122.tar.gz")) "False"
     $r = Invoke-Pull $l6
     Check "the next good run copies it" ("{0}|{1}" -f $r.Exit, ((Get-Item (Join-Path $l6 "grocy-20261122.tar.gz")).Length -gt 0)) "0|True"
