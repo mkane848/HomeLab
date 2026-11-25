@@ -405,11 +405,15 @@ exit $(if ($spec -and $null -ne $spec.exit) { [int]$spec.exit } else { 0 })
     $gameName = "hlfakegame" + [guid]::NewGuid().ToString("N").Substring(0, 6)
     $gameExe = Join-Path $tmp $(if ($IsWindows) { "$gameName.exe" } else { $gameName })
     if ($IsWindows) { Copy-Item (Join-Path $env:SystemRoot "System32\PING.EXE") $gameExe; $gameArgs = @("-n", "300", "127.0.0.1") }
-    else { Copy-Item (Get-Command sleep).Source $gameExe; & chmod +x $gameExe; $gameArgs = @("300") }
+    # Off Windows: a renamed copy of sh running `sleep 300; :`. Not a renamed sleep: on the ubuntu runner sleep is a
+    # multi-call coreutils binary that picks its program from its name ("coreutils: unknown program", CI 2026-11-25).
+    # The trailing `:` keeps sh from exec-ing into sleep, which would change the process name.
+    else { Copy-Item (Get-Command sh).Source $gameExe; & chmod +x $gameExe; $gameArgs = @("-c", '"sleep 300; :"') }
     $games = [hashtable]::Synchronized(@{ Exe = $gameExe; Args = $gameArgs; Pids = [Collections.ArrayList]::Synchronized([Collections.ArrayList]::new()) })
     # -WindowStyle exists only on Windows' Start-Process; elsewhere it is a parameter error (it stopped this guard on Linux).
     function Start-Game { $h = if ($IsWindows) { @{ WindowStyle = "Hidden" } } else { @{} }; $p = Start-Process -FilePath $games.Exe -ArgumentList $games.Args -PassThru @h -ErrorAction Stop; [void]$games.Pids.Add($p.Id); $p }
-    function Stop-Games { foreach ($id in @($games.Pids)) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }; $games.Pids.Clear() }
+    # The whole tree: off Windows the stand-in is sh with a sleep child, which Stop-Process alone would orphan.
+    function Stop-Games { foreach ($id in @($games.Pids)) { try { (Get-Process -Id $id -ErrorAction Stop).Kill($true) } catch { } }; $games.Pids.Clear() }
     $noSteam = Join-Path $tmp "no-such-steam-key"
     & {
         . $runner
