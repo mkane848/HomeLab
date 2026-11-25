@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-59 guards.
+60 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -52,6 +52,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-retry-loop.ps1` | run-retries.ps1 dispatcher loop, verdict (selector, truth) and falsifier | run-retries.ps1 |
 | `tests/test-revert-source.ps1` | failsOnOld source revert (Save/Restore-SourceFiles, multi-file, two worktrees) | How test-tasks.ps1 reverts source or builds native argument lists |
 | `tests/test-run-cost.ps1` | Run usage and cost estimates (Get-TranscriptUsage, Get-RunCostEstimate) | How a transcript is read or a cost is computed |
+| `tests/test-run-mutations.ps1` | tests/run-mutations.ps1 (a guard must go red when the rule it protects is broken) and make-reference.py's mutation-header rule | tests/run-mutations.ps1, tests/make-reference.py, tests/mutation-exempt.txt |
 | `tests/test-run-window.ps1` | run-window.ps1 unattended window (gate, smoke go/no-go, deadline, STOP, server watch, games, unload, slices, report) | run-window.ps1, run-retries.ps1 or run-tasks-batch.ps1 (their command lines), or the llama.cpp engine adapter |
 | `tests/test-sealed-checkout.ps1` | Sealed task checkout (no future commits, refs, stashes or remotes) | How a task's checkout is made, reset or graded |
 | `tests/test-session-start-hook.ps1` | .claude/hooks/session-start.sh (the remote sessions' pwsh install): nothing unpacked unless its sha256 is the pin | .claude/hooks/session-start.sh |
