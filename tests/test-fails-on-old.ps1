@@ -24,11 +24,7 @@ $null = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [
 if ($errs.Count) { $errs; exit 2 }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("foo-test-" + [guid]::NewGuid().ToString("N"))
 $psExe = (Get-Process -Id $PID).Path

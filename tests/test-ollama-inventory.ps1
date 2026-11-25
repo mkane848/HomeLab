@@ -1,5 +1,9 @@
 # protects: the Ollama uninstall dry runs (server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1): read-only, and READY only when nothing still needs Ollama's files
 # run-after: server/scripts/ollama-inventory.sh, desktop/scripts/ollama-inventory.ps1, or llamacpp-check.sh's weights check
+# mutation: desktop/scripts/ollama-inventory.ps1
+# mutation-from: else { $blockers.Add("$full (sha256 $sha) matches no weights pin in $SeatsPath, so the Ollama store may hold the only good copy") }
+# mutation-to: else { }
+# mutation-expect: FAIL\s+NOT READY, naming the unpinned file
 # test-ollama-inventory.ps1 - regression guard for the two Ollama uninstall dry runs.
 #
 # Why this exists: deleting Ollama's volume and model stores is not reversible, and the owner runs the delete
@@ -26,11 +30,7 @@ $ps1 = if ($Ps1Path) { $Ps1Path } else { Join-Path $repo "desktop/scripts/ollama
 foreach ($p in $sh, $ps1) { if (-not (Test-Path -LiteralPath $p)) { Write-Host "FAIL: missing $p"; exit 1 } }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function Write-Lf([string]$Path, [string]$Text) { [IO.File]::WriteAllText($Path, ($Text -replace "`r`n", "`n")) }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("ollama-inventory-" + [guid]::NewGuid().ToString("N").Substring(0, 12))

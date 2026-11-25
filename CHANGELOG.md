@@ -26,6 +26,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Merge order:** the owner upgrades node3 (step 5.3), then this merges. On 1.19.5, a directory plugin would not
     load.
 
+- **tests: one shared `Check` for the guards (2026-11-25; the 2026-11-09 audit's "One shared helper for the guards").**
+  - **`tests/lib/guard.ps1`** defines `Check <name> <actual> <expected>`: a PASS/FAIL line, with a failure counted in
+    the guard's own `$script:fail`. 47 guards carried a byte-identical copy. Each now dot-sources the file in the same
+    place, a 5-line function becoming 1 line, and nothing else changed. The swap was an exact-text replacement,
+    asserted to occur once per file, keeping each file's line endings: two guards have mixed endings on purpose.
+  - **Kept their own `Check`:** the 11 guards whose version differs, by extra context or another format.
+    `test-context-events` has no `Check`.
+  - **A broken helper cannot pass quietly.** The guards with `# mutation:` headers that use it, run by
+    `run-mutations.ps1` in CI, would go SURVIVED if `Check` stopped counting failures.
+  - **Verification:**
+    - The whole suite (`tests/run-guards.ps1`) ran on Linux, on this branch and on a fresh `origin/main` worktree.
+      Per guard, the verdict and PASS/FAIL counts match for 57 of 58. The odd one, `test-clean-recheck`, failed one
+      check on `main` because the two runs were in parallel; run alone there it passes 14 of 14, as on this branch.
+    - Every `.ps1` in `tests/` parses.
+    - `make-reference.py --check`.
+
+- **tests: a guard for `pull-household-backup.ps1` (2026-11-25; the 2026-11-09 audit's item).**
+  - **The desktop's nightly copy of the server's household backups had no guard,** because it needs ssh. A silent
+    success that copied nothing, or kept an empty file as a backup, would be found only on the day the copy was needed.
+  - **`tests/test-pull-household-backup.ps1`** runs the real script in its own pwsh. Its PATH holds stand-in `ssh` and
+    `scp` and no real ones (checked before any case). They serve a fake remote folder, log every call, and can fail or
+    deliver an empty file. 23 checks:
+    - the newest of each prefix is copied, byte for byte;
+    - a second run copies nothing;
+    - no tracker backup is an error; no chat backup is not;
+    - ssh, or an scp, failing is an error;
+    - an empty copy is refused, and nothing stays under the backup's name;
+    - `-Keep` prunes each prefix on its own;
+    - every call is in batch mode, and ssh has `-n`.
+  - **Its two header mutations** (the empty-file refusal, the missing-tracker error) are run by `run-mutations.ps1` in
+    both CI jobs.
+  - **Learned on the CI runner:**
+    - pwsh's error view wraps a long message at the console width, so "(ssh" and "exit 255)" landed on two lines
+      joined by `|`. The guard now matches messages with those continuation lines joined back.
+    - `run-mutations.ps1` now prints the guard's last 30 lines for any verdict not CAUGHT. Its BASE-RED had said
+      nothing about why.
+  - Verification:
+    - 23 of 23 on Linux;
+    - `run-mutations.ps1 -Only test-pull-household-backup`: 2 of 2 CAUGHT, and the script hashes the same afterwards;
+    - three more breaks made by hand on a copy (`-ScriptPath`), each turning the guard red: no `-n`, no pruning, and
+      a reversed sort;
+    - `make-reference.py --check`.
+
+- **tests: `test-run-window.ps1` runs to the end on Linux (2026-11-25; the 2026-11-09 audit's item).**
+  - **The cause:** the game scenarios started their stand-in game with `Start-Process -WindowStyle Hidden`, and
+    `-WindowStyle` exists only on Windows. Elsewhere it is a parameter error, which stopped the guard at check 108.
+    Both calls now pass it on Windows only. The Steam registry cases already ran on Windows only.
+  - **The stand-in game off Windows is now a renamed `sh` running `sleep 300; :`**, not a renamed `sleep`. On the
+    ubuntu runner `sleep` is a multi-call coreutils binary that picks its program by name, so the copy printed
+    "coreutils: unknown program" and exited. That turned 8 game checks red in this PR's first CI run, though they
+    passed in this container. The trailing `:` stops `sh` from exec-ing into `sleep` and losing the name.
+    `Stop-Games` now kills the whole process tree (`Kill($true)`). Without that, each `sh` left its `sleep` behind:
+    five orphans after one local run.
+  - **The CI Linux job now runs it too**, so it keeps running to the end there. The Windows job runs it as before.
+  - Verification:
+    - `pwsh -NoProfile -File tests/test-run-window.ps1` on Linux: 154 of 154, game cases included, and
+      `pgrep -af "sleep 300|hlfakegame"` finds nothing afterwards. Before the change it stopped at the
+      Start-Process error.
+    - A probe started a renamed `sh` with these arguments: `Get-Process -Name` finds it, under its own name.
+
+- **tests: every new guard must show it can fail (2026-11-25; the 2026-11-09 audit's "A check that a new guard can fail").**
+  - **A new header group in each guard names a one-line break of the code it protects:**
+    - `# mutation:` the file;
+    - `# mutation-from:` and `# mutation-to:` the exact text and its replacement;
+    - `# mutation-expect:` the FAIL line the guard must then print.
+
+    The expect line shows *where* the guard caught it, so a later step's exit 1 cannot pass for it (AGENTS.md's
+    two incidents).
+  - **`tests/run-mutations.ps1`** runs each guard unmutated, then once per mutation. It refuses a target that differs
+    from git. It copies the file aside, replaces the text byte for byte (line endings kept) and puts the original back,
+    then checks the sha256. The verdicts:
+    - CAUGHT;
+    - SKIPPED, when the guard printed no PASS line here (e.g. a Linux-only guard on Windows);
+    - SURVIVED, WRONG-PLACE, BASE-RED, STALE, DIRTY, NOT-RESTORED or TIMEOUT. Each of these fails the run.
+  - **`make-reference.py --check` refuses:**
+    - a guard with no mutation, unless it is in `tests/mutation-exempt.txt` (the 57 older guards; capped at 57, so
+      the list only shrinks);
+    - an incomplete group;
+    - a `mutation-from` that no longer occurs exactly once;
+    - an exempt name that is not a guard.
+  - **Seeded with real rules,** so the 57 exempt guards are 57 of 59:
+    - `test-session-start-hook`: the hook's sha256 comparison;
+    - `test-ollama-inventory`: `ollama-inventory.ps1`'s refusal of an unpinned model.
+  - **CI:** the Linux job runs the mutations of the Linux guards. The Windows job runs all of them after
+    `run-guards.ps1`, and the logs are in the artifact.
+  - **Guard `tests/test-run-mutations.ps1`** runs the real runner on a throwaway repo. It checks each verdict and exit
+    code, and that a CRLF, non-ASCII target is byte-identical after every run. It also checks make-reference's five
+    refusals and its acceptance of a good guard. Its own three mutations:
+    - a SURVIVED marked CAUGHT;
+    - the restore removed;
+    - the header rule disabled.
+  - **Verification:**
+    - `pwsh -NoProfile -File tests/run-mutations.ps1`: 5 of 5 mutations CAUGHT, and all four mutated files have the
+      same sha256 before and after;
+    - `tests/test-run-mutations.ps1`: 29 of 29, also run CRLF under `GIT_CONFIG_GLOBAL` with `autocrlf = true`;
+    - `python3 tests/make-reference.py --check`;
+    - `checks.yml` parses as YAML.
+
 - **docs: the roadmap split into a live plan and a dated log (2026-11-25; the 2026-11-09 audit's "roadmap's shape" item).**
   - **`docs/plan.md` is the live plan,** 67 lines. It has these sections:
     - In flight: the Ollama uninstall, the OpenCode 2 cutover (#265, held for node3), and the 13 mined tasks;

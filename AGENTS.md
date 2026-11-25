@@ -23,6 +23,7 @@ Run from the repo root. PowerShell 7 (`pwsh`) is the only supported PowerShell (
 | One guard | `pwsh -NoProfile -File tests/test-<name>.ps1` |
 | Every guard | `pwsh -NoProfile -File tests/run-guards.ps1` |
 | Regenerate the reference tables | `python3 tests/make-reference.py` (CI runs it with `--check`) |
+| Prove the guards can fail | `pwsh -NoProfile -File tests/run-mutations.ps1 [-Only <names>]` (commit first: it refuses a file that differs from git) |
 | Wait for CI on a PR | `gh run watch <id> --exit-status` |
 
 Notes:
@@ -40,8 +41,9 @@ Notes:
 
 Do these in order before calling a change done:
 1. `git diff` the change, and syntax-check every edited script (Commands).
-2. Run the guards for what you touched. A new `tests/test-*.ps1` needs its `# protects:` and `# run-after:` header
-   lines, or CI fails.
+2. Run the guards for what you touched. A new `tests/test-*.ps1` needs its `# protects:`, `# run-after:` and
+   `# mutation:` header lines, or CI fails; run it under `tests/run-mutations.ps1 -Only <name>`. It gets `Check` by
+   dot-sourcing `tests/lib/guard.ps1` after `$script:fail = 0`.
 3. `python3 tests/make-reference.py --check`.
 4. Reproduce CI's environment for a guard: the runners set `core.autocrlf=true`. Run the guard under
    `GIT_CONFIG_GLOBAL=<file with autocrlf = true>`, with the guard file itself converted to CRLF.
@@ -123,6 +125,11 @@ Each was a real, repeated mistake, most from 2026-10-30 to 11-02. Follow these w
   the guard goes red, then restore and confirm the file is byte-identical (`cmp`). Twice a new guard stayed green with
   its rule removed: once the check matched text that appears either way, once a later step's exit 1 hid the missing
   refusal.
+- **Enforced since 2026-11-25:** a new guard carries a `# mutation:` group in its header (the file, a one-line
+  `mutation-from` / `mutation-to`, and the `mutation-expect` FAIL line). `make-reference.py --check` refuses a guard
+  without one, unless it is in `tests/mutation-exempt.txt` (the older guards; the list only shrinks).
+  `pwsh -NoProfile -File tests/run-mutations.ps1 [-Only <names>]` makes each break and expects the guard red at that
+  line.
 - Assert **where** a script stopped (its own message, and no later step's), not just its exit code.
 - A throwaway git repo in a guard pins `git config core.autocrlf false`, and here-string fixtures are normalised to LF.
 - Test the false-positive side as hard as the true one. The integrity gate once blocked a perfect attempt over example

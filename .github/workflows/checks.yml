@@ -112,6 +112,18 @@ jobs:
         shell: pwsh
         run: ./tests/test-ollama-inventory.ps1
 
+      # run-window.ps1 is the desktop's, but its guard runs to the end on Linux since 2026-11-25 (the game scenarios
+      # used Start-Process -WindowStyle, which is Windows-only). Run here too, so it keeps doing so.
+      - name: run-window.ps1 against stand-ins (Linux)
+        shell: pwsh
+        run: ./tests/test-run-window.ps1
+
+      # Each guard with a `# mutation:` header must go red when that line of the code it protects is broken
+      # (tests/run-mutations.ps1). Here: the guards that run on Linux. The Windows job runs all of them.
+      - name: Mutations caught (Linux guards)
+        shell: pwsh
+        run: ./tests/run-mutations.ps1 -Only test-session-start-hook,test-ollama-inventory,test-run-mutations,test-pull-household-backup
+
   guards:
     name: guards (Windows, pwsh 7)
     runs-on: windows-latest
@@ -168,10 +180,15 @@ jobs:
           $PSVersionTable.PSVersion.ToString()
           ./tests/run-guards.ps1 -LogDir "$env:RUNNER_TEMP/guard-logs"
 
+      - name: Mutations caught (every guard with a mutation header)
+        run: ./tests/run-mutations.ps1 -LogDir "$env:RUNNER_TEMP/mutation-logs"
+
       - name: Upload guard logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: guard-logs
-          path: ${{ runner.temp }}/guard-logs
+          path: |
+            ${{ runner.temp }}/guard-logs
+            ${{ runner.temp }}/mutation-logs
           if-no-files-found: ignore

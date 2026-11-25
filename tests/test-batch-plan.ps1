@@ -39,11 +39,7 @@ foreach ($name in "New-RunList", "Get-AgentVersionDrift") {
 . (Join-Path $PSScriptRoot "agents\opencode.ps1")
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function Seq($plan) { (@($plan.Runs | ForEach-Object { "{0}:{1}/r{2}" -f $_.Model, $_.Task, $_.Rep })) -join " " }
 
 Write-Host "-- run order"

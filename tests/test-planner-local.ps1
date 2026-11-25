@@ -21,11 +21,7 @@ param([string]$ScriptPath = (Join-Path (Split-Path $PSScriptRoot) "desktop\scrip
 $ErrorActionPreference = "Stop"
 . $ScriptPath
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 function Tool($input1, [string[]]$Paths = @()) { [pscustomobject]@{ Kind = "tool"; Tool = "x"; Paths = $Paths; Input = $input1 } }
 
 Write-Host "-- ConvertTo-LocalPrompt"

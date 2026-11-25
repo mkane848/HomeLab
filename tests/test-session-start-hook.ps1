@@ -1,5 +1,9 @@
 # protects: .claude/hooks/session-start.sh (the remote sessions' pwsh install): nothing unpacked unless its sha256 is the pin
 # run-after: .claude/hooks/session-start.sh
+# mutation: .claude/hooks/session-start.sh
+# mutation-from: if [ "$GOT" != "$PWSH_SHA256" ]; then
+# mutation-to: if false; then
+# mutation-expect: FAIL\s+REFUSED, naming
 # test-session-start-hook.ps1 - regression guard for the remote sessions' PowerShell install.
 #
 # Why this exists: the hook downloads a PowerShell tarball and unpacks it into /opt as root, in every cloud session.
@@ -30,11 +34,7 @@ foreach ($tool in "bash", "tar", "sha256sum", "curl", "env") {
 if (-not (Test-Path -LiteralPath $hook)) { Write-Host "FAIL: missing $hook"; exit 1 }
 
 $script:fail = 0
-function Check([string]$name, $actual, $expected) {
-    $ok = ("$actual" -eq "$expected")
-    Write-Host ("{0,-4} {1}" -f $(if ($ok) { "PASS" } else { "FAIL" }), $name)
-    if (-not $ok) { Write-Host "     expected: $expected"; Write-Host "     got:      $actual"; $script:fail++ }
-}
+. (Join-Path $PSScriptRoot "lib/guard.ps1")   # Check <name> <actual> <expected>: a PASS/FAIL line, failures counted in $script:fail
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("session-hook-" + [guid]::NewGuid().ToString("N").Substring(0, 12))
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
