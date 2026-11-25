@@ -36,7 +36,17 @@ $repo = Split-Path -Parent $PSScriptRoot
 $runner = Join-Path $repo "tests/run-mutations.ps1"
 foreach ($p in $runner, (Join-Path $repo "tests/make-reference.py")) { if (-not (Test-Path -LiteralPath $p)) { Write-Host "FAIL: missing $p"; exit 1 } }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Write-Host "SKIP needs git"; exit 0 }
-$py = @("python3", "python") | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+# A python that RUNS: on Windows python3 can be the Microsoft Store placeholder (on PATH, exits 49).
+$py = $null
+foreach ($cand in "python3", "python") {
+    foreach ($c in @(Get-Command $cand -All -ErrorAction SilentlyContinue)) {
+        $ErrorActionPreference = "Continue"
+        $o = & $c.Source -c "print(40 + 2)" 2>&1 | Out-String
+        $ErrorActionPreference = "Stop"
+        if ($LASTEXITCODE -eq 0 -and $o.Trim() -eq "42") { $py = $c.Source; break }
+    }
+    if ($py) { break }
+}
 
 $script:fail = 0
 function Check([string]$name, $actual, $expected) {
