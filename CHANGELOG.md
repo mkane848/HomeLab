@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests: a guard for `pull-household-backup.ps1` (2026-11-25; the 2026-11-09 audit's item).**
+  - **The desktop's nightly copy of the server's household backups had no guard,** because it needs ssh. A silent
+    success that copied nothing, or kept an empty file as a backup, would be found only on the day the copy was needed.
+  - **`tests/test-pull-household-backup.ps1`** runs the real script in its own pwsh. Its PATH holds stand-in `ssh` and
+    `scp` and no real ones (checked before any case). They serve a fake remote folder, log every call, and can fail or
+    deliver an empty file. 23 checks:
+    - the newest of each prefix is copied, byte for byte;
+    - a second run copies nothing;
+    - no tracker backup is an error; no chat backup is not;
+    - ssh, or an scp, failing is an error;
+    - an empty copy is refused, and nothing stays under the backup's name;
+    - `-Keep` prunes each prefix on its own;
+    - every call is in batch mode, and ssh has `-n`.
+  - **Its two header mutations** (the empty-file refusal, the missing-tracker error) are run by `run-mutations.ps1` in
+    both CI jobs.
+  - Verification:
+    - 23 of 23 on Linux;
+    - `run-mutations.ps1 -Only test-pull-household-backup`: 2 of 2 CAUGHT, and the script hashes the same afterwards;
+    - three more breaks made by hand on a copy (`-ScriptPath`), each turning the guard red: no `-n`, no pruning, and
+      a reversed sort;
+    - `make-reference.py --check`.
+
 - **tests: every new guard must show it can fail (2026-11-25; the 2026-11-09 audit's "A check that a new guard can fail").**
   - **A new header group in each guard names a one-line break of the code it protects:**
     - `# mutation:` the file;

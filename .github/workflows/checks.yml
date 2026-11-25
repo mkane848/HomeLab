@@ -116,7 +116,7 @@ jobs:
       # (tests/run-mutations.ps1). Here: the guards that run on Linux. The Windows job runs all of them.
       - name: Mutations caught (Linux guards)
         shell: pwsh
-        run: ./tests/run-mutations.ps1 -Only test-session-start-hook,test-ollama-inventory,test-run-mutations
+        run: ./tests/run-mutations.ps1 -Only test-session-start-hook,test-ollama-inventory,test-run-mutations,test-pull-household-backup
 
   guards:
     name: guards (Windows, pwsh 7)
