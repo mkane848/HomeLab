@@ -13,7 +13,7 @@ then containerised runs, which start a new era.
 | Item | State | Waits on | Detail |
 |---|---|---|---|
 | Ollama uninstall | Repo side done. The desktop was uninstalled by the owner (2026-11-24) | **Owner:** the dry runs and deletes on the server and node3, then redeploy the server and pull on node3 | [roadmap → Ollama removed](roadmap.md#ollama-removed-2026-11-21) |
-| OpenCode 2 cutover (step 3.7) | PR #265, green, held | **Owner:** node3 on `@opencode/cli@2.3.2` (`npm uninstall -g opencode-ai`, `npm install -g @opencode/cli@2.3.2`, `opencode --version`). Then an agent merges `main` in, checks CI and merges | [opencode-2-migration.md](opencode-2-migration.md) → "Steps" |
+| OpenCode 2 rollout | The cutover (#265) merged 2026-11-26; node3 on 2.3.2 (owner, 2026-11-26) | **Owner:** on the desktop and node3, pull `main` and re-run `desktop\scripts\sync-opencode.ps1` (it stages the 2.x `read-budget` plugin), then `tests\test-profiles.ps1 -Reliability`. **Agent, after:** step 5.1 (the template in native 2.x keys) and 5.4 (the era marker) | [opencode-2-migration.md](opencode-2-migration.md) → "Steps" |
 | 13 mined tasks | In the manifest, with no graded rows yet | **Owner:** `run-tasks-batch.ps1 -SetupOnly`, then `test-tasks.ps1 -Task <id> -DryRun` per new task on Windows. Report them as their own cohort | [roadmap → Task set expansion III](roadmap.md#task-set-expansion-iii-13-tasks-from-lfc-bot-and-asohav-2026-11-23), [task-mining-2026-11-23/](task-mining-2026-11-23/README.md) |
 
 ## Next, in order

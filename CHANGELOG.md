@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: the OpenCode 2 cutover is merged (2026-11-26).**
+  - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
+    head, which held all of `main`.
+  - The migration doc (3.7, 5.3), the roadmap and the plan say so. Steps 3.7 and 5.3 are marked done; 5.3 is the
+    owner's word, since a cloud session cannot reach node3.
+  - **What is left before 2.x is fully live:** the owner pulls `main` and re-runs `sync-opencode.ps1` on the desktop
+    and node3, then `tests\test-profiles.ps1 -Reliability` on both. Then an agent does step 5.1 (the native 2.x
+    template) and 5.4 (the era marker).
+
 - **tests, opencode: the OpenCode 2 cutover (2026-11-24; migration steps 3.7 and 4.3, and the plugin half of 5.1). Held
   until node3 runs 2.3.2.**
   - **CI installs `@opencode/cli@2.3.2`.** 2.x is published under that name; `opencode-ai` stops at 1.19.x.

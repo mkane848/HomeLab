@@ -10,8 +10,10 @@ wrote `~/.config/opencode/cli.json` and `service.json` then). The harness adapte
 everywhere.** Port the harness and plugins, upgrade node3 and CI, and start a new era in `tests/results/`. Four v2
 features follow (section 6).
 
-**The cutover PR (2026-11-24; steps 3.7, 4.3 and the plugin half of 5.1) is held until node3 is upgraded.** It moves CI
-to 2.3.2 and lists only the 2.x `read-budget` directory in the template, so node3 on 1.19.5 would lose its read cap.
+**The cutover PR, #265 (steps 3.7, 4.3 and the plugin half of 5.1), was merged on 2026-11-26**, after the owner said
+node3 runs 2.3.2. It moves CI to 2.3.2 and lists only the 2.x `read-budget` directory in the template. A host still
+on 1.19.5 would lose its read cap. **Left for the owner:** pull `main` and re-run `sync-opencode.ps1` on the desktop
+and node3, then `tests\test-profiles.ps1 -Reliability` on both (the PR's live checks).
 **OpenCode 2.x is published on npm as `@opencode/cli`**, not `opencode-ai`, which stops at 1.19.x (1.19.6 on
 2026-11-24). `@opencode/cli`'s latest was 2.4.1 that day, so the pin to 2.3.2 is deliberate.
 
@@ -119,7 +121,7 @@ Each step is one PR.
      - `tests/test-run-window.ps1`: the 2.x seat gate and the prune refusal.
      - `tests/test-sync-opencode.ps1`: the 2.x plugin check.
      - `tests/test-agent-adapter.ps1`: no `opencode` call in the batch.
-   - 3.7 **Done in the cutover PR (2026-11-24), held until node3 is upgraded.** It was: **Waits for step 4: the cutover.** It moves the version pins and CI's install to 2.3.2. Until then, the
+   - 3.7 **Done: merged in #265 on 2026-11-26.** It was: **Waits for step 4: the cutover.** It moves the version pins and CI's install to 2.3.2. Until then, the
      plugin guards pin 1.19.5, and `test-compaction-plugin` would go red on 2.3.2 because `compaction-continue` is not
      ported (step 4.1 decides whether it needs to be). On the desktop, which runs 2.3.2, four guards fail on their
      1.19.5 pin, as they already did.
@@ -172,7 +174,8 @@ Each step is one PR.
      Then rewrite the MODEL ENTRY SCHEMA comment, the project override (`mcp.servers`, `disabled`, `skills: [...]`),
      `docs/reference/config.md` and `opencode/README.md`, and update `check_config_drift.py` and `test-profiles.ps1`.
    - 5.2 Raise `headerTimeout` if qwen3.6's spill hits it.
-   - 5.3 Upgrade node3 between batches (scp plus `pwsh -NoProfile -File`).
+   - 5.3 Upgrade node3 between batches (scp plus `pwsh -NoProfile -File`). **Done by the owner (said 2026-11-26).**
+     Not checked from a cloud session, which cannot reach node3: `opencode --version` there should print 2.3.2.
    - 5.4 Add an era marker in `tests/results/NOTES.md` and the roadmap.
 6. **Follow-ups the owner chose (2026-11-21).**
    - 6.1 **Model variants for sampling.** A per-seat `variants: [{id: "bench", body: {temperature, seed}}]`, run with
