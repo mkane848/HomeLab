@@ -127,7 +127,7 @@ Each was a real, repeated mistake, most from 2026-10-30 to 11-02. Follow these w
   refusal.
 - **Enforced since 2026-11-25:** a new guard carries a `# mutation:` group in its header (the file, a one-line
   `mutation-from` / `mutation-to`, and the `mutation-expect` FAIL line). `make-reference.py --check` refuses a guard
-  without one, unless it is in `tests/mutation-exempt.txt` (the 57 older guards; the list only shrinks).
+  without one, unless it is in `tests/mutation-exempt.txt` (the older guards; the list only shrinks).
   `pwsh -NoProfile -File tests/run-mutations.ps1 [-Only <names>]` makes each break and expects the guard red at that
   line.
 - Assert **where** a script stopped (its own message, and no later step's), not just its exit code.

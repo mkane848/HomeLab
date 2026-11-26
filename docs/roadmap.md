@@ -74,6 +74,8 @@ The desktop updated itself to OpenCode v2.3.2 on 2026-11-21. The owner's decisio
 - **Done:** step 1, desktop safety: `--standalone` profile launches and `external_directory: ask`.
 - **Blocked until the adapter is ported (step 3):** desktop batch runs.
 - **Off:** both plugins, until step 4.
+- **The cutover PR (2026-11-24)** moves CI to 2.3.2 (`@opencode/cli`), lists only the 2.x `read-budget` directory and retires
+  `compaction-continue`. **It merges only after the owner upgrades node3 to 2.3.2** (step 5.3), or node3 loses its read cap.
 
 Plan, breakages and follow-ups: [opencode-2-migration.md](opencode-2-migration.md).
 

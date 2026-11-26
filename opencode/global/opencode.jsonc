@@ -17,32 +17,26 @@
 
   "shell": "pwsh",
 
-  // Keeps a session working after an automatic compaction (installed
-  // 2026-10-05; docs/roadmap.md -> "Context overflow"). Referenced in place
-  // from the checkout, like the project skill paths, so it follows whatever
-  // branch that checkout has out. The plugin paths start with a placeholder token
-  // (two underscores, REPO_URL, two underscores) that staging
-  // (sync-opencode.ps1, via desktop/scripts/opencode-template.ps1) swaps for
-  // THIS checkout's file:/// URL, so the template names no machine.
-  // Never copy the template to ~/.config/opencode by hand, the token would
-  // stay in. It rests on
-  // EXPERIMENTAL opencode hooks read at 1.18.34 (re-checked at v1.19.5 (2026-10-31): those files unchanged): after `opencode upgrade`, run
-  // tests/test-compaction-plugin.ps1 before trusting it. To take it out, delete
-  // this entry and re-run sync-opencode.ps1 -Template. The path is the
-  // staged checkout's; if that path is missing, the plugin fails to load
-  // (opencode reports it and carries on; sync-opencode.ps1 checks it).
-  //
-  // read-budget.js (2026-10-17) keeps one `read` from eating the window: it
+  // The read-budget plugin (2026-10-17) keeps one `read` from eating the window: it
   // caps a read at ~8% of the model's context window (about 17,300 chars at
   // 64k), tells the model to grep instead, and shrinks a file that has used
   // 25% of the window since the last compaction to 100-line reads. Born of
   // kane-08, where two whole-file reads of 131 and 185 KB overflowed the 64k
-  // window 17 to 19 times a run. Same in-place reference and same removal as
-  // above; HOMELAB_READ_MAX_CHARS=off switches it off for one launch. Guard:
-  // tests/test-read-budget.ps1 (FAILs on any opencode but 1.18.34).
+  // window 17 to 19 times a run. HOMELAB_READ_MAX_CHARS=off switches it off for
+  // one launch. Guard: tests/test-read-budget.ps1.
+  // Since the OpenCode 2 cutover (2026-11-24) the entry is the plugin's DIRECTORY:
+  // 2.x loads only directory plugins and skips a file one. The 1.x file
+  // (read-budget.js) and compaction-continue.js are no longer listed: 2.x goes on
+  // after compacting by itself (docs/opencode-2-migration.md, step 4.1).
+  // Referenced in place from the checkout, like the project skill paths, so it
+  // follows whatever branch that checkout has out. The path starts with a
+  // placeholder token (two underscores, REPO_URL, two underscores) that staging
+  // (sync-opencode.ps1, via desktop/scripts/opencode-template.ps1) swaps for THIS
+  // checkout's file:/// URL, so the template names no machine. Never copy the
+  // template to ~/.config/opencode by hand, the token would stay in. To take the
+  // plugin out, delete this entry and re-run sync-opencode.ps1 -Template.
   "plugin": [
-    "__REPO_URL__/opencode/plugins/compaction-continue.js",
-    "__REPO_URL__/opencode/plugins/read-budget.js"
+    "__REPO_URL__/opencode/plugins/read-budget"
   ],
 
   // Shell output is capped at 16 KB a call (opencode's `tool_output`, from

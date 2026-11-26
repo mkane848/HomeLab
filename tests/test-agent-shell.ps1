@@ -193,13 +193,16 @@ exit 2
     Check "the variable is gone after the harness"               (Test-Path Env:OPENCODE_CONFIG_CONTENT) "False"
 
     Write-Host "-- live: the real opencode"
-    if ($realVersion -ne "1.19.5") {
-        Check "installed opencode is 1.19.5 (else re-read packages/core/src/shell.ts and config.ts)" $realVersion "1.19.5"
+    # CI installs 2.3.2 since the cutover (2026-11-24). 2.x's `debug config` is a list of sources (checked
+    # 2026-11-24: an OPENCODE_CONFIG_CONTENT `shell` arrives as a document source's info.shell), so the config
+    # is read through the adapter's Get-AgentConfig, which runs `--standalone debug config` and merges them.
+    if ($realVersion -notin @("1.19.5", "2.3.2")) {
+        Check "installed opencode is 2.3.2 or 1.19.5 (else re-read packages/core/src/shell.ts and config.ts)" $realVersion "2.3.2"
     } else {
         $s = Start-AgentRunEnv -Plugins @()
-        try { $cfg = (opencode debug config 2>$null | Out-String) | ConvertFrom-Json } finally { $null = Stop-AgentRunEnv -State $s }
+        try { $cfg = Get-AgentConfig } finally { $null = Stop-AgentRunEnv -State $s }
         Check "opencode resolves shell to that pwsh in the run environment" $cfg.shell $want
-        $cfg = (opencode debug config 2>$null | Out-String) | ConvertFrom-Json
+        $cfg = Get-AgentConfig
         Check "...and not outside it"                            ($cfg.shell -ne $want) "True"
     }
 } finally {

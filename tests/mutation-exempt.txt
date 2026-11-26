@@ -14,7 +14,6 @@ test-checklist-grading.ps1
 test-clean-recheck.ps1
 test-command-timeout.ps1
 test-compaction-nudge.ps1
-test-compaction-plugin.ps1
 test-context-events.ps1
 test-context-exceeded.ps1
 test-deliver-attempt.ps1
