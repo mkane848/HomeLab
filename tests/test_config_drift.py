@@ -152,9 +152,9 @@ class Drift(unittest.TestCase):
         self.assertIn("[opencode-v1-key] global autoupdate: an OpenCode 1.x key; 2.x writes update", out)
 
     def test_v1_provider_key(self):
-        # anchored on the entry: the same text appears first in a template comment
-        self.edit(self.G, '"llamacpp-server": {\n      "package": "aisdk:@ai-sdk/openai-compatible"',
-                  '"llamacpp-server": {\n      "npm": "@ai-sdk/openai-compatible"')
+        # the indent skips a template comment with the same text; the first entry is llamacpp-server's.
+        # One line, so a CRLF checkout matches too.
+        self.edit(self.G, '      "package": "aisdk:@ai-sdk/openai-compatible",', '      "npm": "@ai-sdk/openai-compatible",')
         code, out = run(self.tmp)
         self.assertEqual(code, 1)
         self.assertIn("[opencode-v1-key] global providers.llamacpp-server.npm", out)
