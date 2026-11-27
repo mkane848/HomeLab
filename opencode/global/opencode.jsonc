@@ -5,8 +5,8 @@
   // Native OpenCode 2.x keys since step 5.1 of docs/opencode-2-migration.md (2026-11-27).
   // Each key below is the one 2.x's own v1 -> v2 migration writes
   // (ConfigMigrateV1 and ConfigNormalize in @opencode/core 2.3.2), so the hosts
-  // load the same config they loaded from the 1.x keys. OpenCode 1.x cannot read
-  // this file; every host and CI run 2.3.2 since the cutover (#265).
+  // load the same config they loaded from the 1.x keys. OpenCode 1.x does not
+  // know these keys; every host and CI run 2.3.2 since the cutover (#265).
 
   // Default model (change per profile or override in project config). A
   // "provider/model" string; 2.x also takes {providerID, model}.

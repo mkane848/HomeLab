@@ -197,7 +197,8 @@ Each step is one PR.
          `sync-opencode.ps1` stages the new template. Guard: `tests/test-profiles-config.ps1`.
        - The harness adapter needed nothing: it reads `opencode --standalone debug config`, which is the same
          normalized config either way.
-     - **OpenCode 1.x cannot read the templates now.** Every host and CI run 2.3.2 (#265, step 5.3).
+     - **The templates are for 2.x only.** OpenCode 1.x does not know these keys (not tried on 1.x). Every host and
+       CI run 2.3.2 (#265, step 5.3).
    - 5.2 Raise `headerTimeout` if qwen3.6's spill hits it.
    - 5.3 Upgrade node3 between batches (scp plus `pwsh -NoProfile -File`). **Done by the owner (said 2026-11-26).**
      Not checked from a cloud session, which cannot reach node3: `opencode --version` there should print 2.3.2.

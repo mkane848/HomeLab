@@ -19,7 +19,7 @@
   //
   // OpenCode 2.x reloads config when the file is saved (/reload forces it).
   // Native 2.x keys since step 5.1 of docs/opencode-2-migration.md
-  // (2026-11-27); OpenCode 1.x cannot read them.
+  // (2026-11-27); OpenCode 1.x does not know them.
   // =====================================================================
 
   // --- Model override ---------------------------------------------------

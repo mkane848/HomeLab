@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Docs:** `docs/reference/config.md`, `opencode/README.md`, three gotchas, the migration doc's step 5.1 with the
     key map, the plan, and two sources in `docs/references.md`.
   - **The owner's step is unchanged:** pull and re-run `sync-opencode.ps1` on the desktop and node3, then
-    `tests\test-profiles.ps1 -Reliability`. OpenCode 1.x cannot read the new templates; every host runs 2.3.2.
+    `tests\test-profiles.ps1 -Reliability`. OpenCode 1.x does not know these keys (not tried on 1.x); every host runs 2.3.2.
 
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
