@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **opencode, tests: the config templates in OpenCode 2.x's own keys (2026-11-27; migration step 5.1).**
+  - **`opencode/global/opencode.jsonc`:** `providers` with `package` and `settings`, `capabilities`, `cost.cache`, the
+    `permissions` array, `plugins`, `update`, and `agents.title.model` for `small_model`. Each is the key 2.x's own
+    v1 migration writes (`@opencode/core` 2.3.2, `ConfigMigrateV1`/`ConfigNormalize`). The comments were rewritten to
+    match, including the MODEL ENTRY SCHEMA block. 2.x reads a missing `{file:}` as an empty key, where 1.x refused
+    the config.
+  - **One change in behaviour:** `autoupdate: "notify"` became `update: "disable"`, as the plan said.
+  - **`opencode/project-override/opencode.jsonc`:** the examples use `mcp.servers`, a list for `skills`, and the title
+    agent. A server is switched off by repeating it with `"disabled": true`: 2.x drops 1.x's bare
+    `{ "enabled": false }`, so the old advice did nothing on 2.x.
+  - **Checked with 2.x's own normalizer** (`ConfigNormalize` from `@opencode/core` 2.3.2, run under Bun): the old and
+    new templates give the same config, leaf for leaf, except `update`. The `opencode` binary was not run.
+  - **`tests/check_config_drift.py`** reads `providers` and gains `opencode-v1-key` (a 1.x key in either template) and
+    `opencode-capabilities` (a llama.cpp model without `capabilities.tools`/`input`). Nine new unit tests in
+    `tests/test_config_drift.py`, one of them on the false-positive side. Both rules were mutation-checked: with each
+    disabled, its tests failed (6 and 1), and the file was restored byte-identical.
+  - **`tests/test-profiles.ps1`** reads the live config in either key set (`Get-ConfigProviders`,
+    `Get-ProviderBaseUrl`, `Test-ModelToolCapable`), since a host keeps the 1.x keys until it re-syncs. New guard
+    `tests/test-profiles-config.ps1` (19 checks, three mutations).
+  - **Docs:** `docs/reference/config.md`, `opencode/README.md`, three gotchas, the migration doc's step 5.1 with the
+    key map, the plan, and two sources in `docs/references.md`.
+  - **The owner's step is unchanged:** pull and re-run `sync-opencode.ps1` on the desktop and node3, then
+    `tests\test-profiles.ps1 -Reliability`. OpenCode 1.x cannot read the new templates; every host runs 2.3.2.
+
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
     head, which held all of `main`.

@@ -1,19 +1,35 @@
 {
+  // OpenCode 2.x keeps the 1.x schema URL (the 2.x built-in docs, @opencode/core 2.3.2).
   "$schema": "https://opencode.ai/config.json",
 
-  // Default model (change per profile or override in project config)
-  "model": "{env:OPENCODE_MODEL}",
-  "small_model": "{env:OPENCODE_SMALL_MODEL}",
+  // Native OpenCode 2.x keys since step 5.1 of docs/opencode-2-migration.md (2026-11-27).
+  // Each key below is the one 2.x's own v1 -> v2 migration writes
+  // (ConfigMigrateV1 and ConfigNormalize in @opencode/core 2.3.2), so the hosts
+  // load the same config they loaded from the 1.x keys. OpenCode 1.x cannot read
+  // this file; every host and CI run 2.3.2 since the cutover (#265).
 
-  // "notify", not true. With true opencode installs PATCH releases by itself
-  // whenever a TUI starts (never from `opencode run`), so the binary can change
-  // under a running benchmark batch: the results corpus spans opencode 1.18.31,
-  // .32 and .33 in ten days, and a cell's replicates straddled two versions.
-  // "notify" still says when an update exists. Upgrade on purpose with
-  // `opencode upgrade` between batches and treat the new version as a new era
-  // in tests/results/. OPENCODE_DISABLE_AUTOUPDATE=1 pins it too. Only the
-  // GLOBAL config is read for this. Source: docs/references.md (opencode-upgrade).
-  "autoupdate": "notify",
+  // Default model (change per profile or override in project config). A
+  // "provider/model" string; 2.x also takes {providerID, model}.
+  "model": "{env:OPENCODE_MODEL}",
+
+  // 1.x's `small_model` is 2.x's title agent. An empty OPENCODE_SMALL_MODEL makes
+  // 2.x skip this entry, as 1.x skipped an empty small_model.
+  "agents": {
+    "title": { "model": "{env:OPENCODE_SMALL_MODEL}" }
+  },
+
+  // "disable": opencode never installs a release by itself. With 1.x's
+  // `autoupdate: true` it installed PATCH releases whenever a TUI started (never
+  // from `opencode run`), so the binary could change under a running benchmark
+  // batch: the results corpus spans opencode 1.18.31, .32 and .33 in ten days,
+  // and a cell's replicates straddled two versions. The desktop still moved to
+  // 2.3.2 on its own on 2026-11-21, with 1.x's "notify" set (CHANGELOG.md).
+  // "disable" is the stricter pin (step 5.1 of docs/opencode-2-migration.md).
+  // Upgrade on purpose between batches
+  // (a pinned `npm i -g @opencode/cli@<version>`) and treat the new version as a
+  // new era in tests/results/. OPENCODE_DISABLE_AUTOUPDATE=1 pins it too. Only
+  // the GLOBAL config is read for this. Source: docs/references.md (opencode-upgrade).
+  "update": "disable",
 
   "shell": "pwsh",
 
@@ -35,62 +51,68 @@
   // checkout's file:/// URL, so the template names no machine. Never copy the
   // template to ~/.config/opencode by hand, the token would stay in. To take the
   // plugin out, delete this entry and re-run sync-opencode.ps1 -Template.
-  "plugin": [
+  "plugins": [
     "__REPO_URL__/opencode/plugins/read-budget"
   ],
 
-  // Shell output is capped at 16 KB a call (opencode's `tool_output`, from
-  // core/src/config/tool-output.ts at v1.18.34, not in the documentation;
-  // `opencode debug config` keeps it, and a misspelt key is dropped without a
-  // word). Not yet seen to apply: in the 21 runs of 2026-10-17/18 no shell
-  // output reached 16 KB (longest 9,930 chars).
+  // Shell output is capped at 16 KB a call (`tool_output`, first read from
+  // core/src/config/tool-output.ts at v1.18.34; a native 2.x key, with
+  // `max_lines` beside it, in @opencode/schema 2.3.2). A misspelt key is dropped
+  // without a word. Not yet seen to apply: in the 21 runs of 2026-10-17/18 no
+  // shell output reached 16 KB (longest 9,930 chars).
   "tool_output": { "max_bytes": 16384 },
 
   // ---------------------------------------------------------------------
   // MODEL ENTRY SCHEMA - read this before adding a model.
   //
-  // opencode validates model entries against its published schema and
-  // SILENTLY DROPS keys it does not know. This config used to declare
-  // "context_window": N and "input": ["text"]; neither is a real key, so
-  // every model resolved with NO limits at all. opencode then never trimmed
-  // the prompt and reserved its ~8192-token default for output, and Ollama
-  // answered with:
+  // opencode SILENTLY DROPS keys it does not know (2.x decodes with excess
+  // properties ignored). This config used to declare "context_window": N and
+  // "input": ["text"]; neither is a real key, so every model resolved with NO
+  // limits at all. opencode then never trimmed the prompt and reserved its
+  // ~8192-token default for output, and Ollama answered with:
   //     truncating input prompt limit=8194 prompt=46505 keep=4
   // i.e. the entire system prompt was thrown away and the request 500'd.
   //
-  // The real keys are:
-  //     "limit":      { "context": N, "output": N }
-  //     "modalities": { "input": ["text"], "output": ["text"] }
-  //     "tool_call":  true
+  // The real keys (OpenCode 2.x, Config.Model in @opencode/schema 2.3.2):
+  //     "limit":        { "context": N, "output": N }
+  //     "capabilities": { "tools": true, "input": ["text"], "output": ["text"] }
+  //     "cost":         { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } }
+  // 1.x's `tool_call` and `modalities` became `capabilities`; its `attachment`
+  // and `reasoning` are not 2.x keys (2.x ignored them when it read this
+  // file's 1.x keys).
+  // An unset `capabilities.input` means text AND image, so state ["text"].
+  // `capabilities.reasoning` is left out on purpose: 2.x builds a model's
+  // variants from it, which the 1.x keys never did here.
   //
   // RULES:
   //  1. limit.context must be <= what the host actually SERVES for that tag
   //     (the seat's `c` in that host's llamacpp models.ini). Over-promising
   //     brings the truncation back.
-  //  2. limit.output is subtracted from limit.context to get the usable
-  //     prompt window. Keep it generous for reasoning models (they burn
-  //     budget on the reasoning block - see AGENTS.md Gotchas) but never so
-  //     large that it eats the window: 4096-8192 for reasoners, 2048 for
-  //     plain coders.
-  //  3. After editing, ALWAYS confirm with `opencode debug config` that the
-  //     resolved entry still shows `limit`. If it is missing, the key was
-  //     rejected and you are back to the truncation bug.
+  //  2. limit.output caps a reply. Keep it generous for reasoning models (they
+  //     burn budget on the reasoning block - see AGENTS.md Gotchas) but never so
+  //     large that it eats the window: 4096-8192 for reasoners, 2048 for plain
+  //     coders. 2.x compacts at window - max(15%, 16000) whatever limit.output
+  //     is (49,536 for a 64k window; docs/opencode-2-migration.md, step 2).
+  //  3. After editing, ALWAYS confirm with `opencode --standalone debug config`
+  //     that the entry's `info` still shows `limit`. If it is missing, the key
+  //     was rejected and you are back to the truncation bug.
   // ---------------------------------------------------------------------
 
-  "provider": {
+  "providers": {
 
     "opencode-go": {
-      "options": {
+      "settings": {
         "apiKey": "{file:.secrets/opencode-go-api-key}"
       }
     },
 
 
-    // Every local provider states "npm": "@ai-sdk/openai-compatible". OpenCode 1.x
-    // gave a config-defined provider without one that package by itself; 2.x
-    // normalizes the missing field to an empty `package` and refuses every request
-    // ("provider.no-route: Unsupported package for <model>"; desktop, v2.3.2,
-    // 2026-11-21, docs/opencode-2-migration.md). 1.x accepts the field too.
+    // Every local provider states "package": "aisdk:@ai-sdk/openai-compatible", the
+    // value 2.x's migration writes for 1.x's "npm": "@ai-sdk/openai-compatible". 2.x
+    // maps it to its own openai-compatible provider and names the provider after
+    // this entry. Without a package 2.x refuses every request ("provider.no-route:
+    // Unsupported package for <model>"; desktop, v2.3.2, 2026-11-21,
+    // docs/opencode-2-migration.md).
 
     // ---- llama.cpp providers: the fleet's only local engine (Ollama removed 2026-11-21) ----
     // One provider per host, one llama-server (router mode) per host: the server
@@ -100,47 +122,36 @@
     // host's models.ini (tests/test-profiles.ps1 checks it against /props).
 
     "llamacpp-server": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "models": {
         // Model ids are the preset's section names / aliases
         // (server/llamacpp/models.ini); the tags kept the names they had under Ollama.
         // Text only: the vision projector (mmproj) is not loaded, so these do not
-        // list image input. "npm" is stated: 1.x gave a provider without one
-        // @ai-sdk/openai-compatible, 2.x refuses it (see the note above the providers).
+        // list image input.
         "north-mini-code": {
           "name": "Cohere North Mini Code 1.0 30B-A3B (Server, candidate, llama.cpp)",
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           "limit": { "context": 65536, "output": 8192 }
         },
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Server, main seat, llama.cpp)",
-          "attachment": false,
-          "reasoning": true,
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           // 16384 since 2026-11-03: the preset caps thinking at 8192 (reasoning-budget), which leaves 8192 for the
-          // step's text and tool call. Compaction now starts at 49152 instead of 57344.
+          // step's text and tool call.
           "limit": { "context": 65536, "output": 16384 }
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Server, llama.cpp)",
-          "attachment": false,
-          "reasoning": true,
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           "limit": { "context": 32768, "output": 4096 }
         },
         "qwen2.5-coder-3b-cpu": {
           "name": "Qwen 2.5 Coder 3B (Server, CPU, small, llama.cpp)",
-          "attachment": false,
-          "reasoning": false,
-          "tool_call": false,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": false, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           "limit": { "context": 16384, "output": 2048 }
         },
         // Model-sweep candidate (docs/roadmap.md -> "After the trial" item 9). Same window and
@@ -148,71 +159,62 @@
         // the two do not fit the GPU together.
         "gpt-oss:20b": {
           "name": "gpt-oss 20B (Server, candidate, llama.cpp)",
-          "attachment": false,
-          "reasoning": true,
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           "limit": { "context": 65536, "output": 8192 }
         }
       },
-      "options": {
+      "settings": {
         "baseURL": "{env:LLAMACPP_SERVER_BASE_URL}",
         // The engines' API key (docs/engine-api-keys.md): one fleet key, in the same secrets folder as the
-        // opencode-go key. A missing file makes this config invalid, so create it before syncing.
+        // opencode-go key. Create the file before syncing: 2.x reads a missing one as an empty key (with a
+        // warning in its log), so every request to the engine is refused.
         "apiKey": "{file:.secrets/llamacpp-api-key}"
       }
     },
 
     // Node3: its llama-server (node3/llamacpp/models.ini; reached through LLAMACPP_NODE3_BASE_URL).
     "llamacpp-node3": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "models": {
         // Model ids are the preset's section names / aliases
         // (node3/llamacpp/models.ini); the tags kept the names they had under Ollama.
         // Text only: the vision projector (mmproj) is not loaded, so these do not
-        // list image input. "npm" is stated: 1.x gave a provider without one
-        // @ai-sdk/openai-compatible, 2.x refuses it (see the note above the providers).
+        // list image input.
         "qwen3.6:35b-a3b-coding": {
           "name": "Qwen3.6 35B-A3B Coding (Node3, second seat, on demand, llama.cpp)",
-          "attachment": false,
-          "reasoning": true,
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           // Same as the server seat since 2026-11-03: thinking capped at 8192 in node3/llamacpp/models.ini.
           "limit": { "context": 65536, "output": 16384 }
         },
         "qwen3:8b": {
           "name": "Qwen3 8B (Node3, llama.cpp)",
-          "attachment": false,
-          "reasoning": true,
-          "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "cost": { "input": 0, "output": 0, "cache_read": 0, "cache_write": 0 },
+          "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+          "cost": { "input": 0, "output": 0, "cache": { "read": 0, "write": 0 } },
           "limit": { "context": 32768, "output": 4096 }
         }
       },
-      "options": {
+      "settings": {
         "baseURL": "{env:LLAMACPP_NODE3_BASE_URL}",
         // The engines' API key (docs/engine-api-keys.md): one fleet key, in the same secrets folder as the
-        // opencode-go key. A missing file makes this config invalid, so create it before syncing.
+        // opencode-go key. Create the file before syncing: 2.x reads a missing one as an empty key (with a
+        // warning in its log), so every request to the engine is refused.
         "apiKey": "{file:.secrets/llamacpp-api-key}"
       }
     }
   },
 
+  // An ordered list of {action, resource, effect}; `bash` is `shell` in 2.x.
   // external_directory: opencode 1.x asked before touching a path outside the
   // project by default; 2.x ALLOWS it by default (migration guide,
-  // docs/references.md -> opencode-migrate-v1). Stated here so both
-  // behave like 1.x. 2.x reads this v1 map and turns it into its
-  // `permissions` array ({action, resource: "*", effect}); bash becomes shell.
-  // Check with `opencode debug config`.
-  "permission": {
-    "edit": "ask",
-    "bash": "ask",
-    "external_directory": "ask"
-  },
+  // docs/references.md -> opencode-migrate-v1). Stated here so 2.x behaves like
+  // 1.x. Check with `opencode --standalone debug config`.
+  "permissions": [
+    { "action": "edit", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "external_directory", "resource": "*", "effect": "ask" }
+  ],
 
   // ---------------------------------------------------------------------
   // MCP servers live in PROJECT configs, not here.
@@ -223,10 +225,10 @@
   // were the bulk of a 46,505-token preamble that no 16k-32k local model can
   // hold.
   //
-  // opencode deep-merges project config over global, so each project turns on
-  // exactly what it needs in its own opencode.jsonc - and can switch off an
-  // inherited server with { "enabled": false }. See
-  // opencode/project-override/opencode.jsonc for the template.
+  // opencode merges project config over global, so each project turns on
+  // exactly what it needs under `mcp.servers` in its own opencode.jsonc - and
+  // can switch off an inherited server by repeating it with "disabled": true.
+  // See opencode/project-override/opencode.jsonc for the template.
   // ---------------------------------------------------------------------
   "mcp": {}
 }
