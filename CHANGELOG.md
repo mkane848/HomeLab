@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **tests, desktop: check a planner's set before use, with no solution (2026-11-27; plan item 4, the planner experiment's
+  "What to change" item 3). Built and guarded, not yet run live.**
+  - **`Get-PlannerSetUsability`** in `tests/test-tasks.ps1` judges one run of the task's test command with the set on the
+    untouched base: `ok`, `not-loaded` (vitest's failed suite), `not-found` (no test file, outside `testDir`, or skipped by
+    the command's path filters, read by `Get-VitestFilters`), `passes-on-base`, `fails-elsewhere` or `error`.
+  - **`-DryRun -AcceptanceDir <set> -SetCheckOnly -SetCheckOut <json>`** runs only that check. It touches neither the
+    hidden tests nor `acceptance.solution`, and writes no `planner-sets.tsv` row. A plain `-DryRun -AcceptanceDir` prints
+    the verdict beside its two points.
+  - **`run-planner-local.ps1 -CheckManifest <manifest>`** checks each gate set it collects. A set that is not `ok` gets one
+    follow-up in the same session with what the check saw (`-SetRetries 0` turns it off), then is collected and checked
+    again. `<task>.json` records `setCheck` and `usable`, and the set is kept either way.
+  - **Why the filters:** most tasks' commands name their test files (`npx vitest run src/routes/combat.test.ts`). A set
+    file at any other path is never run. vitest 5.0.1 lists only failing files, so the output alone cannot show a
+    passing file was run.
+  - **Tests:** `tests/test-planner-set-check.ps1` (55 checks, four mutations). It runs the verdicts on real output of
+    vitest 2.1.9 and 5.0.1 (16 cases, `tests/fixtures/vitest-planner-sets/`, with the recipe), runs the harness end to
+    end on a stand-in repository, and runs the follow-up logic with stand-ins. `test-show-acceptance` and
+    `test-planner-local` give the same results as on `main`.
+  - **Not done:** a live planner round with `-CheckManifest`, which needs the private packs, the task manifest and a model.
+    The frontier planner (`run-planner.ps1`) gets no follow-up; its sets can be checked with the harness command.
+
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
     head, which held all of `main`.

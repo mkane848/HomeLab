@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /work/apps/x
+
+ ❯ src/sum.test.js (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/sum.test.js [ src/sum.test.js ]
+Error: Cannot find module './mul.js' imported from /work/apps/x/src/sum.test.js
+ ❯ src/sum.test.js:2:1
+      1| import { expect, it } from "vitest"
+      2| import { mul } from "./mul.js"
+       | ^
+      3| it("G1 multiplies", () => { expect(mul(2, 3)).toBe(6) })
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  20:30:08
+   Duration  137ms (worker 96%, environment 4%)
+
+exit=1

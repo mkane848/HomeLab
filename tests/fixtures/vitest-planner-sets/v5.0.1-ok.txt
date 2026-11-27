@@ -1,0 +1,33 @@
+
+ RUN  v5.0.1 /work/apps/x
+
+ ❯ src/sum.test.js (2 tests | 1 failed) 6ms
+   × G1 adds three 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/sum.test.js > G1 adds three
+AssertionError: expected 3 to be 6 // Object.is equality
+
+- Expected
++ Received
+
+- 6
++ 3
+
+ ❯ src/sum.test.js:4:50
+      2| import { sum } from "./sum.js"
+      3| it("adds", () => { expect(sum(1, 2)).toBe(3) })
+      4| it("G1 adds three", () => { expect(sum(1, 2, 3)).toBe(6) })
+       |                                                  ^
+      5|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  20:30:06
+   Duration  289ms (transform 65%, import 16%, worker 10%, tests 9%)
+
+exit=1

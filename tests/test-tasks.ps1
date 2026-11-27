@@ -233,6 +233,13 @@ param(
     # the set instead: it must FAIL on the untouched base and PASS on acceptance.solution
     # (planner-sets.tsv in the results folder keeps the answer).
     [string]$AcceptanceDir = "",
+    # With -DryRun -AcceptanceDir: the check BEFORE USE alone (docs/planner-tests-experiment.md, "Checking a set
+    # before use"). The set goes on the untouched base once and Get-PlannerSetUsability judges that run; the task's
+    # hidden tests and acceptance.solution are not touched, because a dispatcher in real use has neither.
+    # run-planner-local.ps1 -CheckManifest calls it for each set it collects.
+    [switch]$SetCheckOnly,
+    # Where the check before use writes its verdict, as JSON ({ task, set, hash, status, verdict, detail, testFiles }).
+    [string]$SetCheckOut = "",
     # Experiment 3, the owner's Ideal tier (2026-11-01): a folder of tests for what the best answer would ALSO do,
     # written from the confirmed DONE.md's Ideal lines (test names start with the item id, `I2: ...`). Run on the
     # model's source after everything else and recorded as `ideal` (which ids passed, done of total). Never a gate:
@@ -354,6 +361,10 @@ if (-not $ReadOnlyAcceptance -and (Test-Path -LiteralPath $readOnlyMarker)) {
 # shown at all (-DryRun alone only checks the set).
 $plannerMarker = Join-Path $resultsDir "ACCEPTANCE-PLANNER"
 $plannerRun = [bool]($AcceptanceDir -and $ShowAcceptance)
+if ($SetCheckOnly -and -not ($DryRun -and $AcceptanceDir)) {
+    Write-Host "ERROR: -SetCheckOnly checks a planner's set before use; it needs -DryRun and -AcceptanceDir." -ForegroundColor Red
+    exit 1
+}
 if ($AcceptanceDir -and -not $ShowAcceptance -and -not $DryRun) {
     Write-Host "ERROR: -AcceptanceDir gives the model a planner's tests; it needs -ShowAcceptance (or -DryRun, which only checks the set)." -ForegroundColor Red
     exit 1
@@ -1137,6 +1148,86 @@ function Get-FailureDetail {
     if ($errs.Count -eq 0) { $errs = @($clean | Select-Object -Last 2) }
     $tail = ($errs | ForEach-Object { if ($_.Length -gt 200) { $_.Substring(0, 200) + "..." } else { $_ } }) -join ' | '
     return ("no failing test named (exit {0}){1}" -f $ExitCode, $(if ($tail) { ": $tail" } else { "" }))
+}
+
+# The path filters of a vitest command: what follows `vitest` (and `run`) that is not a flag or a flag's value.
+# vitest runs only the files whose path contains one of them. $null when the command is not vitest's, so a caller
+# cannot judge from the command which files it runs; an empty list when vitest runs everything it includes.
+function Get-VitestFilters {
+    param([string[]]$TestCmd)
+    $i = [array]::FindIndex([string[]]@($TestCmd), [Predicate[string]] { param($a) $a -match '(^|[\\/])vitest(\.cmd|\.mjs|\.js)?$' })
+    if ($i -lt 0) { return $null }
+    $valueFlags = @("--project", "--config", "-c", "--root", "-r", "--dir", "--reporter", "--environment", "--pool", "-t", "--testNamePattern", "--outputFile", "--shard", "--mode")
+    $out = New-Object System.Collections.Generic.List[string]
+    $rest = @($TestCmd | Select-Object -Skip ($i + 1))
+    for ($k = 0; $k -lt $rest.Count; $k++) {
+        $a = $rest[$k]
+        if ($k -eq 0 -and $a -in "run", "watch", "related") { continue }
+        if ($a.StartsWith("-")) { if ($a -notmatch '=' -and $a -in $valueFlags) { $k++ }; continue }
+        $out.Add(($a.Replace('\', '/') -replace '^\./', ''))
+    }
+    return , $out.ToArray()
+}
+
+# Experiment 3's check before use (docs/planner-tests-experiment.md, "What to change", item 3): can a planner's
+# set do its job on the task's base, judged WITHOUT the solution, because a dispatcher in real use has none?
+# From the one run of the task's test command with the set placed (Invoke-Acceptance -Folder):
+#   error           the set could not be placed or run
+#   not-loaded      vitest could not load one of its test files (a failed suite: parse, transform or import error)
+#   not-found       it has no test file, or one the command does not run (outside testDir, or matching none of
+#                   the command's path filters)
+#   passes-on-base  the run passes: the set checks nothing the base lacks. vitest 3 and later list only failing
+#                   files, so a file the runner skipped for another reason (its include pattern) reads as this too
+#   fails-elsewhere the run fails, but none of the set's files is among the failures
+#   ok              a test file of the set fails on the base, and every one loads and is run
+# -SetFiles are repository-relative paths (Get-AcceptanceDirFiles' Rel). Returns { Verdict; Detail; TestFiles }.
+function Get-PlannerSetUsability {
+    param([string]$Status, [string]$Detail = "", [string[]]$Output = @(), [string[]]$SetFiles = @(), [string[]]$TestCmd = @(), [string]$TestDir = ".")
+    $mk = { param($v, $d, $t) [pscustomobject]@{ Verdict = $v; Detail = $d; TestFiles = @($t) } }
+    $tests = @($SetFiles | ForEach-Object { $_.Replace('\', '/') } | Where-Object { (Split-Path -Leaf $_) -match '\.(test|spec)\.[cm]?[jt]sx?$' })
+    if ($Status -eq "ERROR") { return (& $mk "error" $Detail $tests) }
+    if ($tests.Count -eq 0) { return (& $mk "not-found" "the set has no test file (a name ending .test.ts, .spec.js and the like)" $tests) }
+    $dir = ($TestDir.Replace('\', '/') -replace '^\./', '').Trim('/')
+    if ($dir -eq ".") { $dir = "" }
+    $lines = @($Output | ForEach-Object { (Remove-AnsiCodes "$_").TrimEnd() })
+    $relOf = [ordered]@{}; $outside = @()
+    foreach ($t in $tests) {
+        if (-not $dir) { $relOf[$t] = $t }
+        elseif ($t.StartsWith("$dir/")) { $relOf[$t] = $t.Substring($dir.Length + 1) }
+        else { $outside += $t }
+    }
+    $lineFor = { param($rel, $pattern) [array]::FindIndex([string[]]$lines, [Predicate[string]] { param($l) $l -match ($pattern -f [regex]::Escape($rel)) }.GetNewClosure()) }
+    # A file that failed to load: "FAIL  <file> [ <file> ]", under "Failed Suites N".
+    $loadPattern = '^\s*FAIL\s+(\S*/)?{0}\s+\['
+    $notLoaded = @($relOf.Keys | Where-Object { (& $lineFor $relOf[$_] $loadPattern) -ge 0 })
+    if ($notLoaded.Count) {
+        $why = @(); foreach ($f in $notLoaded) {
+            $at = & $lineFor $relOf[$f] $loadPattern
+            $err = @($lines | Select-Object -Skip ($at + 1) -First 4 | Where-Object { $_ -match 'Error|Cannot|Failed' } | Select-Object -First 1)
+            $why += "$f$(if ($err) { ': ' + $err[0].Trim() })"
+        }
+        return (& $mk "not-loaded" ("vitest could not load " + ($why -join "; ")) $tests)
+    }
+    $filters = Get-VitestFilters -TestCmd $TestCmd
+    $unmatched = @()
+    if ($null -ne $filters -and $filters.Count) {
+        $unmatched = @($relOf.Keys | Where-Object { $r = $relOf[$_]; -not ($filters | Where-Object { $r.Contains($_) }) })
+    }
+    if ($outside.Count -or $unmatched.Count) {
+        $parts = @()
+        if ($outside.Count) { $parts += "$($outside -join ', ') (outside the test folder $TestDir)" }
+        if ($unmatched.Count) {
+            $cmdText = $TestCmd -join ' '
+            $filterText = (@($filters | ForEach-Object { "'$_'" })) -join ' or '
+            $parts += "$($unmatched -join ', ') (the command '$cmdText', run from $TestDir, runs only the files whose path contains $filterText)"
+        }
+        return (& $mk "not-found" ("the test command does not run " + ($parts -join "; ")) $tests)
+    }
+    if ($Status -eq "PASS") { return (& $mk "passes-on-base" "the set passes on the untouched base, so it checks nothing the task asks for ($Detail)" $tests) }
+    # A failing test file: "FAIL  <file> > <test>", or vitest's per-file line "<mark> <file> (N tests | M failed)".
+    $failing = @($relOf.Keys | Where-Object { ((& $lineFor $relOf[$_] '^\s*FAIL\s+(\S*/)?{0}\s+>') -ge 0) -or ((& $lineFor $relOf[$_] '^\s*\S+\s+(\S*/)?{0}\s+\(.*\bfailed\)') -ge 0) })
+    if (-not $failing.Count) { return (& $mk "fails-elsewhere" "the base fails, but not in the set's own files ($Detail)" $tests) }
+    return (& $mk "ok" ("fails on the base in " + ($failing -join ", ")) $tests)
 }
 
 # Archive a transcript into tests/results/ with retry. The source lives in
@@ -2188,8 +2279,8 @@ foreach ($tk in $tasksToRun) {
     if ($DryRun) {
         # The owner's acceptance tests must FAIL on the untouched base - the
         # failing-first property the order was docketed on, re-checked here
-        # instead of by hand.
-        if ($tk.acceptance) {
+        # instead of by hand. Not under -SetCheckOnly: the check before use knows nothing a dispatcher would not.
+        if ($tk.acceptance -and -not $SetCheckOnly) {
             $acc = Invoke-Acceptance $tk $wt.Wt
             switch ($acc.Status) {
                 "FAIL"  { Write-Result $tk.id "acceptance (fails on base)" "PASS" "$($acc.Label) fail on the untouched source: $($acc.Detail)" }
@@ -2228,7 +2319,20 @@ foreach ($tk in $tasksToRun) {
                 "PASS"  { Write-Result $tk.id "planner set (fails on base)" "WARN" "$($pBase.Label) PASS on the untouched source - they check nothing the task asks for: $($pBase.Detail)" }
                 default { Write-Result $tk.id "planner set (fails on base)" "WARN" $pBase.Detail }
             }
+            # The check before use, from that same run: does the set load, does the command run it, does it fail?
+            $pUse = Get-PlannerSetUsability -Status $pBase.Status -Detail $pBase.Detail -Output @($pBase.Output) `
+                -SetFiles @(Get-AcceptanceDirFiles $tk -Folder $plannerFolder | Where-Object { $_ } | ForEach-Object Rel) -TestCmd @($tk.testCmd) -TestDir "$($tk.testDir)"
+            Write-Result $tk.id "planner set (usable before use)" $(if ($pUse.Verdict -eq "ok") { "PASS" } else { "WARN" }) "$($pUse.Verdict): $($pUse.Detail)"
+            if ($SetCheckOut) {
+                [pscustomobject]@{ task = $tk.id; set = $AcceptanceDir; hash = $pBase.Hash; status = $pBase.Status; verdict = $pUse.Verdict; detail = $pUse.Detail; testFiles = @($pUse.TestFiles) } |
+                    ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $SetCheckOut -Encoding utf8
+            }
             $pSolStatus = "unchecked"
+            if ($SetCheckOnly) {
+                # The check before use stops here: no solution, no planner-sets.tsv row (that table is the two-point check's).
+                Write-Result $tk.id "dry-run" "PASS" "the planner set's check before use is done ($($pUse.Verdict)); model run skipped"
+                continue
+            }
             if ($tk.acceptance -and $tk.acceptance.solution) {
                 $co = Add-CommitToCheckout -Repo $tk.repo -WtPath $wt.Wt -Sha $tk.acceptance.solution
                 if ($co.ExitCode -eq 0) { $co = Run-Native "git" @("-C", $wt.Wt, "checkout", "-q", "--detach", $tk.acceptance.solution) }

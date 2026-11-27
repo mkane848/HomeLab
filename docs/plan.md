@@ -28,6 +28,8 @@ then containerised runs, which start a new era.
 3. **A planner-free run with the owner's edit of a local done list** (owner and agent).
    [planner-tests-experiment.md](planner-tests-experiment.md) → "Not tested yet".
 4. **Check each planner set before use** (agent): it must load, the runner must find it, and it must fail on the base.
+   **Built 2026-11-27, in review; not yet run live.** Next: a planner round with `run-planner-local.ps1 -CheckManifest`
+   (owner, on the desktop). [planner-tests-experiment.md](planner-tests-experiment.md) → "Checking a set before use";
    [roadmap → Next up (2026-11-07)](roadmap.md#next-up-2026-11-07), item 2.
 
 ## The owner's steps, not yet done
