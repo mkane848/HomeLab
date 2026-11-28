@@ -1,9 +1,10 @@
 # Containerised task runs: design
 
-Written 2026-11-24. **A design, not built.** The owner decided on 2026-11-11 to containerise the runs: written alongside
-the real-work pilot, built after it, and the start of a new era ([audit-2026-11-09.md](audit-2026-11-09.md), finding 2;
-[roadmap.md](roadmap.md) → "Open after the 2026-11-09 audit"). This page is the "written" half. Nothing in the harness
-changes until the pilot is done and the owner says go.
+Written 2026-11-24. The owner decided on 2026-11-11 to containerise the runs: written alongside the real-work pilot,
+built after it, and the start of a new era ([audit-2026-11-09.md](audit-2026-11-09.md), finding 2;
+[roadmap.md](roadmap.md) → "Open after the 2026-11-09 audit"). **On 2026-11-28 the owner said go for step 1 ahead of
+the pilot**: the image and a dry run, no model ("Building it", step 1, below). The harness itself is unchanged; steps 2
+to 4 still wait.
 
 ## The problem: today an attempt runs on the host
 
@@ -158,6 +159,34 @@ new era directly.
    - `opencode --version` inside;
    - clone one sealed bundle into a volume, install it, and run its baseline;
    - measure the volume against a bind mount, to settle the checkout question with numbers.
+
+   **Built 2026-11-28; run on two fixture tasks in a Linux cloud session, not yet on a real task or on Docker Desktop.**
+   - `desktop/docker/attempt/attempt.dockerfile`: `FROM dev-base:1`, `@opencode/cli` 2.3.2, ripgrep 14.1.1 pinned by
+     the sha256 [published with the release](https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz.sha256),
+     corepack, the `attempt` user (uid 1001).
+   - `desktop/scripts/attempt-dryrun.ps1 -Task <id>` runs phase 1 and phase 3 into a volume and into a bind mount, and
+     writes `report.json`. It uses the harness's own bundle (`Get-CommitBundle`), and seals the checkout as
+     `Initialize-SealedCheckout` does. Guard: `tests/test-attempt-dryrun.ps1` (a stand-in `docker`; the flags of
+     every call).
+   - **What the session showed**, on an npm task and a pnpm one (corepack), both with vitest 2.1.9:
+     - `opencode --version` inside: `opencode v2.3.2` (the adapter strips the `v`), ripgrep 14.1.1, node 22;
+     - the checkout is sealed: 1 commit, no refs, no remote;
+     - install, then the baseline with `--network none`, pass on both;
+     - pnpm finds its pinned version with no network, from the cache volume;
+     - a grading container resolves no host, and its root filesystem is read-only.
+   - **Settled by the build, against the design above:**
+     - The proxy variables are set per phase at run time, not in the image. Each phase has its own network rule, and
+       grading has none.
+     - The cache volume is mounted read-only in grading as well as in install. corepack keeps the pnpm it downloaded
+       there, and grading needs it with no network.
+     - The image makes `/work` and `/cache` the `attempt` user's. A new volume copies its owner from the image, and
+       without this neither is writable (the session's first run failed with `EACCES`).
+     - `CI` is not set, so pnpm and vitest behave as on the hosts.
+   - **Not settled: the volume against the bind mount.** In the session the two were within a second of each other
+     (install 2.4 against 1.4 s, baseline 1.3 against 1.2 s, a one-dependency task), but that is Linux to Linux. The
+     question is NTFS into Docker Desktop's Linux VM, with a real task's `node_modules`. That is the owner's run on the
+     desktop: `pwsh -File desktop\scripts\attempt-dryrun.ps1 -Task <a public task> -Build`, after
+     `.\desktop\scripts\docker-base.ps1`.
 2. **Grading in the container**, behind `-Isolation container`, with a stand-in agent. Use the rig of
    `docs/task-mining-2026-11-23/` (PR #261): the same patches, and the `ref`, `srconly` and
    `testsonly` arms for every public task. The **verdict matrix must equal the host's** task by task, except where line
