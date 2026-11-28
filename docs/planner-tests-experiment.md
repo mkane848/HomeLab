@@ -53,6 +53,52 @@ The pair gives a planner-quality score of its own (the share of sets valid on bo
 reported. Executor runs use the planner's set as written, valid or not, because a dispatcher in real use cannot run
 either check (it has no solution to check against).
 
+## Checking a set before use
+
+Built 2026-11-27 (item 3 of "What to change" below); **not yet run live**. Unlike the two-point check above, it needs
+no solution, so a dispatcher in real use could run it. The set goes on the task's untouched base once, the task's test
+command runs, and that one run must show three things:
+
+1. **Every test file loads.** vitest reports a file it cannot load as a failed suite (`FAIL <file> [ <file> ]`):
+   a parse error, a transform error or a missing import.
+2. **The command runs it.** Most tasks' commands name their files (`npx vitest run src/routes/combat.test.ts`), and
+   vitest treats them as path filters, so a test anywhere else is never run. A file outside the task's `testDir`, or
+   matching none of the filters, does not count.
+3. **It fails there.** A set that passes on the base checks nothing. One whose run fails only outside its own files
+   does not count either.
+
+The verdicts (`Get-PlannerSetUsability` in `tests/test-tasks.ps1`):
+
+| Verdict | When |
+|---|---|
+| `ok` | a test file of the set fails on the base, and every one loads and is run |
+| `not-loaded` | vitest could not load one of its test files |
+| `not-found` | no test file in the set, or one outside `testDir` or matching none of the command's filters |
+| `passes-on-base` | the run passes. vitest 3 and later list only failing files, so a file skipped for another reason (the include pattern in its config) reads as this too |
+| `fails-elsewhere` | the run fails, but none of the set's files is among the failures |
+| `error` | the set could not be placed or run |
+
+**Where it runs:**
+- `tests/test-tasks.ps1 -Task <id> -TaskManifest <m> -Model <m> -DryRun -AcceptanceDir <set> -SetCheckOnly
+  -SetCheckOut <file.json>` checks one set. The hidden tests and `acceptance.solution` are not touched, and
+  `planner-sets.tsv` gets no row (that table is the two-point check's). A plain `-DryRun -AcceptanceDir` now prints the
+  same verdict beside its two points.
+- `desktop/scripts/run-planner-local.ps1 -CheckManifest <m>` checks each gate set it collects. A set that is not `ok`
+  gets **one follow-up in the same session** (`-SetRetries 0` turns it off), saying what the check saw: vitest's own
+  error for `not-loaded`, the command and its filters for `not-found`. Nothing in it comes from the hidden tests. The
+  set is then collected and checked again. `<task>.json` records `setCheck` (each attempt's verdict, detail and the
+  follow-up sent) and `usable`. The set is kept either way, so the two-point check can still score it.
+- The frontier planner (`run-planner.ps1`) runs in a container with no follow-up turn. Its sets can be checked with the
+  harness command above.
+
+**What it cannot see:** a set that is too strict (it fails on the base, and would fail on the real fix too). That
+needs the solution, so it stays the two-point check's, and the owner's review's.
+
+**The evidence so far is fixtures only.** `tests/test-planner-set-check.ps1` runs the verdicts on real output of vitest
+2.1.9 and 5.0.1 (`tests/fixtures/vitest-planner-sets/`), runs the harness end to end on a stand-in repository, and runs
+the follow-up logic with stand-ins. The live test is a planner round with `-CheckManifest`, compared with the same
+round's sets checked afterwards: how many sets each verdict caught, and how many the follow-up turned into `ok`.
+
 ## Executor runs
 
 - **Mode:** `-ShowAcceptance` with the planner's set in place of the hidden folder, and the prompt line naming those
@@ -616,6 +662,7 @@ never graded. These leftovers also survive between attempts.
    output, not as a set that looks fine.
 3. **Check each set before use, without knowing the solution:** it must load, the runner must find it, and it must fail on the
    base. One retry with the error as feedback. This catches the sets with load errors, which are model bugs a collector cannot fix.
+   **Built 2026-11-27, not yet run live:** "Checking a set before use" above.
 4. **Adopt the stricter prompt's rules.** They cost no planner time on balance. Adopted 2026-11-07: they are now in the private
    `PROMPT.md` and `TESTS-PROMPT.md` (version 3), so a later round is a new era for the planner. Every Opus set so far used version 2.
 
