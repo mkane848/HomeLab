@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: a checklist for after a power cut (2026-11-28, after the outage of 2026-11-27).** `docs/post-outage.md`, linked
+  from AGENTS.md's "Where things are".
+  - **What comes back by itself** (the outage of 2026-11-27, owner): node3 did, and the desktop did not. The server
+    stayed off this time but has come back by itself before, so its "Restore after AC Power Loss" value is not known; a
+    dated note in `docs/server-recovery-cpu-led.md` says so. Docker, `llamacpp-server` and the household containers start at
+    boot. node3's `HomeLab-llamacpp` task starts at boot with nobody signed in.
+  - **What to check on each machine:** `status.sh` (including the GPU inside the container), failed units, the household
+    containers, the firewall unit if installed, the missed 03:15 backup, node3's task and `/health`, then
+    `tests\test-profiles.ps1`.
+  - **What happens to running work:** a window on node3 ends with no resume (`-FillTo` re-runs what is missing). The
+    server's watchdog is gone, but a new `up` works. A stale window lock holds an old pid.
+  - **Open, the owner's choice:** read and record the server's power-loss setting, and the desktop's.
+
 - **tests, desktop: check a planner's set before use, with no solution (2026-11-27; plan item 4, the planner experiment's
   "What to change" item 3). Built and guarded, not yet run live.**
   - **`Get-PlannerSetUsability`** in `tests/test-tasks.ps1` judges one run of the task's test command with the set on the

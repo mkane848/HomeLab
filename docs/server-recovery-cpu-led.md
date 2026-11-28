@@ -208,6 +208,10 @@ Restore after AC Power Loss back at its default (after an outage, press the powe
 yet re-enrolled**, so the GPU driver and Ollama are down until it is. Re-enrolling needs a monitor and keyboard
 for one boot, but no BIOS settings. Everything else (SSH, updates, the rest of bring-up) works.
 
+**Update (2026-11-28, owner):** the server stayed off after the power cut of 2026-11-27, though it has come back by
+itself after earlier ones; node3 came back, the desktop did not. The current "Restore after AC Power Loss" value is not
+known. [post-outage.md](post-outage.md) is the checklist for the next cut.
+
 **CPU thermals on the bench (2026-10-11, open air, fresh paste):** idle Tctl ~40 °C; under a 60 s all-core load
 on all 16 threads it rose to 59 °C in the first 10 s and levelled off at ~62 °C, holding ~4.0 GHz on every core.
 The 3700X's limit is 95 °C. Re-check once it's in the case, where expect a few degrees more.
