@@ -23,6 +23,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     scripts, and the report.
   - **The harness is unchanged:** `-Isolation container` is step 2.
 
+- **docs: a checklist for after a power cut (2026-11-28, after the outage of 2026-11-27).** `docs/post-outage.md`, linked
+  from AGENTS.md's "Where things are".
+  - **What comes back by itself** (the outage of 2026-11-27, owner): node3 did, and the desktop did not. The server
+    stayed off this time but has come back by itself before, so its "Restore after AC Power Loss" value is not known; a
+    dated note in `docs/server-recovery-cpu-led.md` says so. Docker, `llamacpp-server` and the household containers start at
+    boot. node3's `HomeLab-llamacpp` task starts at boot with nobody signed in.
+  - **What to check on each machine:** `status.sh` (including the GPU inside the container), failed units, the household
+    containers, the firewall unit if installed, the missed 03:15 backup, node3's task and `/health`, then
+    `tests\test-profiles.ps1`.
+  - **What happens to running work:** a window on node3 ends with no resume (`-FillTo` re-runs what is missing). The
+    server's watchdog is gone, but a new `up` works. A stale window lock holds an old pid.
+  - **Open, the owner's choice:** read and record the server's power-loss setting, and the desktop's.
+
+- **tests, desktop: check a planner's set before use, with no solution (2026-11-27; plan item 4, the planner experiment's
+  "What to change" item 3). Built and guarded, not yet run live.**
+  - **`Get-PlannerSetUsability`** in `tests/test-tasks.ps1` judges one run of the task's test command with the set on the
+    untouched base: `ok`, `not-loaded` (vitest's failed suite), `not-found` (no test file, outside `testDir`, or skipped by
+    the command's path filters, read by `Get-VitestFilters`), `passes-on-base`, `fails-elsewhere` or `error`.
+  - **`-DryRun -AcceptanceDir <set> -SetCheckOnly -SetCheckOut <json>`** runs only that check. It touches neither the
+    hidden tests nor `acceptance.solution`, and writes no `planner-sets.tsv` row. A plain `-DryRun -AcceptanceDir` prints
+    the verdict beside its two points.
+  - **`run-planner-local.ps1 -CheckManifest <manifest>`** checks each gate set it collects. A set that is not `ok` gets one
+    follow-up in the same session with what the check saw (`-SetRetries 0` turns it off), then is collected and checked
+    again. `<task>.json` records `setCheck` and `usable`, and the set is kept either way.
+  - **Why the filters:** most tasks' commands name their test files (`npx vitest run src/routes/combat.test.ts`). A set
+    file at any other path is never run. vitest 5.0.1 lists only failing files, so the output alone cannot show a
+    passing file was run.
+  - **Tests:** `tests/test-planner-set-check.ps1` (55 checks, four mutations). It runs the verdicts on real output of
+    vitest 2.1.9 and 5.0.1 (16 cases, `tests/fixtures/vitest-planner-sets/`, with the recipe), runs the harness end to
+    end on a stand-in repository, and runs the follow-up logic with stand-ins. `test-show-acceptance` and
+    `test-planner-local` give the same results as on `main`.
+  - **Not done:** a live planner round with `-CheckManifest`, which needs the private packs, the task manifest and a model.
+    The frontier planner (`run-planner.ps1`) gets no follow-up; its sets can be checked with the harness command.
+
+- **opencode, tests: the config templates in OpenCode 2.x's own keys (2026-11-27; migration step 5.1).**
+  - **`opencode/global/opencode.jsonc`:** `providers` with `package` and `settings`, `capabilities`, `cost.cache`, the
+    `permissions` array, `plugins`, `update`, and `agents.title.model` for `small_model`. Each is the key 2.x's own
+    v1 migration writes (`@opencode/core` 2.3.2, `ConfigMigrateV1`/`ConfigNormalize`). The comments were rewritten to
+    match, including the MODEL ENTRY SCHEMA block. 2.x reads a missing `{file:}` as an empty key, where 1.x refused
+    the config.
+  - **One change in behaviour:** `autoupdate: "notify"` became `update: "disable"`, as the plan said.
+  - **`opencode/project-override/opencode.jsonc`:** the examples use `mcp.servers`, a list for `skills`, and the title
+    agent. A server is switched off by repeating it with `"disabled": true`: 2.x drops 1.x's bare
+    `{ "enabled": false }`, so the old advice did nothing on 2.x.
+  - **Checked with 2.x's own normalizer** (`ConfigNormalize` from `@opencode/core` 2.3.2, run under Bun): the old and
+    new templates give the same config, leaf for leaf, except `update`. The `opencode` binary was not run.
+  - **`tests/check_config_drift.py`** reads `providers` and gains `opencode-v1-key` (a 1.x key in either template) and
+    `opencode-capabilities` (a llama.cpp model without `capabilities.tools`/`input`). Nine new unit tests in
+    `tests/test_config_drift.py`, one of them on the false-positive side. Both rules were mutation-checked: with each
+    disabled, its tests failed (6 and 1), and the file was restored byte-identical.
+  - **`tests/test-profiles.ps1`** reads the live config in either key set (`Get-ConfigProviders`,
+    `Get-ProviderBaseUrl`, `Test-ModelToolCapable`), since a host keeps the 1.x keys until it re-syncs. New guard
+    `tests/test-profiles-config.ps1` (19 checks, three mutations).
+  - **Docs:** `docs/reference/config.md`, `opencode/README.md`, three gotchas, the migration doc's step 5.1 with the
+    key map, the plan, and two sources in `docs/references.md`.
+  - **The owner's step is unchanged:** pull and re-run `sync-opencode.ps1` on the desktop and node3, then
+    `tests\test-profiles.ps1 -Reliability`. OpenCode 1.x does not know these keys (not tried on 1.x); every host runs 2.3.2.
+
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
     head, which held all of `main`.

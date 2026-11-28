@@ -158,13 +158,44 @@ function Split-ModelId {
     return [pscustomobject]@{ Provider = $parts[0]; Model = $parts[1] }
 }
 
+# The live config in either key set: OpenCode 2.x's (the template since step 5.1 of
+# docs/opencode-2-migration.md, 2026-11-27) first, then 1.x's, which a live config keeps
+# until sync-opencode.ps1 stages the new template. Guard: tests/test-profiles-config.ps1.
+function Get-ConfigProviders {
+    param($Config)
+    if (-not $Config) { return $null }
+    if ($Config.PSObject.Properties['providers']) { return $Config.providers }
+    if ($Config.PSObject.Properties['provider']) { return $Config.provider }
+    return $null
+}
+
+# A provider's baseURL: 2.x `settings.baseURL`, else 1.x `options.baseURL`.
+function Get-ProviderBaseUrl {
+    param($Provider)
+    if (-not $Provider) { return $null }
+    foreach ($key in @('settings', 'options')) {
+        $o = $Provider.PSObject.Properties[$key]
+        if ($o -and $o.Value -and $o.Value.PSObject.Properties['baseURL']) { return $o.Value.baseURL }
+    }
+    return $null
+}
+
+# True when a model entry says it can call tools: 2.x `capabilities.tools`, else 1.x `tool_call`.
+function Test-ModelToolCapable {
+    param($Model)
+    if (-not $Model) { return $false }
+    $cap = $Model.PSObject.Properties['capabilities']
+    if ($cap -and $cap.Value -and $cap.Value.PSObject.Properties['tools']) { return ($cap.Value.tools -eq $true) }
+    return [bool]($Model.PSObject.Properties['tool_call'] -and $Model.tool_call -eq $true)
+}
+
 function Get-ProviderEnvVar {
     param($Providers, [string]$ProviderName)
 
     if (-not $Providers) { return $null }
     $p = $Providers.PSObject.Properties[$ProviderName]
     if (-not $p) { return $null }
-    $base = $p.Value.options.baseURL
+    $base = Get-ProviderBaseUrl $p.Value
     if ($base -is [string] -and $base -match '\{env:([^}]+)\}') { return $matches[1] }
     return $null
 }
@@ -264,7 +295,7 @@ function Test-ChatRoundTrip {
 
 # The write-discipline canary (-Reliability). Runs a real task through the
 # actual OpenCode tool layer (`opencode run --format json`) and counts the
-# write/edit tool calls the model emitted. `tool_call` in the config proves a
+# write/edit tool calls the model emitted. `capabilities.tools` in the config proves a
 # model CAN call tools; this proves it calls them ONCE per request and stops.
 #   - 0 calls    -> the model described the edit instead of making it
 #                   (the old qwen2.5/deepseek failure mode - report edits it
@@ -452,7 +483,7 @@ $providers = $null
 if (Test-Path -LiteralPath $ConfigPath) {
     try {
         $cfg = ConvertFrom-Jsonc (Get-Content -LiteralPath $ConfigPath -Raw)
-        $providers = $cfg.provider
+        $providers = Get-ConfigProviders $cfg
     } catch {
         Write-Host "WARNING: could not parse config at $ConfigPath ($($_.Exception.Message))" -ForegroundColor Yellow
     }
@@ -554,7 +585,7 @@ foreach ($profileName in $profileNames) {
         # can drive a session.
         #
         # The property that actually matters is tool capability, so that is what
-        # we assert. `tool_call` in the opencode config is set from
+        # we assert. `capabilities.tools` in the opencode config is set from
         # tests/test-toolcalls.ps1 results - a model that cannot call tools
         # cannot read, edit or run anything, and will report edits it never made.
         if ($expRole -ne "unset") {
@@ -568,10 +599,10 @@ foreach ($profileName in $profileNames) {
 
             if (-not $modelDef) {
                 Write-Result $profileName "intent: main seat" "WARN" "$modelTag not registered in the opencode config - cannot verify tool capability"
-            } elseif ($modelDef.Value.tool_call -eq $true) {
+            } elseif (Test-ModelToolCapable $modelDef.Value) {
                 Write-Result $profileName "intent: main seat" "PASS" "$modelTag is tool-capable (role: $(Get-ModelRole -Tag $modelTag))"
             } else {
-                Write-Result $profileName "intent: main seat" "FAIL" "$modelTag has tool_call=false - it CANNOT edit files and will claim it did. Seat a tool-capable model (probe with tests\test-toolcalls.ps1)"
+                Write-Result $profileName "intent: main seat" "FAIL" "$modelTag has capabilities.tools=false - it CANNOT edit files and will claim it did. Seat a tool-capable model (probe with tests\test-toolcalls.ps1)"
             }
         }
     }
@@ -716,11 +747,11 @@ foreach ($profileName in $profileNames) {
                 $relProv = $providers.PSObject.Properties[$relSplit.Provider]
                 if ($relProv) {
                     $relDef = $relProv.Value.models.PSObject.Properties[$relSplit.Model]
-                    if ($relDef -and $relDef.Value.tool_call -eq $true) { $toolCapable = $true }
+                    if ($relDef -and (Test-ModelToolCapable $relDef.Value)) { $toolCapable = $true }
                 }
             }
             if (-not $toolCapable) {
-                Write-Result $profileName "reliability '$($ref.Id)'" "SKIP" "seat tool_call=false - write-discipline gate N/A"
+                Write-Result $profileName "reliability '$($ref.Id)'" "SKIP" "seat capabilities.tools=false - write-discipline gate N/A"
             } else {
                 if (-not $script:relCache.ContainsKey($ref.Id)) {
                     $script:relCache[$ref.Id] = Test-ReliableWrite -ModelId $ref.Id -TimeoutSec $ReliabilityTimeout

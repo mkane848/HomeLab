@@ -13,7 +13,7 @@ then containerised runs, which start a new era.
 | Item | State | Waits on | Detail |
 |---|---|---|---|
 | Ollama uninstall | Repo side done. The desktop was uninstalled by the owner (2026-11-24) | **Owner:** the dry runs and deletes on the server and node3, then redeploy the server and pull on node3 | [roadmap → Ollama removed](roadmap.md#ollama-removed-2026-11-21) |
-| OpenCode 2 rollout | The cutover (#265) merged 2026-11-26; node3 on 2.3.2 (owner, 2026-11-26) | **Owner:** on the desktop and node3, pull `main` and re-run `desktop\scripts\sync-opencode.ps1` (it stages the 2.x `read-budget` plugin), then `tests\test-profiles.ps1 -Reliability`. **Agent, after:** step 5.1 (the template in native 2.x keys) and 5.4 (the era marker) | [opencode-2-migration.md](opencode-2-migration.md) → "Steps" |
+| OpenCode 2 rollout | The cutover (#265) merged 2026-11-26; node3 on 2.3.2 (owner, 2026-11-26). Step 5.1, the templates in native 2.x keys, merged 2026-11-28 (#274): it normalizes to the same config, apart from `update: "disable"` | **Owner:** on the desktop and node3, pull `main` and re-run `desktop\scripts\sync-opencode.ps1` (it stages the 2.x `read-budget` plugin and the 2.x keys), then `tests\test-profiles.ps1 -Reliability`. **Agent, after:** 5.4 (the era marker) | [opencode-2-migration.md](opencode-2-migration.md) → "Steps" |
 | 13 mined tasks | In the manifest, with no graded rows yet | **Owner:** `run-tasks-batch.ps1 -SetupOnly`, then `test-tasks.ps1 -Task <id> -DryRun` per new task on Windows. Report them as their own cohort | [roadmap → Task set expansion III](roadmap.md#task-set-expansion-iii-13-tasks-from-lfc-bot-and-asohav-2026-11-23), [task-mining-2026-11-23/](task-mining-2026-11-23/README.md) |
 
 ## Next, in order
@@ -23,12 +23,14 @@ then containerised runs, which start a new era.
    false-positive rate is under 10%. The tools are `tests/new-real-task.ps1`, `tests/deliver-attempt.ps1` and
    `tests/record-verdict.ps1`. Detail: [roadmap → Next up (2026-11-07)](roadmap.md#next-up-2026-11-07), item 3.
 2. **Containerised runs** (agent). The design is written: [container-runs.md](container-runs.md). Step 0 is the
-   owner's (Docker Desktop on node3). **Step 1 built 2026-11-28, on the owner's go ahead of the pilot; in review.** Next:
+   owner's (Docker Desktop on node3). **Step 1 built 2026-11-28, on the owner's go ahead of the pilot; merged 2026-11-28 (#277).** Next:
    its dry run on a real task on the desktop (owner), which settles the volume against the bind mount. Steps 2 to 4 wait
    on it.
 3. **A planner-free run with the owner's edit of a local done list** (owner and agent).
    [planner-tests-experiment.md](planner-tests-experiment.md) → "Not tested yet".
 4. **Check each planner set before use** (agent): it must load, the runner must find it, and it must fail on the base.
+   **Built 2026-11-27, merged 2026-11-28 (#275); not yet run live.** Next: a planner round with `run-planner-local.ps1 -CheckManifest`
+   (owner, on the desktop). [planner-tests-experiment.md](planner-tests-experiment.md) → "Checking a set before use";
    [roadmap → Next up (2026-11-07)](roadmap.md#next-up-2026-11-07), item 2.
 
 ## The owner's steps, not yet done
