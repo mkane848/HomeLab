@@ -22,9 +22,10 @@ then containerised runs, which start a new era.
    owner's verdict. One of them is "Close the KaneEnabler validator holes". It is what can show the Gate's
    false-positive rate is under 10%. The tools are `tests/new-real-task.ps1`, `tests/deliver-attempt.ps1` and
    `tests/record-verdict.ps1`. Detail: [roadmap → Next up (2026-11-07)](roadmap.md#next-up-2026-11-07), item 3.
-2. **Containerised runs** (agent, after the pilot and the owner's go). The design is written:
-   [container-runs.md](container-runs.md). Step 0 is the owner's (Docker Desktop on node3). Build step 1 needs a
-   desktop session.
+2. **Containerised runs** (agent). The design is written: [container-runs.md](container-runs.md). Step 0 is the
+   owner's (Docker Desktop on node3). **Step 1 built 2026-11-28, on the owner's go ahead of the pilot; in review.** Next:
+   its dry run on a real task on the desktop (owner), which settles the volume against the bind mount. Steps 2 to 4 wait
+   on it.
 3. **A planner-free run with the owner's edit of a local done list** (owner and agent).
    [planner-tests-experiment.md](planner-tests-experiment.md) → "Not tested yet".
 4. **Check each planner set before use** (agent): it must load, the runner must find it, and it must fail on the base.

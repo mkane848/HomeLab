@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **desktop, tests: step 1 of containerised runs, the attempt image and a dry run with no model (2026-11-28; the
+  owner's go, ahead of the pilot).** `docs/container-runs.md` → "Building it".
+  - **`desktop/docker/attempt/attempt.dockerfile`:** `FROM dev-base:1`, `@opencode/cli` 2.3.2, ripgrep 14.1.1 checked by
+    its published sha256, corepack, the `attempt` user (uid 1001), and `/work` and `/cache` owned by it.
+  - **`desktop/scripts/attempt-dryrun.ps1 -Task <id>`:** the harness's own sealed bundle, cloned into a per-attempt
+    volume. Then install, and the baseline with `--network none`, and the same into a bind mount for the timing
+    question. Every phase: memory, cpus, 1024 pids, no capabilities, no-new-privileges, a read-only root, tmpfs.
+    Writes `report.json`.
+  - **Run in a Linux cloud session** on two fixture tasks (npm, and pnpm through corepack): versions read from inside,
+    the checkout sealed, install and baseline passing, grading with no network. Not yet on a real task or on Docker
+    Desktop. The volume-against-bind-mount question needs the desktop.
+  - **Tests:** `tests/test-attempt-dryrun.ps1` (31 checks, three mutations) runs the script against a stand-in `docker`.
+    It checks every phase's flags, that no secrets folder, ssh folder, home folder or task repo is mounted, the phase
+    scripts, and the report.
+  - **The harness is unchanged:** `-Isolation container` is step 2.
+
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
     head, which held all of `main`.

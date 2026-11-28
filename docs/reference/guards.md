@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-60 guards.
+61 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -12,6 +12,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-agent-opencode-v2.ps1` | The OpenCode adapter reading 2.x transcripts, config sources and compaction threshold | tests/agents/opencode.ps1 or tests/agents/fixtures/opencode-v2/ |
 | `tests/test-agent-shell.ps1` | The agent's shell is PowerShell 7 by full path on every host | How a run is launched or its environment, or any opencode upgrade |
 | `tests/test-agent-tools.ps1` | Pre-run check that the agent's own tools (ripgrep search) work | The check, how a run is launched, or any opencode upgrade |
+| `tests/test-attempt-dryrun.ps1` | desktop/scripts/attempt-dryrun.ps1, step 1 of containerised runs: each phase's docker flags (limits, no capabilities, read-only root, grading with --network none and a read-only cache, the bundle read-only), no secrets folder, home or task repo mounted, the sealed checkout script, the report | desktop/scripts/attempt-dryrun.ps1, desktop/docker/attempt/attempt.dockerfile, docs/container-runs.md's phases or limits |
 | `tests/test-batch-engines.ps1` | run-tasks-batch.ps1 engine discovery, offered seats and probes (llama.cpp hosts, hosted) | How the batch finds hosts, offers seats or probes |
 | `tests/test-batch-plan.ps1` | Batch run order, -OnlyMissing and opencode version-drift discipline | How the batch builds its run list |
 | `tests/test-bench-speed.ps1` | bench-speed.ps1 speeds, prompt sizing and TSV logging on llama.cpp | Either bench-speed script |
