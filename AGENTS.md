@@ -37,6 +37,26 @@ Notes:
   [`docs/reference/guards.md`](docs/reference/guards.md).
 - Most guards are Windows-first (stand-in `.cmd` shims). On Linux some stop early. Windows CI is the run that counts.
 
+## Project layout
+
+| Folder | What is in it |
+|---|---|
+| `server/` | The Ubuntu server, in bash: `docker/` (the llama.cpp and household compose files), `llamacpp/` (the router preset `models.ini` and its chat templates), `scripts/` (start, status, the testing window, the firewall), `systemd/`, `household/` (the household tools and backup). `sudo` there is the owner's step |
+| `node3/` | node3 (Windows): `llamacpp/models.ini` and `scripts/` (the llama-server scheduled task). Its ssh rules are under "Known mistakes" below |
+| `desktop/` | The desktop (Windows): `scripts/` (the OpenCode launcher and sync, the planner runners, the Docker helpers) and `docker/` (the planner container and the local dev services) |
+| `opencode/` | The OpenCode templates that `desktop/scripts/sync-opencode.ps1` stages: `global/opencode.jsonc`, `project-override/`, `plugins/`, `commands/`, `agents/`. Never copy one to `~/.config/opencode` by hand |
+| `profiles/` | Sourced bash profiles that pick the seats (`dev-*.sh`; `parked/`) |
+| `models/` | `server-seats.tsv`: the server's seats, each with its context and GGUF `sha256` |
+| `tests/` | The harness (`test-tasks.ps1`, `run-tasks-batch.ps1`, `run-window.ps1`, `agents/`, `engines/`), the guards (`test-*.ps1`, `lib/guard.ps1`), the Python checks, `tasks/manifest.json`. `tests/.worktrees/` holds sealed task checkouts: never search or edit it |
+| `docs/` | Designs, the plan and the dated log; `docs/reference/` is the long reference (next section) |
+| `skills/`, `claude/imports/` | Vendored third-party content, under its own licence. The `AGENTS.md` files inside `skills/` are upstream guidance for that skill, not rules for this repo |
+| `dev/docker/` | The shared `dev-base:1` image |
+| `costs/`, `wezterm/` | Price tables for the hosted plans; the WezTerm config for ssh to the server |
+
+At the root: `machines.tsv` (each machine's roles; it generates the table in `docs/reference/machines.md`),
+`CHANGELOG.md`, `CONTRIBUTING.md`, `.github/` (CI and the PR template) and `.claude/hooks/` (the remote sessions'
+start-up hook).
+
 ## Verification
 
 Do these in order before calling a change done:
@@ -55,7 +75,7 @@ a genuinely fresh `git worktree add`, never a reused branch checkout (the `kane-
 
 ## Where things are
 
-The long reference lives in `docs/reference/` (moved there from this file on 2026-10-26). Read the row you need.
+The long reference lives in `docs/reference/`. Read the row you need.
 
 | Need | Read |
 |---|---|
@@ -75,8 +95,8 @@ block.
 
 ## Safety
 
-- **Commit before letting an agent edit anything.** `git status` should be clean when you start. Before 2026-09-17 the
-  repo had no git, and a damaged `desktop/scripts/sync-skills.ps1` could only be recovered by reading it by hand.
+- **Commit before letting an agent edit anything.** `git status` should be clean when you start, so any edit can be
+  undone from git.
 - **Never print or read a secret.** `.env`, `desktop/docker/.env` and anything `*.env` are git-ignored; only
   `.env.example` templates are tracked. Secrets live in `~/.config/opencode/.secrets/`, outside the repo. The planner's
   token travels only through the process environment.
