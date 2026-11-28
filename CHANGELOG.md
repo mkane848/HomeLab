@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: a checklist for after a power cut (2026-11-28, after the outage of 2026-11-27).** `docs/post-outage.md`, linked
+  from AGENTS.md's "Where things are".
+  - **What comes back by itself:** the server probably needs its power button. "Restore after AC Power Loss" was last
+    recorded at its default, on 2026-10-11. Docker, `llamacpp-server` and the household containers start at boot.
+    node3's `HomeLab-llamacpp` task starts at boot with nobody signed in.
+  - **What to check on each machine:** `status.sh` (including the GPU inside the container), failed units, the household
+    containers, the firewall unit if installed, the missed 03:15 backup, node3's task and `/health`, then
+    `tests\test-profiles.ps1`.
+  - **What happens to running work:** a window on node3 ends with no resume (`-FillTo` re-runs what is missing). The
+    server's watchdog is gone, but a new `up` works. A stale window lock holds an old pid.
+  - **Open, the owner's choice:** set "Restore after AC Power Loss" to "Power On" on the server, so it comes back by
+    itself.
+
 - **docs: the OpenCode 2 cutover is merged (2026-11-26).**
   - #265 was merged after the owner said node3 runs `@opencode/cli@2.3.2` (migration step 5.3). CI was green on its
     head, which held all of `main`.

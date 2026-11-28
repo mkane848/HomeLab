@@ -65,6 +65,7 @@ The long reference lives in `docs/reference/` (moved there from this file on 202
 | Which guard to run after touching X; CI; every `tests/` tool in detail | [`docs/reference/guards.md`](docs/reference/guards.md) (table generated from each guard's `# protects:` / `# run-after:` header) |
 | Symptom → cause → fix (tool-calling, context, VRAM, Vulkan, env vars, GPU loss) | [`docs/reference/gotchas.md`](docs/reference/gotchas.md) |
 | A testing window on the server and node3 with no one there (`run-window.ps1`, `llamacpp-window.sh`) | [`docs/unattended-window.md`](docs/unattended-window.md) |
+| After a power cut: what comes back by itself, what to check on each machine, what happened to running work | [`docs/post-outage.md`](docs/post-outage.md) |
 | Working on node3 over ssh, and git there | [`node3/README.md`](node3/README.md) → "Working on node3 over ssh", "Git on node3" |
 | What is next, who it waits on | [`docs/plan.md`](docs/plan.md) |
 | History, incidents, postmortems | `CHANGELOG.md`, `docs/roadmap.md` (the dated log) |
