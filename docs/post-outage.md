@@ -8,7 +8,7 @@ as they stood that day. If something here turns out wrong on the night, fix this
 
 | Machine | Powers on by itself? | What starts at boot | Not restarted |
 |---|---|---|---|
-| server | **Yes** (the outage of 2026-11-27, owner). So "Restore after AC Power Loss" is no longer the default the repo last recorded on 2026-10-11 ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)) | Docker, then `llamacpp-server` (`restart: unless-stopped`, or `llamacpp-server.service` if installed), then the household containers (`unless-stopped`) | the 03:15 backup, if the server was off then; a testing window's watchdog |
+| server | **Not reliably.** It stayed off after the cut of 2026-11-27, and has come back by itself after earlier ones (owner). Its "Restore after AC Power Loss" value is not known; the last record, 2026-10-11, is the default ([server-recovery-cpu-led.md](server-recovery-cpu-led.md)) | Docker, then `llamacpp-server` (`restart: unless-stopped`, or `llamacpp-server.service` if installed), then the household containers (`unless-stopped`) | the 03:15 backup, if the server was off then; a testing window's watchdog |
 | node3 | **Yes** (2026-11-27, owner) | `HomeLab-llamacpp`, a scheduled task at startup (S4U, so nobody has to sign in; [node3/README.md](../node3/README.md)) | a detached window (a one-shot task: its time has passed) |
 | desktop | **No** (2026-11-27, owner): press its power button | Nothing the fleet needs: it runs no models | the backup pull runs at the next logon if 07:00 was missed |
 
@@ -17,8 +17,7 @@ A container that was stopped by hand before the cut (the household chat during a
 
 ## 1. The server
 
-1. **It should be on already.** If it is not, press its power button, and check the BIOS setting at the next boot
-   with a monitor: a cleared CMOS resets it (below). It booted in 43 s on 2026-10-11.
+1. **Press its power button if it is off.** It booted in 43 s on 2026-10-11.
 2. **From the desktop:** `ssh server`, then in the checkout:
 
    ```bash
@@ -97,6 +96,6 @@ anything that needed a fix. "Powers on by itself?" in the table above is the lin
 ## Open: the owner's choice
 
 - **The desktop's power-loss setting**, if it should come back by itself too. It runs no models, so nothing waits on it.
-- **The server's exact setting is not written down.** It came back by itself on 2026-11-27, so it is no longer the
-  default the 2026-10-11 note left. When there is a monitor on it, record the value in
-  [server-recovery-cpu-led.md](server-recovery-cpu-led.md).
+- **The server's setting is not known.** It came back by itself after some cuts and not after 2026-11-27's. When there
+  is a monitor on it, read "Restore after AC Power Loss", set it to "Power On" if it should always come back, and record
+  the value in [server-recovery-cpu-led.md](server-recovery-cpu-led.md).
