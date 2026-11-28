@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **docs: AGENTS.md checked against Factory's AGENTS.md guide again (2026-11-28).**
+  - **A "Project layout" section,** the guide's repository map: one line per top-level folder, and the root files. The
+    "Where things are" table maps the docs, not the code.
+  - **The vendored `AGENTS.md` files under `skills/`** are said to be upstream guidance for that skill, not this repo's
+    rules. An agent that discovers nested instruction files would otherwise read React rules as project rules. They are
+    not renamed: `skills/vercel/react-best-practices/SKILL.md` links to its own `AGENTS.md`.
+  - **Two history-only phrases trimmed** (when the reference moved, the repo's pre-git days). The guide keeps history out
+    of AGENTS.md, and this file says so itself.
+  - **`docs/reference/guards.md`:** the Windows CI job runs OpenCode 2.3.2 since #265, not 1.19.5.
+
 - **desktop, tests: step 1 of containerised runs, the attempt image and a dry run with no model (2026-11-28; the
   owner's go, ahead of the pilot).** `docs/container-runs.md` → "Building it".
   - **`desktop/docker/attempt/attempt.dockerfile`:** `FROM dev-base:1`, `@opencode/cli` 2.3.2, ripgrep 14.1.1 checked by
