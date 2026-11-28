@@ -43,7 +43,7 @@ Notes:
 |---|---|
 | `server/` | The Ubuntu server, in bash: `docker/` (the llama.cpp and household compose files), `llamacpp/` (the router preset `models.ini` and its chat templates), `scripts/` (start, status, the testing window, the firewall), `systemd/`, `household/` (the household tools and backup). `sudo` there is the owner's step |
 | `node3/` | node3 (Windows): `llamacpp/models.ini` and `scripts/` (the llama-server scheduled task). Its ssh rules are under "Known mistakes" below |
-| `desktop/` | The desktop (Windows): `scripts/` (the OpenCode launcher and sync, the planner runners, the Docker helpers) and `docker/` (the planner container and the local dev services) |
+| `desktop/` | The desktop (Windows): `scripts/` (the OpenCode launcher and sync, the planner runners, the Docker helpers) and `docker/` (the planner and attempt containers, and the local dev services) |
 | `opencode/` | The OpenCode templates that `desktop/scripts/sync-opencode.ps1` stages: `global/opencode.jsonc`, `project-override/`, `plugins/`, `commands/`, `agents/`. Never copy one to `~/.config/opencode` by hand |
 | `profiles/` | Sourced bash profiles that pick the seats (`dev-*.sh`; `parked/`) |
 | `models/` | `server-seats.tsv`: the server's seats, each with its context and GGUF `sha256` |
@@ -85,6 +85,7 @@ The long reference lives in `docs/reference/`. Read the row you need.
 | Which guard to run after touching X; CI; every `tests/` tool in detail | [`docs/reference/guards.md`](docs/reference/guards.md) (table generated from each guard's `# protects:` / `# run-after:` header) |
 | Symptom → cause → fix (tool-calling, context, VRAM, Vulkan, env vars, GPU loss) | [`docs/reference/gotchas.md`](docs/reference/gotchas.md) |
 | A testing window on the server and node3 with no one there (`run-window.ps1`, `llamacpp-window.sh`) | [`docs/unattended-window.md`](docs/unattended-window.md) |
+| After a power cut: what comes back by itself, what to check on each machine, what happened to running work | [`docs/post-outage.md`](docs/post-outage.md) |
 | Working on node3 over ssh, and git there | [`node3/README.md`](node3/README.md) → "Working on node3 over ssh", "Git on node3" |
 | What is next, who it waits on | [`docs/plan.md`](docs/plan.md) |
 | History, incidents, postmortems | `CHANGELOG.md`, `docs/roadmap.md` (the dated log) |

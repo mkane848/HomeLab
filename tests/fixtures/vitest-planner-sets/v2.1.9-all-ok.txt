@@ -1,0 +1,34 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/work/apps/x[39m
+
+ [32m✓[39m src/sum.test.js [2m([22m[2m1 test[22m[2m)[22m[90m 1[2mms[22m[39m
+ [31m❯[39m src/sum-three.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 6[2mms[22m[39m
+[31m   [31m×[31m G1 adds three[90m 5[2mms[22m[31m[39m
+[31m     → expected 3 to be 6 // Object.is equality[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/sum-three.test.js[2m > [22mG1 adds three
+[31m[1mAssertionError[22m: expected 3 to be 6 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 6[39m
+[31m+ 3[39m
+
+[36m [2m❯[22m src/sum-three.test.js:[2m3:50[22m[39m
+    [90m  1| [39m[35mimport[39m { expect[33m,[39m it } [35mfrom[39m [32m"vitest"[39m
+    [90m  2| [39m[35mimport[39m { sum } [35mfrom[39m [32m"./sum.js"[39m
+    [90m  3| [39m[34mit[39m([32m"G1 adds three"[39m[33m,[39m () [33m=>[39m { [34mexpect[39m([34msum[39m([34m1[39m[33m,[39m [34m2[39m[33m,[39m [34m3[39m))[33m.[39m[34mtoBe[39m([34m6[39m) })
+    [90m   | [39m                                                 [31m^[39m
+    [90m  4| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m   Start at [22m 20:30:04
+[2m   Duration [22m 233ms[2m (transform 27ms, setup 0ms, collect 29ms, tests 7ms, environment 0ms, prepare 96ms)[22m
+
+exit=1

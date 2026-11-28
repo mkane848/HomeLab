@@ -1,0 +1,25 @@
+
+ RUN  v5.0.1 /work/apps/x
+
+ ❯ src/mul.test.js (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/mul.test.js [ src/mul.test.js ]
+Error: Cannot find module './mul.js' imported from /work/apps/x/src/mul.test.js
+ ❯ src/mul.test.js:2:1
+      1| import { expect, it } from "vitest"
+      2| import { mul } from "./mul.js"
+       | ^
+      3| it("G1 multiplies", () => { expect(mul(2, 3)).toBe(6) })
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 passed (1)
+   Start at  20:30:10
+   Duration  155ms (transform 36%, import 34%, worker 22%, tests 7%, environment 1%)
+
+exit=1

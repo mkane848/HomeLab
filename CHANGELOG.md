@@ -17,6 +17,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     of AGENTS.md, and this file says so itself.
   - **`docs/reference/guards.md`:** the Windows CI job runs OpenCode 2.3.2 since #265, not 1.19.5.
 
+- **desktop, tests: step 1 of containerised runs, the attempt image and a dry run with no model (2026-11-28; the
+  owner's go, ahead of the pilot).** `docs/container-runs.md` → "Building it".
+  - **`desktop/docker/attempt/attempt.dockerfile`:** `FROM dev-base:1`, `@opencode/cli` 2.3.2, ripgrep 14.1.1 checked by
+    its published sha256, corepack, the `attempt` user (uid 1001), and `/work` and `/cache` owned by it.
+  - **`desktop/scripts/attempt-dryrun.ps1 -Task <id>`:** the harness's own sealed bundle, cloned into a per-attempt
+    volume. Then install, and the baseline with `--network none`, and the same into a bind mount for the timing
+    question. Every phase: memory, cpus, 1024 pids, no capabilities, no-new-privileges, a read-only root, tmpfs.
+    Writes `report.json`.
+  - **Run in a Linux cloud session** on two fixture tasks (npm, and pnpm through corepack): versions read from inside,
+    the checkout sealed, install and baseline passing, grading with no network. Not yet on a real task or on Docker
+    Desktop. The volume-against-bind-mount question needs the desktop.
+  - **Tests:** `tests/test-attempt-dryrun.ps1` (31 checks, three mutations) runs the script against a stand-in `docker`.
+    It checks every phase's flags, that no secrets folder, ssh folder, home folder or task repo is mounted, the phase
+    scripts, and the report.
+  - **The harness is unchanged:** `-Isolation container` is step 2.
+
+- **docs: a checklist for after a power cut (2026-11-28, after the outage of 2026-11-27).** `docs/post-outage.md`, linked
+  from AGENTS.md's "Where things are".
+  - **What comes back by itself** (the outage of 2026-11-27, owner): node3 did, and the desktop did not. The server
+    stayed off this time but has come back by itself before, so its "Restore after AC Power Loss" value is not known; a
+    dated note in `docs/server-recovery-cpu-led.md` says so. Docker, `llamacpp-server` and the household containers start at
+    boot. node3's `HomeLab-llamacpp` task starts at boot with nobody signed in.
+  - **What to check on each machine:** `status.sh` (including the GPU inside the container), failed units, the household
+    containers, the firewall unit if installed, the missed 03:15 backup, node3's task and `/health`, then
+    `tests\test-profiles.ps1`.
+  - **What happens to running work:** a window on node3 ends with no resume (`-FillTo` re-runs what is missing). The
+    server's watchdog is gone, but a new `up` works. A stale window lock holds an old pid.
+  - **Open, the owner's choice:** read and record the server's power-loss setting, and the desktop's.
+
+- **tests, desktop: check a planner's set before use, with no solution (2026-11-27; plan item 4, the planner experiment's
+  "What to change" item 3). Built and guarded, not yet run live.**
+  - **`Get-PlannerSetUsability`** in `tests/test-tasks.ps1` judges one run of the task's test command with the set on the
+    untouched base: `ok`, `not-loaded` (vitest's failed suite), `not-found` (no test file, outside `testDir`, or skipped by
+    the command's path filters, read by `Get-VitestFilters`), `passes-on-base`, `fails-elsewhere` or `error`.
+  - **`-DryRun -AcceptanceDir <set> -SetCheckOnly -SetCheckOut <json>`** runs only that check. It touches neither the
+    hidden tests nor `acceptance.solution`, and writes no `planner-sets.tsv` row. A plain `-DryRun -AcceptanceDir` prints
+    the verdict beside its two points.
+  - **`run-planner-local.ps1 -CheckManifest <manifest>`** checks each gate set it collects. A set that is not `ok` gets one
+    follow-up in the same session with what the check saw (`-SetRetries 0` turns it off), then is collected and checked
+    again. `<task>.json` records `setCheck` and `usable`, and the set is kept either way.
+  - **Why the filters:** most tasks' commands name their test files (`npx vitest run src/routes/combat.test.ts`). A set
+    file at any other path is never run. vitest 5.0.1 lists only failing files, so the output alone cannot show a
+    passing file was run.
+  - **Tests:** `tests/test-planner-set-check.ps1` (55 checks, four mutations). It runs the verdicts on real output of
+    vitest 2.1.9 and 5.0.1 (16 cases, `tests/fixtures/vitest-planner-sets/`, with the recipe), runs the harness end to
+    end on a stand-in repository, and runs the follow-up logic with stand-ins. `test-show-acceptance` and
+    `test-planner-local` give the same results as on `main`.
+  - **Not done:** a live planner round with `-CheckManifest`, which needs the private packs, the task manifest and a model.
+    The frontier planner (`run-planner.ps1`) gets no follow-up; its sets can be checked with the harness command.
+
 - **opencode, tests: the config templates in OpenCode 2.x's own keys (2026-11-27; migration step 5.1).**
   - **`opencode/global/opencode.jsonc`:** `providers` with `package` and `settings`, `capabilities`, `cost.cache`, the
     `permissions` array, `plugins`, `update`, and `agents.title.model` for `small_model`. Each is the key 2.x's own

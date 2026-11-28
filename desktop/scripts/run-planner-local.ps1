@@ -16,6 +16,13 @@
 #
 # The plan and tests phases collect the planner's files from its clone (Get-PlannerCollection), so a hand-copy that lost a folder
 # path cannot change where a test runs. What the model handed in is kept beside the set in handed-in\<task>\ for the record.
+#
+# -CheckManifest <the private task manifest> adds the check BEFORE USE (docs/planner-tests-experiment.md, "Checking a set before
+# use"): each collected gate set is put on the task's untouched base (tests\test-tasks.ps1 -DryRun -SetCheckOnly) and must load, be
+# run by the task's test command, and fail there. No solution is used, since a dispatcher in real use has none. A set that is not
+# usable gets ONE follow-up in the same session with what went wrong (-SetRetries 0 turns it off), then is collected and checked
+# again. Both verdicts go to <task>.json as `setCheck`; `usable` is the last one's. The set is kept either way: this records, it
+# does not delete.
 param(
     [string]$Pack,
     [string]$Out,
@@ -26,6 +33,8 @@ param(
     [string[]]$Tasks = @(),
     [int]$MaxMinutes = 45,
     [string]$Scratch = (Join-Path ([IO.Path]::GetTempPath()) "planner-local"),
+    [string]$CheckManifest = "",
+    [ValidateRange(0, 1)][int]$SetRetries = 1,
     [string]$HarnessScript = (Join-Path (Split-Path (Split-Path $PSScriptRoot)) "tests\test-tasks.ps1"),
     [string]$AdapterScript = (Join-Path (Split-Path (Split-Path $PSScriptRoot)) "tests\agents\opencode.ps1")
 )
@@ -173,6 +182,54 @@ function Set-PlannerCollection {
     }
 }
 
+function Invoke-PlannerSetCheck {
+    # The check before use for one set: the harness's -DryRun -SetCheckOnly in its own pwsh, its verdict read back from JSON.
+    # Returns { Verdict; Detail; TestFiles; Log }. A harness that wrote no verdict is an "error", with its last lines as the detail.
+    param([string]$HarnessScript, [string]$Manifest, [string]$Task, [string]$Model, [string]$SetDir, [string]$OutDir, [string]$Pwsh = "pwsh")
+    New-Item -ItemType Directory -Force $OutDir | Out-Null
+    $json = Join-Path $OutDir "set-check.json"; $log = Join-Path $OutDir "set-check.log"
+    Remove-Item -LiteralPath $json -Force -ErrorAction SilentlyContinue
+    $out = & $Pwsh -NoProfile -File $HarnessScript -Task $Task -Model $Model -TaskManifest $Manifest -DryRun -AcceptanceDir $SetDir -SetCheckOnly -SetCheckOut $json -ResultsDir $OutDir 2>&1
+    @($out | ForEach-Object { "$_" }) | Set-Content -LiteralPath $log -Encoding utf8
+    if (Test-Path -LiteralPath $json) {
+        $v = Get-Content -Raw -LiteralPath $json | ConvertFrom-Json
+        return [pscustomobject]@{ Verdict = [string]$v.verdict; Detail = [string]$v.detail; TestFiles = @($v.testFiles); Log = $log }
+    }
+    $tail = (@($out | ForEach-Object { "$_".Trim() } | Where-Object { $_ }) | Select-Object -Last 3) -join " | "
+    return [pscustomobject]@{ Verdict = "error"; Detail = "the harness wrote no verdict (exit $LASTEXITCODE): $tail"; TestFiles = @(); Log = $log }
+}
+
+function Get-SetCheckFeedback {
+    # The follow-up a planner gets when its set is not usable: what the check saw, and what to do. Nothing in it comes from the
+    # task's hidden tests or its solution: the check never runs either.
+    param($Check, [string]$Task)
+    $what = switch ($Check.Verdict) {
+        "not-loaded"      { "The test runner could not load your test file. $($Check.Detail). Fix the import or the syntax so the file loads." }
+        "not-found"       { "The task's test command does not run your test file: $($Check.Detail). Put the tests where that command runs them." }
+        "passes-on-base"  { "Your tests pass on the unchanged code, so they check nothing the task asks for. Make each one fail on the code as it is now and pass once the task is done." }
+        "fails-elsewhere" { "On the unchanged code the test run fails, but not in your test files: $($Check.Detail). Your tests pass there, so they check nothing the task asks for. Make them fail on the code as it is now." }
+        default           { "Your test set could not be run on the unchanged code: $($Check.Detail)." }
+    }
+    return "The test set you handed in for task '$Task' was checked on the unchanged code before use, and it cannot be used yet. $what Fix the tests in your clone (work/$Task), run them there, and hand them in again where the prompt says. Change only the tests."
+}
+
+function Invoke-PlannerSetGate {
+    # The check, and at most -Retries follow-ups. -Check { param($attempt) } returns a verdict; -Retry { param($feedback) } runs
+    # the planner's follow-up and collects again. Returns { Attempts (one entry per check); Usable (the last check's) }.
+    param([scriptblock]$Check, [scriptblock]$Retry, [int]$Retries = 1, [string]$Task = "")
+    $attempts = New-Object System.Collections.Generic.List[object]
+    $c = & $Check 1
+    $attempts.Add([pscustomobject]@{ attempt = 1; verdict = $c.Verdict; detail = $c.Detail; feedback = $null })
+    for ($n = 1; $n -le $Retries -and $c.Verdict -ne "ok"; $n++) {
+        $fb = Get-SetCheckFeedback -Check $c -Task $Task
+        $attempts[$attempts.Count - 1].feedback = $fb
+        & $Retry $fb
+        $c = & $Check ($n + 1)
+        $attempts.Add([pscustomobject]@{ attempt = $n + 1; verdict = $c.Verdict; detail = $c.Detail; feedback = $null })
+    }
+    return [pscustomobject]@{ Attempts = $attempts.ToArray(); Usable = ($c.Verdict -eq "ok") }
+}
+
 # --- everything below runs only when the script is run, not when a guard dot-sources it for the functions ---
 if ($MyInvocation.InvocationName -eq '.') { return }
 
@@ -186,6 +243,11 @@ $promptFile = Join-Path $Pack $promptName
 if (-not (Test-Path -LiteralPath $promptFile)) { Write-Host "ERROR: $promptFile is missing" -ForegroundColor Red; exit 1 }
 $ids = if ($Tasks.Count) { @($Tasks | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ }) } else { @(Get-ChildItem (Join-Path $Pack "tasks") -Directory | ForEach-Object Name) }
 foreach ($id in $ids) { if (-not (Test-Path -LiteralPath (Join-Path $Pack "tasks\$id\base.bundle"))) { Write-Host "ERROR: no pack for task $id" -ForegroundColor Red; exit 1 } }
+if ($CheckManifest) {
+    if ($Phase -eq "done") { Write-Host "ERROR: -CheckManifest checks test sets; the done phase writes none" -ForegroundColor Red; exit 3 }
+    if (-not (Test-Path -LiteralPath $CheckManifest)) { Write-Host "ERROR: -CheckManifest $CheckManifest is missing" -ForegroundColor Red; exit 1 }
+    $CheckManifest = (Resolve-Path -LiteralPath $CheckManifest).Path
+}
 if ($Phase -eq "tests") {
     # The same checkpoint as run-planner.ps1: no tests from a list the owner has not confirmed, or has changed since.
     $checker = Join-Path $PSScriptRoot "planner_done.py"
@@ -200,7 +262,7 @@ if ($Phase -eq "tests") {
 # The harness's transcript readers (Invoke-AgentRun calls them) and the agent adapter: no copy of either here.
 $errs = $null
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($HarnessScript, [ref]$null, [ref]$errs)
-foreach ($name in "Get-TranscriptEnding", "Get-WriteCount") {
+foreach ($name in "Get-TranscriptEnding", "Get-WriteCount", "Get-TranscriptSessionId") {
     $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name }, $true) | Select-Object -First 1
     if (-not $fn) { Write-Host "ERROR: $name not found in $HarnessScript" -ForegroundColor Red; exit 1 }
     Invoke-Expression $fn.Extent.Text
@@ -238,24 +300,42 @@ try {
         $r = Invoke-AgentRun -WtPath $workDir -ModelId $Model -Prompt $msg -PromptHash "local" -TimeoutSec ($MaxMinutes * 60)
         $transcript = Join-Path $runDir "$id.jsonl"
         if ($r.TranscriptPath -and (Test-Path -LiteralPath $r.TranscriptPath)) { Copy-Item -LiteralPath $r.TranscriptPath -Destination $transcript -Force; Remove-Item -LiteralPath $r.TranscriptPath -Force -ErrorAction SilentlyContinue }
-        $events = Read-AgentEvents -Path $transcript
-        $outside = Get-OutsideReferences -Events $events -Root $root
-        $tokens = 0.0; foreach ($e in $events) { if ($e.Kind -eq "step-end" -and $e.HasTokens) { $tokens += [double]$e.Output } }
         $src = Join-Path $workDir "planner"
         $collect = $null
-        if ($Phase -ne "done") {
-            $gateDir = Join-Path $src "$id\$Run"; $idealDir = Join-Path $src "$id\$Run-ideal"; $clone = Join-Path $workDir "work\$id"
+        $gateDir = Join-Path $src "$id\$Run"; $idealDir = Join-Path $src "$id\$Run-ideal"; $clone = Join-Path $workDir "work\$id"
+        # Collect the set from the clone. Run again after a follow-up; what was handed in each time is kept apart.
+        $collectOnce = { param([string]$KeepAs)
             if (Test-Path -LiteralPath $src) {
-                $keep = Join-Path $runDir "handed-in\$id"
+                $keep = Join-Path $runDir "handed-in\$KeepAs"
                 New-Item -ItemType Directory -Force $keep | Out-Null
                 Copy-Item -Recurse -Force -Path (Join-Path $src "*") -Destination $keep
             }
             $c = Get-PlannerCollection -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir -Tiers:($Phase -eq "tests")
             if ($c.Collected.Count -or $c.Kept.Count) { New-Item -ItemType Directory -Force $gateDir | Out-Null }
             Set-PlannerCollection -Collection $c -CloneDir $clone -GateDir $gateDir -IdealDir $idealDir
-            $collect = [pscustomobject]@{ cloneFound = $c.CloneFound; collected = @($c.Collected | ForEach-Object Rel); moved = @($c.Moved); keptFromHandIn = @($c.Kept | ForEach-Object Rel | Select-Object -Unique); notInClone = @($c.NotInClone)
+            [pscustomobject]@{ cloneFound = $c.CloneFound; collected = @($c.Collected | ForEach-Object Rel); moved = @($c.Moved); keptFromHandIn = @($c.Kept | ForEach-Object Rel | Select-Object -Unique); notInClone = @($c.NotInClone)
                 existingUnchanged = @($c.ExistingUnchanged); editedNotHandedIn = @($c.EditedNotHandedIn); otherChanges = @($c.OtherChanges); ignored = @($c.Ignored) }
         }
+        if ($Phase -ne "done") { $collect = & $collectOnce $id }
+        $setCheck = $null; $retrySec = 0.0
+        if ($Phase -ne "done" -and $CheckManifest) {
+            $checkOnce = { param($attempt) Invoke-PlannerSetCheck -HarnessScript $HarnessScript -Manifest $CheckManifest -Task $id -Model $Model -SetDir $gateDir -OutDir (Join-Path $runDir "set-check\$id-$attempt") }
+            $retryOnce = { param($feedback)
+                $sid = Get-TranscriptSessionId -Path $transcript
+                if (-not $sid) { Write-Host "  set not usable, and the transcript names no session: no follow-up" -ForegroundColor Yellow; return }
+                Write-Host "  set not usable: one follow-up in session $sid" -ForegroundColor Yellow
+                $r2 = Invoke-AgentRun -WtPath $workDir -ModelId $Model -Prompt $feedback -PromptHash "local" -TimeoutSec ($MaxMinutes * 60) -SessionId $sid -Transcript $transcript
+                $script:retrySec = $r2.ElapsedSec
+                $script:collect = & $collectOnce "$id-2"
+            }
+            $gate = Invoke-PlannerSetGate -Check $checkOnce -Retry $retryOnce -Retries $SetRetries -Task $id
+            $setCheck = [pscustomobject]@{ usable = $gate.Usable; attempts = @($gate.Attempts) }
+            Write-Host ("  check before use: {0}" -f (($gate.Attempts | ForEach-Object { "attempt $($_.attempt) $($_.verdict)" }) -join ", ")) -ForegroundColor $(if ($gate.Usable) { "Green" } else { "Yellow" })
+        }
+        # Read after any follow-up, so the audit and the token count cover every turn.
+        $events = Read-AgentEvents -Path $transcript
+        $outside = Get-OutsideReferences -Events $events -Root $root
+        $tokens = 0.0; foreach ($e in $events) { if ($e.Kind -eq "step-end" -and $e.HasTokens) { $tokens += [double]$e.Output } }
         $files = @()
         if (Test-Path -LiteralPath $src) {
             Copy-Item -Recurse -Force -LiteralPath $src -Destination $runDir
@@ -264,8 +344,8 @@ try {
         $tests = @($files | Where-Object { (Split-Path -Leaf $_) -notin "NOTES.md", "DONE.md" })
         $ok = if ($Phase -eq "done") { [bool]($files | Where-Object { (Split-Path -Leaf $_) -eq "DONE.md" }) -and $tests.Count -eq 0 } else { $tests.Count -gt 0 }
         if (-not $ok) { $failed++ }
-        [pscustomobject]@{ task = $id; phase = $Phase; run = $Run; ok = $ok; exit = $r.ExitCode; minutes = [math]::Round($r.ElapsedSec / 60, 1); outputTokens = $tokens
-            files = $files; outside = $outside; collect = $collect; ending = $(if ($r.Ending) { $r.Ending.FinishReason } else { $null }) } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runDir "$id.json")
+        [pscustomobject]@{ task = $id; phase = $Phase; run = $Run; ok = $ok; exit = $r.ExitCode; minutes = [math]::Round(($r.ElapsedSec + $retrySec) / 60, 1); outputTokens = $tokens
+            files = $files; outside = $outside; collect = $collect; setCheck = $setCheck; ending = $(if ($r.Ending) { $r.Ending.FinishReason } else { $null }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runDir "$id.json")
         Write-Host ("  {0}: exit {1}, {2:N1} min, {3:N0} output tokens, {4} file(s), {5} outside reference(s)" -f $(if ($ok) { "ok" } else { "NO OUTPUT" }), $r.ExitCode, ($r.ElapsedSec / 60), $tokens, $files.Count, $outside.Count)
         if ($collect -and ($collect.moved.Count -or $collect.keptFromHandIn.Count -or $collect.notInClone.Count -or $collect.existingUnchanged.Count)) { Write-Host ("  collected from the clone: {0} moved back, {1} kept from the hand-in, {2} dropped (a path the repository cannot have), {3} the repository's own" -f $collect.moved.Count, $collect.keptFromHandIn.Count, $collect.notInClone.Count, $collect.existingUnchanged.Count) }
         Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReadOnly } | ForEach-Object { $_.Attributes = $_.Attributes -band -bnot [IO.FileAttributes]::ReadOnly }

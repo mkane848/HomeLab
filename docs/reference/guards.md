@@ -3,7 +3,7 @@
 Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-after:`. The table is generated from them (`python3 tests/make-reference.py`; CI fails when a header is missing or the table is stale). The prose under it is the full per-guard detail, moved verbatim from `AGENTS.md` (2026-10-26); the check counts in it are as of when each paragraph was written.
 
 <!-- BEGIN GENERATED: guards -->
-61 guards.
+63 guards.
 
 | Guard | Protects | Run it after touching |
 |---|---|---|
@@ -12,6 +12,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-agent-opencode-v2.ps1` | The OpenCode adapter reading 2.x transcripts, config sources and compaction threshold | tests/agents/opencode.ps1 or tests/agents/fixtures/opencode-v2/ |
 | `tests/test-agent-shell.ps1` | The agent's shell is PowerShell 7 by full path on every host | How a run is launched or its environment, or any opencode upgrade |
 | `tests/test-agent-tools.ps1` | Pre-run check that the agent's own tools (ripgrep search) work | The check, how a run is launched, or any opencode upgrade |
+| `tests/test-attempt-dryrun.ps1` | desktop/scripts/attempt-dryrun.ps1, step 1 of containerised runs: each phase's docker flags (limits, no capabilities, read-only root, grading with --network none and a read-only cache, the bundle read-only), no secrets folder, home or task repo mounted, the sealed checkout script, the report | desktop/scripts/attempt-dryrun.ps1, desktop/docker/attempt/attempt.dockerfile, docs/container-runs.md's phases or limits |
 | `tests/test-batch-engines.ps1` | run-tasks-batch.ps1 engine discovery, offered seats and probes (llama.cpp hosts, hosted) | How the batch finds hosts, offers seats or probes |
 | `tests/test-batch-plan.ps1` | Batch run order, -OnlyMissing and opencode version-drift discipline | How the batch builds its run list |
 | `tests/test-bench-speed.ps1` | bench-speed.ps1 speeds, prompt sizing and TSV logging on llama.cpp | Either bench-speed script |
@@ -43,6 +44,7 @@ Every `tests/test-*.ps1` carries two header comments, `# protects:` and `# run-a
 | `tests/test-overflow-recovery.ps1` | Get-OverflowRecovery: recovered llama.cpp context overflows; adapter-reported prompt loss (_TRUNCATED_) and GPU device loss (gpuResets) | How a run's exit is classified or an engine adapter's log check changes |
 | `tests/test-planner-done.ps1` | experiment 3's confirmation checkpoint: no planner test is written for an unconfirmed DONE.md | desktop/scripts/planner_done.py, run-planner.ps1 or make-planner-packs.py |
 | `tests/test-planner-local.ps1` | run-planner-local.ps1 prompt path rewrite, the audit of tool calls outside the scratch folder, and collecting files from the clone | run-planner-local.ps1 |
+| `tests/test-planner-set-check.ps1` | the check of a planner's set BEFORE USE, with no solution: test-tasks.ps1's Get-PlannerSetUsability on real vitest 2.1.9 and 5.0.1 output, -DryRun -SetCheckOnly (no hidden tests, no solution), and run-planner-local.ps1's one follow-up for a set that is not usable | tests/test-tasks.ps1 (Get-PlannerSetUsability, Get-VitestFilters, -SetCheckOnly), desktop/scripts/run-planner-local.ps1 (-CheckManifest), a new vitest version in a task repo |
 | `tests/test-probe-overflow.ps1` | probe-overflow.ps1 verdicts and OpenCode overflow patterns | probe-overflow.ps1 or an opencode upgrade |
 | `tests/test-profiles-config.ps1` | tests/test-profiles.ps1 reads the live OpenCode config in both key sets: 2.x (providers, settings.baseURL, capabilities.tools) and 1.x (provider, options.baseURL, tool_call), the same answers from each | tests/test-profiles.ps1, opencode/global/opencode.jsonc |
 | `tests/test-profiles.ps1` | Primary harness: live profiles vs intent manifest, host liveness, round-trip, reliability | Any profile or opencode.jsonc |

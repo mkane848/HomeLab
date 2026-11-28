@@ -1,0 +1,34 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90m/work/apps/x[39m
+
+ [32m✓[39m src/sum-two.test.js [2m([22m[2m1 test[22m[2m)[22m[90m 1[2mms[22m[39m
+ [31m❯[39m src/old.test.js [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[90m 5[2mms[22m[39m
+[31m   [31m×[31m old[90m 5[2mms[22m[31m[39m
+[31m     → expected 1 to be 2 // Object.is equality[39m
+ [32m✓[39m src/sum.test.js [2m([22m[2m1 test[22m[2m)[22m[90m 1[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/old.test.js[2m > [22mold
+[31m[1mAssertionError[22m: expected 1 to be 2 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 2[39m
+[31m+ 1[39m
+
+[36m [2m❯[22m src/old.test.js:[2m2:29[22m[39m
+    [90m  1| [39m[35mimport[39m { expect[33m,[39m it } [35mfrom[39m [32m"vitest"[39m
+    [90m  2| [39m[34mit[39m([32m"old"[39m[33m,[39m () [33m=>[39m { [34mexpect[39m([34m1[39m)[33m.[39m[34mtoBe[39m([34m2[39m) })
+    [90m   | [39m                            [31m^[39m
+    [90m  3| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m   Start at [22m 20:30:06
+[2m   Duration [22m 345ms[2m (transform 29ms, setup 0ms, collect 43ms, tests 8ms, environment 0ms, prepare 148ms)[22m
+
+exit=1

@@ -108,7 +108,8 @@ The short list as it stands. The older lists below are kept as the record of how
    owner, then local tests and a local executor. It answers how much of Opus's bar a couple of minutes of attention recovers.
    Needs the owner. (`docs/planner-tests-experiment.md` -> "Not tested yet", and its audit.)
 2. **Check each planner set before use:** it must load, the runner must find it, and it must fail on the base, with one retry. It catches
-   sets that do not load and runs with no set; too-strict tests still need review.
+   sets that do not load and runs with no set; too-strict tests still need review. **Built 2026-11-27, not yet run live**
+   ([planner-tests-experiment.md](planner-tests-experiment.md) → "Checking a set before use").
 3. **A pilot on real work:** 3 to 5 tasks in the owner's own words, delivered as branches, each with the owner's verdict (`tests/new-real-task.ps1`,
    `tests/deliver-attempt.ps1`, `tests/record-verdict.ps1`). This is what can show the Gate's false-positive rate is under 10%.
    **One of the tasks is "Close the KaneEnabler validator holes"** (owner, 2026-11-11): item 1 of the 2026-09-23 list below, which
