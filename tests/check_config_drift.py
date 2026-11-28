@@ -5,7 +5,9 @@ Compares, with no host and no network:
   * models/server-seats.tsv            (the server's seats: tag, context, pinned weights)
   * server/llamacpp/models.ini         (the server's llama-server `c` per section)
   * node3/llamacpp/models.ini          (node3's llama-server `c` per section)
-  * opencode/global/opencode.jsonc     (llamacpp-server / llamacpp-node3 models and limit.context)
+  * opencode/global/opencode.jsonc     (llamacpp-server / llamacpp-node3 models and limit.context;
+                                        native OpenCode 2.x keys, no 1.x ones)
+  * opencode/project-override/opencode.jsonc  (native OpenCode 2.x keys, no 1.x ones)
   * profiles/*.sh                      (live profiles: OPENCODE_*MODEL)
   * profiles/README.md                 (live / parked profile counts)
 
@@ -86,6 +88,43 @@ def profile_all_exports(text, name):
     return re.findall(r'^\s*export\s+%s="([^"$]*)"' % re.escape(name), text, re.M)
 
 
+# OpenCode 1.x keys that 2.x renamed or ignores, and the 2.x key that replaces each
+# (ConfigMigrateV1 and ConfigNormalize in @opencode/core 2.3.2; docs/opencode-2-migration.md,
+# step 5.1). 2.x still reads most of them, so a 1.x key would load and drift unseen.
+V1_TOP = {
+    "provider": "providers", "permission": "permissions", "plugin": "plugins",
+    "autoupdate": "update", "small_model": "agents.title.model", "agent": "agents",
+    "mode": "agents (mode: primary)", "command": "commands", "tools": "permissions",
+    "reference": "references", "autoshare": "share", "snapshot": "snapshots",
+}
+V1_PROVIDER = {"npm": "package", "options": "settings", "api": "settings.baseURL"}
+V1_MODEL = {
+    "tool_call": "capabilities.tools", "modalities": "capabilities.input/output",
+    "attachment": "(not a 2.x key)", "reasoning": "(not a 2.x key)", "options": "settings",
+}
+V1_COST = {"cache_read": "cache.read", "cache_write": "cache.write"}
+
+
+def v1_keys(cfg):
+    """(path, 2.x replacement) for every 1.x key in a parsed opencode.jsonc."""
+    out = [(k, V1_TOP[k]) for k in cfg if k in V1_TOP]
+    for pid, prov in (cfg.get("providers") or {}).items():
+        out += [("providers.%s.%s" % (pid, k), V1_PROVIDER[k]) for k in prov if k in V1_PROVIDER]
+        for mid, model in (prov.get("models") or {}).items():
+            at = "providers.%s.models.%s" % (pid, mid)
+            out += [("%s.%s" % (at, k), V1_MODEL[k]) for k in model if k in V1_MODEL]
+            cost = model.get("cost")
+            for c in (cost if isinstance(cost, list) else [cost] if isinstance(cost, dict) else []):
+                out += [("%s.cost.%s" % (at, k), V1_COST[k]) for k in c if k in V1_COST]
+    mcp = cfg.get("mcp")
+    if isinstance(mcp, dict):
+        out += [("mcp.%s" % k, "mcp.servers.%s" % k) for k in mcp if k not in ("servers", "timeout")]
+    skills = cfg.get("skills")
+    if isinstance(skills, dict):
+        out.append(("skills", "a list of paths or URLs"))
+    return out
+
+
 def check(root):
     problems = []   # (check, key, message)
 
@@ -99,7 +138,22 @@ def check(root):
         seats[r[0]] = (None if r[1] == "-" else int(r[1]), r[5])
 
     jsonc = json.loads(strip_jsonc(read(root, "opencode/global/opencode.jsonc")))
-    providers = jsonc.get("provider", {})
+    providers = jsonc.get("providers", {})
+
+    # 0. both templates use native OpenCode 2.x keys only; every llama.cpp model states its
+    #    capabilities (an unset `capabilities.input` means text AND image to 2.x).
+    for rel, cfg in (("opencode/global/opencode.jsonc", jsonc),
+                     ("opencode/project-override/opencode.jsonc",
+                      json.loads(strip_jsonc(read(root, "opencode/project-override/opencode.jsonc"))))):
+        for path, new in v1_keys(cfg):
+            bad("opencode-v1-key", "%s %s" % (os.path.basename(os.path.dirname(rel)), path),
+                "an OpenCode 1.x key; 2.x writes %s" % new)
+    for prov in ("llamacpp-server", "llamacpp-node3"):
+        for tag, m in providers.get(prov, {}).get("models", {}).items():
+            cap = m.get("capabilities") or {}
+            if not isinstance(cap.get("tools"), bool) or not isinstance(cap.get("input"), list):
+                bad("opencode-capabilities", "%s %s" % (prov, tag),
+                    "needs capabilities.tools (true/false) and capabilities.input (e.g. [\"text\"])")
 
     def limits(provider):
         out = {}

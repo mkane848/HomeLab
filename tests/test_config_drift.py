@@ -22,6 +22,7 @@ FILES = [
     "server/llamacpp/models.ini",
     "node3/llamacpp/models.ini",
     "opencode/global/opencode.jsonc",
+    "opencode/project-override/opencode.jsonc",
     "profiles/README.md",
     "tests/config-drift-allow.tsv",
 ]
@@ -139,6 +140,68 @@ class Drift(unittest.TestCase):
         self.append("tests/config-drift-allow.tsv", "llamacpp-limit\tnode3 qwen3:8b\ta deliberate difference\n")
         code, out = run(self.tmp)
         self.assertEqual(code, 0, out)
+
+    # --- native OpenCode 2.x keys in the templates (docs/opencode-2-migration.md, step 5.1) ---
+    G = "opencode/global/opencode.jsonc"
+    O = "opencode/project-override/opencode.jsonc"
+
+    def test_v1_top_level_key(self):
+        self.edit(self.G, '"update": "disable"', '"autoupdate": "notify"')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] global autoupdate: an OpenCode 1.x key; 2.x writes update", out)
+
+    def test_v1_provider_key(self):
+        # the indent skips a template comment with the same text; the first entry is llamacpp-server's.
+        # One line, so a CRLF checkout matches too.
+        self.edit(self.G, '      "package": "aisdk:@ai-sdk/openai-compatible",', '      "npm": "@ai-sdk/openai-compatible",')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] global providers.llamacpp-server.npm", out)
+
+    def test_v1_model_keys(self):
+        self.edit(self.G, '"name": "Qwen3 8B (Node3, llama.cpp)",',
+                  '"name": "Qwen3 8B (Node3, llama.cpp)", "tool_call": true, "reasoning": true,')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] global providers.llamacpp-node3.models.qwen3:8b.tool_call", out)
+        self.assertIn("[opencode-v1-key] global providers.llamacpp-node3.models.qwen3:8b.reasoning", out)
+
+    def test_v1_cost_keys(self):
+        # the trailing "}," skips the schema comment's example; the first entry is north-mini-code
+        self.edit(self.G, '"cache": { "read": 0, "write": 0 } },', '"cache_read": 0, "cache_write": 0 },')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] global providers.llamacpp-server.models.north-mini-code.cost.cache_read", out)
+
+    def test_model_without_capabilities(self):
+        self.edit(self.G, '"capabilities": { "tools": false, "input": ["text"], "output": ["text"] },', '')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-capabilities] llamacpp-server qwen2.5-coder-3b-cpu", out)
+
+    def test_override_v1_mcp_entry(self):
+        self.edit(self.O, '"instructions":', '"mcp": { "vercel": { "enabled": false } },\n  "instructions":')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] project-override mcp.vercel: an OpenCode 1.x key; 2.x writes mcp.servers.vercel", out)
+
+    def test_override_native_keys_are_clean(self):
+        # the false-positive side: every 2.x form the override documents passes
+        self.edit(self.O, '"instructions":',
+                  '"model": "opencode-go/kimi-k2.7-code",\n'
+                  '  "agents": { "title": { "model": "opencode-go/mimo-v2.5" } },\n'
+                  '  "skills": ["M:/Projects/dev-docs/skills/vercel"],\n'
+                  '  "mcp": { "timeout": { "startup": 5000 }, "servers": { "vercel": { "type": "remote", "url": "https://mcp.vercel.com", "disabled": true } } },\n'
+                  '  "instructions":')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 0, out)
+
+    def test_override_v1_skills_object(self):
+        self.edit(self.O, '"instructions":', '"skills": { "paths": ["x"] },\n  "instructions":')
+        code, out = run(self.tmp)
+        self.assertEqual(code, 1)
+        self.assertIn("[opencode-v1-key] project-override skills", out)
 
     def test_missing_source_is_exit_2(self):
         os.remove(os.path.join(self.tmp, "node3/llamacpp/models.ini"))

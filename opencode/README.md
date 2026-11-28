@@ -96,7 +96,7 @@ frontend-design 1). Only **8 of them deploy globally** — `frontend-design` and
 rest stay in this repo and a project opts in by path:
 
 ```jsonc
-"skills": { "paths": ["<path-to-this-repo>/skills/vercel"] }
+"skills": ["<path-to-this-repo>/skills/vercel"]
 ```
 
 Why: opencode advertises every installed skill's name + description in the
@@ -142,9 +142,15 @@ The `mcp` block in `opencode/global/opencode.jsonc` is **empty on purpose**.
 Each MCP server injects its full tool schema into every request; the five that
 used to live here (`vercel`, `render`, `docker`, `browser`, `postgres` — ~105
 tools) were most of a 46,505-token preamble that no 16k local model can hold.
-Servers now go in each **project's** `opencode.jsonc`, which deep-merges over
-global (`{ "enabled": false }` switches off an inherited one). Template with
-all five commented and ready: `opencode/project-override/opencode.jsonc`.
+Servers now go under `mcp.servers` in each **project's** `opencode.jsonc`,
+which merges over global. To switch off an inherited server, repeat its entry
+with `"disabled": true` (2.x drops 1.x's bare `{ "enabled": false }`). Template
+with all five commented and ready: `opencode/project-override/opencode.jsonc`.
+
+Both templates use OpenCode 2.x's own keys (`providers`, `settings`,
+`capabilities`, `permissions`, `plugins`, `update`, `agents.title`) since
+2026-11-27. The key map and the check that keeps 1.x keys out are in
+[docs/reference/config.md](../docs/reference/config.md) → "OpenCode config".
 
 ## Provider Endpoints
 
@@ -190,8 +196,8 @@ registration, the probe): [docs/reference/config.md](../docs/reference/config.md
 ## Open Items
 
 - **No Go model is a default.** `opencode/global/opencode.jsonc` takes `model`
-  and `small_model` from the active profile (`{env:OPENCODE_MODEL}`,
-  `{env:OPENCODE_SMALL_MODEL}`), and its `opencode-go` provider registers no
+  and the title agent's model (1.x's `small_model`) from the active profile
+  (`{env:OPENCODE_MODEL}`, `{env:OPENCODE_SMALL_MODEL}`), and its `opencode-go` provider registers no
   model IDs. The Go models and rates on file are in `costs/go-rates.tsv`.
   (Corrected 2026-11-11: this item had named two placeholder IDs that are no
   longer in the template.)
