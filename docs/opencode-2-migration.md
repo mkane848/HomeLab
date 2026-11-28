@@ -163,16 +163,42 @@ Each step is one PR.
      - `wait`, then `GET .../message`;
      - its own `XDG_DATA_HOME`, because `GET /api/session` otherwise lists the owner's sessions.
 5. **Native 2.x config and host rollout.**
-   - 5.1 Convert the template:
-     - `providers`, `package`, `settings.baseURL` and `settings.apiKey`
-     - `capabilities` and the `permissions` array
-     - plugin directories
-     - `update: "disable"`
-     - `agents.title.model`
-     - the 2.x `$schema`
+   - 5.1 **Done (2026-11-27).** Both templates use 2.x's own keys. Each key is the one 2.x's own v1 migration
+     writes (`ConfigMigrateV1` and `ConfigNormalize`, read in
+     [`@opencode/core` 2.3.2's published build](https://registry.npmjs.org/@opencode/core/2.3.2); shapes from
+     [`@opencode/schema` 2.3.2](https://registry.npmjs.org/@opencode/schema/2.3.2)):
 
-     Then rewrite the MODEL ENTRY SCHEMA comment, the project override (`mcp.servers`, `disabled`, `skills: [...]`),
-     `docs/reference/config.md` and `opencode/README.md`, and update `check_config_drift.py` and `test-profiles.ps1`.
+     | 1.x | 2.x |
+     |---|---|
+     | `provider.<p>.npm` | `providers.<p>.package: "aisdk:@ai-sdk/openai-compatible"` (what the migration writes; a bare `@opencode/ai/providers/openai-compatible` would lose the provider identity 2.x adds at run time) |
+     | `options.baseURL`, `options.apiKey` | `settings.baseURL`, `settings.apiKey` |
+     | `tool_call`, `modalities` | `capabilities.{tools,input,output}` |
+     | `attachment`, `reasoning` | removed; 2.x ignored them. `capabilities.reasoning` stays unset, because 2.x would build model variants from it |
+     | `cost.cache_read/cache_write` | `cost.cache.{read,write}` |
+     | `permission` map | the `permissions` array, `bash` → `shell` |
+     | `plugin` | `plugins` |
+     | `autoupdate: "notify"` | `update: "disable"`. The one change in behaviour: 1.x's "notify" did not stop the desktop moving to 2.3.2 by itself |
+     | `small_model` | `agents.title.model` |
+     | `$schema` | unchanged: 2.x keeps `https://opencode.ai/config.json` |
+
+     The project override's examples moved to `mcp.servers` (a server is switched off by repeating it with
+     `"disabled": true`; 2.x drops 1.x's bare `{ "enabled": false }`), `skills: [...]` and the title agent.
+     - **Checked with 2.x's own code:** `ConfigNormalize` from `@opencode/core` 2.3.2, run under Bun on the old and
+       the new template with the same `{env:}` values, gives the same config, leaf for leaf (96 leaves), except
+       `update`. The old file drew 12 "unsupported legacy setting" diagnostics and the new one none. With an empty
+       `OPENCODE_SMALL_MODEL` the new one adds only an empty `agents` map, as 1.x skipped an empty `small_model`.
+       The comparison caught three planted changes (a permission, a tool flag, an output limit). The `opencode`
+       binary itself was not run here.
+     - **Readers:**
+       - `tests/check_config_drift.py` reads `providers`. Two new checks: `opencode-v1-key` fails on a 1.x key in
+         either template, and `opencode-capabilities` fails on a llama.cpp model without `capabilities.tools` and
+         `capabilities.input`.
+       - `tests/test-profiles.ps1` reads the live file in either key set, because a host keeps the 1.x keys until
+         `sync-opencode.ps1` stages the new template. Guard: `tests/test-profiles-config.ps1`.
+       - The harness adapter needed nothing: it reads `opencode --standalone debug config`, which is the same
+         normalized config either way.
+     - **The templates are for 2.x only.** OpenCode 1.x does not know these keys (not tried on 1.x). Every host and
+       CI run 2.3.2 (#265, step 5.3).
    - 5.2 Raise `headerTimeout` if qwen3.6's spill hits it.
    - 5.3 Upgrade node3 between batches (scp plus `pwsh -NoProfile -File`). **Done by the owner (said 2026-11-26).**
      Not checked from a cloud session, which cannot reach node3: `opencode --version` there should print 2.3.2.
