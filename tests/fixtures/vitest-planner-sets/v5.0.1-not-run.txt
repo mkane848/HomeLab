@@ -1,0 +1,10 @@
+
+ RUN  v5.0.1 /work/apps/x
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  20:30:09
+   Duration  127ms (transform 60%, import 25%, worker 8%, tests 6%)
+
+exit=0
